@@ -269,12 +269,12 @@ class UIManager {
       else if (o.type === 'temple') { g.moveTo(cx, cy - s); g.lineTo(cx + s, cy + s * 0.8); g.lineTo(cx - s, cy + s * 0.8); g.closePath(); }
       else g.rect(cx - s * 0.7, cy - s * 0.7, s * 1.4, s * 1.4);
       g.fill(); g.stroke();
-      if (big) { g.fillStyle = '#fff'; g.font = '10px Orbitron,monospace'; g.fillText(o.type === 'merchant' ? 'BULMA' : o.type === 'swapper' ? 'ROSHI' : o.type === 'boss' ? 'ALTAR' : o.type === 'time' ? 'TIEMPO' : 'TEMPLO', cx + s + 3, cy + 3); }
+      if (big) { g.fillStyle = '#fff'; g.font = '700 11px "M PLUS Rounded 1c",sans-serif'; g.fillText(o.type === 'merchant' ? 'BULMA' : o.type === 'swapper' ? 'ROSHI' : o.type === 'boss' ? 'ALTAR' : o.type === 'time' ? 'TIEMPO' : 'TEMPLO', cx + s + 3, cy + 3); }
     }
     for (const r of game.points.rifts) {
       const pulse = 5 * k + Math.sin(t * 6) * 2;
       g.fillStyle = '#' + r.col.toString(16).padStart(6, '0'); g.strokeStyle = '#fff'; g.beginPath(); g.arc(X(r.x), X(r.z), pulse, 0, 6.3); g.fill(); g.stroke();
-      if (big) { g.fillStyle = '#fff'; g.font = '11px Orbitron,monospace'; g.fillText('GRIETA · ' + STAGES[r.to].name, X(r.x) + pulse + 3, X(r.z) + 3); }
+      if (big) { g.fillStyle = '#fff'; g.font = '700 12px "M PLUS Rounded 1c",sans-serif'; g.fillText('GRIETA · ' + STAGES[r.to].name, X(r.x) + pulse + 3, X(r.z) + 3); }
     }
     if (bossIdx >= 0) sq(game.horde.x[bossIdx], game.horde.z[bossIdx], 7 * k, '#ff3050');
     const ri = game.rivalUid ? game.horde.indexOfUid(game.rivalUid) : -1;
@@ -393,7 +393,7 @@ class UIManager {
     const d = Save.d.diff;
     const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '"><b>' + x.name + '</b><small>' + 'x' + x.coins + ' monedas · +' + x.reward + ' al ganar</small></button>').join('');
     const sel = charById(Save.d.sel);
-    this.el.menuBody.innerHTML += '<div class="dim" style="text-align:center">4 MAPAS POR PARTIDA · ELIGES CAMINO EN LA GRIETA · 10 MIN POR MAPA ANTES DEL ENJAMBRE FINAL · MATA AL JEFE PARA ABRIR LA GRIETA</div><div class="playbar"><div class="diffs">' + diffs + '</div><button class="start alt" data-start="practice">ENTRENAMIENTO</button><button class="start alt" data-start="daily">☀ DESAFÍO DIARIO</button><button class="start" data-start>JUGAR CON ' + sel.name + ' [ENTER]</button></div>';
+    this.el.menuBody.innerHTML += '<div class="rules">4 mapas por partida. Derrota al jefe para abrir la grieta y elegir camino; a los 10 minutos llega el enjambre final.</div><div class="playbar"><div class="diffs">' + diffs + '</div><button class="start alt" data-start="practice">ENTRENAMIENTO</button><button class="start alt" data-start="daily">☀ DESAFÍO DIARIO</button><button class="start" data-start>¡A LUCHAR!<small>con ' + sel.name + '</small><span class="k">ENTER</span></button></div>';
     for (const cv of this.el.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
   }
 
@@ -505,7 +505,7 @@ class UIManager {
     } else if (this.rtab === 'online') {
       h = '<div class="tabs sub"><button class="tab ' + (this.otab === 'global' ? 'on' : '') + '" data-otab="global">GENERAL</button><button class="tab ' + (this.otab === 'daily' ? 'on' : '') + '" data-otab="daily">DESAFÍO DE HOY</button></div>' +
         '<div id="onRank"><p class="dim" style="text-align:center">Cargando ranking…</p></div>';
-    } else h = Save.d.rank.length ? this.rankTable(Save.d.rank) : '<p class="dim" style="text-align:center">Juega una partida para entrar en el ranking.</p>';
+    } else h = Save.d.rank.length ? this.rankTable(Save.d.rank) : '<div class="empty"><b>Aún no hay partidas</b><p>Tu mejor puntuación aparecerá aquí en cuanto termines una partida.</p><button data-go="play">ELEGIR GUERRERO</button></div>';
     this.el.menuBody.innerHTML = tabs + h;
     if (this.rtab === 'online') this.loadOnlineRank();
   }
