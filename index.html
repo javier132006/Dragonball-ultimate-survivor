@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRAGON BALL: ULTIMATE SURVIVOR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<!-- Three.js r128 (build clásico: expone window.THREE, sin módulos) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{--cy:#35e0ff;--navy:#071426;--navy2:#0d2542;--hp:#ff4d5e;--ki:#35c8ff;--xp:#ffd84a;--line:rgba(53,224,255,.55)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a0f08;font-family:'Orbitron','Segoe UI',monospace;color:#d9f6ff;user-select:none;-webkit-user-select:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none}
+
+/* ---------- Paneles estilo Corporación Cápsula ---------- */
+.panel{position:fixed;background:linear-gradient(135deg,rgba(7,20,38,.92),rgba(13,37,66,.82));border:1px solid var(--line);
+  box-shadow:0 0 18px rgba(53,224,255,.25),inset 0 0 14px rgba(53,224,255,.12);padding:12px 16px;pointer-events:none;
+  clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+#pl{top:14px;left:14px;width:min(340px,48vw)}
+#pr{top:14px;right:14px;text-align:right;min-width:170px}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.logo{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#35e0ff 45%,#0a6f8f);
+  color:#041a2b;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px var(--cy);flex:none}
+.nm{font-size:13px;font-weight:900;letter-spacing:2px}
+.fm{font-size:10px;color:var(--xp);letter-spacing:2px}
+.lvl{margin-left:auto;font-size:11px;letter-spacing:1px}.lvl b{font-size:22px;color:var(--xp);text-shadow:0 0 8px rgba(255,216,74,.7)}
+.row{display:flex;align-items:center;gap:8px;margin-top:5px}
+.row span{width:34px;font-size:9px;letter-spacing:1px;opacity:.8}
+.bar{position:relative;flex:1;height:16px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);overflow:hidden}
+.bar i{position:absolute;inset:0;transform-origin:left center;transform:scaleX(1)}
+.bar em{position:absolute;inset:0;font-style:normal;font-size:10px;line-height:16px;text-align:center;text-shadow:0 0 3px #000}
+.hp i{background:linear-gradient(90deg,#b3162a,var(--hp))}
+.ki i{background:linear-gradient(90deg,#0a6bd1,var(--ki))}
+.xp i{background:linear-gradient(90deg,#c98f00,var(--xp))}
+.lbl{font-size:9px;letter-spacing:2px;opacity:.75}
+#kills{display:block;font-size:34px;font-weight:900;color:#fff;text-shadow:0 0 12px var(--cy);line-height:1.1}
+.mini{font-size:11px;margin-top:4px;letter-spacing:1px}.mini b{color:var(--cy)}
+
+/* ---------- Habilidades (parte inferior) ---------- */
+#abil{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;gap:14px;pointer-events:none}
+.ab{position:relative;width:128px;height:46px;background:rgba(7,20,38,.88);border:1px solid var(--line);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:1px}
+.ab .fill{position:absolute;inset:0;background:rgba(53,224,255,.28);transform-origin:left center;transform:scaleX(1)}
+.ab span{position:relative}.ab b{color:var(--xp)}
+.ab.on{border-color:var(--xp);box-shadow:0 0 14px rgba(255,216,74,.6)}
+.ab.low{border-color:#ff4d5e}
+#controls{position:fixed;left:14px;bottom:14px;font-size:10px;letter-spacing:1px;opacity:.7;pointer-events:none;text-shadow:0 0 4px #000}
+
+/* ---------- Efectos de pantalla ---------- */
+#vignette{position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,rgba(255,0,30,0) 50%,rgba(255,0,30,.6) 100%)}
+#toast{position:fixed;top:22%;left:50%;transform:translateX(-50%);font-size:clamp(26px,5vw,52px);font-weight:900;letter-spacing:4px;
+  color:var(--xp);text-shadow:0 0 18px rgba(255,180,0,.9),0 3px 0 #7a4a00;opacity:0;pointer-events:none;white-space:nowrap}
+#toast.go{animation:pop 1.3s ease-out}
+@keyframes pop{0%{opacity:0;transform:translateX(-50%) scale(.5)}15%{opacity:1;transform:translateX(-50%) scale(1.15)}30%{transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-30px) scale(1)}}
+
+/* ---------- Pantallas (inicio / pausa / derrota / error) ---------- */
+#screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(10,25,45,.78),rgba(2,6,14,.94));z-index:10}
+#screen.show{display:flex}
+.box{text-align:center;padding:28px 36px;border:1px solid var(--line);background:rgba(7,20,38,.85);box-shadow:0 0 40px rgba(53,224,255,.25);max-width:min(560px,92vw)}
+.box .logo{width:62px;height:62px;font-size:22px;margin:0 auto 14px}
+h1{font-size:clamp(22px,5vw,40px);font-weight:900;letter-spacing:5px;background:linear-gradient(180deg,#fff2a8,#ff9a00);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 10px rgba(255,150,0,.5))}
+h2{font-size:clamp(11px,2.2vw,16px);letter-spacing:6px;color:var(--cy);margin-bottom:16px}
+#scrStats{font-size:12px;line-height:1.8;margin-bottom:14px;color:#bfeaff;white-space:pre-line}
+button{font-family:inherit;font-size:14px;font-weight:700;letter-spacing:3px;color:#041a2b;background:linear-gradient(180deg,#8cf0ff,#1fc6ee);border:0;padding:12px 30px;cursor:pointer;
+  clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+button:hover{filter:brightness(1.15)}
+.help{margin-top:16px;font-size:10px;letter-spacing:1px;line-height:1.9;opacity:.75}
+</style>
+</head>
+<body>
+<canvas id="game" tabindex="-1"></canvas>
+
+<!-- HUD -->
+<div class="panel" id="pl">
+  <div class="head">
+    <div class="logo">CC</div>
+    <div><div class="nm">SON GOKU</div><div class="fm" id="formName">BASE</div></div>
+    <div class="lvl">NV <b id="lvl">1</b></div>
+  </div>
+  <div class="row"><span>VIDA</span><div class="bar hp"><i id="hpBar"></i><em id="hpTxt"></em></div></div>
+  <div class="row"><span>KI</span><div class="bar ki"><i id="kiBar"></i><em id="kiTxt"></em></div></div>
+  <div class="row"><span>EXP</span><div class="bar xp"><i id="xpBar"></i><em id="xpTxt"></em></div></div>
+</div>
+<div class="panel" id="pr">
+  <div class="lbl">ENEMIGOS DERROTADOS</div>
+  <b id="kills">0</b>
+  <div class="mini">TIEMPO <b id="time">00:00</b></div>
+  <div class="mini">HORDA <b id="horde">0</b></div>
+  <div class="mini">FPS <b id="fps">--</b></div>
+</div>
+<div id="abil">
+  <div class="ab" id="abDash"><div class="fill" id="dashFill"></div><span>DASH <b>[ESPACIO]</b></span></div>
+  <div class="ab" id="abCharge"><span>CARGAR KI <b>[C]</b></span></div>
+</div>
+<div id="controls">WASD / FLECHAS: mover · ESPACIO: dash · C: cargar ki · P: pausa</div>
+<div id="vignette"></div>
+<div id="toast"></div>
+
+<div id="screen" class="show">
+  <div class="box">
+    <div class="logo">CC</div>
+    <h1 id="scrTitle">DRAGON BALL</h1>
+    <h2 id="scrSub">ULTIMATE SURVIVOR</h2>
+    <div id="scrStats"></div>
+    <button id="scrBtn">COMENZAR [ENTER]</button>
+    <div class="help">WASD / FLECHAS: mover · ESPACIO: dash (20 ki)<br>MANTÉN C: cargar ki, curarte y repeler enemigos · P: pausa<br>Tu Goku dispara ráfagas de ki automáticamente al enemigo más cercano</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   DRAGON BALL: ULTIMATE SURVIVOR  ·  FASE 1
+   Índice:  0 Config · 1 Entrada · 2 Utilidades · 3 FX (partículas)
+            4 KiPool (proyectiles) · 5 XpOrbs · 6 Player · 7 HordeManager
+            8 World · 9 UIManager · 10 Game · 11 Arranque
+   ===================================================================== */
+
+/* ---------- 0. CONFIGURACIÓN GLOBAL ---------- */
+const CFG = {
+  ARENA: 55,              // semilado del área jugable (±ARENA)
+  MAX_ENEMIES: 450,       // capacidad del InstancedMesh de la horda
+  MAX_BULLETS: 96,        // tamaño del pool de ráfagas de Ki
+  MAX_ORBS: 300,          // orbes de experiencia simultáneos
+  CELL: 3,                // tamaño de celda de la rejilla espacial
+  PLAYER_R: 0.6,          // radio de colisión del jugador (esfera)
+  ENEMY_R: 0.55,          // radio de colisión de un Saibaimen (esfera)
+  DASH_COST: 20, DASH_TIME: 0.2, DASH_SPEED: 42, DASH_CD: 0.55,
+  CHARGE_TIME_SCALE: 0.55 // el mundo va más lento mientras cargas Ki
+};
+
+/* Tabla de formas. En la Fase 2 solo hay que añadir entradas (SSJ, SSJ2...) */
+const FORMS = [
+  { name: 'BASE', minLevel: 1, dmgMul: 1, speedMul: 1, kiRadius: 0.55, kiColor: 0xfff0a0, hair: 0x14101c, aura: 0xfff2b0 }
+];
+
+/* ---------- 1. ENTRADA (objeto global de estado: evita key-ghosting) ---------- */
+const keys = {};
+const BLOCKED = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+window.addEventListener('keydown', (e) => { if (BLOCKED.has(e.code)) e.preventDefault(); keys[e.code] = true; });
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+/* ---------- 2. UTILIDADES ---------- */
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const rand = (a, b) => a + Math.random() * (b - a);
+/** Interpolación de ángulos por el camino corto */
+const lerpAngle = (a, b, t) => {
+  const d = ((((b - a + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) - Math.PI;
+  return a + d * t;
+};
+
+/** Recursos compartidos (se crean tras comprobar que THREE existe) */
+const Shared = { toon: null, outline: null };
+function initShared() {
+  // Gradiente de 4 tonos => sombreado "cel-shading" estilo anime
+  const tex = new THREE.DataTexture(new Uint8Array([90, 150, 215, 255]), 4, 1, THREE.LuminanceFormat);
+  tex.minFilter = tex.magFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  Shared.toon = tex;
+  // Material de contorno: casco invertido (BackSide) ligeramente más grande
+  Shared.outline = new THREE.MeshBasicMaterial({ color: 0x120a1c, side: THREE.BackSide });
+}
+const toonMat = (color, extra) => new THREE.MeshToonMaterial(Object.assign({ color, gradientMap: Shared.toon }, extra || {}));
+
+/** Crea una pieza con su contorno y la añade al padre */
+function part(parent, geo, mat, x, y, z, sx, sy, sz, outline) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, y, z);
+  m.scale.set(sx || 1, sy || 1, sz || 1);
+  m.castShadow = true;
+  if (outline !== false) {
+    const o = new THREE.Mesh(geo, Shared.outline);
+    o.scale.setScalar(1.12);
+    m.add(o);
+  }
+  parent.add(m);
+  return m;
+}
+
+/** Fusiona varias geometrías en una sola con color por vértice (para InstancedMesh) */
+function mergeColored(parts) {
+  const pos = [], nor = [], col = [], idx = [];
+  let off = 0;
+  for (const { geo, matrix, color } of parts) {
+    const g = geo.clone();
+    g.applyMatrix4(matrix);
+    const p = g.attributes.position, n = g.attributes.normal, c = new THREE.Color(color);
+    for (let i = 0; i < p.count; i++) {
+      pos.push(p.getX(i), p.getY(i), p.getZ(i));
+      nor.push(n.getX(i), n.getY(i), n.getZ(i));
+      col.push(c.r, c.g, c.b);
+    }
+    if (g.index) for (let i = 0; i < g.index.count; i++) idx.push(g.index.getX(i) + off);
+    else for (let i = 0; i < p.count; i++) idx.push(i + off);
+    off += p.count;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  out.setIndex(idx);
+  return out;
+}
+
+/** Escribe una matriz (escala + giro en Y + posición) directamente en el array de instancias, sin crear objetos */
+function writeMat(a, o, x, y, z, sx, sy, sz, c, s) {
+  a[o] = sx * c;  a[o + 1] = 0;  a[o + 2] = -sx * s; a[o + 3] = 0;
+  a[o + 4] = 0;   a[o + 5] = sy; a[o + 6] = 0;       a[o + 7] = 0;
+  a[o + 8] = sz * s; a[o + 9] = 0; a[o + 10] = sz * c; a[o + 11] = 0;
+  a[o + 12] = x;  a[o + 13] = y; a[o + 14] = z;      a[o + 15] = 1;
+}
+
+/** Crea un InstancedMesh dinámico listo para actualizar cada frame */
+function makeInstanced(geo, mat, max) {
+  const m = new THREE.InstancedMesh(geo, mat, max);
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  m.frustumCulled = false;   // las instancias cambian de sitio: no usar la esfera del mesh base
+  m.count = 0;
+  return m;
+}
+
+/* ---------- 3. SISTEMA DE PARTÍCULAS (pool en anillo, un InstancedMesh por tipo) ---------- */
+class ParticleSystem {
+  constructor(scene, max, color, opacity) {
+    this.max = max;
+    this.cursor = 0;
+    this.px = new Float32Array(max); this.py = new Float32Array(max); this.pz = new Float32Array(max);
+    this.vx = new Float32Array(max); this.vy = new Float32Array(max); this.vz = new Float32Array(max);
+    this.life = new Float32Array(max); this.maxLife = new Float32Array(max);
+    this.size = new Float32Array(max); this.grav = new Float32Array(max);
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    this.mesh = makeInstanced(new THREE.IcosahedronGeometry(0.5, 0), mat, max);
+    scene.add(this.mesh);
+  }
+  setColor(hex) { this.mesh.material.color.setHex(hex); }
+  /** Reutiliza la ranura más antigua: nunca se crean objetos nuevos */
+  emit(x, y, z, vx, vy, vz, life, size, grav) {
+    const i = this.cursor;
+    this.cursor = (i + 1) % this.max;
+    this.px[i] = x; this.py[i] = y; this.pz[i] = z;
+    this.vx[i] = vx; this.vy[i] = vy; this.vz[i] = vz;
+    this.life[i] = life; this.maxLife[i] = life; this.size[i] = size; this.grav[i] = grav || 0;
+  }
+  update(dt) {
+    const a = this.mesh.instanceMatrix.array;
+    let k = 0;
+    for (let i = 0; i < this.max; i++) {
+      if (this.life[i] <= 0) continue;
+      this.life[i] -= dt;
+      if (this.life[i] <= 0) continue;
+      this.vy[i] -= this.grav[i] * dt;
+      this.px[i] += this.vx[i] * dt; this.py[i] += this.vy[i] * dt; this.pz[i] += this.vz[i] * dt;
+      if (this.py[i] < 0.05) { this.py[i] = 0.05; this.vy[i] *= -0.4; this.vx[i] *= 0.8; this.vz[i] *= 0.8; }
+      const s = this.size[i] * (this.life[i] / this.maxLife[i]);   // se encogen al morir
+      writeMat(a, k * 16, this.px[i], this.py[i], this.pz[i], s, s, s, 1, 0);
+      k++;
+    }
+    this.mesh.count = k;
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+  reset() { this.life.fill(0); this.mesh.count = 0; }
+}
+
+/** Agrupa los 4 sistemas de partículas del juego */
+class FX {
+  constructor(scene) {
+    this.sparks = new ParticleSystem(scene, 500, 0xffe066, 1.0);   // chispas de impacto y estela de Ki
+    this.aura = new ParticleSystem(scene, 400, 0xfff2b0, 0.85);    // aura de carga, ondas expansivas
+    this.trail = new ParticleSystem(scene, 240, 0x7fe8ff, 0.38);   // estela traslúcida del dash
+    this.gore = new ParticleSystem(scene, 300, 0x86d94a, 0.95);    // restos verdes de Saibaimen
+    this.all = [this.sparks, this.aura, this.trail, this.gore];
+  }
+  /** Explosión esférica de partículas */
+  burst(sys, x, y, z, n, speed, life, size, grav) {
+    for (let i = 0; i < n; i++) {
+      const u = rand(-1, 1), phi = rand(0, Math.PI * 2), r = Math.sqrt(1 - u * u), s = speed * rand(0.35, 1);
+      sys.emit(x, y, z, r * Math.cos(phi) * s, u * s * 0.8 + speed * 0.25, r * Math.sin(phi) * s,
+        life * rand(0.6, 1), size * rand(0.6, 1.2), grav || 0);
+    }
+  }
+  /** Anillo plano que se expande (onda de choque) */
+  ring(sys, x, y, z, n, speed, life, size) {
+    const o = rand(0, 6.28);
+    for (let i = 0; i < n; i++) {
+      const a = o + (i / n) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+      sys.emit(x + c, y, z + s, c * speed, 0.3, s * speed, life, size, 0);
+    }
+  }
+  update(dt) { for (let i = 0; i < 4; i++) this.all[i].update(dt); }
+  reset() { for (let i = 0; i < 4; i++) this.all[i].reset(); }
+}
+
+/* ---------- 4. POOL DE RÁFAGAS DE KI ---------- */
+class KiPool {
+  constructor(scene, max) {
+    this.max = max;
+    this.b = [];                     // pool: los objetos se crean UNA vez y se reciclan
+    for (let i = 0; i < max; i++) {
+      this.b.push({ active: false, x: 0, y: 1.4, z: 0, vx: 0, vz: 0, life: 0, dmg: 0, r: 0.5, trail: 0, crit: false });
+    }
+    this.core = makeInstanced(new THREE.SphereGeometry(1, 12, 8),
+      new THREE.MeshBasicMaterial({ color: 0xfff0a0 }), max);
+    this.halo = makeInstanced(new THREE.SphereGeometry(1, 12, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffc83a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }), max);
+    scene.add(this.core, this.halo);
+  }
+  setColor(hex) { this.core.material.color.setHex(hex); }
+  fire(x, z, dx, dz, speed, dmg, r, crit) {
+    for (let i = 0; i < this.max; i++) {
+      const b = this.b[i];
+      if (b.active) continue;
+      b.active = true; b.x = x; b.z = z; b.y = 1.4;
+      b.vx = dx * speed; b.vz = dz * speed; b.life = 1.6; b.dmg = dmg; b.r = r; b.crit = crit; b.trail = 0;
+      return true;
+    }
+    return false;   // pool lleno: se ignora el disparo
+  }
+  update(dt, game) {
+    const ca = this.core.instanceMatrix.array, ha = this.halo.instanceMatrix.array;
+    let k = 0;
+    for (let i = 0; i < this.max; i++) {
+      const b = this.b[i];
+      if (!b.active) continue;
+      b.life -= dt;
+      b.x += b.vx * dt; b.z += b.vz * dt;
+      if (b.life <= 0 || Math.abs(b.x) > CFG.ARENA + 15 || Math.abs(b.z) > CFG.ARENA + 15) { b.active = false; continue; }
+      if (game.horde.hitTest(b, game)) { b.active = false; continue; }
+      b.trail -= dt;
+      if (b.trail <= 0) {
+        b.trail = 0.03;
+        game.fx.sparks.emit(b.x, b.y, b.z, rand(-1, 1), rand(0, 1.5), rand(-1, 1), 0.25, b.r * 0.9, 0);
+      }
+      const r = b.crit ? b.r * 1.5 : b.r;
+      writeMat(ca, k * 16, b.x, b.y, b.z, r, r, r, 1, 0);
+      writeMat(ha, k * 16, b.x, b.y, b.z, r * 2.2, r * 2.2, r * 2.2, 1, 0);
+      k++;
+    }
+    this.core.count = this.halo.count = k;
+    this.core.instanceMatrix.needsUpdate = this.halo.instanceMatrix.needsUpdate = true;
+  }
+  reset() {
+    for (let i = 0; i < this.max; i++) this.b[i].active = false;
+    this.core.count = this.halo.count = 0;
+  }
+}
+
+/* ---------- 5. ORBES DE EXPERIENCIA (InstancedMesh + swap-remove) ---------- */
+class XpOrbs {
+  constructor(scene, max) {
+    this.max = max; this.n = 0; this.t = 0;
+    this.x = new Float32Array(max); this.z = new Float32Array(max); this.v = new Float32Array(max);
+    this.mesh = makeInstanced(new THREE.IcosahedronGeometry(0.3, 0),
+      new THREE.MeshBasicMaterial({ color: 0x57f0ff }), max);
+    scene.add(this.mesh);
+  }
+  spawn(x, z, val) {
+    if (this.n >= this.max) { this.v[this.max - 1] += val; return; }   // lleno: acumula en el último
+    const i = this.n++;
+    this.x[i] = x; this.z[i] = z; this.v[i] = val;
+  }
+  update(dt, player, game) {
+    this.t += dt;
+    const mr2 = player.magnet * player.magnet;
+    for (let i = this.n - 1; i >= 0; i--) {
+      const dx = player.x - this.x[i], dz = player.z - this.z[i], d2 = dx * dx + dz * dz;
+      if (d2 < 1.7) {                       // recogida
+        game.addXp(this.v[i]);
+        const l = --this.n;
+        this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.v[i] = this.v[l];
+      } else if (d2 < mr2) {                // imán hacia el jugador
+        const d = Math.sqrt(d2), s = (26 * dt) / d;
+        this.x[i] += dx * s; this.z[i] += dz * s;
+      }
+    }
+    const a = this.mesh.instanceMatrix.array;
+    for (let i = 0; i < this.n; i++) {
+      const y = 0.55 + Math.sin(this.t * 4 + this.x[i]) * 0.12;
+      writeMat(a, i * 16, this.x[i], y, this.z[i], 1, 1.3, 1, Math.cos(this.t * 2), Math.sin(this.t * 2));
+    }
+    this.mesh.count = this.n;
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+  reset() { this.n = 0; this.mesh.count = 0; }
+}
+
+/* ---------- 6. JUGADOR (Goku) ---------- */
+class Player {
+  constructor(scene) {
+    this.group = new THREE.Group();
+    scene.add(this.group);
+    this.buildModel();
+    // Escudo esférico que aparece al cargar Ki
+    this.shield = new THREE.Mesh(new THREE.SphereGeometry(1.9, 24, 16),
+      new THREE.MeshBasicMaterial({ color: 0x9be7ff, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.shield.position.y = 1.3;
+    this.shield.visible = false;
+    this.group.add(this.shield);
+    this.reset();
+  }
+
+  /** Modelo estilizado cel-shaded: piezas de geometría simples con contorno */
+  buildModel() {
+    const skin = toonMat(0xf3c49a), gi = toonMat(0xf47a00), blue = toonMat(0x1b4fd1), dark = toonMat(0x151515);
+    this.hairMat = toonMat(0x14101c);                  // la Fase 2 cambiará su color (dorado en SSJ)
+    this.body = new THREE.Group();
+    this.group.add(this.body);
+
+    const legGeo = new THREE.CylinderGeometry(0.18, 0.15, 0.85, 10);
+    const bootGeo = new THREE.BoxGeometry(0.34, 0.2, 0.48);
+    const mkLeg = (x) => {
+      const pivot = new THREE.Group();                 // pivote en la cadera para balancear la pierna
+      pivot.position.set(x, 0.9, 0);
+      part(pivot, legGeo, gi, 0, -0.43, 0);
+      part(pivot, bootGeo, blue, 0, -0.85, 0.06);
+      this.body.add(pivot);
+      return pivot;
+    };
+    this.legL = mkLeg(-0.22);
+    this.legR = mkLeg(0.22);
+
+    part(this.body, new THREE.CylinderGeometry(0.44, 0.38, 0.85, 12), gi, 0, 1.3, 0);      // torso
+    part(this.body, new THREE.CylinderGeometry(0.42, 0.42, 0.16, 12), blue, 0, 0.92, 0);   // cinturón
+    part(this.body, new THREE.CylinderGeometry(0.22, 0.3, 0.22, 12), blue, 0, 1.76, 0);    // cuello de la camiseta
+    part(this.body, new THREE.SphereGeometry(0.34, 16, 12), skin, 0, 2.14, 0, 1, 1.05, 1); // cabeza
+    const eyeGeo = new THREE.BoxGeometry(0.07, 0.11, 0.04);
+    part(this.body, eyeGeo, dark, -0.12, 2.16, 0.31, 1, 1, 1, false);
+    part(this.body, eyeGeo, dark, 0.12, 2.16, 0.31, 1, 1, 1, false);
+
+    // Pelo negro de pinchos (grupo propio para poder cambiarlo de color/forma)
+    this.hair = new THREE.Group();
+    this.hair.position.set(0, 2.3, 0);
+    this.body.add(this.hair);
+    part(this.hair, new THREE.SphereGeometry(0.37, 14, 10), this.hairMat, 0, -0.02, -0.03, 1, 0.7, 1);
+    const spike = new THREE.ConeGeometry(0.15, 0.6, 6);
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2;
+      const h = 0.9 + (i % 3) * 0.22;
+      const s = part(this.hair, spike, this.hairMat, Math.cos(a) * 0.22, 0.18, Math.sin(a) * 0.2, 1, h, 1);
+      s.rotation.z = -Math.cos(a) * 0.75;
+      s.rotation.x = Math.sin(a) * 0.75;
+    }
+    part(this.hair, new THREE.ConeGeometry(0.17, 0.7, 6), this.hairMat, 0, 0.3, 0, 1, 1, 1);
+
+    const armGeo = new THREE.CylinderGeometry(0.13, 0.11, 0.8, 8);
+    const handGeo = new THREE.SphereGeometry(0.13, 10, 8);
+    const mkArm = (x) => {
+      const pivot = new THREE.Group();                 // pivote en el hombro
+      pivot.position.set(x, 1.65, 0);
+      part(pivot, armGeo, blue, 0, -0.4, 0);
+      part(pivot, handGeo, skin, 0, -0.88, 0);
+      this.body.add(pivot);
+      return pivot;
+    };
+    this.armL = mkArm(-0.58);
+    this.armR = mkArm(0.58);
+  }
+
+  reset() {
+    this.x = 0; this.z = 0; this.vx = 0; this.vz = 0; this.face = 0;
+    this.maxHp = 100; this.hp = 100; this.maxKi = 100; this.ki = 100;
+    this.level = 1; this.xp = 0; this.xpNext = this.xpFor(1);
+    this.dmgMul = 1; this.speedMul = 1; this.fireRateMul = 1; this.magnet = 5;
+    this.formIdx = 0;
+    this.dashT = 0; this.dashCd = 0; this.dashX = 0; this.dashZ = 1; this.iframes = 0;
+    this.charging = false; this.shockT = 0; this.fireT = 0.3; this.walk = 0; this.prevSpace = false;
+    this.group.position.set(0, 0, 0);
+    this.group.rotation.set(0, 0, 0);
+    this.shield.visible = false;
+  }
+
+  get form() { return FORMS[this.formIdx]; }
+  xpFor(level) { return Math.floor(5 + level * 4 + level * level * 0.9); }
+
+  takeDamage(amount, game) {
+    if (this.iframes > 0 || game.state !== 'play') return;
+    this.hp -= amount;
+    this.iframes = 0.55;
+    game.ui.flash = 1;
+    game.shake(0.45);
+    game.hitstop = 0.04;                                // micro-congelación al recibir golpe
+    game.fx.burst(game.fx.sparks, this.x, 1.3, this.z, 8, 7, 0.4, 0.35, 8);
+  }
+
+  update(dt, game) {
+    const form = this.form;
+    // --- Lectura de entrada (siempre sobre el objeto global `keys`) ---
+    let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+    let iz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
+    const il = Math.hypot(ix, iz);
+    if (il > 0) { ix /= il; iz /= il; }
+
+    this.iframes = Math.max(0, this.iframes - dt);
+    this.dashCd = Math.max(0, this.dashCd - dt);
+    this.charging = !!keys.KeyC && this.dashT <= 0;
+
+    // --- Dash (Shunkan Ido): se activa solo en el flanco de bajada de ESPACIO ---
+    const space = !!keys.Space;
+    if (space && !this.prevSpace && this.dashT <= 0 && this.dashCd <= 0 && this.ki >= CFG.DASH_COST && !this.charging) {
+      this.dashX = il > 0 ? ix : Math.sin(this.face);
+      this.dashZ = il > 0 ? iz : Math.cos(this.face);
+      this.dashT = CFG.DASH_TIME; this.dashCd = CFG.DASH_CD;
+      this.ki -= CFG.DASH_COST;
+      this.iframes = Math.max(this.iframes, CFG.DASH_TIME + 0.1);
+      game.fx.burst(game.fx.trail, this.x, 1.2, this.z, 14, 5, 0.5, 1.1, 0);
+      game.shake(0.25);
+    }
+    this.prevSpace = space;
+
+    // --- Movimiento ---
+    const speed = 9 * this.speedMul * form.speedMul;
+    if (this.dashT > 0) {
+      this.dashT -= dt;
+      this.vx = this.dashX * CFG.DASH_SPEED; this.vz = this.dashZ * CFG.DASH_SPEED;
+      for (let h = 0; h < 3; h++) {                     // estela de imágenes residuales traslúcidas
+        game.fx.trail.emit(this.x + rand(-0.2, 0.2), 0.5 + h * 0.7, this.z + rand(-0.2, 0.2), 0, 0.3, 0, 0.35, 0.9, 0);
+      }
+    } else {
+      const tx = this.charging ? 0 : ix * speed, tz = this.charging ? 0 : iz * speed;
+      const k = 1 - Math.exp(-16 * dt);                 // aceleración suave independiente del framerate
+      this.vx += (tx - this.vx) * k; this.vz += (tz - this.vz) * k;
+    }
+    this.x = clamp(this.x + this.vx * dt, -CFG.ARENA, CFG.ARENA);
+    this.z = clamp(this.z + this.vz * dt, -CFG.ARENA, CFG.ARENA);
+    const sp = Math.hypot(this.vx, this.vz);
+
+    // --- Ki: regeneración pasiva / carga táctica ---
+    if (this.charging) {
+      this.ki = Math.min(this.maxKi, this.ki + 35 * dt);
+      this.hp = Math.min(this.maxHp, this.hp + 6 * dt);
+      const n = Math.max(1, Math.round(dt * 130));     // aura de partículas ascendentes
+      for (let i = 0; i < n; i++) {
+        const a = rand(0, 6.28), r = rand(0.9, 1.6);
+        game.fx.aura.emit(this.x + Math.cos(a) * r, rand(0.1, 0.6), this.z + Math.sin(a) * r, 0, rand(4, 7), 0, rand(0.45, 0.8), rand(0.18, 0.4), 0);
+      }
+      this.shockT -= dt;
+      if (this.shockT <= 0) {                           // onda expansiva que repele a los enemigos
+        this.shockT = 0.55;
+        game.horde.shockwave(this.x, this.z, 8, 17);
+        game.fx.ring(game.fx.aura, this.x, 0.5, this.z, 40, 15, 0.45, 0.4);
+        game.shake(0.14);
+      }
+    } else {
+      this.ki = Math.min(this.maxKi, this.ki + 4 * dt);
+      this.shockT = 0;
+    }
+
+    // --- Disparo automático hacia el enemigo más cercano ---
+    this.fireT -= dt;
+    if (this.fireT <= 0 && !this.charging) {
+      const t = game.horde.nearest(this.x, this.z, 32);
+      if (t >= 0) {
+        let dx = game.horde.x[t] - this.x, dz = game.horde.z[t] - this.z;
+        const d = Math.hypot(dx, dz) + 1e-4;
+        dx /= d; dz /= d;
+        const crit = Math.random() < 0.1;
+        const dmg = 15 * this.dmgMul * form.dmgMul * (crit ? 2 : 1);
+        game.ki.fire(this.x + dx * 0.9, this.z + dz * 0.9, dx, dz, 30, dmg, form.kiRadius, crit);
+        this.face = Math.atan2(dx, dz);                 // se gira hacia el objetivo al disparar
+        this.fireT = 0.32 / this.fireRateMul;
+      } else this.fireT = 0.1;
+    }
+    if (sp > 1.5 && this.dashT <= 0) this.face = lerpAngle(this.face, Math.atan2(this.vx, this.vz), 1 - Math.exp(-14 * dt));
+
+    this.animate(dt, sp);
+  }
+
+  /** Animación procedural: balanceo de piernas/brazos, inclinación en dash, pose de carga */
+  animate(dt, sp) {
+    const move = clamp(sp / 9, 0, 1.4);
+    if (sp > 0.5) this.walk += dt * (7 + move * 6);
+    const sw = Math.sin(this.walk) * 0.9 * Math.min(move, 1);
+    this.legL.rotation.x = sw; this.legR.rotation.x = -sw;
+    if (this.charging) {
+      this.armL.rotation.set(-0.3, 0, 1.15); this.armR.rotation.set(-0.3, 0, -1.15);
+    } else {
+      this.armL.rotation.set(-sw * 0.8, 0, 0.12); this.armR.rotation.set(sw * 0.8, 0, -0.12);
+    }
+    this.body.position.y = Math.abs(Math.sin(this.walk)) * 0.09 * Math.min(move, 1);
+    this.body.rotation.x = this.dashT > 0 ? 0.55 : 0;
+    this.group.position.set(this.x, 0, this.z);
+    this.group.rotation.y = this.face;
+    this.shield.visible = this.charging;
+    if (this.charging) {
+      const p = 1 + Math.sin(performance.now() * 0.02) * 0.06;
+      this.shield.scale.set(p, p, p);
+    }
+  }
+}
+
+/* ---------- 7. HORDA DE SAIBAIMEN (InstancedMesh + rejilla espacial) ---------- */
+class HordeManager {
+  constructor(scene, max) {
+    this.max = max; this.n = 0; this.speed = 3.4;
+    // Estructura de arrays (SoA): cero objetos por enemigo => cero basura para el GC
+    this.x = new Float32Array(max); this.z = new Float32Array(max);
+    this.hp = new Float32Array(max); this.hitT = new Float32Array(max);
+    this.kx = new Float32Array(max); this.kz = new Float32Array(max);
+    this.phase = new Float32Array(max); this.yaw = new Float32Array(max);
+
+    // Rejilla espacial (listas enlazadas en typed arrays): colisiones sin O(n²)
+    this.half = CFG.ARENA + 6;
+    this.cols = Math.ceil((this.half * 2) / CFG.CELL);
+    this.heads = new Int32Array(this.cols * this.cols);
+    this.next = new Int32Array(max);
+
+    const geo = this.buildGeometry();
+    this.mesh = makeInstanced(geo, toonMat(0xffffff, { vertexColors: true }), max);
+    this.mesh.castShadow = true;
+    this.outline = makeInstanced(geo, Shared.outline, max);
+    scene.add(this.mesh, this.outline);
+  }
+
+  /** Saibaimen: cuerpo verde, cabeza, orejas, ojos, brazos y piernas fusionados en una geometría */
+  buildGeometry() {
+    const V = THREE.Vector3, Q = THREE.Quaternion, E = THREE.Euler;
+    const mk = (geo, color, x, y, z, sx, sy, sz, rx, ry, rz) => ({
+      geo, color,
+      matrix: new THREE.Matrix4().compose(new V(x, y, z), new Q().setFromEuler(new E(rx || 0, ry || 0, rz || 0)), new V(sx, sy, sz))
+    });
+    const sph = new THREE.SphereGeometry(1, 10, 8), cyl = new THREE.CylinderGeometry(1, 0.85, 1, 7), cone = new THREE.ConeGeometry(1, 1, 6);
+    return mergeColored([
+      mk(sph, 0x5fae38, 0, 1.0, 0, 0.4, 0.58, 0.36),                    // torso
+      mk(sph, 0x78c94a, 0, 1.72, 0.02, 0.36, 0.38, 0.34),               // cabeza
+      mk(sph, 0xffe14a, -0.15, 1.76, 0.29, 0.075, 0.075, 0.05),         // ojo izq.
+      mk(sph, 0xffe14a, 0.15, 1.76, 0.29, 0.075, 0.075, 0.05),          // ojo der.
+      mk(cone, 0x5fae38, -0.36, 1.82, 0, 0.1, 0.38, 0.1, 0, 0, 1.2),   // oreja izq.
+      mk(cone, 0x5fae38, 0.36, 1.82, 0, 0.1, 0.38, 0.1, 0, 0, -1.2),   // oreja der.
+      mk(cyl, 0x5fae38, -0.5, 1.0, 0, 0.08, 0.72, 0.08, 0, 0, 0.22),   // brazo izq.
+      mk(cyl, 0x5fae38, 0.5, 1.0, 0, 0.08, 0.72, 0.08, 0, 0, -0.22),   // brazo der.
+      mk(cyl, 0x4a9230, -0.17, 0.32, 0, 0.11, 0.64, 0.11),             // pierna izq.
+      mk(cyl, 0x4a9230, 0.17, 0.32, 0, 0.11, 0.64, 0.11)               // pierna der.
+    ]);
+  }
+
+  cellOf(x, z) {
+    const cx = clamp(Math.floor((x + this.half) / CFG.CELL), 0, this.cols - 1);
+    const cz = clamp(Math.floor((z + this.half) / CFG.CELL), 0, this.cols - 1);
+    return cz * this.cols + cx;
+  }
+
+  spawn(x, z, hp) {
+    if (this.n >= this.max) return false;
+    const i = this.n++;
+    this.x[i] = x; this.z[i] = z; this.hp[i] = hp; this.hitT[i] = 0;
+    this.kx[i] = 0; this.kz[i] = 0; this.phase[i] = rand(0, 6.28); this.yaw[i] = 0;
+    return true;
+  }
+
+  /** Elimina el enemigo i copiando el último en su hueco (O(1), array siempre compacto) */
+  remove(i) {
+    const l = --this.n;
+    this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.hp[i] = this.hp[l]; this.hitT[i] = this.hitT[l];
+    this.kx[i] = this.kx[l]; this.kz[i] = this.kz[l]; this.phase[i] = this.phase[l]; this.yaw[i] = this.yaw[l];
+  }
+
+  /** Simulación: reconstruye la rejilla, persigue al jugador, separa enemigos y detecta contacto */
+  update(dt, player, game) {
+    const n = this.n, x = this.x, z = this.z, kx = this.kx, kz = this.kz, heads = this.heads, next = this.next, cols = this.cols;
+    heads.fill(-1);
+    for (let i = 0; i < n; i++) { const c = this.cellOf(x[i], z[i]); next[i] = heads[c]; heads[c] = i; }
+
+    const px = player.x, pz = player.z, lim = CFG.ARENA + 2, sepR = 1.1, sepR2 = sepR * sepR;
+    const kd = Math.exp(-7 * dt), touch = CFG.PLAYER_R + CFG.ENEMY_R + 0.15, dmg = game.enemyDamage();
+    for (let i = 0; i < n; i++) {
+      const xi = x[i], zi = z[i];
+      let dx = px - xi, dz = pz - zi;
+      const d = Math.sqrt(dx * dx + dz * dz) + 1e-4;
+      dx /= d; dz /= d;
+      let vx = dx * this.speed, vz = dz * this.speed;
+
+      // Separación con vecinos de las 9 celdas cercanas
+      const c = this.cellOf(xi, zi), cx = c % cols, cz = (c / cols) | 0;
+      let sx = 0, sz = 0;
+      for (let gz = cz - 1; gz <= cz + 1; gz++) {
+        if (gz < 0 || gz >= cols) continue;
+        for (let gx = cx - 1; gx <= cx + 1; gx++) {
+          if (gx < 0 || gx >= cols) continue;
+          let j = heads[gz * cols + gx];
+          while (j !== -1) {
+            if (j !== i) {
+              const ex = xi - x[j], ez = zi - z[j], e2 = ex * ex + ez * ez;
+              if (e2 < sepR2 && e2 > 1e-6) { const e = Math.sqrt(e2), f = (sepR - e) / sepR; sx += (ex / e) * f; sz += (ez / e) * f; }
+            }
+            j = next[j];
+          }
+        }
+      }
+      vx += sx * 5 + kx[i]; vz += sz * 5 + kz[i];
+      kx[i] *= kd; kz[i] *= kd;
+      x[i] = clamp(xi + vx * dt, -lim, lim);
+      z[i] = clamp(zi + vz * dt, -lim, lim);
+      this.yaw[i] = Math.atan2(dx, dz);
+      this.phase[i] += dt * 9;
+      if (this.hitT[i] > 0) this.hitT[i] -= dt;
+      if (d < touch && this.hp[i] > 0) player.takeDamage(dmg, game);   // colisión esfera-esfera con el jugador
+    }
+  }
+
+  /** Colisión de una ráfaga contra la rejilla (esfera-esfera). Devuelve true si impacta */
+  hitTest(b, game) {
+    const cols = this.cols, rr = (b.r + CFG.ENEMY_R) * (b.r + CFG.ENEMY_R);
+    const c = this.cellOf(b.x, b.z), cx = c % cols, cz = (c / cols) | 0;
+    for (let gz = cz - 1; gz <= cz + 1; gz++) {
+      if (gz < 0 || gz >= cols) continue;
+      for (let gx = cx - 1; gx <= cx + 1; gx++) {
+        if (gx < 0 || gx >= cols) continue;
+        let j = this.heads[gz * cols + gx];
+        while (j !== -1) {
+          if (this.hp[j] > 0) {
+            const dx = this.x[j] - b.x, dz = this.z[j] - b.z;
+            if (dx * dx + dz * dz < rr) { this.damage(j, b, game); return true; }
+          }
+          j = this.next[j];
+        }
+      }
+    }
+    return false;
+  }
+
+  damage(j, b, game) {
+    this.hp[j] -= b.dmg;
+    this.hitT[j] = 0.12;
+    this.kx[j] += b.vx * 0.22; this.kz[j] += b.vz * 0.22;          // retroceso
+    game.fx.burst(game.fx.sparks, b.x, 1.2, b.z, b.crit ? 10 : 4, b.crit ? 9 : 5, 0.3, b.crit ? 0.5 : 0.3, 6);
+    if (b.crit) { game.hitstop = 0.04; game.shake(0.3); } else game.shake(0.06);
+  }
+
+  /** Enemigo vivo más cercano dentro de `range` (o -1) */
+  nearest(px, pz, range) {
+    let best = -1, bd = range * range;
+    for (let i = 0; i < this.n; i++) {
+      if (this.hp[i] <= 0) continue;
+      const dx = this.x[i] - px, dz = this.z[i] - pz, d2 = dx * dx + dz * dz;
+      if (d2 < bd) { bd = d2; best = i; }
+    }
+    return best;
+  }
+
+  /** Onda expansiva: empuja a los enemigos cercanos */
+  shockwave(px, pz, radius, force) {
+    const r2 = radius * radius;
+    for (let i = 0; i < this.n; i++) {
+      const dx = this.x[i] - px, dz = this.z[i] - pz, d2 = dx * dx + dz * dz;
+      if (d2 < r2 && d2 > 1e-6) {
+        const d = Math.sqrt(d2), f = force * (1.2 - d / radius);
+        this.kx[i] += (dx / d) * f; this.kz[i] += (dz / d) * f;
+      }
+    }
+  }
+
+  /** Retira los enemigos con vida <= 0 (de atrás hacia delante para no romper índices) */
+  reap(game) {
+    for (let i = this.n - 1; i >= 0; i--) {
+      if (this.hp[i] <= 0) { game.onEnemyKilled(this.x[i], this.z[i]); this.remove(i); }
+    }
+  }
+
+  /** Escribe las matrices de render (tras reap, para que los índices coincidan) */
+  sync() {
+    const am = this.mesh.instanceMatrix.array, ao = this.outline.instanceMatrix.array;
+    for (let i = 0; i < this.n; i++) {
+      const c = Math.cos(this.yaw[i]), s = Math.sin(this.yaw[i]);
+      const bob = Math.abs(Math.sin(this.phase[i])) * 0.18;
+      const pulse = 1 + Math.max(0, this.hitT[i]) * 2;             // "squash" al recibir un golpe
+      const sy = pulse * (1 - 0.05 * Math.sin(this.phase[i] * 2));
+      writeMat(am, i * 16, this.x[i], bob, this.z[i], pulse, sy, pulse, c, s);
+      writeMat(ao, i * 16, this.x[i], bob - 0.06, this.z[i], pulse * 1.1, sy * 1.1, pulse * 1.1, c, s);
+    }
+    this.mesh.count = this.outline.count = this.n;
+    this.mesh.instanceMatrix.needsUpdate = this.outline.instanceMatrix.needsUpdate = true;
+  }
+
+  reset() { this.n = 0; this.mesh.count = this.outline.count = 0; }
+}
+
+/* ---------- 8. MUNDO: terreno baldío, mesetas, luces y cielo ---------- */
+class World {
+  constructor(scene) {
+    scene.background = new THREE.Color(0xf2b676);
+    scene.fog = new THREE.Fog(0xf0b878, 75, 190);
+    scene.add(new THREE.HemisphereLight(0xfff0d0, 0x8a5a30, 0.95));
+
+    // Luz cenital con sombras suaves: sigue al jugador para mantener la sombra nítida
+    this.sun = new THREE.DirectionalLight(0xfff4e0, 1.15);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    const sc = this.sun.shadow.camera;
+    sc.left = -42; sc.right = 42; sc.top = 42; sc.bottom = -42; sc.near = 1; sc.far = 130;
+    this.sun.shadow.bias = -0.0006;
+    scene.add(this.sun, this.sun.target);
+
+    // Suelo con textura procedural (grietas y manchas) si el canvas 2D está disponible
+    const tex = this.makeGroundTexture();
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(700, 700),
+      toonMat(0xc98a4b, tex ? { map: tex } : {}));
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Mesetas rocosas alrededor de la arena (decorado, instanciadas)
+    const rockGeo = new THREE.CylinderGeometry(0.62, 1, 1, 7);
+    const rocks = new THREE.InstancedMesh(rockGeo, toonMat(0x9c5a2e), 70);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < 70; i++) {
+      const a = rand(0, Math.PI * 2), r = CFG.ARENA + rand(14, 90), w = rand(6, 15), h = rand(8, 34);
+      q.setFromAxisAngle(up, rand(0, 6.28));
+      p.set(Math.cos(a) * r, h / 2 - 0.5, Math.sin(a) * r);
+      s.set(w, h, w);
+      rocks.setMatrixAt(i, m.compose(p, q, s));
+    }
+    rocks.castShadow = rocks.receiveShadow = true;
+    scene.add(rocks);
+
+    // Piedras pequeñas repartidas por la arena (planas, no estorban)
+    const stones = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), toonMat(0xa8693a), 90);
+    for (let i = 0; i < 90; i++) {
+      const w = rand(0.3, 0.9);
+      q.setFromAxisAngle(up, rand(0, 6.28));
+      p.set(rand(-CFG.ARENA, CFG.ARENA), 0, rand(-CFG.ARENA, CFG.ARENA));
+      s.set(w, w * 0.35, w * rand(0.7, 1.3));
+      stones.setMatrixAt(i, m.compose(p, q, s));
+    }
+    stones.receiveShadow = true;
+    scene.add(stones);
+
+    // Línea que marca el límite de la arena
+    const A = CFG.ARENA;
+    const border = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-A, 0.06, -A), new THREE.Vector3(A, 0.06, -A), new THREE.Vector3(A, 0.06, A), new THREE.Vector3(-A, 0.06, A)]),
+      new THREE.LineBasicMaterial({ color: 0xff7a1a }));
+    scene.add(border);
+  }
+
+  makeGroundTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 512;
+    const g = c.getContext && c.getContext('2d');
+    if (!g) return null;
+    g.fillStyle = '#c98a4b';
+    g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 260; i++) {
+      g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '120,70,30' : '235,170,100') + ',' + (0.06 + Math.random() * 0.1) + ')';
+      g.beginPath(); g.arc(Math.random() * 512, Math.random() * 512, 8 + Math.random() * 40, 0, 7); g.fill();
+    }
+    g.strokeStyle = 'rgba(70,35,15,.55)';
+    g.lineWidth = 2;
+    for (let i = 0; i < 26; i++) {
+      let x = Math.random() * 512, y = Math.random() * 512;
+      g.beginPath(); g.moveTo(x, y);
+      for (let k = 0; k < 7; k++) { x += (Math.random() - 0.5) * 60; y += (Math.random() - 0.5) * 60; g.lineTo(x, y); }
+      g.stroke();
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(24, 24);
+    t.anisotropy = 4;
+    return t;
+  }
+
+  /** La luz y su sombra siguen al jugador */
+  follow(x, z) {
+    this.sun.position.set(x + 14, 42, z + 10);
+    this.sun.target.position.set(x, 0, z);
+  }
+}
+
+/* ---------- 9. INTERFAZ (HUD estilo Corporación Cápsula) ---------- */
+class UIManager {
+  constructor() {
+    const $ = (id) => document.getElementById(id);
+    this.el = {
+      lvl: $('lvl'), form: $('formName'), kills: $('kills'), time: $('time'), horde: $('horde'), fps: $('fps'),
+      hpBar: $('hpBar'), hpTxt: $('hpTxt'), kiBar: $('kiBar'), kiTxt: $('kiTxt'), xpBar: $('xpBar'), xpTxt: $('xpTxt'),
+      dashFill: $('dashFill'), abDash: $('abDash'), abCharge: $('abCharge'),
+      vignette: $('vignette'), toast: $('toast'),
+      screen: $('screen'), title: $('scrTitle'), sub: $('scrSub'), stats: $('scrStats'), btn: $('scrBtn')
+    };
+    this.last = {};       // caché de valores: solo se toca el DOM cuando algo cambia
+    this.flash = 0;
+    this.fpsAcc = 0; this.fpsFrames = 0;
+  }
+  text(key, value) {
+    if (this.last[key] !== value) { this.last[key] = value; this.el[key].textContent = value; }
+  }
+  bar(key, ratio, label) {
+    const q = Math.round(clamp(ratio, 0, 1) * 400) / 400;
+    if (this.last[key + 'R'] !== q) { this.last[key + 'R'] = q; this.el[key + 'Bar'].style.transform = 'scaleX(' + q + ')'; }
+    this.text(key + 'Txt', label);
+  }
+  toggle(key, cls, on) {
+    const k = key + cls;
+    if (this.last[k] !== on) { this.last[k] = on; this.el[key].classList.toggle(cls, on); }
+  }
+  update(game, rawDt) {
+    const p = game.player;
+    this.text('lvl', String(p.level));
+    this.text('form', p.form.name);
+    this.bar('hp', p.hp / p.maxHp, Math.ceil(p.hp) + ' / ' + p.maxHp);
+    this.bar('ki', p.ki / p.maxKi, Math.floor(p.ki) + ' / ' + p.maxKi);
+    this.bar('xp', p.xp / p.xpNext, Math.floor(p.xp) + ' / ' + p.xpNext);
+    this.text('kills', String(game.kills));
+    const t = Math.floor(game.time);
+    this.text('time', String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'));
+    this.text('horde', String(game.horde.n));
+    // Cooldown del dash
+    const ready = p.dashCd <= 0 ? 1 : 1 - p.dashCd / CFG.DASH_CD;
+    const q = Math.round(ready * 50) / 50;
+    if (this.last.dashR !== q) { this.last.dashR = q; this.el.dashFill.style.transform = 'scaleX(' + q + ')'; }
+    this.toggle('abDash', 'low', p.ki < CFG.DASH_COST);
+    this.toggle('abCharge', 'on', p.charging);
+    // Destello rojo al recibir daño
+    if (this.flash > 0) {
+      this.flash = Math.max(0, this.flash - rawDt * 3);
+      this.el.vignette.style.opacity = this.flash;
+    }
+    // Contador de FPS (se refresca cada 0.5 s)
+    this.fpsAcc += rawDt; this.fpsFrames++;
+    if (this.fpsAcc >= 0.5) { this.text('fps', String(Math.round(this.fpsFrames / this.fpsAcc))); this.fpsAcc = 0; this.fpsFrames = 0; }
+  }
+  toast(msg) {
+    const t = this.el.toast;
+    t.textContent = msg;
+    t.classList.remove('go');
+    void t.offsetWidth;            // fuerza reflow para reiniciar la animación CSS
+    t.classList.add('go');
+  }
+  showScreen(title, sub, stats, btn) {
+    this.el.title.textContent = title; this.el.sub.textContent = sub;
+    this.el.stats.textContent = stats; this.el.btn.textContent = btn;
+    this.el.screen.classList.add('show');
+  }
+  hideScreen() { this.el.screen.classList.remove('show'); }
+  fatal(msg) { this.showScreen('ERROR', 'NO SE PUDO INICIAR EL JUEGO', msg, 'REINTENTAR'); this.el.btn.onclick = () => location.reload(); }
+}
+
+/* ---------- 10. JUEGO: bucle principal y orquestación ---------- */
+class Game {
+  constructor() {
+    this.ui = new UIManager();
+    this.state = 'menu';          // menu | play | pause | over
+    this.time = 0; this.kills = 0; this.spawnAcc = 0;
+    this.hitstop = 0; this.shakeAmt = 0;
+    this.clock = null;
+    try {
+      if (typeof THREE === 'undefined') throw new Error('Three.js no se cargó desde el CDN. Revisa tu conexión a internet.');
+      this.initGL();
+    } catch (err) {
+      console.error(err);
+      this.ui.fatal(String(err.message || err));
+      return;
+    }
+    this.bindEvents();
+    this.ui.update(this, 0);      // HUD con valores iniciales desde el menú
+    this.clock = new THREE.Clock();
+    this.loop = this.loop.bind(this);
+    requestAnimationFrame(this.loop);
+  }
+
+  initGL() {
+    const canvas = document.getElementById('game');
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 400);
+    this.camBase = new THREE.Vector3(0, 24, 16);
+    this.camLook = new THREE.Vector3(0, 0, 0);
+    this.camera.position.copy(this.camBase);
+    this.camera.lookAt(this.camLook);
+
+    initShared();
+    this.world = new World(this.scene);
+    this.fx = new FX(this.scene);
+    this.player = new Player(this.scene);
+    this.horde = new HordeManager(this.scene, CFG.MAX_ENEMIES);
+    this.ki = new KiPool(this.scene, CFG.MAX_BULLETS);
+    this.orbs = new XpOrbs(this.scene, CFG.MAX_ORBS);
+    this.applyForm(0);
+    this.world.follow(0, 0);
+  }
+
+  bindEvents() {
+    window.addEventListener('resize', () => {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+    });
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.state = 'pause';
+      this.ui.fatal('Se perdió el contexto WebGL (la GPU se reinició). Recarga la página.');
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      if (e.code === 'Enter' && (this.state === 'menu' || this.state === 'over')) this.start();
+      else if (e.code === 'KeyR' && this.state === 'over') this.start();
+      else if (e.code === 'KeyP' || e.code === 'Escape') this.togglePause();
+    });
+    this.ui.el.btn.onclick = () => {
+      this.ui.el.btn.blur();
+      if (this.state === 'pause') this.togglePause(); else this.start();
+    };
+    document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'play') this.togglePause(); });
+  }
+
+  start() {
+    this.player.reset(); this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset();
+    this.time = 0; this.kills = 0; this.spawnAcc = 0; this.hitstop = 0; this.shakeAmt = 0;
+    this.applyForm(0);
+    for (let i = 0; i < 14; i++) this.spawnEnemy();
+    this.camBase.set(0, 24, 16); this.camLook.set(0, 0, 0);
+    this.state = 'play';
+    this.ui.hideScreen();
+    this.clock.getDelta();       // descarta el tiempo acumulado en el menú
+  }
+
+  togglePause() {
+    if (this.state === 'play') { this.state = 'pause'; this.ui.showScreen('PAUSA', 'JUEGO DETENIDO', '', 'CONTINUAR [P]'); }
+    else if (this.state === 'pause') { this.state = 'play'; this.ui.hideScreen(); this.clock.getDelta(); }
+  }
+
+  gameOver() {
+    this.state = 'over';
+    const t = Math.floor(this.time);
+    this.ui.showScreen('DERROTA', 'HAS CAÍDO EN COMBATE',
+      'ENEMIGOS DERROTADOS: ' + this.kills + '\nNIVEL ALCANZADO: ' + this.player.level +
+      '\nTIEMPO: ' + String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'), 'REINTENTAR [R]');
+  }
+
+  /** Aplica una forma de la tabla FORMS (color de pelo, de Ki y del aura). La Fase 2 añadirá más formas. */
+  applyForm(idx) {
+    const f = FORMS[idx];
+    this.player.formIdx = idx;
+    this.player.hairMat.color.setHex(f.hair);
+    this.ki.setColor(f.kiColor);
+    this.fx.aura.setColor(f.aura);
+  }
+
+  /** Cambia de forma según el nivel (hoy solo existe BASE) */
+  checkTransformation() {
+    let best = 0;
+    for (let i = 0; i < FORMS.length; i++) if (this.player.level >= FORMS[i].minLevel) best = i;
+    if (best !== this.player.formIdx) { this.applyForm(best); this.ui.toast(FORMS[best].name + '!'); }
+  }
+
+  shake(a) { this.shakeAmt = Math.min(1.4, Math.max(this.shakeAmt, a)); }
+
+  enemyDamage() { return 7 + this.time * 0.03; }
+
+  spawnEnemy() {
+    const p = this.player, lim = CFG.ARENA + 1;
+    let a = rand(0, Math.PI * 2);
+    const r = rand(26, 34);
+    let x = clamp(p.x + Math.cos(a) * r, -lim, lim), z = clamp(p.z + Math.sin(a) * r, -lim, lim);
+    if (Math.hypot(x - p.x, z - p.z) < 14) {      // si el borde la acercó demasiado, spawnea en el lado opuesto
+      a += Math.PI;
+      x = clamp(p.x + Math.cos(a) * r, -lim, lim); z = clamp(p.z + Math.sin(a) * r, -lim, lim);
+    }
+    this.horde.spawn(x, z, 14 + this.time * 0.25);
+  }
+
+  onEnemyKilled(x, z) {
+    this.kills++;
+    this.orbs.spawn(x, z, 1);
+    this.fx.burst(this.fx.gore, x, 1, z, 7, 6, 0.55, 0.4, 12);
+    this.fx.burst(this.fx.sparks, x, 1, z, 4, 5, 0.35, 0.3, 6);
+  }
+
+  addXp(v) {
+    const p = this.player;
+    p.xp += v;
+    while (p.xp >= p.xpNext) {
+      p.xp -= p.xpNext;
+      p.level++;
+      p.xpNext = p.xpFor(p.level);
+      this.onLevelUp();
+    }
+  }
+
+  /** Subida de nivel. FASE 2: aquí se pausará el juego para mostrar las 3 cartas de mejora. */
+  onLevelUp() {
+    const p = this.player;
+    p.hp = Math.min(p.maxHp, p.hp + 15);
+    p.dmgMul += 0.04;
+    this.ui.toast('¡NIVEL ' + p.level + '!');
+    this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 36, 12, 0.5, 0.45);
+    this.shake(0.4);
+    this.checkTransformation();
+  }
+
+  /** Cámara de seguimiento con interpolación suave + temblor de pantalla */
+  updateCamera(dt, rawDt) {
+    const p = this.player, k = 1 - Math.exp(-5 * dt);
+    this.camBase.x += (p.x - this.camBase.x) * k;
+    this.camBase.z += (p.z + 16 - this.camBase.z) * k;
+    this.camLook.x += (p.x - this.camLook.x) * k;
+    this.camLook.z += (p.z - this.camLook.z) * k;
+    const s = this.shakeAmt;
+    this.camera.position.set(this.camBase.x + (Math.random() - 0.5) * s * 1.2, this.camBase.y + (Math.random() - 0.5) * s * 1.2, this.camBase.z);
+    this.camera.lookAt(this.camLook);
+    this.shakeAmt = Math.max(0, s - rawDt * 2.6);
+  }
+
+  /** Un paso de simulación (dt ya incluye hitstop) */
+  update(dt, rawDt) {
+    const p = this.player;
+    this.time += dt;
+    p.update(dt, this);
+
+    // Spawn progresivo: cada segundo salen más enemigos y más fuertes
+    this.spawnAcc += Math.min(4 + this.time * 0.09, 22) * dt;
+    while (this.spawnAcc >= 1) { this.spawnAcc -= 1; this.spawnEnemy(); }
+    this.horde.speed = 3.4 + Math.min(this.time * 0.01, 2.2);
+
+    const edt = dt * (p.charging ? CFG.CHARGE_TIME_SCALE : 1);   // cargar Ki ralentiza el mundo
+    this.horde.update(edt, p, this);
+    this.ki.update(dt, this);
+    this.horde.reap(this);       // los enemigos muertos se retiran DESPUÉS de las colisiones
+    this.horde.sync();
+    this.orbs.update(dt, p, this);
+    this.world.follow(p.x, p.z);
+    if (p.hp <= 0) this.gameOver();
+  }
+
+  loop() {
+    requestAnimationFrame(this.loop);
+    const rawDt = Math.min(this.clock.getDelta(), 0.05);         // delta time acotado
+    let dt = 0;
+    if (this.state === 'play') {
+      if (this.hitstop > 0) this.hitstop -= rawDt;               // hitstop: simulación congelada unos ms
+      else dt = rawDt;
+      if (dt > 0) this.update(dt, rawDt);
+      this.fx.update(dt);
+      this.updateCamera(Math.max(dt, rawDt * 0.25), rawDt);
+      this.ui.update(this, rawDt);
+    }
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+/* ---------- 11. ARRANQUE ---------- */
+window.game = new Game();
+</script>
+</body>
+</html>
