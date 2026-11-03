@@ -13,13 +13,13 @@ class WeaponSystem {
     this._a = { dx: 1, dz: 0, d: 0, i: -1 };          // resultado reutilizable de aim()
     // Rayos (Kamehameha, Galick, Dodonpa): pool de 8
     this.beams = [];
-    for (let i = 0; i < 8; i++) this.beams.push({ on: false, x: 0, z: 0, dx: 1, dz: 0, len: 20, hw: 1, dmg: 0, age: 0, life: 1, tick: 0, tickDt: 0.1, color: 0xffffff, follow: false });
+    for (let i = 0; i < 12; i++) this.beams.push({ on: false, x: 0, z: 0, dx: 1, dz: 0, len: 20, hw: 1, dmg: 0, age: 0, life: 1, tick: 0, tickDt: 0.1, color: 0xffffff, follow: false, src: '' });
     this.beamB = new SpriteBatch(scene, { max: 1000, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
     this.orbB = new SpriteBatch(scene, { max: 24, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
     // Minas y meteoros: pools
     this.minePool = []; for (let i = 0; i < 8; i++) this.minePool.push({ on: false, x: 0, z: 0, arm: 0 });
     this.mineB = new SpriteBatch(scene, { max: 8, texture: tex.gem, w: 1, h: 1, anchor: 0.5, renderOrder: 1 });
-    this.strikes = []; for (let i = 0; i < 14; i++) this.strikes.push({ on: false, x: 0, z: 0, t: 0, T: 0.6, big: false, r: 3, dmg: 0, tint: 0xffffff });
+    this.strikes = []; for (let i = 0; i < 24; i++) this.strikes.push({ on: false, x: 0, z: 0, t: 0, T: 0.6, big: false, r: 3, dmg: 0, tint: 0xffffff, src: '' });
   }
 
   reset(ch) {
@@ -42,6 +42,14 @@ class WeaponSystem {
     return n;
   }
 
+  /** Fusión: quita las dos técnicas de origen y añade la fusionada (ya al máximo) */
+  fuse(id) {
+    const F = WEAPONS[id];
+    this.list = this.list.filter((w) => !F.fusion.includes(w.id));
+    const n = this.add(id); n.lv = MAX_WEAPON_LEVEL; n.fused = true;
+    return n;
+  }
+
   /** Enemigo más cercano en `range`: devuelve el objeto reutilizable _a o null */
   aim(g, p, range) {
     const i = g.horde.nearest(p.x, p.z, range);
@@ -58,11 +66,12 @@ class WeaponSystem {
   update(dt, g) {
     const p = g.player;
     this.orbB.begin();
-    for (const w of this.list) (w.kind === 'beam' ? this.beamW : this[w.kind]).call(this, w, dt, g, p);
+    for (const w of this.list) { DMG_SRC = w.id; (w.kind === 'beam' ? this.beamW : this[w.kind]).call(this, w, dt, g, p); }
     this.orbB.end();
-    this.updateMines(dt, g);
+    DMG_SRC = 'mines'; this.updateMines(dt, g);
     this.updateStrikes(dt, g);
     this.updateBeams(dt, g);
+    DMG_SRC = 'otros';
   }
 
   /* ----- Ráfaga de Ki: proyectiles al enemigo más cercano ----- */
@@ -75,7 +84,7 @@ class WeaponSystem {
     for (let i = 0; i < n; i++) {
       const ang = (i - (n - 1) / 2) * 0.17, c = Math.cos(ang), s = Math.sin(ang);
       crit = Math.random() < p.crit;
-      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 28, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.5, crit, 1.3, lv >= 4 ? 1 : 0, 0, p.form.ki);
+      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 28, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.5, crit, 1.3, lv >= 4 ? 1 : 0, 0, WEAPONS[w.id].color && p.formIdx === 0 ? WEAPONS[w.id].color : p.form.ki);
     }
     p.attack(a.dx, a.dz, crit, g);
   }
@@ -117,6 +126,7 @@ class WeaponSystem {
     for (let i = 0; i < n; i++) {
       const ang = n === 1 ? 0 : (i ? 0.3 : -0.3), c = Math.cos(ang), s = Math.sin(ang), crit = Math.random() < p.crit;
       this.beam(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 26, 0.65, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.25, 99, 0xffe040, false);
+      if (crit) g.onCrit(dm * p.damageMul() * p.critDmg);
     }
     p.attack(a.dx, a.dz, true, g);
   }
@@ -163,13 +173,14 @@ class WeaponSystem {
   rain(w, dt, g, p) {
     if (!this.ready(w, dt, p)) return;
     if (g.horde.n === 0) return;
-    const lv = w.lv, n = 3 + (lv >= 2) + (lv >= 4) + (lv >= 5) * 2, r = 3 * (lv >= 4 ? 1.3 : 1), dm = 28 * (1 + 0.35 * (lv >= 3));
-    w.cd = lv >= 5 ? 1.7 : 2.3;
+    const M = WEAPONS[w.id].mul || { n: 1, dmg: 1, cd: 1 }, col = WEAPONS[w.id].color || p.form.ki;
+    const lv = w.lv, n = (3 + (lv >= 2) + (lv >= 4) + (lv >= 5) * 2) * M.n, r = 3 * (lv >= 4 ? 1.3 : 1), dm = 28 * (1 + 0.35 * (lv >= 3)) * M.dmg;
+    w.cd = (lv >= 5 ? 1.7 : 2.3) * M.cd;
     let done = 0;
     for (let k = 0; k < 30 && done < n; k++) {
       const i = (Math.random() * g.horde.n) | 0, dx = g.horde.x[i] - p.x, dz = g.horde.z[i] - p.z;
       if (dx * dx + dz * dz > 26 * 26) continue;
-      for (const s of this.strikes) if (!s.on) { s.on = true; s.x = g.horde.x[i]; s.z = g.horde.z[i]; s.t = 0.6; s.T = 0.6; s.big = false; s.r = r; s.dmg = dm * p.damageMul(); s.tint = p.form.ki; done++; break; }
+      for (const s of this.strikes) if (!s.on) { s.on = true; s.x = g.horde.x[i]; s.z = g.horde.z[i]; s.t = 0.6; s.T = 0.6; s.big = false; s.r = r; s.dmg = dm * p.damageMul(); s.tint = col; s.src = w.id; done++; break; }
     }
   }
   updateStrikes(dt, g) {
@@ -185,7 +196,7 @@ class WeaponSystem {
       // Marca en el suelo + columna de luz que cae
       g.fx.trail.emit(s.x + Math.cos(g.time * 9) * s.r * 0.8, 0.2, s.z + Math.sin(g.time * 9) * s.r * 0.8, 0, 0.5, 0, 0.2, 0.28, 0, s.tint);
       g.fx.sparks.emit(s.x, 3 + s.t * 24, s.z, 0, -14, 0, 0.12, 0.45, 0, s.tint);
-      if (s.t <= 0) { s.on = false; g.explode(s.x, s.z, s.r, s.dmg, s.tint); }
+      if (s.t <= 0) { s.on = false; DMG_SRC = s.src || 'otros'; g.explode(s.x, s.z, s.r, s.dmg, s.tint); if (s.big) SFX.play('bigboom'); }
     }
   }
 
@@ -197,10 +208,11 @@ class WeaponSystem {
     if (!hit) return;
     for (const s of this.strikes) {
       if (s.on) continue;
-      s.on = true; s.big = true; s.t = s.T = 2.6; s.x = p.x + a.dx * 7; s.z = p.z + a.dz * 7;
-      s.r = 15 * (lv >= 3 ? 1.25 : 1) * (lv >= 5 ? 1.2 : 1); s.dmg = 110 * (1 + 0.5 * (lv - 1)) * p.damageMul(); s.tint = 0x9fe8ff;
-      w.cd = lv >= 4 ? 22 : 28;
-      g.ui.toast('¡GENKIDAMA!');
+      const D = WEAPONS[w.id], C = D.cfg || {};
+      s.on = true; s.big = true; s.t = s.T = 2.6; s.x = p.x + a.dx * 7; s.z = p.z + a.dz * 7; s.src = w.id;
+      s.r = (C.r || 15) * (lv >= 3 ? 1.25 : 1) * (lv >= 5 ? 1.2 : 1); s.dmg = (C.dmg || 110) * (1 + 0.5 * (lv - 1)) * p.damageMul(); s.tint = D.color || 0x9fe8ff;
+      w.cd = C.cd || (lv >= 4 ? 22 : 28);
+      g.ui.toast('¡' + D.name.toUpperCase() + '!'); SFX.play('charge');
       return;
     }
   }
@@ -227,6 +239,8 @@ class WeaponSystem {
     w.cd = c.cd * (lv >= 4 ? 0.8 : 1) * (lv >= 5 ? 0.9 : 1);
     const crit = Math.random() < p.crit, dm = c.dmg * (1 + 0.4 * (lv - 1)) * p.damageMul() * (crit ? p.critDmg : 1);
     this.beam(p.x, p.z, a.dx, a.dz, c.len * (lv >= 3 ? 1.2 : 1), c.hw * (lv >= 2 ? 1.1 : 1) * (lv >= 5 ? 1.2 : 1), dm, c.life, 0.1, D.color, true);
+    if (crit) g.onCrit(dm);
+    SFX.play('bigbeam');
     p.attack(a.dx, a.dz, true, g); p.beamT = c.life;
     g.shake(0.9); g.ui.toast(D.name.toUpperCase() + '!', true);
     g.fx.burst(g.fx.aura, p.x, 1.4, p.z, 24, 7, 0.6, 0.4, 0, D.color);
@@ -245,7 +259,7 @@ class WeaponSystem {
     g.horde.shockwave(p.x, p.z, r, 22);
     g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 80, r * 3.2, 0.6, 0.45, 0xff8a3a);
     g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 16, 0.9, 0.5, 4, 0xffd060);
-    g.shake(1.2); g.hitstop = 0.1; g.ui.toast('¡EXPLOSIÓN FINAL!', true);
+    g.shake(1.2); g.hitstop = 0.1; g.ui.toast('¡EXPLOSIÓN FINAL!', true); SFX.play('bigboom');
   }
 
   /* ----- Kienzan: discos que atraviesan ----- */
@@ -276,6 +290,7 @@ class WeaponSystem {
     g.horde.damageRadius(p.x, p.z, r, dm * p.damageMul(), 14, g);
     g.world.damageArea(p.x, p.z, r, dm);
     g.horde.shockwave(p.x, p.z, r, 12);
+    SFX.play('pulse');
     g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 56, r * 3, 0.4, 0.3, p.form.ki);
     g.fx.ring(g.fx.aura, p.x, 0.5, p.z, 36, r * 2, 0.5, 0.35, 0xffffff);
     g.shake(0.3);
@@ -290,6 +305,8 @@ class WeaponSystem {
     w.cd = lv >= 5 ? 3.5 : lv >= 4 ? 4 : 5;
     p.ki -= 10;
     this.beam(p.x, p.z, a.dx, a.dz, 26 * big, 1.3 * big * (lv >= 5 ? 1.3 : 1), dm * p.damageMul() * (crit ? p.critDmg : 1) * 0.35, 0.75, 0.1, this.col(w, p), true);
+    if (crit) g.onCrit(dm * p.damageMul() * p.critDmg);
+    SFX.play('beam');
     p.attack(a.dx, a.dz, true, g); p.beamT = 0.75;
     g.shake(0.6);
     g.fx.burst(g.fx.aura, p.x, 1.4, p.z, 18, 6, 0.5, 0.35, 0, this.col(w, p));
@@ -330,13 +347,73 @@ class WeaponSystem {
       if (i % 3 === 0) g.fx.aura.emit(p.x + c * r * 0.6, 1.2, p.z + s * r * 0.6, c * 3, 0, s * 3, 0.3, 0.3, 0, color);
     }
     g.shake(0.2);
+    SFX.play('slash');
+  }
+
+  /* ----- Rayos rápidos (Rayos Oculares de Piccolo, Death Beam de Freezer) ----- */
+  pbolt(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const C = WEAPONS[w.id].cfg, lv = w.lv, a = this.aim(g, p, C.len + 4); if (!a) return;
+    const n = 1 + (lv >= 3) + (lv >= 5), dm = C.dmg * (lv >= 2 ? 1.2 : 1), len = C.len * (lv >= 4 ? 1.3 : 1);
+    w.cd = C.cd / (lv >= 5 ? 1.3 : 1);
+    let crit = false;
+    for (let i = 0; i < n; i++) {
+      const ang = (i - (n - 1) / 2) * 0.14, c = Math.cos(ang), s = Math.sin(ang);
+      crit = Math.random() < p.crit;
+      const d = dm * p.damageMul() * (crit ? p.critDmg : 1);
+      this.beam(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, len, C.hw, d, 0.16, 99, this.col(w, p), false);
+      if (crit) g.onCrit(d);
+    }
+    p.attack(a.dx, a.dz, crit, g);
+    SFX.play('zap');
+  }
+
+  /* ----- Hellzone Grenade: anillo de esferas que convergen y explotan ----- */
+  hellzone(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const a = this.aim(g, p, 26); if (!a) return;
+    const lv = w.lv, n = 6 + (lv >= 3) * 2 + (lv >= 5) * 2, dm = 26 * (1 + 0.4 * (lv >= 2) + 0.4 * (lv >= 5)), R = 6 * (lv >= 5 ? 1.3 : 1);
+    w.cd = lv >= 4 ? 4 : 5.5;
+    const cx = g.horde.x[a.i], cz = g.horde.z[a.i], col = this.col(w, p);
+    for (let k = 0; k < n; k++) {
+      const ang = (k / n) * 6.2832;
+      for (const s of this.strikes) if (!s.on) { s.on = true; s.big = false; s.x = cx + Math.cos(ang) * R * 0.35; s.z = cz + Math.sin(ang) * R * 0.35; s.t = s.T = 0.9 + k * 0.04; s.r = R * 0.55; s.dmg = dm * p.damageMul(); s.tint = col; s.src = w.id; break; }
+      g.fx.burst(g.fx.aura, cx + Math.cos(ang) * R, 1.4, cz + Math.sin(ang) * R, 6, 3, 0.6, 0.4, 0, col);
+    }
+    p.attack(a.dx, a.dz, true, g);
+    g.ui.toast('¡HELLZONE GRENADE!', true);
+  }
+
+  /* ----- Fusión de Black: doble tajo circular ----- */
+  godslash(w, dt, g, p) {
+    const r = 9, dm = 46, col = this.col(w, p);
+    if (w.pend > 0) { w.pend -= dt; if (w.pend <= 0) this.slash(g, p, -w.pdx, -w.pdz, r, dm, true, col); }
+    if (!this.ready(w, dt, p)) return;
+    const a = this.aim(g, p, r + 3); if (!a) return;
+    w.cd = 1.0; w.pdx = a.dx; w.pdz = a.dz; w.pend = 0.18;
+    this.slash(g, p, a.dx, a.dz, r, dm, true, col);
+    p.attack(a.dx, a.dz, true, g);
+  }
+
+  /* ----- Fusión Planeta de Ki: 6 esferas + pulsos ----- */
+  kiplanet(w, dt, g, p) {
+    const n = 6, rad = 5, dm = 16, col = this.col(w, p);
+    w.ang += dt * 3.2;
+    w.tick -= dt;
+    const hit = w.tick <= 0; if (hit) w.tick = 0.2;
+    for (let i = 0; i < n; i++) {
+      const a = w.ang + (i * Math.PI * 2) / n, ox = p.x + Math.cos(a) * rad, oz = p.z + Math.sin(a) * rad;
+      this.orbB.push(ox, 1.3, oz, 0, 0, 0, 2.1, 1, col);
+      if (hit) { g.horde.damageRadius(ox, oz, 1.4, dm * p.damageMul(), 6, g); g.world.damageArea(ox, oz, 1.2, dm); }
+    }
+    if (this.ready(w, dt, p) && g.horde.nearest(p.x, p.z, 14) >= 0) { w.cd = 2.2; this.pulse(g, p, 12, 40); }
   }
 
   /* ----- Pool de rayos ----- */
   beam(x, z, dx, dz, len, hw, dmg, life, tickDt, color, follow) {
     for (const b of this.beams) {
       if (b.on) continue;
-      b.on = true; b.x = x; b.z = z; b.dx = dx; b.dz = dz; b.len = len; b.hw = hw; b.dmg = dmg; b.age = 0; b.life = life; b.tick = 0; b.tickDt = tickDt; b.color = color; b.follow = follow;
+      b.on = true; b.x = x; b.z = z; b.dx = dx; b.dz = dz; b.len = len; b.hw = hw; b.dmg = dmg; b.age = 0; b.life = life; b.tick = 0; b.tickDt = tickDt; b.color = color; b.follow = follow; b.src = DMG_SRC;
       return;
     }
   }
@@ -352,6 +429,7 @@ class WeaponSystem {
       b.tick -= dt;
       if (b.tick <= 0) {
         b.tick = b.tickDt;
+        DMG_SRC = b.src;
         g.horde.damageLine(b.x, b.z, b.dx, b.dz, cur, b.hw, b.dmg, g);
         for (let t = 2; t < cur; t += 4) g.world.damageArea(b.x + b.dx * t, b.z + b.dz * t, b.hw, b.dmg);
         g.fx.sparks.emit(b.x + b.dx * cur, 1.5, b.z + b.dz * cur, rand(-3, 3), rand(0, 4), rand(-3, 3), 0.3, 0.35, 0, b.color);

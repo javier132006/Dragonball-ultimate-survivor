@@ -31,6 +31,25 @@ const TRANSFORM_FX = {
     { c1: '#ffd400', c2: '#fff4a0', quote: '¡¡KAKAROTTO!!', frames: 'IWBIC', charge: 1.9, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.2, kanji: '誇り' },
     { c1: '#ff3a4a', c2: '#c070ff', quote: '¡NO TENGO LÍMITES!', frames: 'BIWIBC', charge: 2.2, fx: ['shatter', 'bolts', 'sparks'], bolt: '#ff9ad0', shake: 1.3, kanji: '限界突破' }
   ],
+  piccolo: [
+    null,
+    { c1: '#7aff6a', c2: '#e0ffd0', quote: '¡Nail, presta tu fuerza!', frames: 'WIC', charge: 1.6, fx: ['bolts', 'ripple'], bolt: '#c8ff9a', shake: 0.7, kanji: 'ナメック' },
+    { c1: '#d8ff7a', c2: '#ffffff', quote: 'Kami y yo volvemos a ser uno.', frames: 'IWBIC', charge: 2.0, fx: ['stars', 'ripple', 'bolts'], bolt: '#ffffff', shake: 0.9, kanji: '神' },
+    { c1: '#ff8a2a', c2: '#ffd8a0', quote: '¡¡GRAAAAAAHHH!!', frames: 'BIWIBC', charge: 2.3, fx: ['rocks', 'cracks', 'quake', 'shatter'], shake: 1.4, kanji: 'オレンジ' }
+  ],
+  gohan: [
+    null,
+    { c1: '#ffd400', c2: '#fff6a0', quote: '¡No os lo perdonaré!', frames: 'WIBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#fff27a', shake: 1.0, kanji: '超サイヤ人' },
+    { c1: '#ffe14a', c2: '#bfe8ff', quote: '¡¡BASTA YA!!', frames: 'IWIBIC', charge: 2.0, fx: ['bolts', 'sparks', 'rocks', 'quake'], bolt: '#9fe0ff', shake: 1.3, kanji: '超サイヤ人２' },
+    { c1: '#ffffff', c2: '#c8d8ff', quote: 'Todo mi potencial... despierta.', frames: 'WCIC', charge: 1.9, fx: ['ripple', 'stars'], shake: 0.5, kanji: '究極' },
+    { c1: '#b07aff', c2: '#f0e0ff', quote: '¡¡AAAAAAAHHHHHH!!', frames: 'BIWBIWBC', charge: 2.6, fx: ['bolts', 'cracks', 'rocks', 'quake', 'shatter'], bolt: '#e0b0ff', shake: 1.5, kanji: '獣' }
+  ],
+  freezer: [
+    null,
+    { c1: '#ff6ad8', c2: '#ffd0f0', quote: 'Ahora verás el 100% de mi poder.', frames: 'IWC', charge: 1.7, fx: ['bolts', 'sparks'], bolt: '#ff9ae0', shake: 0.9, kanji: '百パーセント' },
+    { c1: '#ffd400', c2: '#fff6c0', quote: 'Contempla mi forma dorada.', frames: 'WIBIC', charge: 2.0, fx: ['stars', 'ripple', 'bolts'], bolt: '#fff27a', shake: 0.8, kanji: 'ゴールデン' },
+    { c1: '#6a4aff', c2: '#c8b8ff', quote: '...Inclinaos ante el emperador.', frames: 'BIBWBIC', charge: 2.4, fx: ['silence', 'shatter', 'bolts'], bolt: '#a080ff', shake: 1.1, kanji: '黒' }
+  ],
   black: [
     null,
     { c1: '#ffd84a', c2: '#3a1a4a', quote: 'Contempla la belleza de un dios.', frames: 'IBC', charge: 1.6, fx: ['bolts', 'stars'], bolt: '#ffe890', shake: 0.6, kanji: '超サイヤ人' },
@@ -72,6 +91,10 @@ class TransformScene {
     this.cv.style.display = 'block';
     this.banner.className = ''; this.banner.innerHTML = '';
     g.ui.el.hud.classList.add('cine');
+    // Sonido: grito sintetizado + carga, música atenuada
+    SFX.setDuck(0.3);
+    SFX.scream(this.cfg.charge, { goku: 175, vegeta: 160, black: 150, piccolo: 120, gohan: 200, freezer: 230 }[p.ch.id] || 170);
+    SFX.play('charge');
   }
 
   resize() { this.cv.width = window.innerWidth; this.cv.height = window.innerHeight; }
@@ -125,18 +148,22 @@ class TransformScene {
   swap() {
     const g = this.g, p = g.player, col = parseInt(this.cfg.c1.slice(1), 16);
     this.swapped = true;
+    SFX.play('impact');
     p.setForm(this.to); g.applyForm();
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
     g.fx.ring(g.fx.aura, p.x, 0.4, p.z, 80, 30, 0.9, 0.5, col);
     g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 18, 0.9, 0.5, 2, col);
     g.horde.shockwave(p.x, p.z, 22, 40);
+    DMG_SRC = 'transform';
     g.horde.damageRadius(p.x, p.z, 14, 60 * p.damageMul(), 20, g);
+    DMG_SRC = 'otros';
     g.world.damageArea(p.x, p.z, 10, 999);
     g.track('transforms', 1);
   }
 
   showBanner() {
     this.bannerOn = true;
+    SFX.play('stinger');
     const f = this.form, c = this.cfg;
     this.banner.style.setProperty('--c1', c.c1); this.banner.style.setProperty('--c2', c.c2);
     this.banner.innerHTML = '<small>' + (c.kanji || '') + '</small><b>' + f.name + '</b><i>' + c.quote + '</i>';
@@ -162,6 +189,7 @@ class TransformScene {
     g.ui.el.hud.classList.remove('cine');
     g.camDistT = this.cam0.dist; g.camPitch = this.cam0.pitch;
     p.charging = false; p.iframes = 1.2;
+    SFX.setDuck(1);
   }
 
   /** Posición del jugador en pantalla */

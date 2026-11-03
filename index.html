@@ -266,6 +266,7 @@ html,body{background:#120a04;-webkit-tap-highlight-color:transparent}
 .panel{background:linear-gradient(160deg,rgba(16,26,58,.94),rgba(8,12,30,.9));border:2px solid var(--or);
   box-shadow:0 0 0 2px rgba(0,0,0,.65),0 0 18px rgba(255,140,0,.32),inset 0 0 18px rgba(255,140,0,.1)}
 #pl{padding:10px 14px 12px}
+#wstrip{top:178px}
 #pl .head{gap:12px}
 .pframe{width:66px;height:66px;border-radius:50%;flex:none;overflow:hidden;border:3px solid var(--or);box-shadow:0 0 0 2px #000,0 0 14px rgba(255,150,0,.7);
   background:radial-gradient(circle,#fff2b0 0%,#ffb020 45%,#a83a00 100%)}
@@ -479,10 +480,34 @@ html.touch #bossBox{top:56px}
   .shop{grid-template-columns:1fr}.msplit{grid-template-columns:1fr 1fr}.mtop{min-height:0}.zeni{padding:4px 10px;font-size:14px}.zeni b{font-size:18px}
   #menuNav h3{font-size:22px}.back,.tab{font-size:14px;padding:6px 12px}
 }
+
+/* ---------- Combo, tormenta, gráfica de daño, logros, opciones ---------- */
+#combo{display:none;position:fixed;right:22px;top:46%;transform:translateY(-50%) skewX(-10deg);text-align:right;pointer-events:none}
+#combo b{display:block;font-family:var(--db);font-weight:400;font-size:64px;line-height:.9;color:var(--cc,#ffe14a);text-shadow:4px 4px 0 #000,-2px -2px 0 #000,0 0 20px var(--cc,#ffe14a)}
+#combo span{font-family:var(--db);font-size:22px;letter-spacing:4px;color:#fff;text-shadow:2px 2px 0 #000}
+#combo .cbar{width:120px;height:6px;margin:4px 0 0 auto;background:rgba(0,0,0,.6);border:1px solid #000}#combo .cbar i{display:block;height:100%;background:var(--cc,#ffe14a);transform-origin:left center}
+#combo.bump b{animation:cbump .18s ease-out}@keyframes cbump{0%{transform:scale(1.35)}100%{transform:scale(1)}}
+#storm{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity 1s;
+  background:repeating-linear-gradient(105deg,rgba(170,200,255,0) 0 22px,rgba(170,200,255,.22) 22px 23px),linear-gradient(180deg,rgba(20,30,70,.35),rgba(10,10,40,.45));background-size:220px 220px,100% 100%;animation:rain .35s linear infinite}
+#storm.on{opacity:1}@keyframes rain{to{background-position:-60px 220px,0 0}}
+.dchart{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px;text-align:left}
+.dr{display:grid;grid-template-columns:minmax(120px,1.3fr) 2fr auto;align-items:center;gap:10px;font-size:10px}
+.dr span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dr b{color:#fff;font-size:10px;min-width:84px;text-align:right}
+.dbar{height:10px;background:rgba(255,255,255,.08);border:1px solid rgba(0,0,0,.6);transform:skewX(-14deg)}.dbar i{display:block;height:100%}
+.item.ach .ic{font-size:26px;color:var(--yl)}.item.ach.done{border-color:var(--yl);background:linear-gradient(160deg,rgba(80,60,10,.6),rgba(30,20,6,.8))}
+.item.ach .mb{margin-top:14px}.arw{font-family:var(--db);font-size:18px;color:var(--yl);white-space:nowrap}
+.item.opt input{width:100%;margin-top:10px;accent-color:#ff8a00}
+.ch .prov{display:block;font-size:7px;letter-spacing:1px;color:#ff9a6a;margin-top:2px}
+.start.alt{background:linear-gradient(180deg,#9cff8a,#2fae4a);color:#05200c;margin-right:8px}
+.card.fusion{border-color:#ff4a3a;box-shadow:0 0 0 3px #000,0 0 30px rgba(255,80,60,.7)}.card.fusion .ci{background:radial-gradient(circle at 35% 30%,#ffe0d0,#ff5a3a 50%,#7a0a00);box-shadow:0 0 0 2px #ff4a3a,0 0 22px rgba(255,80,60,.8)}
+.card.fusion small{background:#ff4a3a;color:#fff}
+#tbLv{display:none;left:calc(50% + 66px);top:8px;width:42px;height:42px;font-size:13px;border-color:#7fe07a}
+@media (max-height:520px){#combo b{font-size:40px}#combo span{font-size:15px}#combo{right:10px;top:52%}.dr{grid-template-columns:1fr 1.4fr auto}}
 </style>
 </head>
 <body>
 <canvas id="game" tabindex="-1"></canvas>
+<div id="storm"></div>
 
 <div id="hud">
   <div class="panel" id="pl">
@@ -516,6 +541,7 @@ html.touch #bossBox{top:56px}
   <div id="controls">WASD: mover · RATÓN: cámara · E: interactuar · G: transformarse · M: mapa · TAB: estadísticas · ESPACIO: dash · C: cargar ki · RUEDA: zoom · T: inclinación por defecto · P/ESC: pausa</div>
   <div id="zoneBox"><div id="zoneName">HABITACIÓN DEL ESPÍRITU Y EL TIEMPO · <b id="zoneTxt">0%</b></div><div class="bar"><i id="zoneBar"></i></div></div>
   <div id="mmWrap"><canvas id="mm" width="140" height="140"></canvas><span class="mmLbl">RADAR</span></div>
+  <div id="combo"><b id="comboN">0</b><span>COMBO</span><div class="cbar"><i id="comboBar"></i></div></div>
   <div id="tfBtn"><span class="key">G</span><div><small>TRANSFORMACIÓN DISPONIBLE</small><b id="tfName"></b></div></div>
 </div>
 <div id="prompt"></div>
@@ -535,6 +561,7 @@ html.touch #bossBox{top:56px}
   <div class="tbt" id="tbTf">⚡<small>TRANSFORMAR</small></div>
   <div class="tbt sm" id="tbPause">II</div>
   <div class="tbt sm" id="tbMap">◎</div>
+  <div class="tbt" id="tbLv">NV+</div>
 </div>
 <div id="rotate"><div class="phone"></div><b>GIRA EL MÓVIL</b><p>Este juego se juega en horizontal</p></div>
 
@@ -571,7 +598,9 @@ html.touch #bossBox{top:56px}
 <script src="js/world.js"></script>
 <script src="js/entities.js"></script>
 <script src="js/poi.js"></script>
+<script src="js/extras.js"></script>
 <script src="js/weapons.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/transform.js"></script>
 <script src="js/touch.js"></script>

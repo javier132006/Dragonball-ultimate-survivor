@@ -5,6 +5,7 @@
    enemigos, mejoras del laboratorio y guardado local.
    ===================================================================== */
 
+/* Personajes con sprite PROVISIONAL (hoja de otro personaje recoloreada) hasta tener sus sprites propios */
 const SHEET_NAMES = ['goku_a', 'goku_b', 'vegeta', 'black', 'shade'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4x4, fila*4+columna) ---------- */
@@ -64,11 +65,45 @@ const CHARACTERS = [
       form('ROSÉ · PODER TOTAL', 36, 'black', rowAnim(3, true, { alt: SHADE_ALT }), 3.2, 1.3, 0xff4fb0, 0xff3fa0, 0xffffff)
     ]
   },
-  { id: 'piccolo', name: 'PICCOLO', role: 'Control de masas', soon: true },
+  {
+    id: 'piccolo', name: 'PICCOLO', role: 'Control de masas · Regeneración', cost: 3500, provisional: true,
+    hp: 120, ki: 110, spd: 0.95, dmg: 1.0, start: ['eyebeam'], unique: ['eyebeam', 'hellzone', 'lightgrenade'],
+    passive: { name: 'Regeneración namekiana', desc: 'Recuperas 1,5 de vida por segundo.' },
+    portrait: { sheet: 'vegeta', frame: 0, tint: 0x7fe07a },
+    forms: [
+      form('BASE', 1, 'vegeta', A_VEG, 1.0, 1.0, 0x9cff8a, 0, 0x7fe07a),
+      form('FUSIÓN CON NAIL', 10, 'vegeta', A_VEG, 1.45, 1.1, 0x9cff8a, 0x8aff70, 0x6ad86a),
+      form('FUSIÓN CON KAMI', 20, 'vegeta', A_VEG, 1.95, 1.18, 0xd8ff9a, 0xc8ff7a, 0x5ad05a),
+      form('PICCOLO NARANJA', 32, 'vegeta', A_VEG, 2.7, 1.3, 0xffb060, 0xff9a3a, 0xffa060)
+    ]
+  },
+  {
+    id: 'gohan', name: 'GOHAN', role: 'Potencial oculto · Rayos', cost: 5000, provisional: true,
+    hp: 100, ki: 120, spd: 1.0, dmg: 1.05, start: ['gblast'], unique: ['gblast', 'fsk', 'rage'],
+    passive: { name: 'Potencial oculto', desc: '+40% de daño mientras tu vida esté por debajo del 50%.' },
+    portrait: { sheet: 'goku_a', frame: 0, tint: 0xc8d8ff },
+    forms: [
+      form('BASE', 1, 'goku_a', rowAnim(0), 1.0, 1.0, 0xbfe4ff, 0, 0xc8d8ff),
+      form('SUPER SAIYAN', 10, 'goku_a', rowAnim(1, true), 1.5, 1.12, 0xffe14a, 0xffd84a, 0xe8e8ff),
+      form('SUPER SAIYAN 2', 18, 'goku_b', rowAnim(0, true), 2.0, 1.2, 0xfff08a, 0xfff07a, 0xe8e8ff),
+      form('DEFINITIVO', 28, 'goku_a', rowAnim(0, true), 2.6, 1.25, 0xffffff, 0xf0f4ff, 0xd0d8ff),
+      form('GOHAN BESTIA', 38, 'goku_b', rowAnim(2, true), 3.5, 1.35, 0xd8b8ff, 0xc89aff, 0xe0d0ff)
+    ]
+  },
+  {
+    id: 'freezer', name: 'FREEZER', role: 'Tirano · Rayos mortales', cost: 8000, provisional: true,
+    hp: 95, ki: 120, spd: 1.05, dmg: 1.15, start: ['deathbeam'], unique: ['deathbeam', 'deathsaucer', 'deathball'],
+    passive: { name: 'Emperador del Universo', desc: '+25% de Zeni y monedas en cada partida.' },
+    portrait: { sheet: 'shade', frame: 0, tint: 0xf4ecff },
+    forms: [
+      form('FORMA FINAL', 1, 'shade', A_STD, 1.0, 1.0, 0xd88aff, 0, 0xf4ecff),
+      form('100% DE PODER', 12, 'shade', A_STD, 1.55, 1.12, 0xff8ad8, 0xff7ac8, 0xffd8f0),
+      form('GOLDEN FREEZER', 24, 'shade', A_STD, 2.3, 1.22, 0xffd84a, 0xffd23a, 0xffe070),
+      form('BLACK FREEZER', 36, 'shade', A_STD, 3.3, 1.32, 0xa080ff, 0x8a6aff, 0x9a90b0)
+    ]
+  },
   { id: 'krilin', name: 'KRILIN', role: 'Agilidad · Discos', soon: true },
-  { id: 'gohan', name: 'GOHAN', role: 'Potencial oculto', soon: true },
   { id: 'trunks', name: 'TRUNKS', role: 'Espadachín', soon: true },
-  { id: 'freezer', name: 'FREEZER', role: 'Tirano', soon: true },
   { id: 'cell', name: 'CÉLULA', role: 'Absorción', soon: true }
 ];
 const charById = (id) => CHARACTERS.find((c) => c.id === id);
@@ -97,7 +132,28 @@ const WEAPONS = {
   judgement: { name: 'Juicio Divino', icon: '⚡', kind: 'bigbeam', unique: 'black', shop: 3500, minLv: 6, color: 0xff7ac8, cfg: { cd: 10, dmg: 14, len: 38, hw: 2.6, life: 1.2, cost: 20 }, lv: ['Rayo rosado de justicia divina.', '+40% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Juicio definitivo.'] },
   kienzan: { name: 'Kienzan', icon: '◌', kind: 'discs', shop: 2500, minLv: 5, color: 0xffe86a, lv: ['Lanza 3 discos cortantes que atraviesan enemigos.', '+30% de daño.', '+1 disco.', 'Recarga reducida.', '+2 discos y daño máximo.'] },
   makanko: { name: 'Makankosappo', icon: '➶', kind: 'bigbeam', shop: 2800, minLv: 5, color: 0xffa040, cfg: { cd: 6, dmg: 26, len: 36, hw: 0.9, life: 0.35, cost: 15 }, lv: ['Rayo en espiral que perfora todo.', '+40% de daño.', 'Rayo más largo.', 'Recarga reducida.', 'Makankosappo definitivo.'] },
-  kikoho: { name: 'Kikoho', icon: '▲', kind: 'bigbeam', shop: 3200, minLv: 7, color: 0xffd060, cfg: { cd: 9, dmg: 18, len: 34, hw: 2.4, life: 0.9, cost: 0, hpCost: 0.08 }, lv: ['Rayo triangular de enorme daño; cuesta un 8% de vida.', '+40% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Kikoho definitivo.'] }
+  kikoho: { name: 'Kikoho', icon: '▲', kind: 'bigbeam', shop: 3200, minLv: 7, color: 0xffd060, cfg: { cd: 9, dmg: 18, len: 34, hw: 2.4, life: 0.9, cost: 0, hpCost: 0.08 }, lv: ['Rayo triangular de enorme daño; cuesta un 8% de vida.', '+40% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Kikoho definitivo.'] },
+  /* --- Piccolo --- */
+  eyebeam: { name: 'Rayos Oculares', icon: '⊙', kind: 'pbolt', unique: 'piccolo', color: 0xffe070, cfg: { cd: 0.75, dmg: 10, len: 20, hw: 0.4 }, lv: ['Rayos rápidos desde los ojos al enemigo más cercano.', '+20% de daño.', '+1 rayo.', 'Atraviesan más lejos.', '+1 rayo y +30% de cadencia.'] },
+  hellzone: { name: 'Hellzone Grenade', icon: '❂', kind: 'hellzone', unique: 'piccolo', minLv: 4, color: 0xffd040, lv: ['Rodea a los enemigos de esferas que convergen y explotan.', '+40% de daño.', '+2 esferas.', 'Recarga reducida.', 'Hellzone definitivo: área y daño máximos.'] },
+  lightgrenade: { name: 'Light Grenade', icon: '✺', kind: 'bigbang', unique: 'piccolo', minLv: 6, color: 0xffe86a, lv: ['Granada de luz que explota en gran área.', '+35% de daño.', 'Explosión mayor.', 'Recarga reducida.', '+35% de daño y doble granada.'] },
+  /* --- Gohan --- */
+  gblast: { name: 'Ráfaga de Gohan', icon: '✦', kind: 'bullet', unique: 'gohan', color: 0xbfe4ff, lv: ['Gohan lanza ráfagas de ki al enemigo más cercano.', '+18% de daño.', '+1 proyectil.', 'Las ráfagas atraviesan a 1 enemigo.', '+1 proyectil y +30% de cadencia.'] },
+  fsk: { name: 'Kamehameha de Gohan', icon: '≋', kind: 'beam', unique: 'gohan', minLv: 3, color: 0x8fe0ff, lv: ['Rayo azul en línea recta.', '+55% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Kamehameha Padre-Hijo: daño y tamaño máximos.'] },
+  rage: { name: 'Furia Definitiva', icon: '✸', kind: 'nova', unique: 'gohan', minLv: 6, color: 0xffffff, lv: ['Estallido de ira que empuja y daña a tu alrededor.', '+40% de daño.', 'Mayor radio.', 'Estalla dos veces seguidas.', '+40% de daño y recarga menor.'] },
+  /* --- Freezer --- */
+  deathbeam: { name: 'Death Beam', icon: '➹', kind: 'pbolt', unique: 'freezer', color: 0xff6ad8, cfg: { cd: 0.6, dmg: 11, len: 26, hw: 0.3 }, lv: ['Rayo mortal finísimo que atraviesa a todos.', '+20% de daño.', '+1 rayo.', 'Mayor alcance.', '+1 rayo y +30% de cadencia.'] },
+  deathsaucer: { name: 'Death Saucer', icon: '◌', kind: 'discs', unique: 'freezer', minLv: 3, color: 0xff8ad8, lv: ['Discos de energía que cortan todo a su paso.', '+30% de daño.', '+1 disco.', 'Recarga reducida.', '+2 discos y daño máximo.'] },
+  deathball: { name: 'Death Ball', icon: '●', kind: 'genki', unique: 'freezer', minLv: 6, color: 0xff7a3a, lv: ['Una esfera de destrucción cae sobre la horda.', '+50% de daño.', 'Área mayor.', 'Recarga reducida.', 'Death Ball definitiva.'] },
+  /* --- FUSIONES: aparecen como carta cuando tienes las dos técnicas al nivel máximo --- */
+  kaiokame: { name: 'Kamehameha Kaio-ken', icon: '≋', kind: 'bigbeam', unique: 'goku', fusion: ['kamehameha', 'kaioken'], color: 0xff4a4a, cfg: { cd: 3.2, dmg: 42, len: 44, hw: 2.6, life: 1.0, cost: 8 }, lv: ['Fusión: un Kamehameha rojo multiplicado por el Kaio-ken.'] },
+  finalshine: { name: 'Final Shine Attack', icon: '✷', kind: 'bigbeam', unique: 'vegeta', fusion: ['galick', 'bigbang'], color: 0x7aff5a, cfg: { cd: 3.4, dmg: 44, len: 44, hw: 2.8, life: 1.0, cost: 8 }, lv: ['Fusión: el cañón verde definitivo del príncipe.'] },
+  godslash: { name: 'Guadaña de la Ira Divina', icon: '☾', kind: 'godslash', unique: 'black', fusion: ['scythe', 'darkorbs'], color: 0xff5ac0, lv: ['Fusión: doble tajo circular rosado de gran alcance.'] },
+  makankodef: { name: 'Makankosappo Definitivo', icon: '➶', kind: 'bigbeam', unique: 'piccolo', fusion: ['eyebeam', 'makanko'], color: 0xffa040, cfg: { cd: 2.6, dmg: 50, len: 48, hw: 1.3, life: 0.45, cost: 6 }, lv: ['Fusión: un Makankosappo que lo perfora todo, casi sin recarga.'] },
+  masenkame: { name: 'Masenko-Kamehameha', icon: '≋', kind: 'bigbeam', unique: 'gohan', fusion: ['fsk', 'masenko'], color: 0xffd860, cfg: { cd: 3.0, dmg: 46, len: 46, hw: 2.7, life: 1.0, cost: 8 }, lv: ['Fusión: lo mejor de Piccolo y de Goku en un solo rayo.'] },
+  supernova: { name: 'Supernova', icon: '☀', kind: 'genki', unique: 'freezer', fusion: ['deathbeam', 'deathball'], color: 0xff5a2a, cfg: { r: 20, dmg: 260, cd: 14 }, lv: ['Fusión: un sol en miniatura que arrasa con todo.'] },
+  kiplanet: { name: 'Planeta de Ki', icon: '◉', kind: 'kiplanet', fusion: ['orbit', 'nova'], color: 0x9fe8ff, lv: ['Fusión: 6 esferas en órbita que estallan en pulsos de energía.'] },
+  meteorstorm: { name: 'Tormenta de Meteoros', icon: '☄', kind: 'rain', fusion: ['rain', 'mines'], color: 0xff9a3a, mul: { n: 2, dmg: 1.8, cd: 0.7 }, lv: ['Fusión: el cielo entero cae sobre tus enemigos.'] }
 };
 const MAX_WEAPON_LEVEL = 5, MAX_WEAPONS = 6;
 
@@ -118,9 +174,9 @@ const STATS = [
 const ENEMY_TYPES = [
   { name: 'Sombra', hp: 1, spd: 1, scale: 1, tint: 0xffffff, dmg: 1, xp: 1, r: 0.7, cash: 1 },
   { name: 'Veloz', hp: 0.55, spd: 1.75, scale: 0.82, tint: 0x7fe0ff, dmg: 0.7, xp: 1.2, r: 0.6, cash: 1.5 },
-  { name: 'Bruto', hp: 3.2, spd: 0.72, scale: 1.5, tint: 0xff9a7a, dmg: 1.6, xp: 3, r: 1.05, cash: 4 },
-  { name: 'JEFE', hp: 1, spd: 0.62, scale: 2.7, tint: 0xd070ff, dmg: 2.4, xp: 30, r: 1.8, cash: 200 },
-  { name: 'Élite', hp: 8, spd: 0.95, scale: 1.9, tint: 0xffc83a, dmg: 2, xp: 14, r: 1.3, cash: 30 }
+  { name: 'Bruto', hp: 3.2, spd: 0.72, scale: 1.5, tint: 0xff9a7a, dmg: 1.6, xp: 3, r: 1.05, cash: 4, knock: 14, smash: true },
+  { name: 'JEFE', hp: 1, spd: 0.62, scale: 2.7, tint: 0xd070ff, dmg: 2.4, xp: 30, r: 1.8, cash: 200, knock: 20, smash: true },
+  { name: 'Élite', hp: 8, spd: 0.95, scale: 1.9, tint: 0xffc83a, dmg: 2, xp: 14, r: 1.3, cash: 30, knock: 10, smash: true }
 ];
 
 
@@ -246,11 +302,40 @@ const MISSIONS = [
   { id: 'dt600', name: 'Resistencia', desc: 'Sobrevive 10 minutos en total hoy', stat: 'time', goal: 600, reward: 120, daily: true }
 ];
 const missionById = (id) => MISSIONS.find((m) => m.id === id);
+
+/* ---------- Logros: se desbloquean solos al cumplirse y pagan monedas al momento ---------- */
+const ACHIEVEMENTS = [
+  { id: 'a_k500', icon: '☠', name: 'Primera sangre', desc: 'Derrota 500 enemigos', stat: 'kills', goal: 500, reward: 200 },
+  { id: 'a_k5k', icon: '☠', name: 'Azote de la horda', desc: 'Derrota 5.000 enemigos', stat: 'kills', goal: 5000, reward: 800 },
+  { id: 'a_k25k', icon: '☠', name: 'Leyenda viviente', desc: 'Derrota 25.000 enemigos', stat: 'kills', goal: 25000, reward: 2500 },
+  { id: 'a_b1', icon: '♛', name: 'Cazador de tiranos', desc: 'Derrota a un jefe', stat: 'bosses', goal: 1, reward: 250 },
+  { id: 'a_b10', icon: '♛', name: 'Terror de los villanos', desc: 'Derrota 10 jefes', stat: 'bosses', goal: 10, reward: 1200 },
+  { id: 'a_s2', icon: '◆', name: 'Más allá de la grieta', desc: 'Llega al segundo mapa', stat: 'maxStage', goal: 2, reward: 300, max: true },
+  { id: 'a_s3', icon: '◆', name: 'Dimensión fracturada', desc: 'Llega al mapa final', stat: 'maxStage', goal: 3, reward: 800, max: true },
+  { id: 'a_w1', icon: '★', name: 'Salvador del universo', desc: 'Gana una partida', stat: 'wins', goal: 1, reward: 600 },
+  { id: 'a_w5', icon: '★', name: 'Guerrero Z', desc: 'Gana 5 partidas', stat: 'wins', goal: 5, reward: 2000 },
+  { id: 'a_t1', icon: '⚡', name: '¡Transformación!', desc: 'Transfórmate por primera vez', stat: 'transforms', goal: 1, reward: 150 },
+  { id: 'a_t25', icon: '⚡', name: 'Rompiendo límites', desc: 'Transfórmate 25 veces', stat: 'transforms', goal: 25, reward: 700 },
+  { id: 'a_c50', icon: '✖', name: 'Combo x50', desc: 'Encadena un combo de 50', stat: 'maxCombo', goal: 50, reward: 200, max: true },
+  { id: 'a_c250', icon: '✖', name: 'Combo infinito', desc: 'Encadena un combo de 250', stat: 'maxCombo', goal: 250, reward: 900, max: true },
+  { id: 'a_h1k', icon: '✷', name: 'Golpe crítico', desc: 'Haz 1.000 de daño de un solo golpe', stat: 'bestHit', goal: 1000, reward: 300, max: true },
+  { id: 'a_h10k', icon: '✷', name: 'Poder de un dios', desc: 'Haz 10.000 de daño de un solo golpe', stat: 'bestHit', goal: 10000, reward: 1200, max: true },
+  { id: 'a_f1', icon: '⚭', name: 'Fusión', desc: 'Fusiona dos técnicas', stat: 'fusions', goal: 1, reward: 400 },
+  { id: 'a_f10', icon: '⚭', name: 'Maestro de las fusiones', desc: 'Fusiona 10 técnicas', stat: 'fusions', goal: 10, reward: 1500 },
+  { id: 'a_cap50', icon: '⬮', name: 'Capsule Corp', desc: 'Abre 50 cápsulas', stat: 'capsules', goal: 50, reward: 500 },
+  { id: 'a_cur10', icon: '☠', name: 'Gafe', desc: 'Abre 10 cápsulas malditas', stat: 'curses', goal: 10, reward: 400 },
+  { id: 'a_room10', icon: '⧗', name: 'Un año en un día', desc: 'Completa 10 Habitaciones del Tiempo', stat: 'rooms', goal: 10, reward: 500 },
+  { id: 'a_tem10', icon: '▲', name: 'Sin miedo', desc: 'Acepta 10 desafíos del templo', stat: 'temples', goal: 10, reward: 500 },
+  { id: 'a_ev10', icon: '!', name: 'Imprevistos', desc: 'Vive 10 eventos aleatorios', stat: 'events', goal: 10, reward: 400 },
+  { id: 'a_al5', icon: '✚', name: 'Amigos para siempre', desc: 'Lucha junto a 5 compañeros', stat: 'allies', goal: 5, reward: 400 },
+  { id: 'a_riv5', icon: '⚔', name: 'Rivalidad', desc: 'Derrota a 5 rivales', stat: 'rivals', goal: 5, reward: 600 },
+  { id: 'a_wish3', icon: '🐉', name: 'Amigo de Shenron', desc: 'Pide 3 deseos', stat: 'wishes', goal: 3, reward: 900 }
+];
 const todayStr = () => { const t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
 
 /* ---------- Guardado local ---------- */
 const Save = {
-  d: { zeni: 0, unlocked: ['goku'], sel: 'goku', up: {}, best: {}, items: [], techs: [], stats: {}, claimed: {}, clears: {}, diff: 'easy', daily: null, login: { last: '', streak: 0 } },
+  d: { zeni: 0, unlocked: ['goku'], sel: 'goku', up: {}, best: {}, items: [], techs: [], stats: {}, claimed: {}, clears: {}, diff: 'easy', daily: null, login: { last: '', streak: 0 }, ach: {}, vol: { mus: 0.5, sfx: 0.75 } },
   load() { try { const s = JSON.parse(localStorage.getItem('dbus_save_v1')); if (s) Object.assign(this.d, s); } catch (e) { /* sin guardado */ } },
   write() { try { localStorage.setItem('dbus_save_v1', JSON.stringify(this.d)); } catch (e) { /* almacenamiento no disponible */ } },
   lab(id) { return this.d.up[id] || 0; },

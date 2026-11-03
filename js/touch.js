@@ -39,6 +39,7 @@ class TouchControls {
     this.tap('tbE', () => { if (game.state === 'play') game.interact(); else if (game.state === 'trade') game.closeTrade(); });
     this.tap('tbTf', () => { if (game.state === 'play') game.transform(); });
     this.tap('tbPause', () => { if (game.state === 'play' || game.state === 'pause') game.togglePause(); });
+    this.tap('tbLv', () => { if (game.state === 'play' && game.practice) game.practiceLevel(); });
     this.tap('tbMap', () => { if (game.state === 'play') { game.showMap = !game.showMap; game.ui.el.bigmap.style.display = game.showMap ? 'block' : 'none'; } });
   }
   hold(id, code) {
@@ -104,5 +105,6 @@ class TouchControls {
     const info = game.promptInfo();
     document.getElementById('tbE').classList.toggle('ready', !!info);
     document.getElementById('tbTf').style.display = game.player.formReady >= 0 ? 'flex' : 'none';
+    document.getElementById('tbLv').style.display = game.practice ? 'flex' : 'none';
   }
 }

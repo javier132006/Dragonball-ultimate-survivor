@@ -10,25 +10,31 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
-      'biome', 'power', 'tfBtn', 'tfName', 'goalL', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'goalL', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.flash = 0; this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0; this.wKey = ''; this.mmT = 0; this.lastBiome = -1;
-    this.tab = 'upgrades'; this.screen = 'home'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
+    this.tab = 'upgrades'; this.mtab = 'missions'; this.screen = 'home'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
     this.cardHandlers = [];
     this.mmCtx = this.el.mm && this.el.mm.getContext ? this.el.mm.getContext('2d') : null;
   }
 
   /* ---------- Utilidades ---------- */
   /** Dibuja un fotograma de una hoja en un canvas (retrato) */
-  drawFrame(canvas, sheetName, frame) {
+  drawFrame(canvas, sheetName, frame, tint) {
     const s = this.sheets && this.sheets[sheetName], g = canvas.getContext && canvas.getContext('2d');
     if (!s || !g) return;
-    const img = s.tex.image, c = frame % s.cols, r = (frame / s.cols) | 0;
+    const img = s.tex.image, c = frame % s.cols, r = (frame / s.cols) | 0, W = canvas.width, H = canvas.height;
     g.imageSmoothingEnabled = false;
-    g.clearRect(0, 0, canvas.width, canvas.height);
-    g.drawImage(img, c * s.w, r * s.h, s.w, s.h, 0, 0, canvas.width, canvas.height);
+    g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, W, H);
+    g.drawImage(img, c * s.w, r * s.h, s.w, s.h, 0, 0, W, H);
+    if (tint && tint !== 0xffffff) {                      // tinte (sprites provisionales recoloreados)
+      g.globalCompositeOperation = 'multiply'; g.fillStyle = '#' + tint.toString(16).padStart(6, '0'); g.fillRect(0, 0, W, H);
+      g.globalCompositeOperation = 'destination-in'; g.drawImage(img, c * s.w, r * s.h, s.w, s.h, 0, 0, W, H);
+      g.globalCompositeOperation = 'source-over';
+    }
   }
   fatal(msg) { this.el.fatal.textContent = msg; this.el.fatal.style.display = 'flex'; }
 
@@ -67,10 +73,18 @@ class UIManager {
     e.zeniHud.textContent = Math.floor(game.cash);
     const S = game.stage;
     e.stageName.textContent = (game.stageIdx + 1) + '/' + STAGES.length + ' · ' + S.name;
-    if (S.final) { e.goalL.textContent = 'OBJETIVO'; e.goal.textContent = 'DERROTA AL JEFE'; e.goal.style.color = '#ff6a8a'; }
+    if (game.practice) { e.goalL.textContent = 'MODO'; e.goal.textContent = 'ENTRENAMIENTO'; e.goal.style.color = '#7fe07a'; }
+    else if (S.final) { e.goalL.textContent = 'OBJETIVO'; e.goal.textContent = 'DERROTA AL JEFE'; e.goal.style.color = '#ff6a8a'; }
     else if (game.swarm) { e.goalL.textContent = 'ENJAMBRE'; e.goal.textContent = '¡ACTIVO! +' + fmtTime(game.stageTime - SWARM_TIME); e.goal.style.color = '#ff4d5e'; }
     else { e.goalL.textContent = 'ENJAMBRE EN'; e.goal.textContent = fmtTime(Math.max(0, SWARM_TIME - game.stageTime)); e.goal.style.color = ''; }
     e.diffName.textContent = game.diff.name + (game.chal ? ' · DESAFÍO ' + game.chal : ''); e.diffName.style.color = game.diff.color;
+    // Racha de combo
+    if (game.combo >= 5) {
+      e.combo.style.display = 'block';
+      if (e.comboN.textContent !== String(game.combo)) { e.comboN.textContent = game.combo; e.combo.classList.remove('bump'); void e.combo.offsetWidth; e.combo.classList.add('bump'); }
+      sc(e.comboBar, game.comboT / 3);
+      e.combo.style.setProperty('--cc', game.combo >= 100 ? '#ff4a3a' : game.combo >= 50 ? '#ff9a00' : '#ffe14a');
+    } else e.combo.style.display = 'none';
     // Barra de la Habitación del Tiempo
     const z = game.zoneBusy;
     if (z && game.state === 'play') { e.zoneBox.style.display = 'block'; sc(e.zoneBar, z.charge); e.zoneTxt.textContent = Math.floor(z.charge * 100) + '%'; } else e.zoneBox.style.display = 'none';
@@ -152,6 +166,9 @@ class UIManager {
       if (big) { g.fillStyle = '#fff'; g.font = '11px Orbitron,monospace'; g.fillText('GRIETA', X(r.x) + pulse + 3, X(r.z) + 3); }
     }
     if (bossIdx >= 0) sq(game.horde.x[bossIdx], game.horde.z[bossIdx], 7 * k, '#ff3050');
+    const ri = game.rivalUid ? game.horde.indexOfUid(game.rivalUid) : -1;
+    if (ri >= 0) sq(game.horde.x[ri], game.horde.z[ri], 6 * k, '#ff9a00');
+    for (const a of game.allies.list) sq(a.x, a.z, 4 * k, '#7fe07a');
     sq(p.x, p.z, 5 * k, '#fff');
     g.strokeStyle = '#35e0ff'; g.beginPath(); g.moveTo(X(p.x), X(p.z)); g.lineTo(X(p.x) - Math.sin(game.camYaw) * 12 * k, X(p.z) - Math.cos(game.camYaw) * 12 * k); g.stroke();
   }
@@ -215,13 +232,13 @@ class UIManager {
   }
 
   renderMenu() {
-    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES', stats: 'ESTADÍSTICAS' };
+    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES' };
     e.zeniMenu.textContent = Save.d.zeni;
     e.menu.classList.toggle('ishome', s === 'home');
     e.menuNav.innerHTML = s === 'home' ? '' : '<button class="back" data-go="home">◂ VOLVER</button><h3>' + TITLES[s] + '</h3>';
-    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else this.renderMissions();
+    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else this.renderMissions();
     // Retratos: se dibujan después de generar el HTML
-    for (const cv of e.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame);
+    for (const cv of e.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
   }
 
   renderHome() {
@@ -236,6 +253,7 @@ class UIManager {
       '<button class="big" data-go="shop">TIENDA</button>' +
       '<button class="big" data-go="missions">MISIONES' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +
       '<button class="big" data-go="stats">ESTADÍSTICAS</button>' +
+      '<button class="big" data-go="options">OPCIONES</button>' +
       '<button class="big ghost" data-exit>SALIR</button></div></div>' +
       '<div class="hr"><div class="hcard"><h4>MISIONES DIARIAS</h4>' + daily + '<h4 style="margin-top:12px">RACHA</h4><p>' + Save.d.login.streak + ' día(s) seguidos</p></div></div></div>';
   }
@@ -245,8 +263,8 @@ class UIManager {
     const d = Save.d.diff;
     const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '"><b>' + x.name + '</b><small>' + 'x' + x.coins + ' monedas · +' + x.reward + ' al ganar</small></button>').join('');
     const sel = charById(Save.d.sel);
-    this.el.menuBody.innerHTML += '<div class="dim" style="text-align:center">3 MAPAS · 10 MIN POR MAPA ANTES DEL ENJAMBRE FINAL · MATA AL JEFE PARA ABRIR LA GRIETA</div><div class="playbar"><div class="diffs">' + diffs + '</div><button class="start" data-start>JUGAR CON ' + sel.name + ' [ENTER]</button></div>';
-    for (const cv of this.el.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame);
+    this.el.menuBody.innerHTML += '<div class="dim" style="text-align:center">3 MAPAS · 10 MIN POR MAPA ANTES DEL ENJAMBRE FINAL · MATA AL JEFE PARA ABRIR LA GRIETA</div><div class="playbar"><div class="diffs">' + diffs + '</div><button class="start alt" data-start="practice">ENTRENAMIENTO</button><button class="start" data-start>JUGAR CON ' + sel.name + ' [ENTER]</button></div>';
+    for (const cv of this.el.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
   }
 
   renderChars() {
@@ -257,8 +275,8 @@ class UIManager {
       const cls = 'ch' + (sel ? ' sel' : '') + (own ? '' : ' locked') + (c.soon ? ' soon' : '') + (this.view === c.id ? ' view' : '');
       const tag = c.soon ? 'PRÓXIMAMENTE' : sel ? 'EQUIPADO' : own ? 'DESBLOQUEADO' : '🔒 ' + c.cost + ' ●';
       grid += '<div class="' + cls + '" data-ch="' + c.id + '">' +
-        (c.portrait ? '<canvas width="108" height="79" data-sheet="' + c.portrait.sheet + '" data-frame="' + c.portrait.frame + '"></canvas>' : '<div class="qm">?</div>') +
-        '<b>' + c.name + '</b><small>' + c.role + '</small><span class="tag">' + tag + '</span></div>';
+        (c.portrait ? '<canvas width="108" height="79" data-sheet="' + c.portrait.sheet + '" data-frame="' + c.portrait.frame + '" data-tint="' + (c.portrait.tint || 0) + '"></canvas>' : '<div class="qm">?</div>') +
+        '<b>' + c.name + '</b><small>' + c.role + '</small><span class="tag">' + tag + '</span>' + (c.provisional ? '<span class="prov">SPRITE PROVISIONAL</span>' : '') + '</div>';
     }
     let det = '';
     if (v.soon) det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p><p>Este guerrero llegará en una próxima actualización.</p>';
@@ -319,12 +337,19 @@ class UIManager {
     return h + '</div>';
   }
 
+  /* ---------- Opciones: volumen ---------- */
+  renderOptions() {
+    const v = Save.d.vol || { mus: 0.5, sfx: 0.75 }, sl = (k, name, val) => '<div class="item opt"><div><b>' + name + '</b><input type="range" min="0" max="100" value="' + Math.round(val * 100) + '" data-vol="' + k + '"></div><b>' + Math.round(val * 100) + '%</b></div>';
+    this.el.menuBody.innerHTML = '<div class="shop">' + sl('mus', 'MÚSICA', v.mus) + sl('sfx', 'EFECTOS DE SONIDO', v.sfx) +
+      '<div class="item info"><div><b>SONIDO SINTETIZADO</b><p>Toda la música y los efectos se generan en el momento con Web Audio (sin archivos). En el móvil, el sonido se activa al tocar la pantalla por primera vez.</p></div></div></div>';
+  }
+
   /* ---------- Estadísticas acumuladas ---------- */
   renderStatsScreen() {
     const st = Save.d.stats, n = (k) => Math.floor(st[k] || 0);
     const rows = [['PARTIDAS', n('runs')], ['VICTORIAS', n('wins')], ['TIEMPO JUGADO', fmtTime(n('time'))], ['MAPA MÁS LEJANO', n('maxStage') + ' / ' + STAGES.length], ['NIVEL MÁXIMO', n('maxLevel')],
       ['ENEMIGOS DERROTADOS', n('kills')], ['ÉLITES', n('elites')], ['JEFES', n('bosses')], ['DAÑO TOTAL', n('damage')], ['DAÑO RECIBIDO', n('taken')], ['DASHES', n('dashes')],
-      ['CÁPSULAS ABIERTAS', n('capsules')], ['MALDICIONES', n('curses')], ['DESAFÍOS ACEPTADOS', n('temples')], ['HABITACIONES DEL TIEMPO', n('rooms')], ['DESEOS A SHENRON', n('wishes')]];
+      ['CÁPSULAS ABIERTAS', n('capsules')], ['MALDICIONES', n('curses')], ['DESAFÍOS ACEPTADOS', n('temples')], ['HABITACIONES DEL TIEMPO', n('rooms')], ['DESEOS A SHENRON', n('wishes')], ['COMBO MÁXIMO', n('maxCombo')], ['GOLPE MÁS FUERTE', n('bestHit')], ['TRANSFORMACIONES', n('transforms')], ['FUSIONES', n('fusions')], ['EVENTOS', n('events')], ['RIVALES DERROTADOS', n('rivals')]];
     const best = CHARACTERS.filter((c) => Save.d.best[c.id]).map((c) => { const b = Save.d.best[c.id]; return '<div class="dm"><span>' + c.name + ' · ' + fmtTime(b.time) + ' · ' + b.kills + ' enemigos · NV ' + b.level + '</span></div>'; }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
     this.el.menuBody.innerHTML = '<div class="msplit"><div><div class="sec">TOTALES</div><div class="sum">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div></div><div><div class="sec">MEJORES PARTIDAS</div>' + best + '</div></div>';
   }
@@ -336,10 +361,22 @@ class UIManager {
       (done ? '<button disabled>COBRADA</button>' : '<button data-claim="' + m.id + '"' + (ok ? '' : ' disabled') + '>' + (ok ? 'COBRAR ' : '') + '+' + m.reward + ' ●</button>') + '</div>';
   }
   renderMissions() {
+    const tabs = '<div class="tabs"><button class="tab ' + (this.mtab === 'missions' ? 'on' : '') + '" data-mtab="missions">MISIONES</button><button class="tab ' + (this.mtab === 'ach' ? 'on' : '') + '" data-mtab="ach">LOGROS · ' + ACHIEVEMENTS.filter((a) => Save.d.ach[a.id]).length + '/' + ACHIEVEMENTS.length + '</button></div>';
+    if (this.mtab === 'ach') {
+      const st = Save.d.stats;
+      this.el.menuBody.innerHTML = tabs + '<div class="shop">' + ACHIEVEMENTS.map((a) => {
+        const done = !!Save.d.ach[a.id], pr = Math.min(a.goal, st[a.stat] || 0);
+        return '<div class="item ach' + (done ? ' done' : '') + '"><div class="ic">' + a.icon + '</div><div><b>' + a.name + '</b><p>' + a.desc + '</p><div class="mb"><i style="width:' + (pr / a.goal * 100) + '%"></i><em>' + fmtK(pr) + ' / ' + fmtK(a.goal) + '</em></div></div><span class="arw">' + (done ? '✔' : '+' + a.reward + ' ●') + '</span></div>';
+      }).join('') + '</div>';
+      return;
+    }
+    this.renderMissionsList(tabs);
+  }
+  renderMissionsList(tabs) {
     const l = Save.d.login, next = Save.checkLogin();
     let days = '';
     for (let i = 1; i <= 7; i++) days += '<span class="' + (i <= l.streak ? 'on' : '') + '"><b>' + i + '</b>+' + (100 + 50 * (i - 1)) + '</span>';
-    this.el.menuBody.innerHTML = '<div class="msplit"><div><h4 class="sec">RACHA DE INICIO DE SESIÓN</h4><div class="streak">' + days + '</div>' + (next ? '' : '<p class="dim">Ya cobraste la recompensa de hoy. ¡Vuelve mañana!</p>') +
+    this.el.menuBody.innerHTML = tabs + '<div class="msplit"><div><h4 class="sec">RACHA DE INICIO DE SESIÓN</h4><div class="streak">' + days + '</div>' + (next ? '' : '<p class="dim">Ya cobraste la recompensa de hoy. ¡Vuelve mañana!</p>') +
       '<h4 class="sec">DIARIAS · se renuevan cada día</h4><div class="mlist">' + Save.d.daily.ids.map((id) => this.htmlMission(missionById(id))).join('') + '</div></div>' +
       '<div><h4 class="sec">PERMANENTES</h4><div class="mlist">' + MISSIONS.filter((m) => !m.daily).map((m) => this.htmlMission(m)).join('') + '</div></div></div>';
   }

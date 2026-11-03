@@ -21,6 +21,9 @@ window.addEventListener('keydown', (e) => { if (BLOCKED.has(e.code)) e.preventDe
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
+/** Técnica que está haciendo daño ahora mismo (para la gráfica de daño por técnica) */
+let DMG_SRC = 'otros';
+
 /* ---------- Utilidades ---------- */
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const rand = (a, b) => a + Math.random() * (b - a);

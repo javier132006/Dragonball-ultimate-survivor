@@ -7,7 +7,11 @@
    ===================================================================== */
 
 /** Estadísticas de la partida en curso (se muestran en la pausa y al terminar) */
-const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0 });
+const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0 });
+/** Nombre legible del origen del daño (gráfica de daño por técnica) */
+const SRC_NAMES = { otros: 'Otros (ondas, explosiones)', ally: 'Compañeros', mines: 'Minas de Energía', transform: 'Transformación' };
+const srcName = (id) => (WEAPONS[id] ? WEAPONS[id].icon + ' ' + WEAPONS[id].name : SRC_NAMES[id] || id);
+const fmtK = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e4 ? Math.round(v / 1e3) + 'k' : String(Math.round(v));
 /** Precio base (Zeni) de los objetos del vendedor según su rareza */
 const SHOP_PRICE = [40, 90, 200, 420, 850, 1700];
 
@@ -22,6 +26,9 @@ class Game {
     this.run = newRun(); this.stageIdx = 0; this.stage = STAGES[0]; this.stageTime = 0; this.swarm = false; this.waveT = 60;
     this.curseHp = 0; this.curseDmg = 0; this.chal = 0; this.coinMul = 1; this.zoneBusy = null; this.bossDead = false; this.bossSpawned = false;
     this.boss = { t1: 3, t2: 6, next: 0 }; this.victoryT = 0; this.transT = 0; this.transDone = false; this.showMap = false; this.tradeO = null;
+    // Combos, impact frames, eventos aleatorios, modo práctica y logros
+    this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = 120; this.storm = 0; this.rivalUid = 0;
+    this.practice = false; this.achT = 1; this.smashT = 0; this.lakeMsg = false;
     // Cámara orbital: yaw (giro), pitch (inclinación) y dist (zoom)
     this.camYaw = 0; this.camPitch = 0.98; this.camDist = 19; this.camDistT = 19; this.camCos = 1; this.camSin = 0;
     this.drag = false;
@@ -71,6 +78,7 @@ class Game {
     this.weapons = new WeaponSystem(this.scene, tex);
     this.points = new Points(this.scene, tex);          // santuarios, comerciantes, altar y grieta
     this.shots = new EnemyShots(this.scene, tex);       // disparos de los jefes
+    this.allies = new Allies(this.scene, sheets);       // compañeros temporales
     // Al romper un cristal: orbes de experiencia, chispas y a veces una semilla
     this.onCrystalBreak = (x, z) => {
       this.orbs.spawn(x, z, 4); this.gainZeni(2); this.gainCash(8);
@@ -97,8 +105,11 @@ class Game {
       if (e.repeat) return;
       if (this.ui.el.modal.classList.contains('show') || this.ui.el.exit.classList.contains('show')) return;
       const s = this.state;
-      if (s === 'menu' && e.code === 'Enter') this.start();
-      else if (s === 'over' && (e.code === 'Enter' || e.code === 'KeyR')) this.start();
+      if (s === 'menu' && e.code === 'Enter') this.start(false);
+      else if (s === 'over' && (e.code === 'Enter' || e.code === 'KeyR')) this.start(this.practice);
+      else if (s === 'play' && this.practice && e.code === 'KeyL') this.practiceLevel();
+      else if (s === 'play' && this.practice && e.code === 'KeyK') this.practiceClear();
+      else if (s === 'play' && this.practice && e.code === 'KeyJ') { this.cash += 500; SFX.play('coin'); }
       else if (s === 'over' && (e.code === 'KeyM' || e.code === 'Escape')) this.toMenu();
       else if ((s === 'play' || s === 'pause') && (e.code === 'KeyP' || e.code === 'Escape')) this.togglePause();
       else if (s === 'play' && e.code === 'KeyE') this.interact();
@@ -125,11 +136,13 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit]');
       if (!t) return;
+      SFX.play('click');
       const D = t.dataset;
       if (D.go) this.go(D.go);
       else if (D.tab) { ui.tab = D.tab; ui.renderMenu(); }
+      else if (D.mtab) { ui.mtab = D.mtab; ui.renderMenu(); }
       else if (D.ch) this.viewChar(D.ch);
       else if (D.buy) this.buyChar(D.buy);
       else if (D.equip) this.viewChar(D.equip, true);
@@ -138,10 +151,19 @@ class Game {
       else if (D.tech) this.buyTech(D.tech);
       else if (D.claim) this.claimMission(D.claim);
       else if (D.diff) { Save.d.diff = D.diff; Save.write(); ui.renderMenu(); }
-      else if (D.start !== undefined) this.start();
+      else if (D.start !== undefined) this.start(D.start === 'practice');
       else if (D.exit !== undefined) ui.showExit(true);
     });
     ui.el.exit.addEventListener('click', () => ui.showExit(false));
+    // Volumen (pantalla de opciones)
+    ui.el.menu.addEventListener('input', (e) => {
+      const v = e.target.dataset && e.target.dataset.vol;
+      if (!v) return;
+      const cur = Save.d.vol || { mus: 0.5, sfx: 0.75 }, val = +e.target.value / 100;
+      SFX.setVol(v === 'mus' ? val : cur.mus, v === 'sfx' ? val : cur.sfx);
+      if (v === 'sfx') SFX.play('coin');
+      const lab = e.target.parentNode.querySelector('b'); if (lab) lab.textContent = e.target.value + '%';
+    });
     // Overlay de comercio (Bulma / Maestro Roshi)
     ui.el.trade.addEventListener('click', (e) => {
       const t = e.target.closest('[data-tbuy],[data-tswap],[data-tdel],[data-tclose]');
@@ -154,7 +176,7 @@ class Game {
     });
     ui.el.modal.addEventListener('click', (e) => { if (e.target.closest('[data-login]')) this.claimLogin(); else if (e.target.closest('[data-close]')) ui.hideModal(); });
     ui.el.cardRow.addEventListener('click', (e) => { const c = e.target.closest('.card'); if (c) ui.pickCard(+c.dataset.i); });
-    ui.el.scrA.onclick = () => { ui.el.scrA.blur(); if (this.state === 'pause') this.togglePause(); else this.start(); };
+    ui.el.scrA.onclick = () => { ui.el.scrA.blur(); if (this.state === 'pause') this.togglePause(); else this.start(this.practice); };
     ui.el.scrB.onclick = () => { ui.el.scrB.blur(); if (this.state === 'pause') this.abandon(); else this.toMenu(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'play') this.togglePause(); });
   }
@@ -214,19 +236,23 @@ class Game {
     this.camYaw = 0.5; this.camPitch = 0.75; this.camDistT = 20; this.camDist = 20;
     this.camLook.set(0, 0, 0);
     this.ui.screen = 'home';
+    this.allies.reset(); this.setStorm(0);
+    SFX.music('menu');
     this.ui.showMenu(this);
     this.applyView();
     this.ui.showHud(false);
   }
 
   /* ---------- Partida ---------- */
-  start() {
+  start(practice) {
     const ch = charById(Save.d.sel);
     if (!ch || ch.soon || !Save.d.unlocked.includes(ch.id)) return;
     this.player.reset(ch); this.weapons.reset(ch);
     this.diff = diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
     this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
+    this.practice = !!practice; this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = rand(90, 130); this.rivalUid = 0; this.achT = 1;
+    this.allies.reset(); this.setStorm(0);
     this.run = newRun(); this.curseHp = 0; this.curseDmg = 0; this.chal = 0; this.coinMul = 1; this.showMap = false; this.ui.el.bigmap.style.display = 'none';
     this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
     if (IS_TOUCH) { goFullscreen(); this.camDistT = 22; }
@@ -240,10 +266,12 @@ class Game {
     this.syncSprites();
     this.ui.hideMenu(); this.ui.hideScreen(); this.ui.hideCards(); this.ui.showHud(true);
     this.ui.wKey = ''; this.ui.lastBiome = -1;
-    if (ch.portrait) this.ui.drawFrame(this.ui.el.portrait, ch.portrait.sheet, ch.portrait.frame);
+    if (ch.portrait) this.ui.drawFrame(this.ui.el.portrait, ch.portrait.sheet, ch.portrait.frame, ch.portrait.tint);
     this.state = 'play';
     this.clock.getDelta();
-    this.ui.toast(ch.name);
+    this.ui.toast(this.practice ? 'ENTRENAMIENTO' : ch.name);
+    if (this.practice) this.ui.toast('L: subir de nivel · K: limpiar la horda · J: +500 Zeni', true);
+    SFX.music('battle');
   }
 
   /** Carga un mapa de la partida: mundo (tema y tamaño), puntos de interés, cápsulas y enemigos limpios */
@@ -269,7 +297,12 @@ class Game {
     T.name = B.name; T.tint = B.tint; T.scale = B.scale; T.r = B.r; this.horde.tints[3] = B.tint;
     this.ui.el.bossName.textContent = B.name;
     const p = this.player;
-    p.x = 0; p.z = 0; p.vx = 0; p.vz = 0; this.camLook.set(0, 1.4, 0);
+    p.x = 0; p.z = 0; p.vx = 0; p.vz = 0; p.kbx = 0; p.kbz = 0; this.camLook.set(0, 1.4, 0);
+    // Efecto de cada mapa: el agua de Namek cura; en la dimensión fracturada la gravedad es baja (dash más largo)
+    p.dashBoost = idx === 2 ? 1.4 : 1;
+    this.lakeMsg = false;
+    if (idx === 1) this.ui.toast('EL AGUA DE NAMEK CURA', true);
+    if (idx === 2) this.ui.toast('GRAVEDAD BAJA: DASH MÁS LARGO', true);
     this.horde.buildGrid();
   }
   /** Pasa a la siguiente fase por la grieta: se conservan nivel, armas y objetos */
@@ -285,7 +318,7 @@ class Game {
   }
   enterRift() {
     if (this.state !== 'play') return;
-    this.state = 'transition'; this.transT = 0; this.transDone = false;
+    this.state = 'transition'; this.transT = 0; this.transDone = false; SFX.play('rift');
     this.ui.el.fade.style.opacity = 1;
     const r = this.points.rift;
     this.fx.ring(this.fx.aura, r.x, 0.5, r.z, 50, 20, 0.7, 0.4, 0xd070ff);
@@ -436,12 +469,93 @@ class Game {
     h += '<h4 class="sh">PARTIDA</h4><div class="sum">' + [
       ['MAPA', (this.stageIdx + 1) + ' / ' + STAGES.length], ['TIEMPO EN EL MAPA', fmtTime(this.stageTime)], ['ENEMIGOS', this.kills], ['DAÑO TOTAL', Math.floor(r.damage)],
       ['GOLPE MÁS FUERTE', Math.floor(r.best)], ['DAÑO RECIBIDO', Math.floor(r.taken)], ['DASHES', r.dashes], ['CÁPSULAS', this.capsOpened],
-      ['MALDICIONES', r.curses], ['DESAFÍOS', r.temples + ' (nv ' + this.chal + ')'], ['HABITACIONES DEL TIEMPO', r.rooms], ['ZENI', Math.floor(this.cash)]].map((x) => row(x[0], x[1])).join('') + '</div>';
+      ['MALDICIONES', r.curses], ['DESAFÍOS', r.temples + ' (nv ' + this.chal + ')'], ['HABITACIONES DEL TIEMPO', r.rooms], ['ZENI', Math.floor(this.cash)], ['COMBO MÁXIMO', r.maxCombo], ['EVENTOS', r.events]].map((x) => row(x[0], x[1])).join('') + '</div>' + this.dmgChart();
     const items = Object.keys(p.items).map((id) => { const it = itemById(id), c = RARITIES[it.rarity].color; return '<span style="border-color:' + c + ';color:' + c + '" title="' + it.text + '">' + it.icon + ' ' + it.name + (p.items[id] > 1 ? ' x' + p.items[id] : '') + '</span>'; });
     const bf = p.buffs.map((id) => '<span class="bf' + (id[0] === 'c' ? ' cu' : '') + '" title="' + BUFFS[id].text + '">' + BUFFS[id].icon + ' ' + BUFFS[id].name + '</span>');
     if (items.length || bf.length) h += '<h4 class="sh">OBJETOS Y BENDICIONES</h4><div class="chips">' + items.concat(bf).join('') + '</div>';
     return h;
   }
+
+  /** Gráfica de barras: daño por técnica (las 6 que más daño han hecho) */
+  dmgChart() {
+    const by = this.run.byW, ids = Object.keys(by).filter((k) => by[k] > 0).sort((a, b) => by[b] - by[a]).slice(0, 6);
+    if (!ids.length) return '';
+    const tot = Object.keys(by).reduce((a, k) => a + by[k], 0) || 1, top = by[ids[0]];
+    return '<h4 class="sh">DAÑO POR TÉCNICA</h4><div class="dchart">' + ids.map((id) => {
+      const W = WEAPONS[id], col = W && W.color ? '#' + W.color.toString(16).padStart(6, '0') : id === 'ally' ? '#7fe07a' : '#ffb020';
+      return '<div class="dr"><span>' + srcName(id) + '</span><div class="dbar"><i style="width:' + (by[id] / top * 100).toFixed(1) + '%;background:' + col + '"></i></div><b>' + fmtK(by[id]) + ' · ' + Math.round(by[id] / tot * 100) + '%</b></div>';
+    }).join('') + '</div>';
+  }
+
+  /* ---------- Combos ---------- */
+  addCombo() {
+    this.combo++; this.comboT = 3;
+    if (this.combo > this.run.maxCombo) this.run.maxCombo = this.combo;
+    this.player.comboMul = 1 + Math.min(this.combo, 100) * 0.0025;          // hasta +25% de daño
+    if (this.combo % 50 === 0) {
+      const bonus = Math.round(this.combo / 2);
+      this.cash += bonus; SFX.play('combo');
+      this.ui.toast('¡COMBO x' + this.combo + '! +' + bonus + ' ZENI', true);
+    }
+  }
+  onPlayerHit() {
+    if (this.combo >= 10) this.ui.toast('COMBO ROTO', true);
+    this.combo = 0; this.comboT = 0; this.player.comboMul = 1;
+  }
+  /** Impact frame en los críticos grandes (con enfriamiento para no saturar) */
+  onCrit(dmg) {
+    if (this.impCd > 0 || this.state !== 'play' || dmg < 30 * this.player.damageMul()) return;
+    this.impCd = 2.5; this.impT = 0.14;
+    this.hitstop = Math.max(this.hitstop, 0.07); this.shake(0.5);
+    SFX.play('crit');
+    this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
+  }
+
+  /* ---------- Eventos aleatorios ---------- */
+  setStorm(t) {
+    this.storm = t;
+    this.player.slow = t > 0 ? 0.8 : 1;
+    if (this.ui.el.storm) this.ui.el.storm.classList.toggle('on', t > 0);
+  }
+  startEvent(k) {
+    const p = this.player, ui = this.ui;
+    this.run.events++; this.track('events', 1); SFX.play('event');
+    if (k === 'senzu') {
+      for (let i = 0; i < 12; i++) { const a = rand(0, 6.28), r = rand(6, 18); this.pickups.drop(clamp(p.x + Math.cos(a) * r, -CFG.ARENA, CFG.ARENA), clamp(p.z + Math.sin(a) * r, -CFG.ARENA, CFG.ARENA)); }
+      ui.toast('¡LLUVIA DE SENZUS!'); ui.toast('Recoge las semillas para curarte', true);
+    } else if (k === 'rival') {
+      this.spawnPos(20, 26);
+      const i = this.horde.spawn(this._sx, this._sz, (14 + this.pressure() * 0.25) * ENEMY_TYPES[4].hp * this.diff.hp * this.stage.hp * 6, 4);
+      if (i >= 0) this.rivalUid = this.horde.uid[i];
+      ui.toast('¡UN RIVAL TE RETA!'); ui.toast('Derrótalo: suelta una cápsula dorada', true);
+    } else if (k === 'storm') {
+      this.setStorm(25);
+      ui.toast('¡TORMENTA DE KI!'); ui.toast('Todo se ralentiza durante 25 segundos', true);
+    } else {
+      const a = this.allies.summon(this);
+      if (!a) { this.startEvent('senzu'); return; }
+      this.run.allies++; this.track('allies', 1);
+      ui.toast('¡' + a.d.name + ' AL RESCATE!'); ui.toast('Lucha a tu lado durante 60 segundos', true);
+    }
+  }
+
+  /* ---------- Logros: se comprueban cada segundo ---------- */
+  checkAch() {
+    if (this.practice) return;
+    const st = Save.d.stats, r = this.run, live = { maxCombo: r.maxCombo, bestHit: r.best, maxStage: this.stageIdx + 1 };
+    for (const a of ACHIEVEMENTS) {
+      if (Save.d.ach[a.id]) continue;
+      const v = Math.max(st[a.stat] || 0, live[a.stat] || 0);
+      if (v < a.goal) continue;
+      Save.d.ach[a.id] = true; Save.d.zeni += a.reward; Save.write();
+      SFX.play('achieve');
+      this.ui.itemPopup({ icon: a.icon, name: a.name, text: a.desc + ' · +' + a.reward + ' monedas' }, { name: 'LOGRO DESBLOQUEADO', color: '#ffd84a' });
+    }
+  }
+
+  /* ---------- Modo práctica ---------- */
+  practiceLevel() { const p = this.player; this.addXp(p.xpNext - p.xp + 0.01); }
+  practiceClear() { const h = this.horde; for (let i = 0; i < h.n; i++) if (h.type[i] !== 3) h.hp[i] = 0; this.shake(0.6); }
 
   togglePause() {
     if (this.state === 'play') {
@@ -454,6 +568,7 @@ class Game {
   /** Cierra la partida: monedas, récord, estadísticas y misiones. Devuelve {coins, bonus} */
   finishRun(win) {
     const p = this.player, id = p.ch.id, d = this.diff;
+    if (this.practice) return { coins: 0, bonus: 0 };              // el entrenamiento no da recompensas
     let coins = Math.floor(this.zeniRun * d.coins), bonus = 0;
     if (win) {                                    // primera victoria con ese personaje y dificultad = premio completo; después, un 20%
       const key = id + ':' + d.id, first = !Save.d.clears[key];
@@ -464,7 +579,8 @@ class Game {
     coins += bonus;
     Save.d.zeni += coins;
     this.track('runs', 1); this.track('time', Math.floor(this.time)); this.trackMax('maxLevel', p.level); this.trackMax('maxStage', this.stageIdx + 1);
-    this.track('damage', Math.floor(this.run.damage)); this.track('taken', Math.floor(this.run.taken)); this.track('dashes', this.run.dashes); this.track('curses', this.run.curses);
+    this.track('damage', Math.floor(this.run.damage)); this.track('taken', Math.floor(this.run.taken)); this.track('dashes', this.run.dashes); this.trackMax('maxCombo', this.run.maxCombo); this.trackMax('bestHit', Math.floor(this.run.best));
+    this.checkAch();
     const b = Save.d.best[id];
     if (!b || this.time > b.time) Save.d.best[id] = { time: Math.floor(this.time), kills: this.kills, level: p.level };
     Save.write();
@@ -477,15 +593,17 @@ class Game {
       ['CÁPSULAS ABIERTAS', this.capsOpened], ['MAPA ALCANZADO', (this.stageIdx + 1) + ' / ' + STAGES.length], ['DAÑO TOTAL', Math.floor(this.run.damage)],
       ['GOLPE MÁS FUERTE', Math.floor(this.run.best)], ['DAÑO RECIBIDO', Math.floor(this.run.taken)], ['DASHES', this.run.dashes], ['DIFICULTAD', this.diff.name]];
     let h = '<div class="sum">' + rows.map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
+    h += this.dmgChart();
+    if (this.practice) return h + '<div class="reward">ENTRENAMIENTO<small>El modo práctica no da monedas ni cuenta para misiones y logros</small></div>';
     h += '<div class="reward">+' + r.coins + ' MONEDAS' + (r.bonus ? '<small>incluye ' + r.bonus + ' de bonificación por completar el nivel</small>' : '') + '</div>';
     return h;
   }
   gameOver() {
-    this.state = 'over'; this.releaseMouse();
+    this.state = 'over'; this.releaseMouse(); SFX.music(''); SFX.play('lose');
     this.ui.showScreen('DERROTA', 'HAS CAÍDO EN COMBATE', this.runSummary(this.finishRun(false)), 'REINTENTAR [R]', 'MENÚ [M]', 'lose');
   }
   victory() {
-    this.won = true; this.state = 'over'; this.releaseMouse();
+    this.won = true; this.state = 'over'; this.releaseMouse(); SFX.music(''); SFX.play('win');
     this.fx.ring(this.fx.aura, this.player.x, 0.5, this.player.z, 70, 24, 0.9, 0.5, 0xffd24a);
     this.ui.showScreen('¡VICTORIA!', 'HAS DERROTADO A ' + this.stage.boss.name + ' · ' + this.diff.name, this.runSummary(this.finishRun(true)), 'JUGAR OTRA VEZ [R]', 'MENÚ [M]', 'win');
   }
@@ -544,7 +662,7 @@ class Game {
       p.items[id]--; if (!p.items[id]) delete p.items[id];
       p.recompute(); msg = 'Pierdes: ' + it.name;
     }
-    this.ui.toast('☠ MALDICIÓN'); this.ui.toast(msg, true);
+    this.ui.toast('☠ MALDICIÓN'); this.ui.toast(msg, true); SFX.play('curse');
     this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 40, 14, 0.7, 0.4, 0xb040ff);
   }
   openCapsule(gold, x, z) {
@@ -556,7 +674,7 @@ class Game {
     this.fx.ring(this.fx.aura, x, 0.5, z, 30 + it.rarity * 8, 10 + it.rarity * 2, 0.6, 0.4, col);
     this.shake(0.2 + it.rarity * 0.12);
     if (it.rarity >= 4) { this.hitstop = 0.12; this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 60, 22, 0.8, 0.45, col); }
-    this.ui.itemPopup(it, rar);
+    this.ui.itemPopup(it, rar); SFX.play('capsule', it.rarity);
   }
   /** Desbloquea un objeto en la Tienda: a partir de ahí puede salir en las cápsulas */
   buyItem(id) {
@@ -586,15 +704,17 @@ class Game {
   }
   /** Seguimiento de misiones: suma al total y al progreso diario */
   track(stat, n) {
+    if (this.practice) return;
     const s = Save.d.stats; s[stat] = (s[stat] || 0) + n;
     const p = Save.d.daily.prog; p[stat] = (p[stat] || 0) + n;
   }
   trackMax(stat, v) {
+    if (this.practice) return;
     const s = Save.d.stats, p = Save.d.daily.prog;
     if (v > (s[stat] || 0)) s[stat] = v;
     if (v > (p[stat] || 0)) p[stat] = v;
   }
-  gainCash(v) { this.cash += v * this.player.zeniMul * this.coinMul; }
+  gainCash(v) { this.cash += v * this.player.zeniMul * this.coinMul * (1 + Math.min(this.combo, 100) * 0.005); }   // la racha de combo da hasta +50% de Zeni
   capsuleCost(gold) { return Math.round(20 * Math.pow(1.22, this.capsOpened) * (gold === 2 ? 0.4 : gold ? 1.6 : 1)); }
   /** E: abre la cápsula cercana si hay dinero suficiente. Cada apertura encarece las siguientes */
   tryOpenCapsule() {
@@ -615,6 +735,7 @@ class Game {
 
   /** Explosión de área reutilizable (minas, meteoros, Big Bang) */
   explode(x, z, r, dmg, tint) {
+    SFX.play('boom');
     this.horde.damageRadius(x, z, r, dmg, 10, this);
     this.world.damageArea(x, z, r, dmg);
     this.fx.burst(this.fx.sparks, x, 1, z, 16, r * 2.4, 0.5, 0.4, 6, tint);
@@ -650,7 +771,7 @@ class Game {
     const i = this.horde.spawn(x, z, B.hp * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15), 3);
     if (i >= 0) {
       this.bossUid = this.horde.uid[i]; this.bossSpawned = true; this.boss = { t1: 3, t2: 6, next: 0 };
-      this.ui.toast('¡' + B.name + '!'); this.shake(0.8);
+      this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
       this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.tint);
     }
   }
@@ -680,8 +801,14 @@ class Game {
     }
   }
 
-  onEnemyKilled(x, z, type) {
+  onEnemyKilled(x, z, type, uid) {
     this.kills++; this.track('kills', 1);
+    this.addCombo();
+    if (uid && uid === this.rivalUid) {                              // rival del evento
+      this.rivalUid = 0; this.run.rivals++; this.track('rivals', 1);
+      this.capsules.add(x, z, 1, this.world); this.gainCash(80);
+      this.ui.toast('¡RIVAL DERROTADO!'); SFX.play('achieve');
+    }
     this.gainCash(ENEMY_TYPES[type].cash);
     this.orbs.spawn(x, z, ENEMY_TYPES[type].xp);
     this.gainZeni(type === 3 ? 60 : 0.5 * ENEMY_TYPES[type].xp);
@@ -694,7 +821,7 @@ class Game {
       this.track('elites', 1);
       this.fx.ring(this.fx.aura, x, 0.4, z, 36, 12, 0.6, 0.4, 0xffc83a);
       for (let i = 0; i < 4; i++) this.orbs.spawn(x, z, 4);
-      this.ui.toast('+' + Math.round(ENEMY_TYPES[4].cash * p.zeniMul) + ' ZENI · ÉLITE', true);
+      this.ui.toast('+' + Math.round(ENEMY_TYPES[4].cash * p.zeniMul) + ' ZENI · ÉLITE', true); SFX.play('coin');
       if (Math.random() < 0.3) this.capsules.add(x, z, false, this.world);
     } else if (type === 3) {
       this.track('bosses', 1);
@@ -703,7 +830,7 @@ class Game {
       for (let i = 0; i < 4; i++) this.pickups.drop(x + rand(-3, 3), z + rand(-3, 3));
       for (let i = 0; i < 12; i++) this.orbs.spawn(x, z, 5);
       this.fx.ring(this.fx.aura, x, 0.4, z, 50, 18, 0.7, 0.45, 0xffd24a);
-      this.ui.toast('¡' + this.stage.boss.name + ' DERROTADO!'); this.shake(1);
+      this.ui.toast('¡' + this.stage.boss.name + ' DERROTADO!'); this.shake(1); SFX.play('bigboom'); SFX.music('battle');
       if (this.stage.final) this.victoryT = 2.2;
       else { this.points.openRift(x, z); this.ui.toast('LA GRIETA SE ABRE · [E] PARA ENTRAR', true); }
     } else {
@@ -733,17 +860,27 @@ class Game {
       for (const id in WEAPONS) {
         const u = WEAPONS[id].unique;
         const D = WEAPONS[id];
-        if (!W.get(id) && (!u || u === p.ch.id) && (D.minLv || 0) <= p.level && (!D.shop || (Save.d.techs || []).includes(id))) { pool.push({ t: 'weapon', id }); if (u) pool.push({ t: 'weapon', id }); }
+        if (!W.get(id) && !D.fusion && (!u || u === p.ch.id) && (D.minLv || 0) <= p.level && (!D.shop || this.practice || (Save.d.techs || []).includes(id))) { pool.push({ t: 'weapon', id }); if (u) pool.push({ t: 'weapon', id }); }
       }
     }
     for (const s of STATS) if ((p.stacks[s.id] || 0) < s.max) pool.push({ t: 'stat', id: s.id });
     const out = [], seen = {};
+    // Fusiones disponibles: las dos técnicas de origen al nivel máximo -> siempre sale como primera carta
+    for (const id in WEAPONS) {
+      const F = WEAPONS[id];
+      if (!F.fusion || W.get(id) || (F.unique && F.unique !== p.ch.id)) continue;
+      if (F.fusion.every((f) => W.levelOf(f) >= MAX_WEAPON_LEVEL) && out.length < 1) { out.push({ t: 'fusion', id }); seen['fusion' + id] = 1; }
+    }
     for (let k = 0; k < 80 && out.length < 3 && pool.length; k++) {
       const c = pick(pool), key = c.t + c.id;
       if (seen[key]) continue;
       seen[key] = 1; out.push(c);
     }
     const cards = out.map((c) => {
+      if (c.t === 'fusion') {
+        const F = WEAPONS[c.id];
+        return { type: 'fusion', id: c.id, icon: F.icon, tag: '⚭ FUSIÓN', title: F.name, text: F.lv[0] + ' (' + F.fusion.map((f) => WEAPONS[f].name).join(' + ') + ')', max: 0, lv: 0 };
+      }
       if (c.t === 'weapon') {
         const d = WEAPONS[c.id], cur = W.levelOf(c.id), nl = cur + 1;
         return { type: 'weapon', id: c.id, icon: d.icon, tag: cur ? 'MEJORA · NV ' + nl : d.unique ? 'TÉCNICA' : 'NUEVA ARMA', title: d.name, text: d.lv[nl - 1], max: MAX_WEAPON_LEVEL, lv: nl };
@@ -756,10 +893,16 @@ class Game {
   }
 
   openLevelUp() {
-    this.state = 'levelup'; this.releaseMouse();
+    this.state = 'levelup'; this.releaseMouse(); SFX.play('levelup');
     this.ui.showCards('¡NIVEL ' + this.player.level + '!', 'ELIGE UNA MEJORA [1 · 2 · 3]', this.rollCards(), (c) => {
       const p = this.player;
+      SFX.play('select');
       if (c.type === 'weapon') this.weapons.add(c.id);
+      else if (c.type === 'fusion') {
+        this.weapons.fuse(c.id); this.run.fusions++; this.track('fusions', 1);
+        this.ui.toast('¡FUSIÓN! ' + WEAPONS[c.id].name.toUpperCase()); SFX.play('stinger');
+        this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 70, 24, 0.8, 0.5, WEAPONS[c.id].color); this.impT = 0.14;
+      }
       else if (c.type === 'stat') { p.stacks[c.id] = c.lv; STATS.find((s) => s.id === c.id).apply(p); }
       else p.hp = p.maxHp;
       this.pendingLevels--;
@@ -835,8 +978,8 @@ class Game {
     if (S.final) {                                                  // mapa final: solo el jefe (y sus refuerzos)
       if (!this.bossSpawned && this.stageTime > 2) this.spawnBoss(0, -22);
     } else {
-      if (!this.swarm && this.stageTime >= SWARM_TIME) {            // a los 10 minutos llega el enjambre final
-        this.swarm = true; this.ui.toast('¡ENJAMBRE FINAL!'); this.shake(1);
+      if (!this.swarm && !this.practice && this.stageTime >= SWARM_TIME) {            // a los 10 minutos llega el enjambre final
+        this.swarm = true; this.ui.toast('¡ENJAMBRE FINAL!'); this.shake(1); SFX.play('alarm'); SFX.music('boss');
       }
       const sw = this.swarmLvl();
       this.spawnAcc += Math.min(4 + t0 * 0.09, 22) * S.spawn * (1 + sw * 0.7) * this.diff.spawn * (1 + this.chal * 0.2) * dt;
@@ -849,7 +992,31 @@ class Game {
       }
     }
     if (this.victoryT > 0) { this.victoryT -= dt; if (this.victoryT <= 0) { this.victory(); return; } }
-    h.speed = 3.4 + Math.min(t0 * 0.01, 2.2) + Math.min(this.swarmLvl() * 0.12, 1);
+    h.speed = (3.4 + Math.min(t0 * 0.01, 2.2) + Math.min(this.swarmLvl() * 0.12, 1)) * (this.storm > 0 ? 0.6 : 1);
+    // Combo: se pierde si pasan 3 s sin derribar a nadie
+    if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) { this.combo = 0; p.comboMul = 1; } }
+    this.impCd -= dt;
+    // Eventos aleatorios (no en el mapa final)
+    if (!S.final) { this.eventT -= dt; if (this.eventT <= 0) { this.eventT = rand(100, 150); this.startEvent(pick(['senzu', 'rival', 'storm', 'ally'])); } }
+    if (this.storm > 0) { this.storm -= dt; if (this.storm <= 0) { this.setStorm(0); this.ui.toast('LA TORMENTA AMAINA', true); } }
+    // Namek: el agua de los lagos cura
+    if (this.stageIdx === 1) {
+      let wet = false;
+      for (const l of this.world.lakes) { const dx = p.x - l.x, dz = p.z - l.z; if (dx * dx + dz * dz < (l.r + 2.5) * (l.r + 2.5)) { wet = true; break; } }
+      if (wet) {
+        p.hp = Math.min(p.maxHp, p.hp + 6 * dt);
+        if (Math.random() < dt * 14) this.fx.aura.emit(p.x + rand(-1, 1), 0.2, p.z + rand(-1, 1), 0, rand(2, 4), 0, 0.5, 0.2, 0, 0x7fe8ff);
+        if (!this.lakeMsg) { this.lakeMsg = true; this.ui.toast('EL AGUA DE NAMEK TE CURA', true); SFX.play('heal'); }
+      }
+    }
+    // Brutos, élites y jefes rompen los cristales al pasar
+    this.smashT -= dt;
+    if (this.smashT <= 0) {
+      this.smashT = 0.25;
+      for (let i = 0; i < h.n; i++) if (ENEMY_TYPES[h.type[i]].smash) this.world.damageArea(h.x[i], h.z[i], ENEMY_TYPES[h.type[i]].r * 1.3, 80);
+    }
+    // Logros
+    this.achT -= dt; if (this.achT <= 0) { this.achT = 1; this.checkAch(); }
     if (this.bossUid) this.bossAI(dt);
 
     const edt = dt * (p.charging ? CFG.CHARGE_TIME_SCALE : 1);      // cargar Ki ralentiza el mundo
@@ -863,6 +1030,7 @@ class Game {
     this.zoneBusy = null;
     this.points.update(dt, p, this);
     this.shots.update(dt, this);
+    this.allies.update(dt, this);
     this.world.follow(p.x, p.z);
 
     // Enemigos que se quedan muy lejos reaparecen cerca (el mapa es grande)
@@ -891,11 +1059,17 @@ class Game {
     requestAnimationFrame(this.loop);
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     const s = this.state;
+    if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }
     if (s === 'play' && IS_TOUCH && window.innerHeight > window.innerWidth) this.togglePause();   // móvil en vertical: pausa
     if (s === 'play') {
       let dt = 0;
       if (this.hitstop > 0) this.hitstop -= rawDt; else dt = rawDt;
       if (dt > 0) this.update(dt);
+      // Impact frame de crítico: negativo en B/N y luego destello de contraste
+      if (this.impT > 0) {
+        this.impT -= rawDt;
+        this.renderer.domElement.style.filter = this.impT > 0.07 ? 'grayscale(1) contrast(9) invert(1)' : this.impT > 0 ? 'contrast(2.2) brightness(1.5) saturate(2)' : '';
+      }
       this.fx.update(dt);
       this.updateCamera(Math.max(dt, rawDt * 0.25), rawDt, false);
       this.ui.update(this, rawDt);

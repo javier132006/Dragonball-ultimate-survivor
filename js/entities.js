@@ -33,6 +33,7 @@ class Player {
     this.ch = ch;
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
     this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
+    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1;
     this.initStats();
     this.hp = this.maxHp; this.ki = this.maxKi;
     this.canRevive = Save.lab('revive') > 0;
@@ -55,6 +56,9 @@ class Player {
     this.crit = 0.08 + 0.02 * L('crit'); this.critDmg = 2;
     this.rateMul = 1; this.regen = 0; this.armor = 0; this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.luck = 0;
     this.zeniMul = 1 + 0.1 * L('zeni');
+    // Pasivas de los personajes nuevos
+    if (ch.id === 'piccolo') this.regen += 1.5;
+    if (ch.id === 'freezer') this.zeniMul += 0.25;
   }
   /** Recalcula todo desde cero: base + vitaminas + objetos + mejoras temporales. Permite quitar o cambiar objetos */
   recompute() {
@@ -80,16 +84,21 @@ class Player {
     let m = this.statDmg * this.form.dmg * (this.buffT > 0 ? 1 + this.buffDmg : 1);
     if (this.ch.id === 'goku') m *= 1 + 0.015 * (this.level - 1);                     // Zenkai
     if (this.ch.id === 'vegeta' && this.ki >= this.maxKi * 0.8) m *= 1.25;           // Orgullo Saiyajin
-    return m;
+    if (this.ch.id === 'gohan' && this.hp < this.maxHp * 0.5) m *= 1.4;               // Potencial oculto
+    return m * this.comboMul;                                                         // bonus de la racha de combos
   }
 
+  /** Devuelve true si el golpe entra (para el empujón de los enemigos grandes) */
   takeDamage(amount, game) {
-    if (this.iframes > 0 || game.state !== 'play') return;
+    if (this.iframes > 0 || game.state !== 'play') return false;
     if (this.dodge > 0 && Math.random() < this.dodge) {            // esquiva (objetos)
       this.iframes = 0.3; game.ui.toast('ESQUIVA', true);
       game.fx.burst(game.fx.trail, this.x, 1, this.z, 8, 4, 0.4, 0.3, 0);
-      return;
+      return false;
     }
+    if (game.practice && this.hp - amount * (1 - this.armor) <= 1) { this.hp = this.maxHp; game.ui.toast('ENTRENAMIENTO · VIDA RESTAURADA', true); }
+    game.onPlayerHit();
+    SFX.play('hurt');
     this.hp -= amount * (1 - this.armor);
     this.iframes = 0.55; this.hurtT = 0.3;
     game.run.taken += amount * (1 - this.armor);
@@ -97,6 +106,7 @@ class Player {
     game.shake(0.45);
     game.hitstop = 0.04;
     game.fx.burst(game.fx.sparks, this.x, 1.3, this.z, 8, 7, 0.4, 0.35, 8);
+    return true;
   }
 
   /** Lo llaman las armas al disparar: gira al personaje hacia el objetivo y muestra la pose de ataque */
@@ -128,7 +138,8 @@ class Player {
       this.dashX = il > 0 ? wx : (this.flip ? -game.camCos : game.camCos);
       this.dashZ = il > 0 ? wz : (this.flip ? this.dashZ * 0 + game.camSin : -game.camSin);
       this.dashT = CFG.DASH_TIME; this.dashCd = CFG.DASH_CD * this.dashMul; this.ghostT = 0;
-      this.ki -= CFG.DASH_COST; game.run.dashes++;
+      this.ki -= CFG.DASH_COST; game.run.dashes++; SFX.play('dash');
+      this.dashT *= this.dashBoost > 1 ? 1.25 : 1;                 // gravedad baja: dash más largo
       this.iframes = Math.max(this.iframes, CFG.DASH_TIME + 0.1);
       game.fx.burst(game.fx.trail, this.x, 0.8, this.z, 12, 5, 0.5, 0.6, 0);
       game.shake(0.25);
@@ -137,10 +148,10 @@ class Player {
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1);
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow;
     if (this.dashT > 0) {
       this.dashT -= dt;
-      this.vx = this.dashX * CFG.DASH_SPEED; this.vz = this.dashZ * CFG.DASH_SPEED;
+      this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
       this.ghostT -= dt;
       if (this.ghostT <= 0) this.spawnGhost();
     } else {
@@ -149,8 +160,11 @@ class Player {
       this.vz += ((this.charging ? 0 : wz * speed) - this.vz) * k;
     }
     for (const g of this.ghosts) if (g.t > 0) g.t -= dt;
-    this.x = clamp(this.x + this.vx * dt, -CFG.ARENA, CFG.ARENA);
-    this.z = clamp(this.z + this.vz * dt, -CFG.ARENA, CFG.ARENA);
+    // Empujón de los enemigos grandes (se amortigua rápido)
+    const kd = Math.exp(-7 * dt);
+    this.x = clamp(this.x + (this.vx + this.kbx) * dt, -CFG.ARENA, CFG.ARENA);
+    this.z = clamp(this.z + (this.vz + this.kbz) * dt, -CFG.ARENA, CFG.ARENA);
+    this.kbx *= kd; this.kbz *= kd;
     game.world.push(this.x, this.z, CFG.PLAYER_R);
     this.x = game.world.px; this.z = game.world.pz;
     const sp = Math.hypot(this.vx, this.vz);
@@ -302,14 +316,17 @@ class HordeManager {
       this.flip[i] = dx * cc - dz * cs < 0 ? 1 : 0;
       this.phase[i] += dt * 8 * (0.6 + T.spd * 0.4);
       if (this.hitT[i] > 0) this.hitT[i] -= dt;
-      if (d < CFG.PLAYER_R + T.r + 0.15 && this.hp[i] > 0) player.takeDamage(dmg * T.dmg, game);
+      if (d < CFG.PLAYER_R + T.r + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game) && T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6); }
     }
   }
 
   /** Aplica daño a un enemigo (la retirada se hace después, en reap) */
   hurt(i, dmg, kx, kz, game) {
     if (this.hp[i] <= 0) return;
-    game.run.damage += Math.min(dmg, this.hp[i]); if (dmg > game.run.best) game.run.best = dmg;
+    const real = Math.min(dmg, this.hp[i]), R = game.run;
+    R.damage += real; if (dmg > R.best) R.best = dmg;
+    R.byW[DMG_SRC] = (R.byW[DMG_SRC] || 0) + real;
+    SFX.play('hit');
     this.hp[i] -= dmg; this.hitT[i] = 0.12;
     const m = this.type[i] === 3 ? 0.15 : 1;
     this.kx[i] += kx * m; this.kz[i] += kz * m;
@@ -331,7 +348,7 @@ class HordeManager {
           if (b.ign.indexOf(u) >= 0) continue;
           this.hurt(j, b.dmg, b.vx * 0.22, b.vz * 0.22, game);
           game.fx.burst(game.fx.sparks, b.x, 1.2, b.z, b.crit ? 8 : 3, b.crit ? 9 : 5, 0.3, b.crit ? 0.4 : 0.25, 6, b.tint);
-          if (b.crit) { game.hitstop = 0.04; game.shake(0.3); } else game.shake(0.05);
+          if (b.crit) { game.hitstop = 0.04; game.shake(0.3); game.onCrit(b.dmg); } else game.shake(0.05);
           if (b.pierce > 0) { b.pierce--; b.ign[b.ni++ % b.ign.length] = u; return false; }
           return true;
         }
@@ -413,7 +430,7 @@ class HordeManager {
 class KiPool {
   constructor(scene, max, tex) {
     this.max = max; this.b = [];
-    for (let i = 0; i < max; i++) this.b.push({ active: false, x: 0, y: 1.4, z: 0, vx: 0, vz: 0, life: 0, dmg: 0, r: 0.5, trail: 0, crit: false, pierce: 0, aoe: 0, tint: 0xffffff, ign: [0, 0, 0, 0, 0, 0], ni: 0, size: 1 });
+    for (let i = 0; i < max; i++) this.b.push({ active: false, x: 0, y: 1.4, z: 0, vx: 0, vz: 0, life: 0, dmg: 0, r: 0.5, trail: 0, crit: false, pierce: 0, aoe: 0, tint: 0xffffff, ign: [0, 0, 0, 0, 0, 0], ni: 0, size: 1, src: '' });
     this.sb = new SpriteBatch(scene, { max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.05, renderOrder: 5 });
   }
   fire(x, z, dx, dz, speed, dmg, r, crit, life, pierce, aoe, tint, size) {
@@ -423,6 +440,7 @@ class KiPool {
       b.active = true; b.x = x; b.z = z; b.y = 1.4; b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
       b.crit = crit; b.pierce = pierce; b.aoe = aoe; b.tint = tint; b.trail = 0; b.ni = 0; b.size = size || (crit ? 3.6 : 2.6) * r * 1.3;
       for (let k = 0; k < 6; k++) b.ign[k] = 0;
+      b.src = DMG_SRC; SFX.play('ki');
       return true;
     }
     return false;
@@ -436,6 +454,7 @@ class KiPool {
       b.life -= dt; b.x += b.vx * dt; b.z += b.vz * dt;
       const out = b.life <= 0 || Math.abs(b.x) > CFG.ARENA + 10 || Math.abs(b.z) > CFG.ARENA + 10;
       let done = out;
+      DMG_SRC = b.src;
       if (!done && game.horde.hitTest(b, game)) done = true;
       if (!done && game.world.damageArea(b.x, b.z, b.r * 0.4, b.dmg)) done = b.pierce <= 0;
       if (done) { b.active = false; if (b.aoe > 0 && !(out && b.life > 0)) game.explode(b.x, b.z, b.aoe, b.dmg * 1.2, b.tint); continue; }
@@ -443,6 +462,7 @@ class KiPool {
       if (b.trail <= 0) { b.trail = 0.03; game.fx.sparks.emit(b.x, b.y, b.z, rand(-1, 1), rand(0, 1.5), rand(-1, 1), 0.25, b.r * 0.5, 0, b.tint); }
       sb.push(b.x, b.y, b.z, 0, 0, 0, b.size, 1, b.tint);
     }
+    DMG_SRC = 'otros';
     sb.end();
   }
   reset() { for (const b of this.b) b.active = false; this.sb.reset(); }
@@ -465,7 +485,7 @@ class XpOrbs {
     const mr2 = player.magnet * player.magnet;
     for (let i = this.n - 1; i >= 0; i--) {
       const dx = player.x - this.x[i], dz = player.z - this.z[i], d2 = dx * dx + dz * dz;
-      if (d2 < 1.7) { game.addXp(this.v[i]); const l = --this.n; this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.v[i] = this.v[l]; }
+      if (d2 < 1.7) { game.addXp(this.v[i]); SFX.play('xp'); const l = --this.n; this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.v[i] = this.v[l]; }
       else if (d2 < mr2) { const d = Math.sqrt(d2), s = (26 * dt) / d; this.x[i] += dx * s; this.z[i] += dz * s; }
     }
     this.sb.begin();
@@ -512,7 +532,7 @@ class Pickups {
     for (let i = this.sn - 1; i >= 0; i--) {
       const dx = player.x - this.sx[i], dz = player.z - this.sz[i];
       if (dx * dx + dz * dz < 2.6) {
-        player.hp = Math.min(player.maxHp, player.hp + 30);
+        player.hp = Math.min(player.maxHp, player.hp + 30); SFX.play('heal');
         game.fx.burst(game.fx.aura, this.sx[i], 0.8, this.sz[i], 10, 4, 0.5, 0.25, 0, 0x9cff6a);
         game.ui.toast('+30 VIDA', true);
         const l = --this.sn; this.sx[i] = this.sx[l]; this.sz[i] = this.sz[l];
