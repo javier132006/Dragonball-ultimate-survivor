@@ -281,11 +281,12 @@ class WeaponSystem {
   /* ----- Taiyoken (Krilin): destello que aturde a los enemigos cercanos ----- */
   flare(w, dt, g, p) {
     if (!this.ready(w, dt, p)) return;
-    const lv = w.lv, r = 13 * (lv >= 4 ? 1.3 : 1);
+    const C = WEAPONS[w.id].cfg || {}, lv = w.lv, r = (C.r || 13) * (lv >= 4 && !C.r ? 1.3 : 1);
     if (g.horde.nearest(p.x, p.z, r * 0.7) < 0) return;
-    w.cd = lv >= 5 ? 6 : 9;
-    g.horde.stunRadius(p.x, p.z, r, lv >= 3 ? 3.5 : 2.5);
-    if (lv >= 2) g.horde.damageRadius(p.x, p.z, r, 18 * p.damageMul(), 2, g);
+    w.cd = C.cd || (lv >= 5 ? 6 : 9);
+    g.horde.stunRadius(p.x, p.z, r, C.stun || (lv >= 3 ? 3.5 : 2.5));
+    if (lv >= 2) g.horde.damageRadius(p.x, p.z, r, (C.dmg || 18) * p.damageMul(), 2, g);
+    if (C.dmg) { g.fx.ring(g.fx.sparks, p.x, 0.6, p.z, 60, r * 2.6, 0.45, 0.45, 0xffb040); SFX.play('boom'); }
     g.fx.ring(g.fx.sparks, p.x, 1.4, p.z, 70, r * 3, 0.35, 0.5, 0xffffff);
     g.fx.burst(g.fx.aura, p.x, 2, p.z, 40, 12, 0.4, 0.6, 0, 0xfff8d0);
     if (!Save.d.opt.flash) g.ui.flash = Math.max(g.ui.flash, 0.4);
@@ -388,8 +389,8 @@ class WeaponSystem {
   hellzone(w, dt, g, p) {
     if (!this.ready(w, dt, p)) return;
     const a = this.aim(g, p, 26); if (!a) return;
-    const lv = w.lv, n = 6 + (lv >= 3) * 2 + (lv >= 5) * 2, dm = 26 * (1 + 0.4 * (lv >= 2) + 0.4 * (lv >= 5)), R = 6 * (lv >= 5 ? 1.3 : 1);
-    w.cd = lv >= 4 ? 4 : 5.5;
+    const C = WEAPONS[w.id].cfg || {}, lv = w.lv, n = (C.n || 6) + (lv >= 3) * 2 + (lv >= 5) * 2, dm = (C.dmg || 26) * (1 + 0.4 * (lv >= 2) + 0.4 * (lv >= 5)), R = (C.R || 6) * (lv >= 5 ? 1.3 : 1);
+    w.cd = C.cd || (lv >= 4 ? 4 : 5.5);
     const cx = g.horde.x[a.i], cz = g.horde.z[a.i], col = this.col(w, p);
     for (let k = 0; k < n; k++) {
       const ang = (k / n) * 6.2832;
@@ -410,6 +411,24 @@ class WeaponSystem {
     w.cd = (C.cd || 1.0) * (lv >= 4 && C.cd ? 0.75 : 1); w.pdx = a.dx; w.pdz = a.dz; w.pend = 0.18;
     this.slash(g, p, a.dx, a.dz, r, dm, true, col);
     p.attack(a.dx, a.dz, true, g);
+  }
+
+  /* ----- Ráfaga continua (fusiones Renzoku, Lluvia de Muerte, Galick explosivo): muchas bolas seguidas ----- */
+  barrage(w, dt, g, p) {
+    const C = WEAPONS[w.id].cfg || {}, col = this.col(w, p);
+    if (w.pend > 0) {                                          // ráfaga en curso: un disparo cada 0,05 s al enemigo más cercano
+      w.tick -= dt;
+      while (w.tick <= 0 && w.pend > 0) {
+        w.tick += 0.05; w.pend--;
+        const a = this.aim(g, p, 30) || this.facing(g, p), sp = rand(-0.18, 0.18), c = Math.cos(sp), s = Math.sin(sp), crit = Math.random() < p.crit;
+        g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 30, (C.dmg || 14) * p.damageMul() * (crit ? p.critDmg : 1), 0.55, crit, 1.2, 0, C.aoe || 0, col);
+        p.attack(a.dx, a.dz, crit, g);
+      }
+      return;
+    }
+    if (!this.ready(w, dt, p)) return;
+    if (!this.aim(g, p, 30)) return;
+    w.cd = C.cd || 2.2; w.pend = C.n || 14; w.tick = 0;
   }
 
   /* ----- Fusión Planeta de Ki: 6 esferas + pulsos ----- */

@@ -11,7 +11,7 @@ class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
       'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abBlock', 'blockFill', 'abTp', 'tpFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
-      'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
+      'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'cardFoot', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.flash = 0; this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0; this.wKey = ''; this.mmT = 0; this.lastBiome = -1;
@@ -221,8 +221,9 @@ class UIManager {
   hideScreen() { this.el.screen.classList.remove('show'); }
 
   /* ---------- Cartas (subida de nivel y deseo de Shenron) ---------- */
-  showCards(title, sub, cards, onPick) {
+  showCards(title, sub, cards, onPick, foot) {
     const e = this.el;
+    e.cardFoot.innerHTML = foot || '';
     e.cardTitle.textContent = title; e.cardSub.textContent = sub;
     let h = '';
     cards.forEach((c, i) => {
@@ -331,6 +332,7 @@ class UIManager {
         '<h4>PASIVA · ' + v.passive.name + '</h4><p>' + v.passive.desc + '</p>' +
         '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +
         '<h4>TÉCNICAS (al subir de nivel)</h4>' + techs.map((id) => { const W = WEAPONS[id], lock = W.shop && !Save.d.techs.includes(id); return '<p class="' + (lock ? 'lockt' : '') + '"><i>' + W.icon + '</i> <b>' + W.name + '</b> · NV ' + (W.minLv || 2) + (lock ? ' · 🔒 en la tienda' : '') + '</p>'; }).join('') +
+        '<h4>FUSIONES (las dos técnicas al nivel 5)</h4>' + fusionsFor(v.id).map((f) => { const F = WEAPONS[f], lock = F.fusion.some((x) => !techOwned(x)); return '<p class="' + (lock ? 'lockt' : '') + '"><i>⚭</i> <b>' + F.name + '</b> · ' + F.fusion.map((x) => WEAPONS[x].name).join(' + ') + (lock ? ' · 🔒 requiere técnica de la tienda' : '') + (F.down ? ' · <span class="trb">✖ ' + F.down.text + '</span>' : '') + '</p>'; }).join('') +
         '<h4>TRANSFORMACIONES</h4><div class="forms ftl">' + v.forms.map((f, i) => { const T = traitOf(v, i); return '<span>' + f.name + ' <em>NV ' + f.lvl + '</em>' + (T ? '<small class="trg">✚ ' + T.good + '</small><small class="trb">✖ ' + T.bad + '</small>' : '') + '</span>'; }).join('') + '</div>' +
         (best ? '<h4>MEJOR PARTIDA</h4><p>' + fmtTime(best.time) + ' · ' + best.kills + ' enemigos · NV ' + best.level + '</p>' : '');
       if (!owned) det += '<button class="buy" data-buy="' + v.id + '"' + (Save.d.zeni < v.cost ? ' disabled' : '') + '>DESBLOQUEAR · ' + v.cost + ' ●</button>';
@@ -393,7 +395,7 @@ class UIManager {
       '<div class="qbs"><button class="qb" data-exp>EXPORTAR</button><button class="qb" data-imp>IMPORTAR' + (this.impArmed ? ' (CONFIRMAR)' : '') + '</button><button class="qb" data-impfile>ELEGIR ARCHIVO…</button><input type="file" id="impFile" accept=".json,.txt,application/json" style="display:none"></div>' +
       (this.optMsg ? '<p class="omsg">' + this.optMsg + '</p>' : '') + '</div></div>' +
       '<div class="item info wide"><div><b>CONTROLES</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · SHIFT (o botón derecho) bloquear · F Transmisión Instantánea · G transformarse · H volver a la forma base · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
-      'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · LB/LT bloquear · RB/RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir y A para confirmar.</p></div></div>' +
+      'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · LB/LT bloquear · RB/RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir, A para confirmar y X para cambiar las cartas.</p></div></div>' +
       '<div class="item info"><div><b>SONIDO SINTETIZADO</b><p>Toda la música y los efectos se generan en el momento con Web Audio (sin archivos). En el móvil, el sonido se activa al tocar la pantalla por primera vez.</p></div></div></div>';
     this.optMsg = '';
   }

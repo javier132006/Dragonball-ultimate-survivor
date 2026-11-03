@@ -10,7 +10,7 @@
 /* Botón -> tecla según el estado del juego (índices de la distribución estándar) */
 const PAD_MAP = {
   play: { 0: 'Space', 1: 'KeyF', 2: 'KeyE', 3: 'KeyG', 4: 'ShiftLeft', 6: 'ShiftLeft', 5: 'KeyC', 7: 'KeyC', 8: 'KeyM', 9: 'Escape', 12: 'KeyT', 13: 'KeyH' },
-  cards: { 0: 'Enter', 14: 'ArrowLeft', 15: 'ArrowRight' },
+  cards: { 0: 'Enter', 2: 'KeyR', 14: 'ArrowLeft', 15: 'ArrowRight' },
   pause: { 9: 'Escape', 8: 'Tab' },
   trade: { 1: 'Escape', 2: 'KeyE' },
   menu: { 0: 'Enter', 9: 'Enter' },

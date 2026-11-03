@@ -176,6 +176,7 @@ class Game {
       else if ((s === 'levelup' || s === 'wish') && /^Digit[1-4]$/.test(e.code)) { if (this.cardsReady()) ui.pickCard(+e.code[5] - 1); }
       else if ((s === 'levelup' || s === 'wish') && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) ui.focusCard(e.code === 'ArrowLeft' ? -1 : 1);
       else if ((s === 'levelup' || s === 'wish') && (e.code === 'Enter' || e.code === 'Space')) { if (this.cardsReady()) ui.pickCard(ui.cardFocus); }
+      else if (s === 'levelup' && e.code === 'KeyR') this.reroll();
     });
     // Cámara con el ratón: arrastra con el botón derecho (o central), rueda para el zoom
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -256,6 +257,7 @@ class Game {
     });
     ui.el.modal.addEventListener('click', (e) => { if (e.target.closest('[data-login]')) this.claimLogin(); else if (e.target.closest('[data-close]')) ui.hideModal(); });
     ui.el.cardRow.addEventListener('click', (e) => { const c = e.target.closest('.card'); if (c) ui.pickCard(+c.dataset.i); });
+    ui.el.cardFoot.addEventListener('click', (e) => { if (e.target.closest('[data-reroll]')) this.reroll(); });
     ui.el.scrA.onclick = () => { ui.el.scrA.blur(); if (this.state === 'pause') this.togglePause(); else this.start(this.practice, this.daily); };
     ui.el.scrB.onclick = () => { ui.el.scrB.blur(); if (this.state === 'pause') this.abandon(); else this.toMenu(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'play') this.togglePause(); });
@@ -367,7 +369,7 @@ class Game {
     this.run = newRun(); this.curseHp = 0; this.curseDmg = 0; this.chal = 0; this.coinMul = 1; this.showMap = false; this.ui.el.bigmap.style.display = 'none';
     this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
     if (IS_TOUCH) { goFullscreen(); this.camDistT = 22; }
-    this.step = 0; this.booms.length = 0;
+    this.step = 0; this.booms.length = 0; this.rerolls = 2;
     this.loadStage(0);
     this.applyForm();
     for (let i = 0; i < 14; i++) this.spawnEnemy();
@@ -598,6 +600,11 @@ class Game {
       ['GOLPE MÁS FUERTE', Math.floor(r.best)], ['DAÑO RECIBIDO', Math.floor(r.taken)], ['DASHES', r.dashes], ['CÁPSULAS', this.capsOpened],
       ['MALDICIONES', r.curses], ['DESAFÍOS', r.temples + ' (nv ' + this.chal + ')'], ['HABITACIONES DEL TIEMPO', r.rooms], ['ZENI', Math.floor(this.cash)], ['COMBO MÁXIMO', r.maxCombo], ['EVENTOS', r.events], ['BLOQUEOS PERFECTOS', r.perfects], ['TELETRANSPORTES', r.tps]].map((x) => row(x[0], x[1])).join('') + '</div>' + this.dmgChart();
     if (p.trait) h += '<h4 class="sh">FORMA · ' + p.form.name + '</h4><div class="trait"><b>' + p.trait.name + '</b><span class="trg">✚ ' + p.trait.good + '</span><span class="trb">✖ ' + p.trait.bad + '</span></div>';
+    const fl = fusionsFor(p.ch.id).filter((f) => WEAPONS[f].fusion.every((x) => techOwned(x, this.practice)));
+    if (fl.length) h += '<h4 class="sh">FUSIONES (LAS DOS TÉCNICAS AL NV 5)</h4><div class="chips">' + fl.map((f) => {
+      const F = WEAPONS[f], done = this.weapons.get(f);
+      return '<span class="' + (done ? 'bf' : '') + '" title="' + (F.down ? 'Desventaja: ' + F.down.text : '') + '">' + (done ? '✔ ' : '') + F.fusion.map((x) => WEAPONS[x].name + (done ? '' : ' ' + this.weapons.levelOf(x) + '/5')).join(' + ') + ' → ' + F.name + '</span>';
+    }).join('') + '</div>';
     if (this.modList.length) h += '<h4 class="sh">DESAFÍO DIARIO</h4><div class="chips">' + this.modList.map((m) => '<span class="bf">' + m.icon + ' ' + m.name + '</span>').join('') + '</div>';
     const items = Object.keys(p.items).map((id) => { const it = itemById(id), c = RARITIES[it.rarity].color; return '<span style="border-color:' + c + ';color:' + c + '" title="' + it.text + '">' + it.icon + ' ' + it.name + (p.items[id] > 1 ? ' x' + p.items[id] : '') + '</span>'; });
     const bf = p.buffs.map((id) => '<span class="bf' + (id[0] === 'c' ? ' cu' : '') + '" title="' + BUFFS[id].text + '">' + BUFFS[id].icon + ' ' + BUFFS[id].name + '</span>');
@@ -1096,7 +1103,7 @@ class Game {
       this.ui.toast('+' + Math.round(ENEMY_TYPES[4].cash * p.zeniMul) + ' ZENI · ÉLITE', true); SFX.play('coin');
       if (Math.random() < 0.3) this.capsules.add(x, z, false, this.world);
     } else if (type === T_BOSS) {
-      this.track('bosses', 1); this.run.bosses++;
+      this.track('bosses', 1); this.run.bosses++; this.rerolls++;
       this.bossUid = 0; this.pendingLevels++; this.bossDead = true; this.shots.reset(); this.bossInv = 0;
       this.capsules.add(x, z, true, this.world);
       if (this.mods.bigboss) { this.capsules.add(x + 3, z, true, this.world); this.gainCash(200); }
@@ -1131,7 +1138,12 @@ class Game {
   /** 3 cartas distintas: mejoras de armas equipadas, armas nuevas (propias del personaje) y vitaminas */
   rollCards() {
     const p = this.player, W = this.weapons, pool = [];
-    for (const w of W.list) if (w.lv < MAX_WEAPON_LEVEL) { pool.push({ t: 'weapon', id: w.id }); if (WEAPONS[w.id].unique) pool.push({ t: 'weapon', id: w.id }); }
+    const fus = fusionsFor(p.ch.id).filter((f) => !W.get(f) && WEAPONS[f].fusion.every((x) => techOwned(x, this.practice)));
+    for (const w of W.list) if (w.lv < MAX_WEAPON_LEVEL) {
+      pool.push({ t: 'weapon', id: w.id }); if (WEAPONS[w.id].unique) pool.push({ t: 'weapon', id: w.id });
+      // Si esta técnica completa una fusión cuya pareja ya tienes, sale más a menudo
+      if (fus.some((f) => WEAPONS[f].fusion.includes(w.id) && WEAPONS[f].fusion.every((x) => W.get(x)))) { pool.push({ t: 'weapon', id: w.id }); pool.push({ t: 'weapon', id: w.id }); }
+    }
     if (W.list.length < MAX_WEAPONS) {
       for (const id in WEAPONS) {
         const u = WEAPONS[id].unique;
@@ -1155,11 +1167,12 @@ class Game {
     const cards = out.map((c) => {
       if (c.t === 'fusion') {
         const F = WEAPONS[c.id];
-        return { type: 'fusion', id: c.id, icon: F.icon, tag: '⚭ FUSIÓN', title: F.name, text: F.lv[0] + ' (' + F.fusion.map((f) => WEAPONS[f].name).join(' + ') + ')', max: 0, lv: 0 };
+        return { type: 'fusion', id: c.id, icon: F.icon, tag: '⚭ FUSIÓN', title: F.name, text: F.lv[0] + ' (' + F.fusion.map((f) => WEAPONS[f].name).join(' + ') + ')' + (F.down ? '<br><span class="trb">✖ ' + F.down.text + '</span>' : ''), max: 0, lv: 0 };
       }
       if (c.t === 'weapon') {
         const d = WEAPONS[c.id], cur = W.levelOf(c.id), nl = cur + 1;
-        return { type: 'weapon', id: c.id, icon: d.icon, tag: cur ? 'MEJORA · NV ' + nl : d.unique ? 'TÉCNICA' : 'NUEVA ARMA', title: d.name, text: d.lv[nl - 1], max: MAX_WEAPON_LEVEL, lv: nl };
+        const hint = this.fusionHint(c.id);
+        return { type: 'weapon', id: c.id, icon: d.icon, tag: cur ? 'MEJORA · NV ' + nl : d.unique ? 'TÉCNICA' : 'NUEVA ARMA', title: d.name, text: d.lv[nl - 1] + (hint ? '<br><span class="fh">' + hint + '</span>' : ''), max: MAX_WEAPON_LEVEL, lv: nl };
       }
       const s = STATS.find((x) => x.id === c.id), n = (p.stacks[c.id] || 0) + 1;
       return { type: 'stat', id: c.id, icon: s.icon, tag: 'VITAMINA · ' + n + '/' + s.max, title: s.name, text: s.text, max: s.max, lv: n };
@@ -1168,14 +1181,35 @@ class Game {
     return cards;
   }
 
-  openLevelUp() {
-    this.state = 'levelup'; this.releaseMouse(); SFX.play('levelup');
+  /** Pista en la carta: con qué se fusiona esta técnica */
+  fusionHint(id) {
+    const W = this.weapons;
+    for (const f of fusionsFor(this.player.ch.id)) {
+      const F = WEAPONS[f];
+      if (!F.fusion.includes(id) || W.get(f)) continue;
+      const other = F.fusion.find((x) => x !== id), lock = !techOwned(other, this.practice);
+      return '⚭ + ' + WEAPONS[other].name + (lock ? ' (🔒 tienda)' : W.get(other) ? ' (nv ' + W.levelOf(other) + '/5)' : '') + ' → ' + F.name;
+    }
+    return '';
+  }
+  /** Cambiar las cartas de subida de nivel (2 por partida, +1 por cada jefe) */
+  reroll() {
+    if (this.state !== 'levelup' || this.rerolls <= 0) return;
+    this.rerolls--; SFX.play('click');
+    this.openLevelUp(true);
+  }
+  openLevelUp(again) {
+    this.state = 'levelup'; this.releaseMouse(); if (!again) SFX.play('levelup');
+    const foot = this.rerolls > 0 ? '<button data-reroll>🎲 CAMBIAR CARTAS [R] · ' + this.rerolls + '</button>' : '';
     this.ui.showCards('¡NIVEL ' + this.player.level + '!', 'ELIGE UNA MEJORA [1 · 2 · 3]', this.rollCards(), (c) => {
       const p = this.player;
       SFX.play('select');
-      if (c.type === 'weapon') this.weapons.add(c.id);
-      else if (c.type === 'fusion') {
+      if (c.type === 'weapon') {
+        const w = this.weapons.add(c.id);
+        if (w.lv >= MAX_WEAPON_LEVEL) { const h = this.fusionHint(c.id); if (h) this.ui.toast(WEAPONS[c.id].name.toUpperCase() + ' AL MÁXIMO · ' + h, true); }
+      } else if (c.type === 'fusion') {
         this.weapons.fuse(c.id); this.run.fusions++; this.track('fusions', 1);
+        p.fused.push(c.id); p.recompute();
         this.ui.toast('¡FUSIÓN! ' + WEAPONS[c.id].name.toUpperCase()); SFX.play('stinger');
         this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 70, 24, 0.8, 0.5, WEAPONS[c.id].color); this.impT = 0.14;
       }
@@ -1184,7 +1218,7 @@ class Game {
       this.pendingLevels--;
       this.ui.hideCards();
       if (this.pendingLevels > 0) this.openLevelUp(); else this.resume();
-    });
+    }, foot);
   }
   resume() { this.state = 'play'; this.grabMouse(); this.clock.getDelta(); }
   /** Evita elegir carta sin querer (por ejemplo, con el dash pulsado justo cuando se abren) */

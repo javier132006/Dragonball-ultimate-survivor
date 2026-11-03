@@ -37,6 +37,7 @@ class Player {
     // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
     this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
     this.egoStk = 0; this.auraT = 0; this.boltT = 0; this.tfCd = 0; this.formSeen = {}; this.trait = null; this.tr = {};
+    this.fused = [];                                             // fusiones hechas (cada una tiene una pequeña desventaja)
     this.initStats();
     this.hp = this.maxHp; this.ki = this.maxKi;
     this.canRevive = Save.lab('revive') > 0;
@@ -77,6 +78,7 @@ class Player {
     for (const id in this.items) { const it = itemById(id); for (let k = 0; k < this.items[id]; k++) it.apply(this); }
     for (const id of this.buffs) BUFFS[id].apply(this);
     if (this.trait) applyTraitStats(this, this.trait);                 // rasgo de la transformación actual
+    for (const id of this.fused) if (WEAPONS[id].down) applyTraitStats(this, WEAPONS[id].down);   // desventaja de cada fusión
     this.maxHp = Math.max(20, Math.round(this.maxHp));
     this.hp = Math.min(this.maxHp, oh + Math.max(0, this.maxHp - om));
     this.ki = Math.min(this.maxKi, this.ki + Math.max(0, this.maxKi - ok));
