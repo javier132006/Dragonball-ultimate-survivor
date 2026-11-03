@@ -458,6 +458,12 @@ class UIManager {
   }
   htmlTechs() {
     let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>TÉCNICAS DE DRAGON BALL</b><p>Una vez compradas, pueden aparecer como carta al subir de nivel (a partir de su nivel mínimo). Las exclusivas solo salen con su personaje.</p></div></div>';
+    // Técnicas propias de cada personaje: no se compran, vienen incluidas
+    for (const c of CHARACTERS) for (const id of c.unique || []) {               // los personajes «próximamente» no tienen técnicas
+      const W = WEAPONS[id];
+      if (!W || W.shop || W.fusion || id === (c.start || [])[0]) continue;
+      h += '<div class="item"><div class="ic" style="color:#' + W.color.toString(16).padStart(6, '0') + '">' + W.icon + '</div><div><small style="color:var(--xp)">' + c.name + ' · NV ' + (W.minLv || 2) + ' · TÉCNICA PROPIA</small><br><b>' + W.name + '</b><p>' + W.lv[0] + ' Sale seguro la primera vez que llegas a su nivel.</p></div><button disabled>INCLUIDA</button></div>';
+    }
     for (const id in WEAPONS) {
       const W = WEAPONS[id];
       if (!W.shop) continue;

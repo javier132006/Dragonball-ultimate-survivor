@@ -43,6 +43,7 @@ class Game {
     this.booms = []; this.dodgeMsgT = 0; this.cardT = 0; this.lastResult = null;
     // Rendimiento: resolución dinámica (calidad AUTO) y sombras que no se recalculan en cada fotograma
     this.perf = { acc: 0, n: 0, good: 0, pr: 1, shadowN: 0 };
+    this.shadowDirty = true;                                // el mapa de sombras se redibuja solo cuando cambia algo
     // Cámara orbital: yaw (giro), pitch (inclinación) y dist (zoom)
     this.camYaw = 0; this.camPitch = 0.98; this.camDist = 19; this.camDistT = 19; this.camCos = 1; this.camSin = 0;
     this.drag = false;
@@ -101,6 +102,7 @@ class Game {
     this.allies = new Allies(this.scene, sheets);       // compañeros temporales
     // Al romper un cristal: orbes de experiencia, chispas y a veces una semilla
     this.onCrystalBreak = (x, z) => {
+      this.shadowDirty = true;                                // un cristal menos: su sombra desaparece
       this.orbs.spawn(x, z, 4); this.gainZeni(2); this.gainCash(8);
       this.fx.burst(this.fx.sparks, x, 1.2, z, 16, 7, 0.5, 0.35, 8, 0x9fe0ff);
       if (Math.random() < 0.3) this.pickups.drop(x, z);
@@ -116,7 +118,7 @@ class Game {
     const Q = this.qualityCfg(), dpr = window.devicePixelRatio || 1, auto = Save.d.opt.quality === 'auto';
     this.perf.max = Math.min(dpr, IS_TOUCH ? Math.min(1.5, Q.pr) : (auto ? 1.5 : Q.pr));
     this.perf.pr = auto ? Math.min(this.perf.max, Math.max(this.perf.pr || 1, 0.7)) : this.perf.max;
-    this.perf.good = 0; this.perf.acc = 0; this.perf.n = 0; this.perf.noShadow = false;
+    this.perf.good = 0; this.perf.acc = 0; this.perf.n = 0; this.perf.noShadow = false; this.perf.lowFx = false;
     this.renderer.setPixelRatio(this.perf.pr);
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.fx.q = Q.fx;
@@ -125,6 +127,12 @@ class Game {
   applyShadow() {
     const Q = this.qualityCfg(), sun = this.world.sun, on = Q.shadow > 0 && !this.perf.noShadow;
     this.renderer.shadowMap.autoUpdate = false; this.renderer.shadowMap.needsUpdate = true;
+    // Sombra suave (más muestras por píxel) solo en ALTA; en el resto, filtrado normal, bastante más barato
+    const type = Save.d.opt.quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    if (this.renderer.shadowMap.type !== type) {
+      this.renderer.shadowMap.type = type;
+      this.scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });
+    }
     sun.castShadow = on;
     if (on && sun.shadow.mapSize.x !== Q.shadow) {
       sun.shadow.mapSize.set(Q.shadow, Q.shadow);
@@ -140,8 +148,10 @@ class Game {
     const ft = P.acc / P.n; P.acc = 0; P.n = 0;
     if (ft > 1 / 48) {
       P.good = 0;
-      if (P.pr > 0.62) { P.pr = Math.max(0.6, P.pr - 0.15); this.renderer.setPixelRatio(P.pr); this.renderer.setSize(window.innerWidth, window.innerHeight, false); }
+      // Primero lo que menos se nota: menos partículas, después sin sombras del sol y, como último recurso, menos resolución
+      if (!P.lowFx) { P.lowFx = true; this.fx.q = this.qualityCfg().fx * 0.6; }
       else if (!P.noShadow) { P.noShadow = true; this.applyShadow(); }
+      else if (P.pr > 0.62) { P.pr = Math.max(0.6, P.pr - 0.15); this.renderer.setPixelRatio(P.pr); this.renderer.setSize(window.innerWidth, window.innerHeight, false); }
     } else if (ft < 1 / 57 && ++P.good >= 3 && P.pr < P.max) {
       P.good = 0; P.pr = Math.min(P.max, P.pr + 0.1);
       this.renderer.setPixelRatio(P.pr); this.renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -397,7 +407,7 @@ class Game {
     this.run = newRun(); this.curseHp = 0; this.curseDmg = 0; this.chal = 0; this.coinMul = 1; this.showMap = false; this.ui.el.bigmap.style.display = 'none';
     this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
     if (IS_TOUCH) { goFullscreen(); this.camDistT = 22; }
-    this.step = 0; this.booms.length = 0; this.rerolls = 2;
+    this.step = 0; this.booms.length = 0; this.rerolls = 2; this.sigOffered = {};
     this.loadStage(0);
     this.applyForm();
     for (let i = 0; i < 14; i++) this.spawnEnemy();
@@ -429,7 +439,7 @@ class Game {
       this.world = new World(this.scene, S.theme);
       this.world.onBreak = this.onCrystalBreak;
       this.applyShadow();
-    } else { this.world.reset(); this.world.setNight(0); }
+    } else { this.world.reset(); this.world.setNight(0); this.shadowDirty = true; }
     this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.shots.reset(); this.booms.length = 0;
     this.pickups.reset(this.world); this.capsules.reset(this.world, S.final ? 0 : S.caps || 28); this.points.reset();
     if (this.run.route[this.run.route.length - 1] !== S.name) this.run.route.push(S.name);
@@ -1260,6 +1270,12 @@ class Game {
     }
     for (const s of STATS) if ((p.stacks[s.id] || 0) < s.max) pool.push({ t: 'stat', id: s.id });
     const out = [], seen = {};
+    // Técnicas propias del personaje (p. ej. el Kamehameha de Goku): la primera vez que llegas a su nivel salen seguro;
+    // después, si no la cogiste, sale bastante más a menudo que el resto
+    if (W.list.length < MAX_WEAPONS) for (const id of this.signatures()) {
+      if (!this.sigOffered[id] && out.length < 1) { out.push({ t: 'weapon', id }); seen['weapon' + id] = 1; this.sigOffered[id] = true; }
+      else for (let k = 0; k < 3; k++) pool.push({ t: 'weapon', id });
+    }
     // Fusiones disponibles: las dos técnicas de origen al nivel máximo -> siempre sale como primera carta
     for (const id in WEAPONS) {
       const F = WEAPONS[id];
@@ -1288,6 +1304,11 @@ class Game {
     return cards;
   }
 
+  /** Técnicas propias disponibles ahora: exclusivas del personaje, gratuitas, no aprendidas y con nivel suficiente */
+  signatures() {
+    const p = this.player, W = this.weapons;
+    return (p.ch.unique || []).filter((id) => { const D = WEAPONS[id]; return D && !D.shop && !D.fusion && id !== p.ch.start[0] && !W.get(id) && !p.fused.some((f) => (WEAPONS[f].fusion || []).includes(id)) && (D.minLv || 0) <= p.level; });
+  }
   /** Pista en la carta: con qué se fusiona esta técnica */
   fusionHint(id) {
     const W = this.weapons;
@@ -1464,6 +1485,7 @@ class Game {
     if (this.bossUid) this.bossAI(dt);
 
     const edt = dt * (p.charging ? CFG.CHARGE_TIME_SCALE : 1);      // cargar Ki ralentiza el mundo
+    this.fx.load = h.n > 320 ? 0.55 : h.n > 200 ? 0.75 : 1;           // horda enorme: ráfagas de partículas más ligeras
     h.update(edt, p, this);
     this.ki.update(dt, this);
     h.reap(this);                                                   // se retiran DESPUÉS de las colisiones
@@ -1476,7 +1498,7 @@ class Game {
     this.points.update(dt, p, this);
     this.shots.update(dt, this);
     this.allies.update(dt, this);
-    this.world.follow(p.x, p.z);
+    if (this.world.follow(p.x, p.z)) this.shadowDirty = true;
 
     // Enemigos que se quedan muy lejos reaparecen cerca (el mapa es grande)
     this.leashT -= dt;
@@ -1554,9 +1576,8 @@ class Game {
     }
     this.touch.update(this);
     this.pad.poll(rawDt);
-    // Sombras: en calidad MEDIA se recalculan uno de cada dos fotogramas
-    const Q = this.qualityCfg();
-    if (Q.every && (++this.perf.shadowN % Q.every === 0)) this.renderer.shadowMap.needsUpdate = true;
+    // Sombras del sol: solo se redibujan si el sol cambió de celda o se rompió un cristal (antes: cada 1-2 fotogramas)
+    if (this.shadowDirty) { this.renderer.shadowMap.needsUpdate = true; this.shadowDirty = false; }
     this.renderer.render(this.scene, this.camera);
   }
 }

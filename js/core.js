@@ -282,16 +282,17 @@ class FX {
     this.gore = new ParticleSystem(scene, 300, 0xc0392b, 0.95, tex.spark);
     this.all = [this.sparks, this.aura, this.trail, this.gore];
     this.q = 1;                                   // calidad: en BAJA se emiten la mitad de partículas en ráfagas y anillos
+    this.load = 1;                                // carga: con la horda muy grande se emiten menos (lo fija Game.update)
   }
   burst(sys, x, y, z, n, speed, life, size, grav, tint) {
-    n = Math.max(1, Math.round(n * this.q));
+    n = Math.max(1, Math.round(n * this.q * this.load));
     for (let i = 0; i < n; i++) {
       const u = rand(-1, 1), phi = rand(0, Math.PI * 2), r = Math.sqrt(1 - u * u), s = speed * rand(0.35, 1);
       sys.emit(x, y, z, r * Math.cos(phi) * s, u * s * 0.8 + speed * 0.25, r * Math.sin(phi) * s, life * rand(0.6, 1), size * rand(0.6, 1.2), grav || 0, tint);
     }
   }
   ring(sys, x, y, z, n, speed, life, size, tint) {
-    n = Math.max(3, Math.round(n * this.q));
+    n = Math.max(3, Math.round(n * this.q * this.load));
     const o = rand(0, 6.28);
     for (let i = 0; i < n; i++) {
       const a = o + (i / n) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);

@@ -90,7 +90,8 @@ class World {
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     const sc = this.sun.shadow.camera;
-    sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45; sc.near = 1; sc.far = 140;
+    sc.left = -48; sc.right = 48; sc.top = 48; sc.bottom = -48; sc.near = 1; sc.far = 140;   // margen para el sol a saltos
+    this.sunX = NaN; this.sunZ = NaN;
     this.sun.shadow.bias = -0.0006;
     scene.add(this.sun, this.sun.target);
 
@@ -349,7 +350,15 @@ class World {
     this.crystals.instanceMatrix.needsUpdate = true;
   }
 
-  follow(x, z) { this.sun.position.set(x + 14, 42, z + 10); this.sun.target.position.set(x, 0, z); }
+  /** El sol sigue al jugador a saltos de 6 unidades. Solo proyectan sombra los objetos fijos del mapa, así que el
+      mapa de sombras únicamente hay que redibujarlo cuando el sol cambia de celda. Devuelve true si se movió */
+  follow(x, z) {
+    const sx = Math.round(x / 6) * 6, sz = Math.round(z / 6) * 6;
+    if (sx === this.sunX && sz === this.sunZ) return false;
+    this.sunX = sx; this.sunZ = sz;
+    this.sun.position.set(sx + 14, 42, sz + 10); this.sun.target.position.set(sx, 0, sz);
+    return true;
+  }
 
   /** Imagen del mapa para el minimapa (biomas + lagos) */
   buildMinimap() {

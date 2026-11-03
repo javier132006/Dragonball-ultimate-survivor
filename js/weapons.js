@@ -7,6 +7,9 @@
 
 const BASE_DMG = 10;
 
+/* Capas de los rayos: tamaño relativo al ancho y opacidad base (ver updateBeams) */
+const BEAM_K = [2.6, 1.5, 0.7], BEAM_A = [0.10, 0.16, 0.22];
+
 class WeaponSystem {
   constructor(scene, tex) {
     this.list = [];                                   // armas equipadas: {id, kind, lv, cd, ...}
@@ -470,12 +473,12 @@ class WeaponSystem {
         for (let t = 2; t < cur; t += 4) g.world.damageArea(b.x + b.dx * t, b.z + b.dz * t, b.hw, b.dmg);
         g.fx.sparks.emit(b.x + b.dx * cur, 1.5, b.z + b.dz * cur, rand(-3, 3), rand(0, 4), rand(-3, 3), 0.3, 0.35, 0, b.color);
       }
+      // Tres capas (halo, cuerpo y núcleo blanco). Cada capa separa sus sprites según su tamaño y sube su opacidad
+      // en la misma proporción: se ve igual, pero se pintan aproximadamente la mitad de píxeles (menos trabajo de GPU)
       const wob = 1 + Math.sin(g.time * 40) * 0.08;
-      for (let t = 0.8; t <= cur; t += 0.8) {
-        const x = b.x + b.dx * t, z = b.z + b.dz * t;
-        B.push(x, 1.5, z, 0, 0, 0, b.hw * 2.6 * wob, 0.10 * fade, b.color);
-        B.push(x, 1.5, z, 0, 0, 0, b.hw * 1.5 * wob, 0.16 * fade, b.color);
-        B.push(x, 1.5, z, 0, 0, 0, b.hw * 0.7 * wob, 0.22 * fade, 0xffffff);
+      for (let k = 0; k < 3; k++) {
+        const size = b.hw * BEAM_K[k] * wob, step = Math.max(0.8, size * 0.3), al = Math.min(1, BEAM_A[k] * step / 0.8) * fade, col = k === 2 ? 0xffffff : b.color;
+        for (let t = 0.8; t <= cur; t += step) B.push(b.x + b.dx * t, 1.5, b.z + b.dz * t, 0, 0, 0, size, al, col);
       }
       B.push(b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 0, 0, 0, b.hw * 3.6, 0.7 * fade, b.color);
     }
