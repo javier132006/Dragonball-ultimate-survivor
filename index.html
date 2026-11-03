@@ -546,6 +546,20 @@ html.touch #bossBox{top:56px}
 #tbUlt small{font-size:7px;letter-spacing:.5px}
 /* Destello de impacto de la Ultimate (color y opacidad los pone game.js) */
 #ultFx{position:fixed;inset:0;pointer-events:none;z-index:45;opacity:0;background:#000}
+/* ---------- Cuenta y ranking mundial ---------- */
+.acct{max-width:440px;margin:12px auto;display:flex;flex-direction:column;gap:12px;padding:18px 20px;background:rgba(6,12,28,.9);border:1px solid var(--line)}
+.acct label{display:flex;flex-direction:column;gap:5px;font-size:12px;letter-spacing:2px;color:#9fb4d8}
+.acct input{font:inherit;font-size:16px;letter-spacing:0;padding:10px 12px;background:rgba(7,20,38,.92);color:#fff;border:2px solid var(--line);outline:none}
+.acct input:focus{border-color:var(--or)}
+.acct .msg{min-height:1.3em;margin:0;color:#ffd84a}.acct .msg.ok{color:#5be07a}.acct .msg.bad{color:#ff6070}
+.acct .who{font-family:var(--db);font-size:30px;letter-spacing:2px;color:var(--yl);margin:0}
+.acct .arow{display:flex;gap:10px;flex-wrap:wrap}
+.abtn{font-family:var(--db);font-size:16px;letter-spacing:2px;padding:12px 18px;border:2px solid var(--or);background:linear-gradient(180deg,#ffb020,#ff7a00);color:#1a0d00;cursor:pointer}
+.abtn.alt{background:rgba(7,20,38,.92);color:#fff}.abtn:disabled{opacity:.5;cursor:wait}
+.tabs.sub{margin-top:-4px}.tabs.sub .tab{font-size:12px;padding:6px 12px}
+.rank .rr.me{outline:2px solid var(--yl);outline-offset:-2px}
+.onl{margin:10px 0 2px;text-align:center;font-size:13px;letter-spacing:1px;color:#9fe0ff}.onl.ok{color:#5be07a}.onl.off{color:#9fb4d8}
+
 #tbTp.cd{opacity:.4}#tbBlk small,#tbTp small{font-size:7px;letter-spacing:.5px}
 #tbBase{display:none;left:calc(50% - 108px);font-size:11px}
 #tbTf:not(.ready){animation:none;box-shadow:0 0 0 2px #000}
@@ -715,6 +729,9 @@ html.touch #prompt{bottom:auto;top:30%}
 <script src="js/transform.js"></script>
 <script src="js/touch.js"></script>
 <script src="js/pad.js"></script>
+<!-- Cuenta y ranking mundial (Supabase). Si no carga, el juego funciona sin ranking online -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
+<script src="js/online.js"></script>
 <script src="js/game.js"></script>
 <div id="ultFx"></div>
 </body>

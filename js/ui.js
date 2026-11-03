@@ -15,7 +15,7 @@ class UIManager {
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.flash = 0; this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0; this.wKey = ''; this.mmT = 0; this.lastBiome = -1;
-    this.tab = 'upgrades'; this.mtab = 'missions'; this.rtab = 'all'; this.screen = 'home'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
+    this.tab = 'upgrades'; this.mtab = 'missions'; this.rtab = 'all'; this.otab = 'global'; this.atab = 'login'; this.screen = 'home'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
     this.cardHandlers = []; this.cardFocus = 0; this.cardAt = 0; this.hudT = 0; this.optMsg = ''; this.impArmed = false;
     this.mmCtx = this.el.mm && this.el.mm.getContext ? this.el.mm.getContext('2d') : null;
   }
@@ -352,11 +352,11 @@ class UIManager {
   }
 
   renderMenu() {
-    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES', records: 'RÉCORDS' };
+    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES', records: 'RÉCORDS', account: 'CUENTA' };
     e.zeniMenu.textContent = Save.d.zeni;
     e.menu.classList.toggle('ishome', s === 'home');
     e.menuNav.innerHTML = s === 'home' ? '' : '<button class="back" data-go="home">◂ VOLVER</button><h3>' + TITLES[s] + '</h3>';
-    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else if (s === 'records') this.renderRecords(); else this.renderMissions();
+    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else if (s === 'records') this.renderRecords(); else if (s === 'account') this.renderAccount(); else this.renderMissions();
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
   }
@@ -373,6 +373,7 @@ class UIManager {
       '<button class="big" data-go="shop">TIENDA</button>' +
       '<button class="big" data-go="missions">MISIONES' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +
       '<button class="big" data-go="records">RÉCORDS</button>' +
+      '<button class="big" data-go="account">CUENTA<small>' + this.accountLabel() + '</small></button>' +
       '<button class="big" data-go="stats">ESTADÍSTICAS</button>' +
       '<button class="big" data-go="options">OPCIONES</button>' +
       '<button class="big ghost" data-exit>SALIR</button></div></div>' +
@@ -488,15 +489,62 @@ class UIManager {
 
   /* ---------- Récords: ranking local y desafíos diarios ---------- */
   renderRecords() {
-    const tabs = '<div class="tabs"><button class="tab ' + (this.rtab === 'all' ? 'on' : '') + '" data-rtab="all">MEJORES PARTIDAS</button><button class="tab ' + (this.rtab === 'daily' ? 'on' : '') + '" data-rtab="daily">DESAFÍO DIARIO</button></div>';
+    const tabs = '<div class="tabs"><button class="tab ' + (this.rtab === 'all' ? 'on' : '') + '" data-rtab="all">MEJORES PARTIDAS</button><button class="tab ' + (this.rtab === 'daily' ? 'on' : '') + '" data-rtab="daily">DESAFÍO DIARIO</button><button class="tab ' + (this.rtab === 'online' ? 'on' : '') + '" data-rtab="online">RANKING MUNDIAL</button></div>';
     let h = '';
     if (this.rtab === 'daily') {
       const list = Save.d.rank.filter((r) => r.daily);
       h = '<div class="msplit"><div>' + this.dailyCard() + '</div><div><h4 class="sec">HISTORIAL (MEJOR MARCA DE CADA DÍA)</h4>' +
         (Save.d.dayHist.length ? '<div class="rank">' + Save.d.dayHist.map((d) => '<div class="rr"><span>' + d.date.split('-').reverse().join('/') + '</span><span class="dim">' + (d.mods || []).join(' · ') + '</span><b>' + d.best.toLocaleString('es-ES') + '</b></div>').join('') + '</div>' : '<p class="dim">Aún no has jugado ningún desafío diario.</p>') +
         (list.length ? '<h4 class="sec">TUS MEJORES DESAFÍOS</h4>' + this.rankTable(list) : '') + '</div></div>';
+    } else if (this.rtab === 'online') {
+      h = '<div class="tabs sub"><button class="tab ' + (this.otab === 'global' ? 'on' : '') + '" data-otab="global">GENERAL</button><button class="tab ' + (this.otab === 'daily' ? 'on' : '') + '" data-otab="daily">DESAFÍO DE HOY</button></div>' +
+        '<div id="onRank"><p class="dim" style="text-align:center">Cargando ranking…</p></div>';
     } else h = Save.d.rank.length ? this.rankTable(Save.d.rank) : '<p class="dim" style="text-align:center">Juega una partida para entrar en el ranking.</p>';
     this.el.menuBody.innerHTML = tabs + h;
+    if (this.rtab === 'online') this.loadOnlineRank();
+  }
+  /** Rellena el ranking mundial (general o del desafío de hoy) cuando llegan los datos */
+  async loadOnlineRank() {
+    const on = this.game && this.game.online, tab = this.otab, box = () => document.getElementById('onRank');
+    if (!on || !on.ready) { if (box()) box().innerHTML = '<p class="dim" style="text-align:center">El ranking mundial no está configurado todavía (mira la pantalla CUENTA).</p>'; return; }
+    try {
+      const list = tab === 'daily' ? await on.topDaily(50) : await on.topGlobal(50);
+      if (this.screen !== 'records' || this.rtab !== 'online' || this.otab !== tab || !box()) return;   // el jugador ya cambió de pantalla
+      const me = on.user ? on.user.id : '';
+      box().innerHTML = (list.length ? '<div class="rank">' + list.map((r, i) => {
+        const c = charById(r.ch);
+        return '<div class="rr' + (i < 3 ? ' top' + i : '') + (r.user_id === me ? ' me' : '') + '"><em>' + (i + 1) + '</em><span><b>' + escHtml(r.name) + '</b> · ' + (c ? c.name : escHtml(r.ch)) + (r.win ? ' · ★ VICTORIA' : '') + '</span><span class="dim">' + r.kills + ' enemigos · NV ' + r.level + ' · mapa ' + (r.step + 1) + '/' + ROUTE_LEN + ' · ' + fmtTime(r.time) + ' · ' + diffById(r.diff).name + '</span><b>' + Number(r.score).toLocaleString('es-ES') + '</b></div>';
+      }).join('') + '</div>' : '<p class="dim" style="text-align:center">Todavía no hay partidas. ¡Sé el primero!</p>') +
+        (on.logged ? '' : '<p class="dim" style="text-align:center">Inicia sesión en CUENTA para aparecer en el ranking.</p>');
+    } catch (e) { if (box()) box().innerHTML = '<p class="dim" style="text-align:center">' + escHtml(on.errText(e)) + '</p>'; }
+  }
+
+  /* ---------- Cuenta: iniciar sesión / crear cuenta ---------- */
+  accountLabel() {
+    const on = this.game && this.game.online;
+    if (!on || !on.ready) return 'Sin conectar';
+    return on.logged ? escHtml(on.name || 'Conectado') : 'Iniciar sesión';
+  }
+  renderAccount() {
+    const on = this.game && this.game.online;
+    let h;
+    if (!on || !on.ready) {
+      h = '<div class="acct"><h4 class="sec">RANKING MUNDIAL NO CONFIGURADO</h4><p class="dim">Falta conectar el juego con Supabase: ejecuta <b>supabase/ranking.sql</b> en el SQL Editor de tu proyecto y pon su URL y su clave pública en <b>js/online.js</b>.</p><p class="dim">Mientras tanto puedes jugar con normalidad y tus récords se guardan en este navegador.</p></div>';
+    } else if (on.logged) {
+      h = '<div class="acct"><h4 class="sec">SESIÓN INICIADA</h4><p class="who">' + escHtml(on.name) + '</p><p class="dim">' + escHtml(on.user.email || '') + '</p>' +
+        '<p>Tus partidas se suben solas al ranking mundial al terminar (el modo entrenamiento no cuenta).</p>' +
+        '<div class="arow"><button class="abtn" data-rtab-go="online">VER RANKING MUNDIAL</button><button class="abtn alt" data-acct="out">CERRAR SESIÓN</button></div></div>';
+    } else {
+      const reg = this.atab === 'signup';
+      h = '<div class="tabs"><button class="tab ' + (!reg ? 'on' : '') + '" data-atab="login">INICIAR SESIÓN</button><button class="tab ' + (reg ? 'on' : '') + '" data-atab="signup">CREAR CUENTA</button></div>' +
+        '<form class="acct" data-acct-form="' + (reg ? 'signup' : 'login') + '" novalidate>' +
+        (reg ? '<label>NOMBRE DE JUGADOR<input id="acName" maxlength="16" autocomplete="nickname" placeholder="De 3 a 16 caracteres"></label>' : '') +
+        '<label>CORREO<input id="acMail" type="email" autocomplete="email"></label>' +
+        '<label>CONTRASEÑA<input id="acPass" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" placeholder="Mínimo 6 caracteres"></label>' +
+        '<button class="abtn" type="submit">' + (reg ? 'CREAR CUENTA' : 'ENTRAR') + '</button><p class="msg" id="acMsg"></p>' +
+        '<p class="dim">Sin cuenta puedes jugar igual; solo no apareces en el ranking mundial.</p></form>';
+    }
+    this.el.menuBody.innerHTML = h;
   }
   rankTable(list) {
     return '<div class="rank">' + list.slice(0, 15).map((r, i) => {

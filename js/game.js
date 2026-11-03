@@ -59,6 +59,10 @@ class Game {
     this.cine = new TransformScene(this);                // cinemática de transformación
     this.touch = new TouchControls(this);                // controles táctiles (solo en móvil)
     this.pad = new PadInput(this);                       // mando (Gamepad API)
+    // Cuenta y ranking mundial (Supabase). Si no está configurado, el juego funciona igual
+    this.online = new Online();
+    this.online.onChange = () => { if (this.state === 'menu') this.ui.renderMenu(); };
+    this.online.init().catch((e) => console.error(e));
     this.bindEvents();
     this.clock = new THREE.Clock();
     this.loop = this.loop.bind(this);
@@ -159,6 +163,7 @@ class Game {
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.state = 'pause'; ui.fatal('Se perdió el contexto WebGL (la GPU se reinició). Recarga la página.'); });
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // escribiendo en un formulario
       if (this.ui.el.modal.classList.contains('show') || this.ui.el.exit.classList.contains('show')) return;
       const s = this.state;
       if (s === 'menu' && e.code === 'Enter') this.start(false);
@@ -201,7 +206,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -219,11 +224,29 @@ class Game {
       else if (D.start !== undefined) this.start(D.start === 'practice', D.start === 'daily');
       else if (D.exit !== undefined) ui.showExit(true);
       else if (D.rtab) { ui.rtab = D.rtab; ui.renderMenu(); }
+      else if (D.otab) { ui.otab = D.otab; ui.renderMenu(); }
+      else if (D.atab) { ui.atab = D.atab; ui.renderMenu(); }
+      else if (D.rtabGo) { ui.rtab = D.rtabGo; this.go('records'); }
+      else if (D.acct === 'out') this.online.signOut().then(() => { ui.atab = 'login'; ui.renderMenu(); });
       else if (D.q) { Save.d.opt.quality = D.q; Save.write(); this.perf.pr = 1; this.applyQuality(); ui.renderMenu(); }
       else if (D.flash !== undefined) { Save.d.opt.flash = !Save.d.opt.flash; Save.write(); ui.renderMenu(); }
       else if (D.exp !== undefined) this.exportSave();
       else if (D.imp !== undefined) this.importSave();
       else if (D.impfile !== undefined) { const f = document.getElementById('impFile'); if (f) f.click(); }
+    });
+    // Formulario de cuenta: entrar o crear cuenta
+    ui.el.menu.addEventListener('submit', (e) => {
+      const f = e.target.closest('[data-acct-form]');
+      if (!f) return;
+      e.preventDefault();
+      const msg = document.getElementById('acMsg'), btn = f.querySelector('button[type=submit]'), val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+      if (btn.disabled) return;
+      btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Conectando…';
+      const job = f.dataset.acctForm === 'signup' ? this.online.signUp(val('acMail'), val('acPass'), val('acName')) : this.online.signIn(val('acMail'), val('acPass'));
+      job.then((r) => {
+        btn.disabled = false; msg.className = 'msg' + (r.ok ? ' ok' : ' bad'); msg.textContent = r.msg;
+        if (r.ok) SFX.play('coin');
+      });
     });
     // Importar desde archivo .json
     ui.el.menu.addEventListener('change', (e) => {
@@ -768,7 +791,7 @@ class Game {
     Save.d.zeni += coins;
     this.track('runs', 1); this.track('time', Math.floor(this.time)); this.trackMax('maxLevel', p.level); this.trackMax('maxStage', this.step + 1);
     // Puntuación y ranking local (los 15 mejores)
-    const score = runScore({ kills: this.kills, level: p.level, bosses: this.run.bosses, step: this.step, time: this.time, win });
+    const score = runScore({ kills: this.kills, level: p.level, bosses: this.run.bosses, step: this.step, time: Math.floor(this.time), win });
     const prevTop = Save.d.rank.length ? Save.d.rank[0].score : 0;
     Save.d.rank.push({ score, ch: id, kills: this.kills, level: p.level, time: Math.floor(this.time), step: this.step + 1, win: !!win, daily: this.daily, date: todayStr(), diff: d.id });
     Save.d.rank.sort((a, b) => b.score - a.score); Save.d.rank.length = Math.min(Save.d.rank.length, 15);
@@ -787,9 +810,21 @@ class Game {
     const b = Save.d.best[id];
     if (!b || this.time > b.time) Save.d.best[id] = { time: Math.floor(this.time), kills: this.kills, level: p.level };
     Save.write();
+    this.sendOnline({ ch: id, kills: this.kills, level: p.level, bosses: this.run.bosses, step: this.step, time: Math.floor(this.time), win: !!win, diff: d.id, daily: !!this.daily });
     return { coins, bonus, score, record: score > prevTop, dayBonus };
   }
   abandon() { this.finishRun(false); this.toMenu(); }
+  /** Sube la partida al ranking mundial (si hay sesión) y escribe el resultado en el resumen */
+  sendOnline(run) {
+    const on = this.online;
+    if (!on.ready || !on.logged) return;
+    on.submit(run).then((r) => {
+      const el = document.getElementById('onlRes');
+      if (!el) return;
+      el.className = 'onl ' + (r.ok ? 'ok' : 'off');
+      el.textContent = r.ok ? 'RANKING MUNDIAL · tu mejor marca está en el puesto #' + r.rank : r.msg;
+    });
+  }
 
   runSummary(r) {
     const rows = [['ENEMIGOS DERROTADOS', this.kills], ['NIVEL ALCANZADO', this.player.level], ['TIEMPO', fmtTime(this.time)],
@@ -797,6 +832,7 @@ class Game {
       ['GOLPE MÁS FUERTE', Math.floor(this.run.best)], ['DAÑO RECIBIDO', Math.floor(this.run.taken)], ['DASHES', this.run.dashes], ['DIFICULTAD', this.diff.name]];
     let h = '';
     if (!this.practice) h += '<div class="score' + (r.record ? ' rec' : '') + '"><small>' + (r.record ? '¡NUEVO RÉCORD!' : this.daily ? 'PUNTUACIÓN · DESAFÍO DIARIO' : 'PUNTUACIÓN') + '</small><b>' + (r.score || 0).toLocaleString('es-ES') + '</b><span>' + this.run.route.join(' ▸ ') + '</span></div>';
+    if (!this.practice && this.online.ready) h += '<div class="onl' + (this.online.logged ? '' : ' off') + '" id="onlRes">' + (this.online.logged ? 'Enviando al ranking mundial…' : 'Inicia sesión en CUENTA para entrar en el ranking mundial.') + '</div>';
     h += '<div class="sum">' + rows.map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
     h += this.dmgChart();
     if (this.practice) return h + '<div class="reward">ENTRENAMIENTO<small>El modo práctica no da monedas ni cuenta para misiones y logros</small></div>';
