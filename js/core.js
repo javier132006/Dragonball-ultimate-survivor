@@ -163,6 +163,7 @@ const SPRITE_VS = `
 attribute vec4 iPos;    // xyz: pies del sprite en el mundo, w: opacidad
 attribute vec4 iData;   // x: fotograma, y: volteo (0/1), z: destello blanco, w: escala
 attribute vec3 iCol;    // tinte por instancia
+attribute float iRot;   // giro en el plano del sprite (radianes): rayos, tajos y grietas orientados
 uniform vec2 uGrid; uniform vec2 uSize; uniform float uAnchor; uniform float uFlat;
 uniform sampler2D uHMap; uniform vec2 uHO; uniform float uHS; uniform vec2 uHR;
 varying vec2 vUv; varying float vFlash; varying float vAlpha; varying vec3 vCol;
@@ -178,7 +179,10 @@ void main() {
   float s = iData.w;
   // Altura del terreno bajo el sprite (mapa de alturas en la GPU)
   float ground = texture2D(uHMap, clamp((iPos.xz - uHO) / uHS, 0.0, 1.0)).r * uHR.y + uHR.x;
-  vec3 wp = iPos.xyz + vec3(0.0, ground, 0.0) + right * (position.x * uSize.x * s) + up * ((position.y + 0.5 - uAnchor) * uSize.y * s);
+  vec2 o = vec2(position.x * uSize.x, (position.y + 0.5 - uAnchor) * uSize.y) * s;
+  float cr = cos(iRot), sr = sin(iRot);
+  o = vec2(o.x * cr - o.y * sr, o.x * sr + o.y * cr);
+  vec3 wp = iPos.xyz + vec3(0.0, ground, 0.0) + right * o.x + up * o.y;
   gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
 }`;
 const SPRITE_FS = `
@@ -203,8 +207,9 @@ class SpriteBatch {
     this.pos = new Float32Array(o.max * 4); this.data = new Float32Array(o.max * 4); this.col = new Float32Array(o.max * 3);
     this.aPos = new THREE.InstancedBufferAttribute(this.pos, 4); this.aData = new THREE.InstancedBufferAttribute(this.data, 4);
     this.aCol = new THREE.InstancedBufferAttribute(this.col, 3);
-    for (const a of [this.aPos, this.aData, this.aCol]) a.setUsage(THREE.DynamicDrawUsage);
-    this.geo.setAttribute('iPos', this.aPos); this.geo.setAttribute('iData', this.aData); this.geo.setAttribute('iCol', this.aCol);
+    this.rot = new Float32Array(o.max); this.aRot = new THREE.InstancedBufferAttribute(this.rot, 1); this.rotUsed = false;
+    for (const a of [this.aPos, this.aData, this.aCol, this.aRot]) a.setUsage(THREE.DynamicDrawUsage);
+    this.geo.setAttribute('iPos', this.aPos); this.geo.setAttribute('iData', this.aData); this.geo.setAttribute('iCol', this.aCol); this.geo.setAttribute('iRot', this.aRot);
     this.geo.instanceCount = 0;
     const soft = !!(o.additive || o.blend);
     this.mat = new THREE.ShaderMaterial({
@@ -228,15 +233,19 @@ class SpriteBatch {
   }
   setTint(hex) { this.mat.uniforms.uTint.value.setHex(hex); }
   begin() { this.count = 0; }
-  push(x, y, z, frame, flip, flash, scale, alpha, tint) {
+  push(x, y, z, frame, flip, flash, scale, alpha, tint, rot) {
     if (this.count >= this.max) return;
     const i = this.count++, p = i * 4, c = i * 3;
+    if (rot || this.rot[i]) { this.rot[i] = rot || 0; this.rotUsed = true; }       // el giro solo se sube a la GPU si alguien lo usa
     this.pos[p] = x; this.pos[p + 1] = y; this.pos[p + 2] = z; this.pos[p + 3] = alpha === undefined ? 1 : alpha;
     this.data[p] = frame; this.data[p + 1] = flip; this.data[p + 2] = flash; this.data[p + 3] = scale;
     if (tint === undefined) { this.col[c] = this.col[c + 1] = this.col[c + 2] = 1; }
     else { this.col[c] = ((tint >> 16) & 255) / 255; this.col[c + 1] = ((tint >> 8) & 255) / 255; this.col[c + 2] = (tint & 255) / 255; }
   }
-  end() { this.geo.instanceCount = this.count; this.aPos.needsUpdate = this.aData.needsUpdate = this.aCol.needsUpdate = true; }
+  end() {
+    this.geo.instanceCount = this.count; this.aPos.needsUpdate = this.aData.needsUpdate = this.aCol.needsUpdate = true;
+    if (this.rotUsed) { this.aRot.needsUpdate = true; this.rotUsed = false; }
+  }
   reset() { this.count = 0; this.geo.instanceCount = 0; }
 }
 

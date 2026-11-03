@@ -94,7 +94,7 @@ class TransformScene {
     this.end = this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + BANNER_TIME;
     this.cam0 = { dist: g.camDistT, pitch: g.camPitch };
     g.camDistT = 7.5; g.camPitch = 0.28;
-    this.bolts.length = 0; this.cracks.length = 0; this.petals.length = 0;
+    this.bolts.length = 0; this.cracks.length = 0; this.petals.length = 0; this.fiss = false; this.gT = 0;
     this.stars = [];
     for (let i = 0; i < 60; i++) this.stars.push({ x: Math.random(), y: Math.random(), p: Math.random() * 6 });
     for (let i = 0; i < 40; i++) this.petals.push({ a: Math.random() * 6.28, r: 40 + Math.random() * 160, s: 0.6 + Math.random() * 1.6, y: Math.random() });
@@ -132,6 +132,17 @@ class TransformScene {
       }
       if (fx.includes('flame')) for (let i = 0; i < 3; i++) g.fx.sparks.emit(p.x + rand(-0.7, 0.7), rand(0, 1), p.z + rand(-0.7, 0.7), rand(-0.5, 0.5), rand(6, 12), rand(-0.5, 0.5), rand(0.4, 0.8), rand(0.2, 0.45), 0, Math.random() < 0.5 ? 0xff4a1a : 0xffb040);
       if (fx.includes('sparks') && Math.random() < dt * 25) g.fx.burst(g.fx.sparks, p.x + rand(-1, 1), rand(0.5, 2.5), p.z + rand(-1, 1), 4, 9, 0.2, 0.25, 0, parseInt((c.bolt || c.c2).slice(1), 16));
+      const V = g.vfx;
+      if (V && V.ok) {
+        this.gT = (this.gT || 0) - dt;
+        if (this.gT <= 0) {                                           // anillos de ki en el suelo y energía que se concentra
+          this.gT = 0.32 - k * 0.15;
+          V.play('auraGen', p.x, 0.25, p.z, { flat: true, size: 3 + k * 4, grow: 2.2, dur: 0.45, frames: FXA.auraGen.f.slice(0, 6), pri: 1 });
+          if (k > 0.4) V.play('lightA', p.x + rand(-1.5, 1.5), rand(0.8, 2.6), p.z + rand(-1.5, 1.5), { size: 2.6, fps: 30, pri: 1 });
+        }
+        if (k > 0.25 && !this.fiss) { this.fiss = true; V.crater(p.x, p.z, 4, parseInt(c.c1.slice(1), 16)); }
+        if (Math.random() < dt * (1.5 + k * 3)) { const a = rand(0, 6.28), r = rand(3.5, 6); V.dust(p.x + Math.cos(a) * r, p.z + Math.sin(a) * r, rand(1.4, 2.4)); }
+      }
       this.ringT -= dt;
       if (this.ringT <= 0) { this.ringT = fx.includes('pulse') ? 0.22 : 0.45 - k * 0.2; g.fx.ring(g.fx.aura, p.x, 0.3, p.z, 30, 8 + k * 10, 0.4, 0.3, col1); }
       g.shake(c.shake * (0.15 + k * 0.85));
@@ -166,6 +177,14 @@ class TransformScene {
     p.formSeen[this.to] = true; p.tfCd = 0;
     if (first) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);     // la curación solo la primera vez que alcanzas esa forma
     g.fx.ring(g.fx.aura, p.x, 0.4, p.z, 80, 30, 0.9, 0.5, col);
+    const V = g.vfx;
+    if (V && V.ok) {                                                 // estallido: columna de energía, cúpula de ki, rayos y cráter
+      V.play('flare', p.x, 5.5, p.z, { size: 11, dur: 1.4, fps: 8, alpha: 0.85, pri: 1 });
+      V.play('dome', p.x, 2.4, p.z, { size: 5, grow: 2.4, dur: 0.7, alpha: 0.75, pri: 1 });
+      V.flash(p.x, 2, p.z, 7, col, { pri: 1 });
+      for (let i = 0; i < 6; i++) { const a = i * 1.047; V.bolt(p.x + Math.cos(a) * 7, p.z + Math.sin(a) * 7, 14, 0xffffff); }
+      V.crater(p.x, p.z, 4, col); V.dust(p.x - 4, p.z, 3); V.dust(p.x + 4, p.z, 3);
+    }
     g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 18, 0.9, 0.5, 2, col);
     g.horde.shockwave(p.x, p.z, 22, 40);
     DMG_SRC = 'transform';

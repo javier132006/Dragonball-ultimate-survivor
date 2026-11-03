@@ -104,6 +104,7 @@ class World {
     this.buildHeight();
     this.buildGround(scene);
     this.buildProps(scene);
+    this.buildSprites(scene, themeIdx || 0);
     this.buildGrid();
     this.buildMinimap();
     this.objs = scene.children.slice(before);
@@ -263,6 +264,65 @@ class World {
     this.zero = new THREE.Matrix4().makeScale(0, 0, 0);
   }
 
+  /** Decorado con sprites (hojas props y tall): flora de Namek, estatuas y cajas en la Tierra, rocas moradas en la
+      dimensión, volcanes en el Planeta Vegeta... Cajas, estatuas y rocas se rompen y sueltan premios (como los cristales) */
+  buildSprites(scene, theme) {
+    this.sp = []; this.volcs = [];
+    const SH = FX_SHEETS;
+    if (!SH || !SH.props || !SH.tall || !FXA.grass) return;
+    const rng = this.rng, R = this.R, rr = (a, b) => a + rng() * (b - a), N = (c) => Math.max(2, Math.round(c * this.dens)), sc = R < 100 ? 0.3 : 1;
+    const spot = (minD) => { for (let k = 0; k < 30; k++) { const x = rr(-R, R), z = rr(-R, R); if (Math.hypot(x, z) > minD * sc && !this.lakes.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + 3)) return [x, z]; } return [R * 0.8, -R * 0.8]; };
+    // name: animación · k: fotograma · size: alto en unidades · col: radio de choque · hp: vida si se rompe · brk: fotograma roto
+    const add = (name, k, x, z, size, col, hp, brk, tall) => {
+      const o = { f: fxf(name, k), x, z, size, tall: !!tall, brk: brk === undefined ? -1 : brk, dead: false, flat: false };
+      if (col) {
+        const di = hp ? this.destr.length : -1;
+        if (hp) this.destr.push({ x, z, hp, max: hp, col: this.cx.length, idx: -1, s: col / 0.8, spr: this.sp.length });
+        this.collider(x, z, col, di);
+      }
+      this.sp.push(o); return o;
+    };
+    const flat = (name, k, x, z, size) => { const o = add(name, k, x, z, size); o.flat = true; return o; };
+    if (theme === 0) {                                       // Tierra · yermo: estatuas antiguas, cajas de suministros, matojos secos y grietas
+      for (let i = 0; i < N(26); i++) { const [x, z] = spot(26); add('statue', i % 3, x, z, rr(3.4, 4.2), 1.1, 160); }
+      for (let i = 0; i < N(60); i++) { const [x, z] = spot(18); add('crate', rng() < 0.5 ? 0 : 1, x, z, rr(2, 2.5), 0.9, 45, 3); }
+      for (let i = 0; i < N(500); i++) { const [x, z] = spot(8); add('grass', 6 + (i & 1), x, z, rr(1.2, 1.8)); }
+    } else if (theme === 1) {                                // Namek: árboles de copa azul y morada, arbustos y hierba
+      for (let i = 0; i < N(110); i++) { const [x, z] = spot(20); add('treeN', i % 3, x, z, rr(8, 11), 1.2, 0, -1, true); }
+      for (let i = 0; i < N(200); i++) { const [x, z] = spot(14); add('treeS', i % 12, x, z, rr(3.2, 4.6), 0.6); }
+      for (let i = 0; i < N(900); i++) { const [x, z] = spot(6); add('grass', [1, 2, 3, 4][i % 4], x, z, rr(1.1, 1.7)); }
+      for (let i = 0; i < N(12); i++) { const [x, z] = spot(18); add('crate', 0, x, z, 2.2, 0.9, 45, 3); }
+    } else if (theme === 2) {                                // Dimensión fracturada: rocas moradas que se rompen
+      for (let i = 0; i < N(110); i++) { const [x, z] = spot(10); add('rockP', rng() < 0.6 ? 0 : 5, x, z, rr(2.4, 3.6), 1.1, 90, 7); }
+      for (let i = 0; i < N(50); i++) { const [x, z] = spot(6); add('grass', 0, x, z, rr(1, 1.6)); }
+    } else if (theme === 3) {                                // Planeta Vegeta: volcanes en las afueras, cajas y suelo agrietado
+      for (let i = 0; i < N(16); i++) {                     // repartidos por el mapa (siempre hay alguno a la vista)
+        const [x, z] = spot(34);
+        this.collider(x, z, 4.5, -1); this.volcs.push({ x, z, size: rr(11, 15), ph: rng() * 6, f: rng() < 0.5 ? 0 : 1 });
+      }
+      for (let i = 0; i < N(26); i++) { const [x, z] = spot(18); add('crate', 1, x, z, 2.3, 0.9, 45, 3); }
+    } else {                                                 // Cámara del Tiempo: casi vacía (solo alguna caja)
+      for (let i = 0; i < N(18); i++) { const [x, z] = spot(10); add('crate', 0, x, z, 2.2, 0.9, 45, 3); }
+    }
+    const B = (sh, n, o) => new SpriteBatch(scene, Object.assign({ max: Math.max(1, n), texture: sh.tex, cols: sh.cols, rows: sh.rows, w: 1, h: 1, anchor: 0.04, cut: 0.5, renderOrder: 1 }, o));
+    const cnt = (f) => this.sp.filter(f).length;
+    this.spB = B(SH.props, cnt((o) => !o.tall && !o.flat));
+    this.spT = B(SH.tall, cnt((o) => o.tall));
+    this.spD = B(SH.props, cnt((o) => o.flat), { flat: true, anchor: 0.5, blend: true, alpha: 0.75, cut: 0.1, renderOrder: 0.5 });
+    this.refreshSprites();
+  }
+  /** Vuelve a subir el decorado de sprites (al empezar y cada vez que se rompe algo) */
+  refreshSprites() {
+    if (!this.spB) return;
+    this.spB.begin(); this.spT.begin(); this.spD.begin();
+    for (const o of this.sp) {
+      if (o.dead && o.brk < 0) continue;
+      const b = o.flat ? this.spD : o.tall ? this.spT : this.spB;
+      b.push(o.x, o.flat ? 0.08 : 0, o.z, o.dead ? fxf(o.brkName || 'crate', o.brk) : o.f, ((o.x * 7) | 0) & 1, 0, o.dead ? o.size * 0.8 : o.size, 1, 0xffffff);
+    }
+    this.spB.end(); this.spT.end(); this.spD.end();
+  }
+
   buildGrid() {
     this.GC = 8; this.gHalf = this.R + 20; this.gCols = Math.ceil((this.gHalf * 2) / this.GC);
     this.gHead = new Int32Array(this.gCols * this.gCols).fill(-1);
@@ -315,8 +375,13 @@ class World {
           d.hp -= dmg;
           if (d.hp <= 0) {
             this.cr[d.col] = 0;
-            this.crystals.setMatrixAt(d.idx, this.zero);
-            this.crystals.instanceMatrix.needsUpdate = true;
+            if (d.spr !== undefined) {                              // decorado de sprites: se rompe (queda el resto) o desaparece
+              const o = this.sp[d.spr]; o.dead = true; o.brkName = o.brk >= 0 ? this.brkName(o) : null; this.refreshSprites();
+              if (this.onSprBreak) this.onSprBreak(o);
+            } else {
+              this.crystals.setMatrixAt(d.idx, this.zero);
+              this.crystals.instanceMatrix.needsUpdate = true;
+            }
             if (this.onBreak) this.onBreak(d.x, d.z);
           }
         }
@@ -338,11 +403,15 @@ class World {
     this.sun.intensity = th.sun * (1 - n * 0.75);
   }
 
-  /** Restaura los cristales al empezar una partida */
+  /** Nombre de la animación de la que sale el fotograma «roto» de cada objeto */
+  brkName(o) { for (const n of ['crate', 'rockP', 'statue']) if (FXA[n] && FXA[n].f.indexOf(o.f) >= 0) return n; return 'crate'; }
+  /** Restaura los cristales (y cajas, estatuas y rocas) al empezar una partida */
   reset() {
     const M = new THREE.Matrix4(), q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    if (this.sp && this.sp.length) { for (const o of this.sp) o.dead = false; this.refreshSprites(); }
     for (const d of this.destr) {
       d.hp = d.max; this.cr[d.col] = d.s * 0.8;
+      if (d.spr !== undefined) continue;
       const o = this.crystalPlace[d.idx];
       q.setFromAxisAngle(up, o[6]); P.set(o[0], o[1] + groundH(o[0], o[2]), o[2]); S.set(o[3], o[4], o[5]);
       this.crystals.setMatrixAt(d.idx, M.compose(P, q, S));

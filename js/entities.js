@@ -340,9 +340,23 @@ class Player {
     this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint);
     for (const g of this.ghosts) if (g.t > 0) this.gho[g.sheet].push(g.x, 0.5, g.z, g.frame, g.flip, 0, 1, g.t / 0.3, this.form.tint);
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
+    // Aura de fuego (sprites): forma transformada, carga de ki o Kaio-ken. En las formas altas, rayos sueltos alrededor
+    const V = this.vfx, useFx = !!(V && V.ok);
+    if (useFx && !this.dying) {
+      const ka = this.buffT > 0, au = this.form.aura || 0;
+      if (au || this.charging || ka) {
+        const big = this.charging ? 1.3 : 1;
+        V.aura('auraSS1', this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : (au || this.form.ki), this.charging ? 0.85 : 0.5, this.animT);
+      }
+      if ((this.formIdx >= 2 || (this.charging && this.formIdx >= 1)) && ((this.animT * 7) | 0) % 3 === 0) {
+        const k = ((this.animT * 21) | 0) % 10, o = (((this.animT * 13) | 0) % 4) - 1.5;
+        V.now(0, fxf('lightA', k), this.x + o * 0.5, 1.6 + (k % 3) * 0.4, this.z, 2.2, 0.95, 0xffffff);
+      }
+    }
     this.shield.begin();
-    if (this.charging) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 5 * (1 + Math.sin(this.animT * 12) * 0.05), 1);
-    if (this.blocking) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 3.6 * (1 + Math.sin(this.animT * 20) * 0.04), this.perfectT > 0 ? 1.6 : 1, this.perfectT > 0 ? 0xffffff : 0x9be7ff);
+    if (this.charging && !useFx) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 5 * (1 + Math.sin(this.animT * 12) * 0.05), 1);
+    if (this.blocking && useFx) V.now(0, fxf('shield', this.perfectT > 0 ? 4 : 1), this.x, 1.6, this.z, 4.3 * (1 + Math.sin(this.animT * 20) * 0.04), this.perfectT > 0 ? 1 : 0.55, 0xffffff);
+    else if (this.blocking) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 3.6 * (1 + Math.sin(this.animT * 20) * 0.04), this.perfectT > 0 ? 1.6 : 1, this.perfectT > 0 ? 0xffffff : 0x9be7ff);
     else if (this.guardT > 0 && ((this.animT * 10) | 0) % 2) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 3, 0.6, 0xff4060);
     this.shield.end();
     shadows.push(this.x, 0.06, this.z, 0, 0, 0, 2.5 * (1 - y * 0.3), alpha);
@@ -632,12 +646,15 @@ class KiPool {
     for (let i = 0; i < max; i++) this.b.push({ active: false, x: 0, y: 1.4, z: 0, vx: 0, vz: 0, life: 0, dmg: 0, r: 0.5, trail: 0, crit: false, pierce: 0, aoe: 0, tint: 0xffffff, ign: [0, 0, 0, 0, 0, 0], ni: 0, size: 1, src: '' });
     this.sb = new SpriteBatch(scene, { max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.05, renderOrder: 5 });
   }
-  fire(x, z, dx, dz, speed, dmg, r, crit, life, pierce, aoe, tint, size) {
+  /** Con el atlas de efectos, cada ráfaga es una esfera de su color (y los Kienzan, discos que giran) */
+  useFx(sh) { const u = this.sb.mat.uniforms; u.uMap.value = sh.tex; u.uGrid.value.set(sh.cols, sh.rows); this.fx = true; }
+  fire(x, z, dx, dz, speed, dmg, r, crit, life, pierce, aoe, tint, size, look) {
     for (let i = 0; i < this.max; i++) {
       const b = this.b[i];
       if (b.active) continue;
       b.active = true; b.x = x; b.z = z; b.y = 1.4; b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
-      b.crit = crit; b.pierce = pierce; b.aoe = aoe; b.tint = tint; b.trail = 0; b.ni = 0; b.size = size || (crit ? 3.6 : 2.6) * r * 1.3;
+      b.crit = crit; b.pierce = pierce; b.aoe = aoe; b.tint = tint; b.trail = 0; b.ni = 0; b.size = size || (crit ? 3.6 : 2.6) * r * 1.3; b.look = look || 0;
+      b.fr = this.fx ? (b.look === 1 ? -1 : orbFrame(tint, crit || b.size > 3.5 ? 0 : 1)) : 0;
       for (let k = 0; k < 6; k++) b.ign[k] = 0;
       b.src = DMG_SRC; SFX.play('ki');
       return true;
@@ -659,7 +676,9 @@ class KiPool {
       if (done) { b.active = false; if (b.aoe > 0 && !(out && b.life > 0)) game.explode(b.x, b.z, b.aoe, b.dmg * 1.2, b.tint); continue; }
       b.trail -= dt;
       if (b.trail <= 0) { b.trail = 0.03; game.fx.sparks.emit(b.x, b.y, b.z, rand(-1, 1), rand(0, 1.5), rand(-1, 1), 0.25, b.r * 0.5, 0, b.tint); }
-      sb.push(b.x, b.y, b.z, 0, 0, 0, b.size, 1, b.tint);
+      if (!this.fx) sb.push(b.x, b.y, b.z, 0, 0, 0, b.size, 1, b.tint);
+      else if (b.fr < 0) sb.push(b.x, b.y, b.z, fxf('disc', 3 + (((b.life * 18) | 0) & 1)), 0, 0, b.size * 1.15, 1, 0xffffff, b.life * 9);
+      else sb.push(b.x, b.y, b.z, b.fr, 0, 0, b.size * 0.75, 1, 0xffffff);
     }
     DMG_SRC = 'otros';
     sb.end();
@@ -701,7 +720,12 @@ class Pickups {
     this.senzu = new SpriteBatch(scene, { max: this.sMax, texture: tex.senzu, w: 1, h: 1, anchor: 0.5, renderOrder: 1 });
     this.bx = new Float32Array(7); this.bz = new Float32Array(7); this.got = new Uint8Array(7); this.collected = 0; this.t = 0;
     this.balls = new SpriteBatch(scene, { max: 7, texture: tex.dball, cols: 7, rows: 1, w: 1.8, h: 1.8, anchor: 0.5, renderOrder: 1 });
+  }  /** Esferas del dragón y semillas senzu con los sprites del atlas de objetos */
+  useFx(sh) {
+    for (const b of [this.senzu, this.balls]) { const u = b.mat.uniforms; u.uMap.value = sh.tex; u.uGrid.value.set(sh.cols, sh.rows); }
+    this.fx = true;
   }
+
   /** Reparte semillas por el mapa y coloca las 7 esferas bien separadas */
   reset(world) {
     const R = CFG.ARENA - 12;
@@ -743,10 +767,10 @@ class Pickups {
       if (dx * dx + dz * dz < 3.2) { this.got[i] = 1; this.collected++; game.onBall(this.collected, this.bx[i], this.bz[i]); }
     }
     this.senzu.begin();
-    for (let i = 0; i < this.sn; i++) this.senzu.push(this.sx[i], 0.55 + Math.sin(this.t * 3 + i) * 0.12, this.sz[i], 0, 0, 0, 0.9, 1);
+    for (let i = 0; i < this.sn; i++) this.senzu.push(this.sx[i], 0.55 + Math.sin(this.t * 3 + i) * 0.12, this.sz[i], this.fx ? fxf('senzu', 1) : 0, 0, 0, this.fx ? 1.15 : 0.9, 1);
     this.senzu.end();
     this.balls.begin();
-    for (let i = 0; i < 7; i++) if (!this.got[i]) this.balls.push(this.bx[i], 1.1 + Math.sin(this.t * 2 + i) * 0.2, this.bz[i], i, 0, 0, 1, 1);
+    for (let i = 0; i < 7; i++) if (!this.got[i]) this.balls.push(this.bx[i], 1.1 + Math.sin(this.t * 2 + i) * 0.2, this.bz[i], this.fx ? fxf('dball', i) : i, 0, 0, 1, 1);
     this.balls.end();
   }
 }
@@ -843,6 +867,7 @@ class EnemyShots {
     }
     return null;
   }
+  useFx(sh) { const u = this.sb.mat.uniforms; u.uMap.value = sh.tex; u.uGrid.value.set(sh.cols, sh.rows); this.fx = true; }
   /** Anillo de n disparos (con un ángulo inicial) */
   ring(x, z, n, speed, dmg, off, o) { for (let i = 0; i < n; i++) { const a = off + (i / n) * 6.2832; this.fire(x, z, Math.cos(a), Math.sin(a), speed, dmg, o); } }
   /** Bola gigante (Supernova, Cañón Eraser...): viaja visible hasta el punto y allí estalla como zona marcada */
@@ -878,8 +903,13 @@ class EnemyShots {
         }
       }
       const sy = s.ghost ? 1.5 + s.size * 0.35 : 1.3;                // las bolas gigantes van por encima de la cabeza del jefe
-      this.sb.push(s.x, sy, s.z, 0, 0, 0, s.size, 1, s.tint);
-      if (s.size > 3) this.sb.push(s.x, sy, s.z, 0, 0, 0, s.size * 0.45, 0.8, 0xffffff);   // núcleo blanco de las bolas grandes
+      if (this.fx) {                                                // esfera de energía de su color; las grandes, con destellos
+        this.sb.push(s.x, sy, s.z, orbFrame(s.tint, s.size > 3 ? 0 : 1), 0, 0, s.size * 0.8, 1, 0xffffff);
+        if (s.size > 3) this.sb.push(s.x, sy, s.z, fxf('kameStar', ((game.time * 16) | 0) % 4), 0, 0, s.size * 0.9, 0.8, 0xffffff);
+      } else {
+        this.sb.push(s.x, sy, s.z, 0, 0, 0, s.size, 1, s.tint);
+        if (s.size > 3) this.sb.push(s.x, sy, s.z, 0, 0, 0, s.size * 0.45, 0.8, 0xffffff);   // núcleo blanco de las bolas grandes
+      }
     }
     this.sb.end();
     // Zonas marcadas: el círculo se cierra y explota
@@ -891,7 +921,11 @@ class EnemyShots {
         m.on = false;
         const dx = p.x - m.x, dz = p.z - m.z;
         if (dx * dx + dz * dz < m.r * m.r && p.takeDamage(m.dmg, game) && m.eff) this.effect(m.eff, p, game);
-        const fx = game.fx;
+        const fx = game.fx, V = game.vfx;
+        if (V && V.ok) {                                             // explosión animada (y rayo del cielo); las enormes, con impact frame
+          if (m.bolt) V.bolt(m.x, m.z, 16, m.tint);
+          if (m.big) { V.boom(m.x, m.z, m.r, m.tint, true); game.impact(0.12, 1.4); } else V.boom(m.x, m.z, m.r * 0.8, m.tint, false);
+        }
         if (m.bolt) for (let y = 0; y < 14; y += 1.4) fx.burst(fx.sparks, m.x, y, m.z, 2, 2, 0.3, 0.45, 0, m.tint);   // rayo del cielo
         fx.burst(fx.sparks, m.x, 0.8, m.z, m.big ? 40 : 18, m.r * 2.5, 0.45, m.big ? 0.6 : 0.4, 6, m.tint);
         fx.ring(fx.aura, m.x, 0.3, m.z, m.big ? 40 : 22, m.r * 3, 0.35, m.big ? 0.6 : 0.35, m.tint);
@@ -915,6 +949,7 @@ class EnemyShots {
       if (firing && !l.hit) {
         l.hit = true; game.shake(0.5); SFX.play('bigbeam');
         if (l.onFire) l.onFire(l);
+        if (game.vfx && game.vfx.ok) { game.vfx.flash(l.x, 1.4, l.z, l.hw * 4, l.tint); game.vfx.flash(l.x + l.dx * l.len, 1.4, l.z + l.dz * l.len, l.hw * 3, l.tint); }
         const ex = p.x - l.x, ez = p.z - l.z, tt = ex * l.dx + ez * l.dz;
         if (tt > -1 && tt < l.len && Math.abs(ex * l.dz - ez * l.dx) < l.hw + CFG.PLAYER_R && p.takeDamage(l.dmg, game) && l.eff) this.effect(l.eff, p, game);
       }

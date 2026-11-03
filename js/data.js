@@ -6,7 +6,7 @@
    ===================================================================== */
 
 /* Personajes con sprite PROVISIONAL (hoja de otro personaje recoloreada) hasta tener sus sprites propios */
-const SHEET_NAMES = ['goku_a', 'goku_b', 'vegeta', 'black', 'shade', 'enemies', 'bosses'];
+const SHEET_NAMES = ['goku_a', 'goku_b', 'vegeta', 'black', 'shade', 'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4x4, fila*4+columna) ---------- */
 /* Hoja "estándar" (Vegeta y enemigos): caminar, golpear, herido, dash y muerte */

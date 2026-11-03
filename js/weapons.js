@@ -195,6 +195,12 @@ class WeaponSystem {
         for (let i = 0; i < 5; i++) { const a = rand(0, 6.28), u = rand(-1, 1), q = Math.sqrt(1 - u * u); g.fx.aura.emit(s.x + Math.cos(a) * q * R, 16 + u * R, s.z + Math.sin(a) * q * R, 0, 0, 0, 0.18, 0.7, 0, s.tint); }
         g.fx.sparks.emit(s.x + rand(-14, 14), rand(2, 14), s.z + rand(-14, 14), 0, 4, 0, 0.5, 0.25, 0, 0xffffff);
         if (s.t <= 0) g.shake(1.2);
+        const V = g.vfx, fall = s.t < 0.5 ? s.t / 0.5 : 1;                 // los últimos 0,5 s cae sobre el objetivo
+        if (V && V.ok) {
+          const blue = orbIndex(s.tint) >= 4 && orbIndex(s.tint) <= 5;
+          V.now(6, blue ? fxf('genki', 2 + (((g.time * 10) | 0) % 4)) : orbFrame(s.tint, 0), s.x, 1 + (R * 0.6 + 4) * fall, s.z, R * 2.1, 0.95, 0xffffff);
+          V.now(0, fxf('kameStar', ((g.time * 14) | 0) % 4), s.x, 1 + (R * 0.6 + 4) * fall, s.z, R * 1.4, 0.4, 0xffffff);
+        }
       }
       // Marca en el suelo + columna de luz que cae
       g.fx.trail.emit(s.x + Math.cos(g.time * 9) * s.r * 0.8, 0.2, s.z + Math.sin(g.time * 9) * s.r * 0.8, 0, 0.5, 0, 0.2, 0.28, 0, s.tint);
@@ -246,6 +252,8 @@ class WeaponSystem {
     SFX.play('bigbeam');
     p.attack(a.dx, a.dz, true, g); p.beamT = c.life;
     g.shake(0.9); g.ui.toast(D.name.toUpperCase() + '!', true);
+    if (lv >= 5 || w.fused) g.impact(0.1, 4);
+    if (g.vfx) g.vfx.play('gather', p.x, 1.6, p.z, { size: 5, fps: 30, frames: FXA.gather ? FXA.gather.f.slice(12, 18) : null });
     g.fx.burst(g.fx.aura, p.x, 1.4, p.z, 24, 7, 0.6, 0.4, 0, D.color);
   }
 
@@ -263,6 +271,8 @@ class WeaponSystem {
     g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 80, r * 3.2, 0.6, 0.45, 0xff8a3a);
     g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 16, 0.9, 0.5, 4, 0xffd060);
     g.shake(1.2); g.hitstop = 0.1; g.ui.toast('¡EXPLOSIÓN FINAL!', true); SFX.play('bigboom');
+    if (g.vfx) { g.vfx.boom(p.x, p.z, r * 0.55, 0xff8a3a, true); g.vfx.play('dome', p.x, 2, p.z, { size: r, grow: 1.6, dur: 0.6, pri: 1 }); }
+    g.impact(0.14, 2);
   }
 
   /* ----- Kienzan: discos que atraviesan ----- */
@@ -276,7 +286,7 @@ class WeaponSystem {
     for (let i = 0; i < n; i++) {
       const ang = ring ? base + (i / n) * Math.PI * 2 : base + (i - (n - 1) / 2) * 0.22;
       const crit = Math.random() < p.crit;
-      g.ki.fire(p.x, p.z, Math.cos(ang), Math.sin(ang), C.spd || 17, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.9, crit, C.life || 1.7, 99, 0, col, 2.8);
+      g.ki.fire(p.x, p.z, Math.cos(ang), Math.sin(ang), C.spd || 17, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.9, crit, C.life || 1.7, 99, 0, col, 2.8, 1);
     }
     p.attack(a.dx, a.dz, true, g);
   }
@@ -293,6 +303,7 @@ class WeaponSystem {
     g.fx.ring(g.fx.sparks, p.x, 1.4, p.z, 70, r * 3, 0.35, 0.5, 0xffffff);
     g.fx.burst(g.fx.aura, p.x, 2, p.z, 40, 12, 0.4, 0.6, 0, 0xfff8d0);
     if (!Save.d.opt.flash) g.ui.flash = Math.max(g.ui.flash, 0.4);
+    if (g.vfx) { g.vfx.flash(p.x, 2.2, p.z, 10, 0xffe060, { pri: 1 }); g.vfx.play('kameStar', p.x, 2.2, p.z, { size: 14, fps: 14, pri: 1 }); }
     g.ui.toast('¡TAIYOKEN!', true); SFX.play('crit');
   }
 
@@ -311,6 +322,7 @@ class WeaponSystem {
     g.world.damageArea(p.x, p.z, r, dm);
     g.horde.shockwave(p.x, p.z, r, 12);
     SFX.play('pulse');
+    if (g.vfx && FXA.auraGen) g.vfx.play('auraGen', p.x, 0.3, p.z, { flat: true, size: r * 0.7, grow: 3, dur: 0.4, frames: FXA.auraGen.f.slice(0, 4) });
     g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 56, r * 3, 0.4, 0.3, p.form.ki);
     g.fx.ring(g.fx.aura, p.x, 0.5, p.z, 36, r * 2, 0.5, 0.35, 0xffffff);
     g.shake(0.3);
@@ -361,6 +373,10 @@ class WeaponSystem {
     g.horde.damageCone(p.x, p.z, dx, dz, r, full ? -2 : 0.35, dm * p.damageMul(), 9, g);
     g.world.damageArea(p.x + dx * r * 0.5, p.z + dz * r * 0.5, r * 0.6, dm);
     const base = Math.atan2(dz, dx), arc = full ? Math.PI * 2 : 2.4;
+    if (g.vfx) for (let k = 0; k < (full ? 4 : 1); k++) {
+      const a = base + k * Math.PI / 2, cx = Math.cos(a), cz = Math.sin(a);
+      g.vfx.play('cresc', p.x + cx * r * 0.55, 0.4, p.z + cz * r * 0.55, { flat: true, size: r * 1.5, rot: Math.atan2(-cz, cx), fps: 28, tint: color });
+    }
     for (let i = 0; i < 30; i++) {
       const a = base + (i / 29 - 0.5) * arc, c = Math.cos(a), s = Math.sin(a);
       g.fx.sparks.emit(p.x + c * r * 0.9, 1.2, p.z + s * r * 0.9, c * 5, 0.4, s * 5, 0.28, 0.42, 0, color);
@@ -481,6 +497,13 @@ class WeaponSystem {
         for (let t = 0.8; t <= cur; t += step) B.push(b.x + b.dx * t, 1.5, b.z + b.dz * t, 0, 0, 0, size, al, col);
       }
       B.push(b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 0, 0, 0, b.hw * 3.6, 0.7 * fade, b.color);
+      const V = g.vfx;
+      if (V && V.ok && b.hw > 0.9) {
+        const k = (g.time * 20) | 0;
+        V.now(0, orbFrame(b.color, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.6, fade, 0xffffff);
+        V.now(0, fxf('kameStar', k % 4), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 3.4, 0.8 * fade, 0xffffff);
+        V.now(0, fxf('kameImp', k & 1), b.x + b.dx * cur, 1.5, b.z + b.dz * cur, b.hw * 4.2, 0.85 * fade, 0xffffff);
+      }
     }
     B.end();
   }

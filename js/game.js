@@ -101,6 +101,7 @@ class Game {
     const tex = makeTextures();
     this.tex = tex;
     CFG.ARENA = STAGES[0].R;
+    this.vfx = new VFX(this.scene, sheets);                // efectos animados con sprites (antes del mundo: el decorado usa sus hojas)
     this.world = new World(this.scene, STAGES[0].theme);
     this.shadows = new SpriteBatch(this.scene, { max: CFG.MAX_ENEMIES + 2, texture: tex.shadow, w: 1, h: 0.5, anchor: 0.5, flat: true, blend: true, tint: 0x000000, alpha: 0.38, cut: 0.02, renderOrder: 1 });
     this.fx = new FX(this.scene, tex);
@@ -122,6 +123,17 @@ class Game {
       if (Math.random() < 0.3) this.pickups.drop(x, z);
     };
     this.world.onBreak = this.onCrystalBreak;
+    // Al romper una caja, estatua o roca: escombros, destello y premio extra (las estatuas, más)
+    this.onSprBreak = (o) => {
+      this.vfx.play('debris', o.x, 0, o.z, { size: o.size * 1.1, fps: 14, frames: FXA.debris ? FXA.debris.f.slice(0, 6) : null });
+      this.vfx.flash(o.x, 1.4, o.z, 3.5, 0xffd060);
+      if (o.size > 3.3 && !o.tall) { this.gainZeni(25); this.orbs.spawn(o.x, o.z, 10); this.ui.toast('+ZENI · ESTATUA ROTA', true); }
+      SFX.play('boom');
+    };
+    this.world.onSprBreak = this.onSprBreak;
+    this.player.vfx = this.vfx;
+    if (this.vfx.ok) { this.ki.useFx(sheets.fx); this.shots.useFx(sheets.fx); this.pickups.useFx(sheets.props); }
+    this.impCd2 = 0; this.env = null;
     this.applyQuality();
   }
 
@@ -452,10 +464,11 @@ class Game {
     if (this.world.th !== THEMES[S.theme] || this.world.R !== S.R || this.world.seedX !== WORLD_SEED_XOR || this.world.reliefSeed !== RELIEF_SEED) {
       this.world.dispose(this.scene);
       this.world = new World(this.scene, S.theme);
-      this.world.onBreak = this.onCrystalBreak;
+      this.world.onBreak = this.onCrystalBreak; this.world.onSprBreak = this.onSprBreak;
       this.applyShadow();
     } else { this.world.reset(); this.world.setNight(0); this.shadowDirty = true; }
     this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.shots.reset(); this.booms.length = 0;
+    this.vfx.reset(); this.env = null;
     this.pickups.reset(this.world); this.capsules.reset(this.world, S.final ? 0 : S.caps || 28); this.points.reset();
     if (this.run.route[this.run.route.length - 1] !== S.name) this.run.route.push(S.name);
     if (S.pois) this.points.populate(this.world, S);
@@ -475,6 +488,58 @@ class Game {
     this.lakeMsg = false;
     if (S.desc && this.state !== 'menu') this.ui.toast(S.desc, true);
     this.horde.buildGrid();
+  }
+  /** Ambiente de cada mapa: volcanes y erupciones (Planeta Vegeta), tornados (Tierra y Namek), rayos (dimensión) y nieve (Cámara) */
+  updateEnv(dt) {
+    const V = this.vfx, S = this.stage, p = this.player, w = this.world, t = this.time, h = this.horde;
+    if (!V.ok) return;
+    const E = this.env || (this.env = { t: rand(30, 50), torn: null, bolt: 2, erupt: 0 });
+    E.t -= dt;
+    if (w.volcs && w.volcs.length) {                                // volcanes: brillan y, en la erupción, echan humo
+      E.erupt -= dt;
+      for (const v of w.volcs) {
+        V.now(5, fxf('volcano', v.f), v.x, 0, v.z, v.size, 1, 0xffffff);
+        const top = v.size * 0.62;                                 // cráter: brillo de lava (y fumarola si está en erupción)
+        V.now(0, fxf('fire3', ((t * 8 + v.ph) | 0) % 3), v.x, top, v.z, v.size * (E.erupt > 0 ? 0.35 : 0.18), 0.9, 0xffffff);
+        if (E.erupt > 0 && Math.random() < dt * 20) this.fx.sparks.emit(v.x + rand(-1, 1), top, v.z + rand(-1, 1), rand(-3, 3), rand(8, 14), rand(-3, 3), 1.4, 0.8, 9, 0xff7a20);
+      }
+      if (E.t <= 0 && !this.bossUid) {                              // erupción: bombas de lava que caen cerca de ti
+        E.t = rand(35, 55); E.erupt = 7;
+        this.ui.toast('¡ERUPCIÓN VOLCÁNICA!'); this.shake(0.8); SFX.play('alarm');
+        for (let q = 0; q < 9; q++) {
+          const v = w.volcs[(Math.random() * w.volcs.length) | 0], o = rand(0, 6.28), r = q ? rand(2, 12) : 0;
+          this.shots.ball(v.x, v.z, p.x + Math.cos(o) * r, p.z + Math.sin(o) * r, rand(1.8, 3), 2.6, this.enemyDamage() * 1.4, { tint: 0xff6a1a, size: 3.5, big: false });
+        }
+      }
+    }
+    if (S.theme === 0 || S.theme === 1) {                           // tornados: arrastran a los enemigos y te empujan
+      if (!E.torn && E.t <= 0 && !this.bossUid) {
+        E.t = rand(45, 70);
+        const a = rand(0, 6.28), sx = p.x - Math.cos(a) * 34, sz = p.z - Math.sin(a) * 34;
+        E.torn = { x: sx, z: sz, vx: Math.cos(a) * 6.5, vz: Math.sin(a) * 6.5, life: 11 };
+        this.ui.toast(S.theme === 1 ? '¡VIENTO DE NAMEK!' : '¡TORNADO DE ARENA!', true);
+      }
+      const T = E.torn;
+      if (T) {
+        T.life -= dt; T.x += (T.vx + Math.sin(t * 1.3) * 3) * dt; T.z += (T.vz + Math.cos(t * 1.1) * 3) * dt;
+        const nm = S.theme === 1 ? 'tornadoN' : 'tornado', col = S.theme === 1 ? 0xb8ffd8 : 0xf0d8a8;
+        V.now(0, fxf(nm, ((t * 14) | 0) % fxn(nm)), T.x, 4.6, T.z, 10, Math.min(1, T.life) * 0.9, col);
+        h.shockwave(T.x, T.z, 5, 30 * dt);
+        const dx = p.x - T.x, dz = p.z - T.z, d = Math.hypot(dx, dz);
+        if (d < 4.5 && d > 0.01) { p.kbx += (-dz / d * 9 + dx / d * 4) * dt * 6; p.kbz += (dx / d * 9 + dz / d * 4) * dt * 6; }
+        if (T.life <= 0) E.torn = null;
+      }
+    }
+    if (S.theme === 2) {                                            // dimensión fracturada: rayos morados de ambiente
+      E.bolt -= dt;
+      if (E.bolt <= 0) { E.bolt = rand(1.2, 3.5); const o = rand(0, 6.28), r = rand(14, 32); V.bolt(p.x + Math.cos(o) * r, p.z + Math.sin(o) * r, 18, 0xd070ff); }
+    }
+    if (S.theme === 4) {                                            // Cámara del Tiempo: nieve (cuerpo a temperaturas extremas)
+      for (let i = 0; i < 60; i++) {
+        const sx = ((i * 53.3 + t * 1.3) % 50) - 25, sz = ((i * 31.7 + t * 0.8) % 50) - 25, y = 16 - ((t * (1.6 + (i % 5) * 0.3) + i * 2.1) % 16);
+        V.now(0, fxf('snow', i % 6), p.x + sx, y, p.z + sz, 0.75, 0.8, 0xffffff);
+      }
+    }
   }
   /** Pasa a la siguiente fase por la grieta: se conservan nivel, armas y objetos */
   nextStage(to) {
@@ -692,6 +757,13 @@ class Game {
     if (this.combo >= 10) this.ui.toast('COMBO ROTO', true);
     this.combo = 0; this.comboT = 0; this.player.comboMul = 1;
   }
+  /** Impact frame de los momentos grandes. `cd`: segundos sin otro impacto de este tipo (para no saturar); 0 = siempre */
+  impact(t, cd) {
+    if (this.state !== 'play' && this.state !== 'transform') return;
+    if (cd && this.impCd2 > 0) return;
+    if (cd) this.impCd2 = cd;
+    this.impT = Math.max(this.impT, t); this.hitstop = Math.max(this.hitstop, t * 0.5);
+  }
   /** Impact frame en los críticos grandes (con enfriamiento para no saturar) */
   onCrit(dmg) {
     if (this.impCd > 0 || this.state !== 'play' || dmg < 30 * this.player.damageMul()) return;
@@ -708,17 +780,23 @@ class Game {
     p.ki = Math.min(p.maxKi, p.ki + 12);
     this.horde.shockwave(p.x, p.z, 9, 26);
     this.fx.ring(this.fx.aura, p.x, 0.6, p.z, 40, 16, 0.45, 0.4, 0xffffff);
+    this.vfx.play('pulse', p.x, 1.6, p.z, { size: 5, grow: 2.2, fps: 18 }); this.vfx.flash(p.x, 1.6, p.z, 5, 0x9be7ff);
     this.hitstop = Math.max(this.hitstop, 0.06); this.shake(0.4);
     if (!Save.d.opt.flash) this.impT = Math.max(this.impT, 0.06);
     SFX.play('perfect'); this.ui.toast('¡BLOQUEO PERFECTO!', true);
   }
-  onGuardBreak() { SFX.play('guard'); this.ui.toast('¡GUARDIA ROTA!', true); this.shake(0.6); }
+  onGuardBreak() {
+    const p = this.player;
+    SFX.play('guard'); this.ui.toast('¡GUARDIA ROTA!', true); this.shake(0.6);
+    this.vfx.play('shBreak', p.x, 1.6, p.z, { size: 5, fps: 22 }); this.impact(0.06, 1);
+  }
   onTeleport(ox, oz, x, z) {
     const p = this.player, col = p.form.ki;
     this.run.tps++; this.track('tps', 1);
     this.fx.burst(this.fx.trail, ox, 1.2, oz, 18, 6, 0.4, 0.4, 0, col);
     this.fx.ring(this.fx.aura, x, 0.5, z, 30, 12, 0.35, 0.35, col);
     DMG_SRC = 'tp'; this.horde.damageRadius(x, z, 3.2, 14 * p.damageMul(), 12, this); DMG_SRC = 'otros';
+    this.vfx.flash(ox, 1.6, oz, 4, col); this.vfx.flash(x, 1.6, z, 5, col); this.vfx.play('kameStar', x, 1.6, z, { size: 6, fps: 16 });
     this.shake(0.3); SFX.play('tp');
   }
   onAutoDodge() {
@@ -742,6 +820,7 @@ class Game {
       } else { DMG_SRC = 'chain'; this.horde.damageRadius(b.x, b.z, 3.6, 30 * p.damageMul(), 10, this); }
       this.fx.burst(this.fx.sparks, b.x, 1, b.z, 18, 9, 0.45, 0.4, 6, 0x9aff4a);
       this.fx.ring(this.fx.aura, b.x, 0.4, b.z, 20, 10, 0.35, 0.35, 0x6aff3a);
+      this.vfx.boom(b.x, b.z, 2.4, 0x9aff4a, false);
       SFX.play('boom');
     }
     DMG_SRC = 'otros';
@@ -961,6 +1040,8 @@ class Game {
     it.apply(p);
     p.items[it.id] = (p.items[it.id] || 0) + 1;
     this.fx.burst(this.fx.sparks, x, 1, z, 20 + it.rarity * 8, 8, 0.6, 0.4, 5, col);
+    if (FXA.capsule) this.vfx.play('capsule', x, 0, z, { size: 3.2, fps: 9, frames: [FXA.capsule.f[1], FXA.capsule.f[2], FXA.capsule.f[4]], fade: true });
+    this.vfx.flash(x, 1.4, z, 4 + it.rarity, col);
     this.fx.ring(this.fx.aura, x, 0.5, z, 30 + it.rarity * 8, 10 + it.rarity * 2, 0.6, 0.4, col);
     this.shake(0.2 + it.rarity * 0.12);
     if (it.rarity >= 4) { this.hitstop = 0.12; this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 60, 22, 0.8, 0.45, col); }
@@ -1027,6 +1108,8 @@ class Game {
   /** Explosión de área reutilizable (minas, meteoros, Big Bang) */
   explode(x, z, r, dmg, tint) {
     SFX.play('boom');
+    if (r >= 9) { this.vfx.boom(x, z, r * 0.6, tint, true); this.impact(0.14, 2.5); }   // Genkidama, Death Ball...: impact frame
+    else if (r >= 1.6) this.vfx.boom(x, z, r * 0.75, tint, false);
     this.horde.damageRadius(x, z, r, dmg, 10, this);
     this.world.damageArea(x, z, r, dmg);
     this.fx.burst(this.fx.sparks, x, 1, z, 16, r * 2.4, 0.5, 0.4, 6, tint);
@@ -1082,6 +1165,7 @@ class Game {
       this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
       if (B.moves) this.ui.toast(B.moves, true);                       // sus técnicas, para saber qué esperar
       this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.col || B.tints[0]);
+      this.vfx.play('flare', x, 7, z, { size: 15, dur: 0.8, pri: 1 }); this.vfx.crater(x, z, 5); this.impact(0.12, 0);
     }
   }
   /** IA del jefe: una fase por cada lista de ataques (3, o 4 en Goku Black) y en cada una sus técnicas (BOSSES[].pat).
@@ -1170,12 +1254,14 @@ class Game {
         S.line(bx, bz, ca, sa, 52, 2.3, 1.15, dmg * 2.8, 0x60c8ff);
         this.fx.ring(this.fx.aura, bx, 1.2, bz, 30, 5, 1, 0.5, 0x60c8ff); SFX.play('charge'); h.posBoss('atk', 1.6); break;
       case 'barrier':                                                // Barrera perfecta: cúpula que te aparta de golpe
-        S.mark(bx, bz, 7.5, 0.6, dmg * 1.3, { tint: 0x8aff70, ring: 16 }); h.posBoss('cast', 0.8); break;
+        S.mark(bx, bz, 7.5, 0.6, dmg * 1.3, { tint: 0x8aff70, ring: 16 }); h.posBoss('cast', 0.8);
+        this.vfx.play('barrier', bx, 2.5, bz, { size: 9, grow: 1.9, dur: 0.75, pri: 1 }); break;
       case 'celljr': this.bossSummon(bx, bz, 5 + st, T_CELLJR); break;
       case 'selfdestruct':                                           // Autodestrucción: se hincha y explota (una vez por combate)
         if (this.boss.sd) { this.boss.t[k] = 999; break; }
         this.boss.sd = true; ENEMY_TYPES[T_BOSS].spd = 0;
         S.mark(bx, bz, 15, 3.2, dmg * 4, { tint: 0xffe060, big: true, ring: 24 });
+        this.vfx.play('gather', bx, 2.5, bz, { size: 10, grow: 1.6, loop: 3.2, dur: 1.2, pri: 1, frames: FXA.gather.f.slice(12) });
         h.posBoss('cast', 3.2); SFX.play('alarm');
         this.later(3.2, () => { ENEMY_TYPES[T_BOSS].spd = 0.62 + this.phase * 0.12; this.ui.toast('¡HA SOBREVIVIDO A SU PROPIA EXPLOSIÓN!', true); });
         break;
@@ -1235,7 +1321,8 @@ class Game {
         for (let j = 0; j < 10; j++) this.later(j * 0.07, (o) => { const [dx, dz] = this.aim(o, rand(-0.12, 0.12)); S.fire(o.x, o.z, dx, dz, 18, dmg * 0.7, { tint: 0xff4a4a, size: 1.4 }); });
         h.posBoss('atk', 0.9); break;
       case 'glare':                                                  // Mirada: onda de choque solo con mirarte
-        S.mark(bx, bz, 9, 0.75, dmg * 1.5, { tint: 0xff3030, ring: 12 }); h.posBoss('cast', 0.9); break;
+        S.mark(bx, bz, 9, 0.75, dmg * 1.5, { tint: 0xff3030, ring: 12 }); h.posBoss('cast', 0.9);
+        this.vfx.play('pulse', bx, 2, bz, { size: 6, grow: 3, dur: 0.75, tint: 0xff6060, pri: 1 }); break;
       case 'powerimpact':                                            // Power Impact: bola de energía rápida
         S.ball(bx, bz, p.x, p.z, 0.9, 4, dmg * 2.4, { tint: 0xff5040, size: 6 }); h.posBoss('atk', 0.7); break;
 
@@ -1246,7 +1333,11 @@ class Game {
         h.posBoss('atk', 0.6); break;
       case 'hakai': {                                                // Hakai: la zona marcada desaparece (y tú con ella)
         const n = 1 + (ph >= 1 ? 1 : 0) + (ph >= 2 ? 1 : 0);
-        for (let q = 0; q < n; q++) { const r = q ? rand(4, 7) : 0, o = rand(0, 6.28); S.mark(p.x + Math.cos(o) * r, p.z + Math.sin(o) * r, 3.4, 1.25, dmg * 3.2, { tint: 0x9040ff, big: true }); }
+        for (let q = 0; q < n; q++) {
+          const r = q ? rand(4, 7) : 0, o = rand(0, 6.28), hx = p.x + Math.cos(o) * r, hz = p.z + Math.sin(o) * r;
+          S.mark(hx, hz, 3.4, 1.25, dmg * 3.2, { tint: 0x9040ff, big: true });
+          if (FXA.swirl) this.vfx.play('swirl', hx, 0.3, hz, { flat: true, size: 8, dur: 1.25, spin: 5, pri: 1, frames: [FXA.swirl.f[4]] });
+        }
         SFX.play('warn'); h.posBoss('cast', 1.3); break;
       }
       case 'sphere':                                                 // Esfera de destrucción: un sol en miniatura
@@ -1255,7 +1346,7 @@ class Game {
       case 'blink': {                                                // Teletransporte: reaparece a tu lado y golpea
         const o = rand(0, 6.28), tx = clamp(p.x + Math.cos(o) * 5, -CFG.ARENA, CFG.ARENA), tz = clamp(p.z + Math.sin(o) * 5, -CFG.ARENA, CFG.ARENA);
         S.mark(tx, tz, 4.2, 0.75, dmg * 1.6, { tint: col });
-        this.fx.burst(this.fx.aura, bx, 1.5, bz, 20, 5, 0.4, 0.5, 0, col);
+        this.fx.burst(this.fx.aura, bx, 1.5, bz, 20, 5, 0.4, 0.5, 0, col); this.vfx.flash(bx, 2, bz, 6, col);
         this.later(0.7, (q) => { h.x[q.i] = tx; h.z[q.i] = tz; h.kx[q.i] = h.kz[q.i] = 0; h.posBoss('atk', 0.5); SFX.play('tp'); this.fx.burst(this.fx.aura, tx, 1.5, tz, 24, 6, 0.4, 0.5, 0, col); });
         break;
       }
@@ -1319,6 +1410,8 @@ class Game {
     this.fx.ring(this.fx.aura, bx, 0.5, bz, 40, 12, 0.5, 0.4, 0xffffff);
     this.fx.burst(this.fx.aura, bx, 2, bz, 80, 20, 1, 0.7, 1.5, col);
     this.fx.burst(this.fx.sparks, bx, 2, bz, 50, 14, 0.8, 0.5, 2, 0xffffff);
+    this.vfx.play('flare', bx, 8, bz, { size: 17, dur: 1, pri: 1 }); this.vfx.play('dome', bx, 3, bz, { size: 12, grow: 1.8, dur: 0.7, pri: 1 });
+    this.vfx.crater(bx, bz, 7); for (let k = 0; k < 6; k++) this.vfx.bolt(bx + Math.cos(k) * 6, bz + Math.sin(k) * 6, 14, col);
     this.shake(1.3); this.hitstop = 0.16;
     if (!Save.d.opt.flash) this.impT = 0.2;
     SFX.scream(1.2, 150 + ph * 25);
@@ -1355,6 +1448,7 @@ class Game {
     for (const [dx, dz] of [[Math.cos(a), Math.sin(a)], [-Math.sin(a), Math.cos(a)]]) {
       this.horde.damageLine(p.x - dx * L, p.z - dz * L, dx, dz, 2 * L, U.hw, dmg, this);
       for (let s = -L; s < L; s += 2.5) this.fx.burst(this.fx.sparks, p.x + dx * s, 1.2, p.z + dz * s, 2, 7, 0.55, 0.45, 8, 0xd080ff);
+      for (let s = -L; s < L; s += 5) this.vfx.play('pinkCrack', p.x + dx * s, 0.2, p.z + dz * s, { flat: true, size: 6, dur: 1.2, rot: Math.atan2(-dz, dx), pri: 1 });
     }
     // El tajo también hiere al jefe si cruza alguna de las dos líneas: un 5% de su vida máxima
     const bi = this.horde.indexOfUid(this.bossUid);
@@ -1388,6 +1482,7 @@ class Game {
     if (type === 4) {
       this.track('elites', 1);
       this.fx.ring(this.fx.aura, x, 0.4, z, 36, 12, 0.6, 0.4, 0xffc83a);
+      this.vfx.boom(x, z, 2.8, 0xffc83a, false); this.impact(0.07, 3);
       for (let i = 0; i < 4; i++) this.orbs.spawn(x, z, 4);
       this.ui.toast('+' + Math.round(ENEMY_TYPES[4].cash * p.zeniMul) + ' ZENI · ÉLITE', true); SFX.play('coin');
       if (Math.random() < 0.3) this.capsules.add(x, z, false, this.world);
@@ -1399,6 +1494,9 @@ class Game {
       for (let i = 0; i < 4; i++) this.pickups.drop(x + rand(-3, 3), z + rand(-3, 3));
       for (let i = 0; i < 12; i++) this.orbs.spawn(x, z, 5);
       this.fx.ring(this.fx.aura, x, 0.4, z, 50, 18, 0.7, 0.45, 0xffd24a);
+      this.vfx.boom(x, z, 8, 0xffd24a, true); this.vfx.play('flare', x, 7, z, { size: 16, dur: 0.9, pri: 1 });
+      this.vfx.play('dome', x, 3, z, { size: 14, grow: 1.6, dur: 0.8, pri: 1 });
+      this.impact(0.26, 0);
       this.ui.toast('¡' + this.stage.boss.name + ' DERROTADO!'); this.shake(1); SFX.play('bigboom'); SFX.music('battle');
       if (this.stage.final) this.victoryT = 2.2;
       else this.openRifts(x, z);
@@ -1626,12 +1724,23 @@ class Game {
     this.bossInv = Math.max(0, this.bossInv - dt); this.dodgeMsgT -= dt;
     // Combo: se pierde si pasan 3 s sin derribar a nadie
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) { this.combo = 0; p.comboMul = 1; } }
-    this.impCd -= dt;
+    this.impCd -= dt; this.impCd2 -= dt;
     // Eventos aleatorios (no en el mapa final)
     if (!S.final && S.fx !== 'time') { this.eventT -= dt; if (this.eventT <= 0) { this.eventT = rand(110, 160); this.startEvent(pick(['senzu', 'rival', 'storm', 'ally'])); } }
     // Día y noche (Tierra y Planeta Vegeta): ciclo de 4 minutos
     if (S.night) this.updateNight(dt);
-    if (this.storm > 0) { this.storm -= dt; if (this.storm <= 0) { this.setStorm(0); this.ui.toast('LA TORMENTA AMAINA', true); } }
+    if (this.storm > 0) {
+      this.storm -= dt; if (this.storm <= 0) { this.setStorm(0); this.ui.toast('LA TORMENTA AMAINA', true); }
+      // Tormenta de ki: caen rayos sobre los enemigos cercanos
+      this.stormT = (this.stormT || 0) - dt;
+      if (this.stormT <= 0 && h.n) {
+        this.stormT = rand(0.5, 0.9);
+        const i = (Math.random() * h.n) | 0, x = h.x[i], z = h.z[i];
+        if (Math.hypot(x - p.x, z - p.z) < 30 && h.type[i] !== T_BOSS) {
+          this.vfx.bolt(x, z, 16, 0x9fe8ff); DMG_SRC = 'otros'; h.damageRadius(x, z, 2.6, 22 * p.damageMul(), 8, this); SFX.play('zap');
+        }
+      }
+    }
     // Namek: el agua de los lagos cura · Planeta Vegeta: los lagos son de lava y queman
     if (S.fx === 'lake' || S.fx === 'gravity') {
       let wet = false;
@@ -1654,10 +1763,16 @@ class Game {
     }
     // Logros
     this.achT -= dt; if (this.achT <= 0) { this.achT = 1; this.checkAch(); }
-    if (this.bossUid) this.bossAI(dt);
+    if (this.bossUid) {
+      this.bossAI(dt);
+      const bi = h.indexOfUid(this.bossUid);                         // aura del jefe (más intensa en la última fase)
+      if (bi >= 0) { const B = this.stage.boss, last = this.phase === B.pat.length - 1; this.vfx.aura('auraSS1', h.x[bi], h.z[bi], ENEMY_TYPES[T_BOSS].scale * 2.0, B.tintSprite === false ? B.tints[this.phase] : (B.col || B.tints[this.phase]), last ? 0.5 : 0.3, this.time); }
+    }
+    this.updateEnv(dt);
 
     const edt = dt * (p.charging ? CFG.CHARGE_TIME_SCALE : 1);      // cargar Ki ralentiza el mundo
-    this.fx.load = h.n > 320 ? 0.55 : h.n > 200 ? 0.75 : 1;           // horda enorme: ráfagas de partículas más ligeras
+    this.fx.load = h.n > 320 ? 0.55 : h.n > 200 ? 0.75 : 1;
+    this.vfx.load = this.fx.q * this.fx.load;   // horda enorme o calidad baja: menos efectos menores
     h.update(edt, p, this);
     this.ki.update(dt, this);
     h.reap(this);                                                   // se retiran DESPUÉS de las colisiones
@@ -1698,6 +1813,8 @@ class Game {
     requestAnimationFrame(this.loop);
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     const s = this.state;
+    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu';
+    if (vf) this.vfx.begin(this.camera);
     if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }
     if (s === 'play' && IS_TOUCH && window.innerHeight > window.innerWidth) this.togglePause();   // móvil en vertical: pausa
     if (s === 'play') {
@@ -1750,6 +1867,7 @@ class Game {
     this.pad.poll(rawDt);
     // Sombras del sol: solo se redibujan si el sol cambió de celda o se rompió un cristal (antes: cada 1-2 fotogramas)
     if (this.shadowDirty) { this.renderer.shadowMap.needsUpdate = true; this.shadowDirty = false; }
+    if (vf) this.vfx.flush(s === 'play' ? (this.hitstop > 0 ? 0 : rawDt) : rawDt, this.player);
     this.renderer.render(this.scene, this.camera);
   }
 }
