@@ -13,7 +13,7 @@ class Game {
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0;
     this.bossUid = 0; this.nextBoss = 180; this.leashT = 0; this.hitstop = 0; this.shakeAmt = 0;
     // Cámara orbital: yaw (giro), pitch (inclinación) y dist (zoom)
-    this.camYaw = 0; this.camPitch = 0.98; this.camDist = 29; this.camDistT = 29; this.camCos = 1; this.camSin = 0;
+    this.camYaw = 0; this.camPitch = 0.98; this.camDist = 19; this.camDistT = 19; this.camCos = 1; this.camSin = 0;
     this.drag = false;
     try {
       if (typeof THREE === 'undefined') throw new Error('Three.js no se cargó desde el CDN. Revisa tu conexión a internet.');
@@ -82,14 +82,18 @@ class Game {
     });
     // Cámara con el ratón: arrastra con el botón derecho (o central), rueda para el zoom
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
-    cv.addEventListener('mousedown', (e) => { if (e.button !== 0) this.drag = true; });
+    // Cámara libre estilo Megabonk: el ratón queda capturado (pointer lock) y mueve la cámara siempre
+    cv.addEventListener('mousedown', (e) => { if (this.state === 'play' && !this.locked()) this.grabMouse(); else if (e.button !== 0) this.drag = true; });
     window.addEventListener('mouseup', () => { this.drag = false; });
     window.addEventListener('mousemove', (e) => {
-      if (!this.drag) return;
-      this.camYaw += e.movementX * 0.006;
-      this.camPitch = clamp(this.camPitch + e.movementY * 0.004, 0.5, 1.4);
+      if (this.state !== 'play' && this.state !== 'dying') return;
+      if (!this.locked() && !this.drag) return;                       // sin captura: botón derecho + arrastrar
+      this.camYaw -= e.movementX * 0.0025;
+      this.camPitch = clamp(this.camPitch + e.movementY * 0.0025, 0.12, 1.35);
     });
-    cv.addEventListener('wheel', (e) => { e.preventDefault(); this.camDistT = clamp(this.camDistT + e.deltaY * 0.02, 14, 46); }, { passive: false });
+    // Si el navegador libera el ratón (Esc) durante la partida, se pausa
+    document.addEventListener('pointerlockchange', () => { if (!this.locked() && this.state === 'play') this.togglePause(); });
+    cv.addEventListener('wheel', (e) => { e.preventDefault(); this.camDistT = clamp(this.camDistT + e.deltaY * 0.015, 9, 40); }, { passive: false });
 
     // Menú (delegación de eventos)
     ui.el.menu.addEventListener('click', (e) => {
@@ -107,6 +111,10 @@ class Game {
     ui.el.scrB.onclick = () => { ui.el.scrB.blur(); if (this.state === 'pause') this.abandon(); else this.toMenu(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'play') this.togglePause(); });
   }
+
+  locked() { return document.pointerLockElement === this.renderer.domElement; }
+  grabMouse() { try { const r = this.renderer.domElement.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* sin pointer lock */ } }
+  releaseMouse() { try { if (this.locked()) document.exitPointerLock(); } catch (e) { /* nada */ } }
 
   /* ---------- Menú: selección, compras y vista previa ---------- */
   viewChar(id, equip) {
@@ -141,7 +149,7 @@ class Game {
   }
 
   toMenu() {
-    this.state = 'menu';
+    this.state = 'menu'; this.releaseMouse();
     this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.weapons.reset(charById(Save.d.sel));
     this.pickups.senzu.reset(); this.pickups.balls.reset();
     this.ui.hideScreen(); this.ui.hideCards();
@@ -162,8 +170,9 @@ class Game {
     this.applyForm();
     for (let i = 0; i < 14; i++) this.spawnEnemy();
     this.horde.buildGrid();
-    this.camYaw = 0; this.camPitch = 0.98; this.camDist = this.camDistT = 29;
-    this.camLook.set(0, 0, 0);
+    this.camYaw = 0; this.camPitch = 0.6; this.camDist = this.camDistT = 19;
+    this.camLook.set(0, 1.4, 0);
+    this.grabMouse();
     this.syncSprites();
     this.ui.hideMenu(); this.ui.hideScreen(); this.ui.hideCards(); this.ui.showHud(true);
     this.ui.wKey = ''; this.ui.lastBiome = -1;
@@ -175,9 +184,10 @@ class Game {
 
   togglePause() {
     if (this.state === 'play') {
+      this.releaseMouse();
       this.state = 'pause';
       this.ui.showScreen('PAUSA', 'JUEGO DETENIDO', 'NIVEL ' + this.player.level + ' · ' + this.kills + ' ENEMIGOS · ' + fmtTime(this.time), 'CONTINUAR [P]', 'ABANDONAR PARTIDA');
-    } else if (this.state === 'pause') { this.state = 'play'; this.ui.hideScreen(); this.clock.getDelta(); }
+    } else if (this.state === 'pause') { this.state = 'play'; this.ui.hideScreen(); this.grabMouse(); this.clock.getDelta(); }
   }
 
   /** Cobra los Zeni de la partida y guarda el récord. Devuelve los Zeni ganados */
@@ -192,7 +202,7 @@ class Game {
   abandon() { this.finishRun(); this.toMenu(); }
 
   gameOver() {
-    this.state = 'over';
+    this.state = 'over'; this.releaseMouse();
     const z = this.finishRun();
     this.ui.showScreen('DERROTA', 'HAS CAÍDO EN COMBATE',
       'ENEMIGOS DERROTADOS: ' + this.kills + '\nNIVEL ALCANZADO: ' + this.player.level + '\nTIEMPO: ' + fmtTime(this.time) +
@@ -315,7 +325,7 @@ class Game {
   }
 
   openLevelUp() {
-    this.state = 'levelup';
+    this.state = 'levelup'; this.releaseMouse();
     this.ui.showCards('¡NIVEL ' + this.player.level + '!', 'ELIGE UNA MEJORA [1 · 2 · 3]', this.rollCards(), (c) => {
       const p = this.player;
       if (c.type === 'weapon') this.weapons.add(c.id);
@@ -326,7 +336,7 @@ class Game {
       if (this.pendingLevels > 0) this.openLevelUp(); else this.resume();
     });
   }
-  resume() { this.state = 'play'; this.clock.getDelta(); }
+  resume() { this.state = 'play'; this.grabMouse(); this.clock.getDelta(); }
 
   /* ---------- Esferas del Dragón y deseo de Shenron ---------- */
   onBall(n, x, z) {
@@ -337,7 +347,7 @@ class Game {
     if (n >= 7) this.openWish();
   }
   openWish() {
-    this.state = 'wish';
+    this.state = 'wish'; this.releaseMouse();
     this.ui.toast('¡SHENRON!');
     const all = [
       { id: 'hp', icon: '♥', title: 'Vitalidad eterna', text: '+100 de vida máxima y curación total.' },
@@ -366,14 +376,13 @@ class Game {
     const p = this.player;
     if (menu) this.camYaw += rawDt * 0.15;
     else {
-      if (keys.KeyQ) this.camYaw -= 1.8 * rawDt;
-      if (keys.KeyE) this.camYaw += 1.8 * rawDt;
-      if (keys.KeyT) { this.camYaw = 0; this.camPitch = 0.98; this.camDistT = 29; }
+      if (keys.KeyT) { this.camPitch = 0.6; this.camDistT = 19; }
     }
     this.camCos = Math.cos(this.camYaw); this.camSin = Math.sin(this.camYaw);
     const k = 1 - Math.exp(-6 * dt);
     this.camLook.x += (p.x - this.camLook.x) * k;
     this.camLook.z += (p.z - this.camLook.z) * k;
+    this.camLook.y = menu ? 0 : 1.4;
     this.camDist += (this.camDistT - this.camDist) * (1 - Math.exp(-8 * rawDt));
     const cp = Math.cos(this.camPitch), sp = Math.sin(this.camPitch), s = this.shakeAmt, d = this.camDist;
     this.camera.position.set(
@@ -421,7 +430,7 @@ class Game {
         h.shockwave(p.x, p.z, 20, 30);
         this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 60, 20, 0.8, 0.45, 0xffffff);
         this.ui.toast('¡RENACES!'); this.shake(1);
-      } else { p.die(); this.state = 'dying'; }
+      } else { p.die(); this.state = 'dying'; this.releaseMouse(); }
     }
     if (this.state === 'play' && this.pendingLevels > 0) this.openLevelUp();
     this.syncSprites();

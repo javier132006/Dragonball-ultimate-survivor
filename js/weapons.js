@@ -265,9 +265,9 @@ class WeaponSystem {
       const wob = 1 + Math.sin(g.time * 40) * 0.08;
       for (let t = 0.8; t <= cur; t += 0.8) {
         const x = b.x + b.dx * t, z = b.z + b.dz * t;
-        B.push(x, 1.5, z, 0, 0, 0, b.hw * 3.0 * wob, 0.22 * fade, b.color);
-        B.push(x, 1.5, z, 0, 0, 0, b.hw * 1.7 * wob, 0.4 * fade, b.color);
-        B.push(x, 1.5, z, 0, 0, 0, b.hw * 0.8 * wob, 0.5 * fade, 0xffffff);
+        B.push(x, 1.5, z, 0, 0, 0, b.hw * 2.6 * wob, 0.10 * fade, b.color);
+        B.push(x, 1.5, z, 0, 0, 0, b.hw * 1.5 * wob, 0.16 * fade, b.color);
+        B.push(x, 1.5, z, 0, 0, 0, b.hw * 0.7 * wob, 0.22 * fade, 0xffffff);
       }
       B.push(b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 0, 0, 0, b.hw * 3.6, 0.7 * fade, b.color);
     }
