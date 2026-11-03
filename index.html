@@ -10,10 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
-<!-- Three.js r128 (build clásico: expone window.THREE, sin módulos) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- Spritesheets en base64 (generado por tools/make_sprites.py): permite abrir el juego con doble clic -->
-<script src="assets/sprites.js"></script>
+<!-- Three.js, los sprites y el código del juego los carga la pantalla de carga (final de la página), con su progreso -->
 <style>
 /* =====================================================================
    DRAGON BALL: ULTIMATE SURVIVOR · Interfaz «manga en tinta»
@@ -440,8 +437,13 @@ h2{font-family:var(--body);font-weight:800;font-size:clamp(12px,1.8vw,16px);lett
 #loading h2{font-size:clamp(46px,9vw,96px);line-height:1;-webkit-text-stroke:3px #000;text-shadow:6px 6px 0 #000}
 #loading h3{font-family:var(--disp);font-weight:400;font-size:18px;color:#fff;margin:10px 0 26px;padding:3px 18px;display:inline-block;background:var(--star);border:3px solid #000;border-radius:6px}
 .lbar{width:min(320px,70vw);height:12px;background:#000;border:3px solid #000;border-radius:6px;margin:0 auto 18px;overflow:hidden}
-.lbar i{display:block;height:100%;width:40%;background:linear-gradient(90deg,var(--gi),var(--ki));animation:ld 1.1s infinite ease-in-out}
-@keyframes ld{0%{margin-left:-40%}100%{margin-left:100%}}
+.lbar{margin-bottom:10px}
+.lbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gi),var(--ki));transition:width .25s ease-out;box-shadow:0 0 12px var(--ki)}
+.lstep{display:flex;gap:10px;justify-content:center;align-items:baseline;margin-bottom:16px;font-weight:800;color:#fff;min-height:20px}
+.lstep b{font-family:var(--disp);font-weight:400;font-size:18px;color:#ffd84a;-webkit-text-stroke:1px #000;min-width:52px;text-align:right}
+.lstep span{font-size:13px;color:var(--t2)}
+#loading.out{opacity:0;transition:opacity .4s}
+#loading.quick .lstep,#loading.quick .lbar{display:none}
 #loading p{font-size:13px;font-weight:700;color:var(--t2)}
 #fatal{display:none;color:#ff9a9a;text-align:center;padding:30px;line-height:1.7;z-index:31;font-weight:800}
 
@@ -658,27 +660,81 @@ html.touch #rhud #pr{width:160px}
 <div id="fade"></div>
 <div id="exit"><div><small>GRACIAS POR JUGAR</small><h2>¡HASTA PRONTO, GUERRERO!</h2><p>Puedes cerrar esta pestaña. Tu progreso está guardado.</p><button>VOLVER A ENTRAR</button></div></div>
 
-<div id="loading"><div><span class="dball spin"></span><h2>DRAGON BALL</h2><h3>ULTIMATE SURVIVOR</h3><div class="lbar"><i></i></div><p id="tip"></p></div></div>
+<div id="loading"><div><span class="dball spin"></span><h2>DRAGON BALL</h2><h3>ULTIMATE SURVIVOR</h3>
+  <div class="lbar"><i id="ldBar"></i></div><div class="lstep"><b id="ldPct">0%</b><span id="ldTxt">Preparando…</span></div><p id="tip"></p></div></div>
 <div id="fatal"></div>
 
-<script>document.getElementById("tip").textContent=["Pulsa E junto a una cápsula para abrirla.","Mantén C para cargar Ki y repeler a la horda.","Reúne las 7 Esferas del Dragón para invocar a Shenron.","Las élites doradas sueltan mucho Zeni.","Compra técnicas en la tienda para que salgan al subir de nivel."][(Math.random()*5)|0]</script>
-<script src="js/core.js"></script>
-<script src="js/vfx.js"></script>
-<script src="js/data.js"></script>
-<script src="js/world.js"></script>
-<script src="js/entities.js"></script>
-<script src="js/poi.js"></script>
-<script src="js/extras.js"></script>
-<script src="js/weapons.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/transform.js"></script>
-<script src="js/touch.js"></script>
-<script src="js/pad.js"></script>
-<!-- Cuenta y ranking mundial (Supabase). Si no carga, el juego funciona sin ranking online -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js"></script>
-<script src="js/online.js"></script>
-<script src="js/game.js"></script>
+<script>
+/* =====================================================================
+   PANTALLA DE CARGA · Descarga en orden Three.js, los sprites y el código del juego, mostrando el progreso real.
+   Después game.js decodifica las hojas, crea el mundo y compila los shaders (LOAD.step / LOAD.done).
+   ===================================================================== */
+(function () {
+  const TIPS = ['Pulsa E junto a una cápsula para abrirla.', 'Mantén C para cargar Ki y repeler a la horda.', 'Reúne las 7 Esferas del Dragón para invocar a Shenron.',
+    'Las élites doradas sueltan mucho Zeni.', 'Compra técnicas en la tienda para que salgan al subir de nivel.', 'SHIFT justo antes del golpe: bloqueo perfecto.',
+    'Las cajas y estatuas se rompen y sueltan premios.', 'Con F te teletransportas: úsalo para salir de un rodeo.', 'Cada jefe anuncia sus técnicas al aparecer: apréndelas.'];
+  const $ = (id) => document.getElementById(id), tip = $('tip');
+  let ti = (Math.random() * TIPS.length) | 0;
+  const nextTip = () => { tip.textContent = TIPS[ti++ % TIPS.length]; };
+  nextTip(); const tipT = setInterval(nextTip, 3500);
+  // Progreso: cada fase tiene un peso; dentro de la fase avanza de 0 a 1
+  const W = { three: 14, sprites: 46, code: 14, online: 4, sheets: 12, world: 6, shaders: 4 };
+  const order = Object.keys(W), total = order.reduce((a, k) => a + W[k], 0), part = {};
+  let shown = 0;
+  const LOAD = window.LOAD = {
+    step(k, f, txt) {
+      part[k] = Math.max(part[k] || 0, Math.min(1, f));
+      let v = 0; for (const o of order) v += W[o] * (part[o] || 0);
+      v = Math.round((v / total) * 100);
+      if (v > shown) shown = v;
+      $('ldBar').style.width = shown + '%'; $('ldPct').textContent = shown + '%';
+      if (txt) $('ldTxt').textContent = txt;
+    },
+    done() {
+      for (const o of order) part[o] = 1;
+      LOAD.step('shaders', 1, '¡Listo!');
+      clearInterval(tipT);
+      const l = $('loading'); l.classList.add('out');
+      setTimeout(() => { l.style.display = 'none'; l.classList.remove('out'); }, 450);
+    },
+    fail(msg) { clearInterval(tipT); const f = $('fatal'); f.textContent = msg; f.style.display = 'flex'; }
+  };
+  const script = (src) => new Promise((ok, ko) => { const e = document.createElement('script'); e.src = src; e.async = false; e.onload = ok; e.onerror = () => ko(new Error(src)); document.body.appendChild(e); });
+  /** Los sprites pesan casi 2 MB: en la web se descargan con barra de progreso; con doble clic (file://) se cargan sin ella */
+  const bigScript = (src, k, txt) => {
+    if (!/^https?:/.test(location.protocol)) return script(src);
+    return new Promise((ok, ko) => {
+      const x = new XMLHttpRequest();
+      x.open('GET', src);
+      x.onprogress = (e) => { if (e.lengthComputable) LOAD.step(k, e.loaded / e.total * 0.95, txt + ' · ' + (e.loaded / 1048576).toFixed(1) + ' / ' + (e.total / 1048576).toFixed(1) + ' MB'); };
+      x.onload = () => {
+        if (x.status !== 200 && x.status !== 0) { script(src).then(ok, ko); return; }
+        const u = URL.createObjectURL(new Blob([x.responseText], { type: 'text/javascript' }));
+        script(u).then(() => { URL.revokeObjectURL(u); ok(); }, ko);
+      };
+      x.onerror = () => script(src).then(ok, ko);
+      x.send();
+    });
+  };
+  const CODE = ['js/core.js', 'js/vfx.js', 'js/data.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/transform.js', 'js/touch.js', 'js/pad.js'];
+  (async () => {
+    LOAD.step('three', 0.1, 'Cargando el motor gráfico…');
+    try { await script('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'); }
+    catch (e) { LOAD.fail('No se pudo cargar Three.js desde internet. Revisa tu conexión y recarga la página.'); return; }
+    LOAD.step('three', 1);
+    LOAD.step('sprites', 0.02, 'Cargando personajes, enemigos y efectos…');
+    try { await bigScript('assets/sprites.js', 'sprites', 'Cargando personajes, enemigos y efectos'); } catch (e) { console.error(e); }
+    LOAD.step('sprites', 1, 'Preparando el código del juego…');
+    for (let i = 0; i < CODE.length; i++) { await script(CODE[i]); LOAD.step('code', (i + 1) / CODE.length); }
+    LOAD.step('online', 0.2, 'Conectando con el ranking mundial…');
+    // Cuenta y ranking mundial (Supabase). Si no carga, el juego funciona sin ranking online
+    try { await script('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js'); } catch (e) { console.warn('Sin ranking online'); }
+    await script('js/online.js');
+    LOAD.step('online', 1);
+    await script('js/game.js');                     // game.js arranca solo y termina la carga (hojas, mundo y shaders)
+  })().catch((e) => { console.error(e); LOAD.fail('Error al cargar el juego (' + e.message + '). Recarga la página.'); });
+})();
+</script>
 <div id="ultFx"></div>
 </body>
 </html>

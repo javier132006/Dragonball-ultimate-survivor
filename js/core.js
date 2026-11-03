@@ -140,8 +140,11 @@ function loadSheet(name) {
     img.src = d.src;
   });
 }
-function loadSheets(names) {
-  return Promise.all(names.map(loadSheet)).then((list) => { const out = {}; names.forEach((n, i) => { out[n] = list[i]; }); return out; });
+/** Carga todas las hojas. `onEach(hechas, total)` avisa del progreso (pantalla de carga) */
+function loadSheets(names, onEach) {
+  let n = 0;
+  return Promise.all(names.map((nm) => loadSheet(nm).then((s) => { n++; if (onEach) onEach(n, names.length); return s; })))
+    .then((list) => { const out = {}; names.forEach((nm, i) => { out[nm] = list[i]; }); return out; });
 }
 
 /* ---------- Mapa de alturas compartido (relieve del terreno) ----------

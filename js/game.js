@@ -202,8 +202,8 @@ class Game {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // escribiendo en un formulario
       if (this.ui.el.modal.classList.contains('show') || this.ui.el.exit.classList.contains('show')) return;
       const s = this.state;
-      if (s === 'menu' && e.code === 'Enter') this.start(false);
-      else if (s === 'over' && (e.code === 'Enter' || e.code === 'KeyR')) this.start(this.practice, this.daily);
+      if (s === 'menu' && e.code === 'Enter') this.startLoad(false);
+      else if (s === 'over' && (e.code === 'Enter' || e.code === 'KeyR')) this.startLoad(this.practice, this.daily);
       else if (s === 'play' && this.practice && e.code === 'KeyL') this.practiceLevel();
       else if (s === 'play' && this.practice && e.code === 'KeyK') this.practiceClear();
       else if (s === 'play' && this.practice && e.code === 'KeyJ') { this.cash += 500; SFX.play('coin'); }
@@ -257,7 +257,7 @@ class Game {
       else if (D.tech) this.buyTech(D.tech);
       else if (D.claim) this.claimMission(D.claim);
       else if (D.diff) { Save.d.diff = D.diff; Save.write(); ui.renderMenu(); }
-      else if (D.start !== undefined) this.start(D.start === 'practice', D.start === 'daily');
+      else if (D.start !== undefined) this.startLoad(D.start === 'practice', D.start === 'daily');
       else if (D.exit !== undefined) ui.showExit(true);
       else if (D.rtab) { ui.rtab = D.rtab; ui.renderMenu(); }
       else if (D.otab) { ui.otab = D.otab; ui.renderMenu(); }
@@ -319,7 +319,7 @@ class Game {
     ui.el.modal.addEventListener('click', (e) => { if (e.target.closest('[data-login]')) this.claimLogin(); else if (e.target.closest('[data-close]')) ui.hideModal(); });
     ui.el.cardRow.addEventListener('click', (e) => { const c = e.target.closest('.card'); if (c) ui.pickCard(+c.dataset.i); });
     ui.el.cardFoot.addEventListener('click', (e) => { if (e.target.closest('[data-reroll]')) this.reroll(); });
-    ui.el.scrA.onclick = () => { ui.el.scrA.blur(); if (this.state === 'pause') this.togglePause(); else this.start(this.practice, this.daily); };
+    ui.el.scrA.onclick = () => { ui.el.scrA.blur(); if (this.state === 'pause') this.togglePause(); else this.startLoad(this.practice, this.daily); };
     ui.el.scrB.onclick = () => { ui.el.scrB.blur(); if (this.state === 'pause') this.abandon(); else this.toMenu(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'play') this.togglePause(); });
   }
@@ -413,6 +413,25 @@ class Game {
   }
 
   /* ---------- Partida ---------- */
+  /** Empieza la partida mostrando la pantalla de carga mientras se genera el mapa (relieve nuevo en cada partida) */
+  startLoad(practice, daily) {
+    const l = document.getElementById('loading'), tx = document.getElementById('ldTxt');
+    if (this.loadingRun) return;
+    if (!l) { this.start(practice, daily); return; }
+    this.loadingRun = true;
+    l.classList.add('quick'); l.style.display = 'flex';
+    const tip = document.getElementById('tip'); if (tip) tip.textContent = '¡PREPARANDO EL COMBATE!';
+    if (tx) tx.textContent = '';
+    // Dos cuadros para que se pinte la pantalla antes del trabajo pesado
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      try { this.start(practice, daily); if (this.renderer) this.renderer.compile(this.scene, this.camera); }
+      finally {
+        this.loadingRun = false; this.clock.getDelta();
+        l.classList.add('out');
+        setTimeout(() => { l.style.display = 'none'; l.classList.remove('out', 'quick'); }, 300);
+      }
+    }));
+  }
   start(practice, daily) {
     const ch = charById(Save.d.sel);
     if (!ch || ch.soon || !Save.d.unlocked.includes(ch.id)) return;
@@ -1872,12 +1891,25 @@ class Game {
   }
 }
 
-/* ---------- ARRANQUE: carga las hojas de sprites y crea el juego ---------- */
+/* ---------- ARRANQUE: decodifica las hojas, crea el juego y compila los shaders (con progreso en la pantalla de carga) ---------- */
 (async function boot() {
+  const L = window.LOAD || { step() {}, done() { const l = document.getElementById('loading'); if (l) l.style.display = 'none'; }, fail() {} };
+  const frame = () => new Promise((r) => requestAnimationFrame(() => r()));   // deja pintar la barra entre fases
   let sheets = null;
-  try { Save.load(); Save.checkDaily(); Save.write(); if (typeof THREE !== 'undefined') sheets = await loadSheets(SHEET_NAMES); } catch (e) { console.error(e); }
+  try {
+    Save.load(); Save.checkDaily(); Save.write();
+    L.step('sheets', 0, 'Preparando sprites…');
+    if (typeof THREE !== 'undefined') sheets = await loadSheets(SHEET_NAMES, (n, t) => L.step('sheets', n / t, 'Preparando sprites · ' + n + ' / ' + t));
+  } catch (e) { console.error(e); }
+  // Tipografías (si no llegan en 2,5 s se sigue sin esperar)
+  if (document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 2500))]);
+  L.step('world', 0.2, 'Generando el mundo…'); await frame();
   window.game = new Game(sheets);
-  if (window.game.ui && Save.checkLogin()) window.game.ui.showLogin();
-  const l = document.getElementById('loading');
-  if (l) l.style.display = 'none';
+  L.step('world', 1, 'Compilando efectos…'); await frame();
+  const g = window.game;
+  // Compila de antemano todos los shaders de la escena: así el primer efecto no da tirones
+  try { if (g.renderer && g.scene) { g.renderer.compile(g.scene, g.camera); g.renderer.render(g.scene, g.camera); } } catch (e) { console.warn(e); }
+  L.step('shaders', 1); await frame();
+  L.done();
+  if (g.ui && Save.checkLogin()) g.ui.showLogin();
 })();
