@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 <!-- Three.js r128 (build clásico: expone window.THREE, sin módulos) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- Spritesheets en base64 (generado por tools/make_sprites.py) -->
+<!-- Spritesheets en base64 (generado por tools/make_sprites.py): permite abrir el juego con doble clic -->
 <script src="assets/sprites.js"></script>
 <style>
 :root{--cy:#35e0ff;--navy:#071426;--navy2:#0d2542;--hp:#ff4d5e;--ki:#35c8ff;--xp:#ffd84a;--line:rgba(53,224,255,.55)}
@@ -69,1145 +69,159 @@ button{font-family:inherit;font-size:14px;font-weight:700;letter-spacing:3px;col
   clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
 button:hover{filter:brightness(1.15)}
 .help{margin-top:16px;font-size:10px;letter-spacing:1px;line-height:1.9;opacity:.75}
+
+/* ---------- HUD ampliado ---------- */
+#hud{display:none}
+#pl{width:min(360px,52vw)}
+#pl .head{align-items:center}
+#portrait{width:54px;height:40px;image-rendering:pixelated;background:rgba(0,0,0,.4);border:1px solid var(--line);flex:none}
+#pr .mini b#zeniHud{color:var(--xp)}
+#biome{color:#bfeaff}
+#wstrip{position:fixed;left:14px;top:150px;display:flex;flex-wrap:wrap;gap:5px;max-width:min(360px,52vw);pointer-events:none}
+.wi{position:relative;width:34px;height:34px;background:rgba(7,20,38,.85);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--cy)}
+.wi.st{color:#9cff6a;border-color:rgba(156,255,106,.5)}
+.wi i{font-style:normal}.wi b{position:absolute;right:2px;bottom:0;font-size:10px;color:var(--xp)}
+#bossBox{display:none;position:fixed;top:14px;left:50%;transform:translateX(-50%);width:min(420px,40vw);text-align:center;pointer-events:none}
+#bossName{font-size:12px;letter-spacing:6px;color:#ff6a8a;text-shadow:0 0 8px #f03060;margin-bottom:4px}
+#bossBox .bar{height:14px;border-color:#ff6a8a}#bossBox .bar i{background:linear-gradient(90deg,#8a0e2a,#ff3058)}
+#mmWrap{position:fixed;right:14px;bottom:14px;pointer-events:none;border:1px solid var(--line);box-shadow:0 0 14px rgba(53,224,255,.3);background:rgba(7,20,38,.8);padding:4px}
+#mm{display:block;width:140px;height:140px;image-rendering:pixelated}
+#feed{position:fixed;left:50%;top:34%;transform:translateX(-50%);text-align:center;pointer-events:none;font-size:13px;letter-spacing:3px;color:#fff;text-shadow:0 0 6px #000}
+#feed div{animation:feed 1.3s ease-out forwards}
+@keyframes feed{0%{opacity:0;transform:translateY(8px)}15%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
+#controls{max-width:calc(100vw - 200px);line-height:1.6}
+
+/* ---------- Cartas de subida de nivel / deseo ---------- */
+#cards{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(circle,rgba(10,25,45,.78),rgba(2,6,14,.92));z-index:12}
+#cards.show{display:flex}
+#cardTitle{font-size:clamp(26px,5vw,48px);font-weight:900;letter-spacing:6px;color:var(--xp);text-shadow:0 0 18px rgba(255,180,0,.8)}
+#cardSub{font-size:12px;letter-spacing:5px;color:var(--cy);margin-bottom:14px}
+#cardRow{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;padding:0 12px}
+.card{position:relative;width:220px;min-height:290px;padding:22px 16px 16px;text-align:center;color:#d9f6ff;letter-spacing:1px;
+  background:linear-gradient(160deg,rgba(13,37,66,.97),rgba(7,20,38,.97));border:1px solid var(--line);clip-path:none;font-weight:500;
+  box-shadow:0 0 20px rgba(53,224,255,.25);transition:transform .12s,box-shadow .12s;display:flex;flex-direction:column;align-items:center;gap:8px}
+.card:hover{transform:translateY(-8px) scale(1.03);box-shadow:0 0 32px rgba(255,216,74,.55);border-color:var(--xp);filter:none}
+.card em{position:absolute;left:8px;top:6px;font-style:normal;font-size:11px;opacity:.6}
+.card .ci{font-size:46px;color:var(--cy);text-shadow:0 0 14px var(--cy);line-height:1.1}
+.card small{font-size:9px;letter-spacing:3px;color:var(--xp)}
+.card b{font-size:14px;letter-spacing:2px;color:#fff}
+.card p{font-size:11px;line-height:1.55;color:#bfeaff;letter-spacing:.5px;font-weight:400}
+.card.stat .ci{color:#9cff6a;text-shadow:0 0 14px #5fe030}.card.wish{border-color:#ffb030}.card.wish .ci{color:#ffb030;text-shadow:0 0 14px #ff8a00}
+.pips{display:flex;gap:4px;justify-content:center;margin-top:auto}.pips u{width:14px;height:6px;background:rgba(255,255,255,.15);display:block}.pips u.on{background:var(--xp);box-shadow:0 0 6px var(--xp)}
+
+/* ---------- Menú principal ---------- */
+#menu{position:fixed;inset:0;display:none;flex-direction:column;z-index:11;padding:16px 22px;gap:10px;
+  background:linear-gradient(180deg,rgba(2,8,18,.88),rgba(6,16,32,.6) 45%,rgba(2,8,18,.9))}
+#menu.show{display:flex}
+.mtop{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.mtop h1{font-size:clamp(20px,3.6vw,34px);letter-spacing:5px;white-space:nowrap}
+.mtop h2{margin:0;letter-spacing:5px}
+.zeni{margin-left:auto;font-size:13px;letter-spacing:2px;border:1px solid var(--xp);padding:8px 14px;color:var(--xp);background:rgba(7,20,38,.8)}
+.zeni b{font-size:20px;color:#fff}
+#menuTabs{display:flex;gap:8px}
+.tab{background:rgba(13,37,66,.9);color:var(--cy);border:1px solid var(--line);padding:9px 22px;font-size:12px;clip-path:none}
+.tab.on{background:linear-gradient(180deg,#8cf0ff,#1fc6ee);color:#041a2b}
+#menuBody{flex:1;min-height:0;display:flex;gap:16px;overflow:hidden}
+.roster{flex:1.4;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start;overflow-y:auto;padding:4px}
+.ch{position:relative;padding:8px;text-align:center;cursor:pointer;background:rgba(7,20,38,.88);border:1px solid rgba(53,224,255,.3);transition:transform .1s}
+.ch:hover{transform:translateY(-3px);border-color:var(--cy)}
+.ch.view{border-color:#fff;box-shadow:0 0 14px rgba(255,255,255,.4)}
+.ch.sel{border-color:var(--xp);box-shadow:0 0 16px rgba(255,216,74,.5)}
+.ch canvas{width:100%;aspect-ratio:108/79;image-rendering:pixelated;background:radial-gradient(circle,rgba(53,224,255,.2),transparent 70%)}
+.ch.locked canvas{filter:brightness(.25) saturate(0)}
+.ch .qm{aspect-ratio:108/79;display:flex;align-items:center;justify-content:center;font-size:44px;color:rgba(255,255,255,.2)}
+.ch b{display:block;font-size:12px;letter-spacing:2px;margin-top:4px}.ch small{display:block;font-size:9px;opacity:.65;letter-spacing:1px;min-height:22px}
+.ch .tag{display:block;margin-top:4px;font-size:9px;letter-spacing:2px;color:var(--cy)}.ch.sel .tag{color:var(--xp)}.ch.locked .tag{color:#ffb070}.ch.soon{opacity:.55;cursor:default}
+.detail{flex:1;max-width:420px;overflow-y:auto;padding:14px 18px;background:rgba(7,20,38,.88);border:1px solid var(--line);font-size:12px;line-height:1.6}
+.detail h3{font-size:22px;letter-spacing:4px;color:#fff;text-shadow:0 0 10px var(--cy)}
+.detail h4{font-size:10px;letter-spacing:3px;color:var(--xp);margin:12px 0 4px}
+.detail p{font-size:11px;color:#bfeaff;font-weight:400}.detail p.dim{opacity:.6;letter-spacing:2px;margin-bottom:8px}.detail p i{font-style:normal;color:var(--cy)}
+.sb{display:flex;align-items:center;gap:8px;font-size:10px;margin:3px 0}.sb span{width:42px;opacity:.75}.sb div{flex:1;height:8px;background:rgba(255,255,255,.12)}.sb i{display:block;height:100%;background:linear-gradient(90deg,#0a6bd1,var(--cy))}.sb b{width:34px;text-align:right}
+.forms{display:flex;flex-wrap:wrap;gap:5px}.forms span{font-size:9px;padding:3px 6px;border:1px solid rgba(255,216,74,.45);color:#fff;letter-spacing:1px}.forms em{font-style:normal;color:var(--xp)}
+.buy{margin-top:14px;width:100%}button:disabled{filter:grayscale(1) brightness(.6);cursor:not-allowed}
+.shop{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;align-content:start;overflow-y:auto;padding:4px}
+.item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(7,20,38,.88);border:1px solid var(--line)}
+.item>div{flex:1}.item b{font-size:13px;letter-spacing:2px}.item p{font-size:11px;color:#bfeaff;margin:3px 0 8px;font-weight:400}.item button{min-width:96px;padding:10px 12px;font-size:12px}
+.mbot{display:flex;justify-content:center}
+#btnPlay{font-size:17px;padding:15px 46px;background:linear-gradient(180deg,#fff2a8,#ff9a00)}
+#menuHelp{font-size:10px;letter-spacing:1px;opacity:.7;text-align:center}
+
+#scrB{margin-left:10px;background:linear-gradient(180deg,#9aa8b8,#58687c)}
+#loading,#fatal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#050c18;z-index:30;font-size:16px;letter-spacing:6px;color:var(--cy)}
+#fatal{display:none;color:#ff8a8a;text-align:center;padding:30px;letter-spacing:2px;line-height:1.7;z-index:31}
+@media (max-width:760px){#menuBody{flex-direction:column;overflow-y:auto}.detail{max-width:none}.card{width:100%;min-height:0}#mmWrap{display:none}}
 </style>
 </head>
 <body>
 <canvas id="game" tabindex="-1"></canvas>
 
-<!-- HUD -->
-<div class="panel" id="pl">
-  <div class="head">
-    <div class="logo">CC</div>
-    <div><div class="nm">SON GOKU</div><div class="fm" id="formName">BASE</div></div>
-    <div class="lvl">NV <b id="lvl">1</b></div>
+<div id="hud">
+  <div class="panel" id="pl">
+    <div class="head">
+      <canvas id="portrait" width="108" height="79"></canvas>
+      <div><div class="nm" id="chName">SON GOKU</div><div class="fm" id="formName">BASE</div></div>
+      <div class="lvl">NV <b id="lvl">1</b></div>
+    </div>
+    <div class="row"><span>VIDA</span><div class="bar hp"><i id="hpBar"></i><em id="hpTxt"></em></div></div>
+    <div class="row"><span>KI</span><div class="bar ki"><i id="kiBar"></i><em id="kiTxt"></em></div></div>
+    <div class="row"><span>EXP</span><div class="bar xp"><i id="xpBar"></i><em id="xpTxt"></em></div></div>
   </div>
-  <div class="row"><span>VIDA</span><div class="bar hp"><i id="hpBar"></i><em id="hpTxt"></em></div></div>
-  <div class="row"><span>KI</span><div class="bar ki"><i id="kiBar"></i><em id="kiTxt"></em></div></div>
-  <div class="row"><span>EXP</span><div class="bar xp"><i id="xpBar"></i><em id="xpTxt"></em></div></div>
+  <div id="wstrip"></div>
+  <div class="panel" id="pr">
+    <div class="lbl">ENEMIGOS DERROTADOS</div>
+    <b id="kills">0</b>
+    <div class="mini">TIEMPO <b id="time">00:00</b></div>
+    <div class="mini">ZENI <b id="zeniHud">0</b></div>
+    <div class="mini">ESFERAS <b id="balls">0 / 7</b></div>
+    <div class="mini">ZONA <b id="biome">YERMO</b></div>
+    <div class="mini">HORDA <b id="horde">0</b> · FPS <b id="fps">--</b></div>
+  </div>
+  <div id="bossBox"><div id="bossName">JEFE</div><div class="bar"><i id="bossBar"></i></div></div>
+  <div id="abil">
+    <div class="ab" id="abDash"><div class="fill" id="dashFill"></div><span>DASH <b>[ESPACIO]</b></span></div>
+    <div class="ab" id="abCharge"><span>CARGAR KI <b>[C]</b></span></div>
+  </div>
+  <div id="controls">WASD: mover · ESPACIO: dash · C: cargar ki · Q/E o botón derecho + arrastrar: girar cámara · RUEDA: zoom · T: reiniciar cámara · P: pausa</div>
+  <div id="mmWrap"><canvas id="mm" width="140" height="140"></canvas></div>
 </div>
-<div class="panel" id="pr">
-  <div class="lbl">ENEMIGOS DERROTADOS</div>
-  <b id="kills">0</b>
-  <div class="mini">TIEMPO <b id="time">00:00</b></div>
-  <div class="mini">HORDA <b id="horde">0</b></div>
-  <div class="mini">FPS <b id="fps">--</b></div>
-</div>
-<div id="abil">
-  <div class="ab" id="abDash"><div class="fill" id="dashFill"></div><span>DASH <b>[ESPACIO]</b></span></div>
-  <div class="ab" id="abCharge"><span>CARGAR KI <b>[C]</b></span></div>
-</div>
-<div id="controls">WASD / FLECHAS: mover · ESPACIO: dash · C: cargar ki · P: pausa</div>
+<div id="feed"></div>
 <div id="vignette"></div>
 <div id="toast"></div>
 
-<div id="screen" class="show">
+<!-- Menú principal -->
+<div id="menu">
+  <div class="mtop">
+    <h1>DRAGON BALL</h1><h2>ULTIMATE SURVIVOR</h2>
+    <div id="menuTabs"></div>
+    <div class="zeni">ZENI <b id="zeniMenu">0</b></div>
+  </div>
+  <div id="menuBody"></div>
+  <div class="mbot"><button id="btnPlay">JUGAR</button></div>
+  <div id="menuHelp">Sobrevive, sube de nivel, transfórmate y reúne las 7 Esferas del Dragón · Los Zeni que ganes se gastan en personajes y mejoras</div>
+</div>
+
+<!-- Cartas de nivel / deseo -->
+<div id="cards"><div id="cardTitle"></div><div id="cardSub"></div><div id="cardRow"></div></div>
+
+<!-- Pausa / derrota -->
+<div id="screen">
   <div class="box">
-    <div class="logo">CC</div>
-    <h1 id="scrTitle">DRAGON BALL</h1>
-    <h2 id="scrSub">ULTIMATE SURVIVOR</h2>
+    <h1 id="scrTitle">PAUSA</h1>
+    <h2 id="scrSub"></h2>
     <div id="scrStats"></div>
-    <button id="scrBtn">COMENZAR [ENTER]</button>
-    <div class="help">WASD / FLECHAS: mover · ESPACIO: dash (20 ki)<br>MANTÉN C: cargar ki, curarte y repeler enemigos · P: pausa<br>Tu Goku dispara ráfagas de ki automáticamente al enemigo más cercano</div>
+    <button id="scrA">CONTINUAR</button><button id="scrB">MENÚ</button>
   </div>
 </div>
 
-<script>
-'use strict';
-
-/* =====================================================================
-   DRAGON BALL: ULTIMATE SURVIVOR  ·  FASE 1.5 (mundo 3D + sprites 2D)
-   Índice:  0 Config · 1 Entrada · 2 Utilidades · 3 Sprites 2D (SpriteBatch)
-            4 FX (partículas) · 5 KiPool · 6 XpOrbs · 7 Player · 8 HordeManager
-            9 World · 10 UIManager · 11 Game · 12 Arranque
-   ===================================================================== */
-
-/* ---------- 0. CONFIGURACIÓN GLOBAL ---------- */
-const CFG = {
-  ARENA: 55,              // semilado del área jugable (±ARENA)
-  MAX_ENEMIES: 450,       // capacidad del batch de la horda
-  MAX_BULLETS: 96,        // tamaño del pool de ráfagas de Ki
-  MAX_ORBS: 300,          // orbes de experiencia simultáneos
-  CELL: 3,                // tamaño de celda de la rejilla espacial
-  PLAYER_R: 0.6,          // radio de colisión del jugador (esfera)
-  ENEMY_R: 0.7,           // radio de colisión de un enemigo (esfera)
-  DASH_COST: 20, DASH_TIME: 0.2, DASH_SPEED: 42, DASH_CD: 0.55,
-  CHARGE_TIME_SCALE: 0.55 // el mundo va más lento mientras cargas Ki
-};
-
-/* Tabla de formas. En la Fase 2 solo hay que añadir entradas (y su spritesheet) */
-const FORMS = [
-  { name: 'BASE', minLevel: 1, dmgMul: 1, speedMul: 1, kiRadius: 0.55, kiColor: 0xfff0a0, aura: 0xfff2b0 }
-];
-
-/* Índices de fotograma del spritesheet 4x4 "fighter" (fila*4 + columna). Mira a la DERECHA; se vuelca para ir a la izquierda */
-const FIGHTER = { idle: 0, walk: [1, 2, 3, 2], hurt: 8, dash: 9, punch: 10, kick: 11, death: [12, 13, 14] };
-
-/* ---------- 1. ENTRADA (objeto global de estado: evita key-ghosting) ---------- */
-const keys = {};
-const BLOCKED = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
-window.addEventListener('keydown', (e) => { if (BLOCKED.has(e.code)) e.preventDefault(); keys[e.code] = true; });
-window.addEventListener('keyup', (e) => { keys[e.code] = false; });
-window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
-
-/* ---------- 2. UTILIDADES ---------- */
-const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const rand = (a, b) => a + Math.random() * (b - a);
-
-/** Recursos compartidos del mundo 3D (gradiente de 4 tonos = cel-shading del terreno) */
-const Shared = { toon: null };
-function initShared() {
-  const tex = new THREE.DataTexture(new Uint8Array([90, 150, 215, 255]), 4, 1, THREE.LuminanceFormat);
-  tex.minFilter = tex.magFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
-  tex.needsUpdate = true;
-  Shared.toon = tex;
-}
-const toonMat = (color, extra) => new THREE.MeshToonMaterial(Object.assign({ color, gradientMap: Shared.toon }, extra || {}));
-
-/** Textura pixel art procedural: fn(x,y,w,h) devuelve [r,g,b,a] o null (transparente) */
-function pixelTex(w, h, fn) {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  const g = c.getContext && c.getContext('2d');
-  let tex;
-  if (g && g.createImageData) {
-    const id = g.createImageData(w, h);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const p = fn(x, y, w, h), o = (y * w + x) * 4;
-      if (p) { id.data[o] = p[0]; id.data[o + 1] = p[1]; id.data[o + 2] = p[2]; id.data[o + 3] = p[3]; }
-    }
-    g.putImageData(id, 0, 0);
-    tex = new THREE.CanvasTexture(c);
-  } else {                                   // sin canvas 2D: textura blanca de 1 píxel
-    tex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat);
-    tex.needsUpdate = true;
-  }
-  tex.magFilter = tex.minFilter = THREE.NearestFilter;   // píxeles nítidos, sin suavizado
-  tex.generateMipmaps = false;
-  return tex;
-}
-
-/** Texturas pixel art genéricas (en escala de grises: el color final lo da el tinte del batch) */
-function makeTextures() {
-  return {
-    spark: pixelTex(2, 2, () => [255, 255, 255, 255]),
-    ki: pixelTex(16, 16, (x, y, w) => {
-      const r = Math.hypot(x + 0.5 - w / 2, y + 0.5 - w / 2) / (w / 2);
-      return r < 0.3 ? [255, 255, 255, 255] : r < 0.55 ? [235, 235, 235, 255] : r < 0.8 ? [185, 185, 185, 230] : r < 1 ? [110, 110, 110, 160] : null;
-    }),
-    gem: pixelTex(9, 9, (x, y) => {
-      const d = Math.abs(x - 4) + Math.abs(y - 4);
-      return d <= 1 ? [255, 255, 255, 255] : d <= 3 ? [190, 190, 190, 255] : d === 4 ? [90, 90, 90, 255] : null;
-    }),
-    shadow: pixelTex(16, 8, (x, y, w, h) => {
-      const dx = (x + 0.5 - w / 2) / (w / 2), dy = (y + 0.5 - h / 2) / (h / 2), d = dx * dx + dy * dy;
-      return d < 0.5 ? [0, 0, 0, 255] : d < 1 && ((x + y) & 1) ? [0, 0, 0, 255] : null;
-    }),
-    shield: pixelTex(48, 48, (x, y, w) => {
-      const r = Math.hypot(x + 0.5 - w / 2, y + 0.5 - w / 2) / (w / 2);
-      return r >= 0.88 && r < 1 ? [255, 255, 255, 255] : r < 0.88 && r > 0.5 && ((x + y) & 1) ? [255, 255, 255, 90] : null;
-    })
-  };
-}
-
-/** Carga un spritesheet desde window.SPRITE_DATA (assets/sprites.js, en base64: funciona también con doble clic) */
-function loadSheet(name) {
-  return new Promise((resolve) => {
-    const d = window.SPRITE_DATA && window.SPRITE_DATA[name];
-    if (!d) { resolve(null); return; }
-    const img = new Image();
-    img.onload = () => {
-      const tex = new THREE.Texture(img);
-      tex.magFilter = tex.minFilter = THREE.NearestFilter;
-      tex.generateMipmaps = false;
-      tex.needsUpdate = true;
-      resolve({ tex, cols: d.cols, rows: d.rows, w: d.w, h: d.h });
-    };
-    img.onerror = () => resolve(null);
-    img.src = d.src;
-  });
-}
-
-/* ---------- 3. SPRITES 2D: billboards instanciados con atlas de fotogramas ---------- */
-const SPRITE_VS = `
-attribute vec4 iPos;    // xyz: posición en el mundo (pies), w: opacidad
-attribute vec4 iData;   // x: fotograma, y: volteo horizontal (0/1), z: destello blanco (0..1), w: escala
-uniform vec2 uGrid;     // columnas y filas del atlas
-uniform vec2 uSize;     // tamaño del sprite en unidades del mundo
-uniform float uAnchor;  // fracción de la altura que queda bajo el punto de anclaje
-uniform float uFlat;    // 1 = tumbado sobre el suelo (sombras)
-varying vec2 vUv;
-varying float vFlash;
-varying float vAlpha;
-void main() {
-  float col = mod(iData.x, uGrid.x);
-  float row = floor(iData.x / uGrid.x);
-  float fx = mix(uv.x, 1.0 - uv.x, iData.y);
-  vUv = vec2((col + fx) / uGrid.x, 1.0 - (row + 1.0 - uv.y) / uGrid.y);
-  vFlash = iData.z;
-  vAlpha = iPos.w;
-  vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
-  vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
-  if (uFlat > 0.5) { right = vec3(1.0, 0.0, 0.0); up = vec3(0.0, 0.0, -1.0); }
-  float s = iData.w;
-  vec3 wp = iPos.xyz + right * (position.x * uSize.x * s) + up * ((position.y + 0.5 - uAnchor) * uSize.y * s);
-  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
-}`;
-const SPRITE_FS = `
-uniform sampler2D uMap;
-uniform vec3 uTint;
-uniform float uAlpha;
-uniform float uCut;
-varying vec2 vUv;
-varying float vFlash;
-varying float vAlpha;
-void main() {
-  vec4 c = texture2D(uMap, vUv);
-  if (c.a < uCut) discard;                              // recorte duro: bordes de pixel art nítidos
-  vec3 rgb = mix(c.rgb * uTint, vec3(1.0), vFlash * 0.85);
-  gl_FragColor = vec4(rgb, c.a * uAlpha * vAlpha);
-}`;
-
-/**
- * Dibuja hasta `max` sprites con UNA sola draw call. Uso por frame: begin() -> push(...) -> end().
- * Opciones: texture, cols, rows, w, h (tamaño en mundo), anchor, tint, alpha, cut, additive, blend, flat, renderOrder.
- */
-class SpriteBatch {
-  constructor(scene, o) {
-    this.max = o.max; this.count = 0;
-    const base = new THREE.PlaneGeometry(1, 1);
-    this.geo = new THREE.InstancedBufferGeometry();
-    this.geo.setIndex(base.index);
-    this.geo.setAttribute('position', base.attributes.position);
-    this.geo.setAttribute('uv', base.attributes.uv);
-    this.pos = new Float32Array(o.max * 4); this.data = new Float32Array(o.max * 4);
-    this.aPos = new THREE.InstancedBufferAttribute(this.pos, 4); this.aPos.setUsage(THREE.DynamicDrawUsage);
-    this.aData = new THREE.InstancedBufferAttribute(this.data, 4); this.aData.setUsage(THREE.DynamicDrawUsage);
-    this.geo.setAttribute('iPos', this.aPos);
-    this.geo.setAttribute('iData', this.aData);
-    this.geo.instanceCount = 0;
-    const soft = !!(o.additive || o.blend);
-    this.mat = new THREE.ShaderMaterial({
-      vertexShader: SPRITE_VS, fragmentShader: SPRITE_FS,
-      uniforms: {
-        uMap: { value: o.texture },
-        uGrid: { value: new THREE.Vector2(o.cols || 1, o.rows || 1) },
-        uSize: { value: new THREE.Vector2(o.w || 1, o.h || 1) },
-        uAnchor: { value: o.anchor || 0 },
-        uFlat: { value: o.flat ? 1 : 0 },
-        uTint: { value: new THREE.Color(o.tint !== undefined ? o.tint : 0xffffff) },
-        uAlpha: { value: o.alpha !== undefined ? o.alpha : 1 },
-        uCut: { value: o.cut !== undefined ? o.cut : 0.5 }
-      },
-      transparent: soft, depthWrite: !soft,
-      blending: o.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
-      side: THREE.DoubleSide
-    });
-    this.mesh = new THREE.Mesh(this.geo, this.mat);
-    this.mesh.frustumCulled = false;            // las instancias se mueven: no usar la esfera del mesh base
-    this.mesh.renderOrder = o.renderOrder || 0;
-    scene.add(this.mesh);
-  }
-  setTint(hex) { this.mat.uniforms.uTint.value.setHex(hex); }
-  begin() { this.count = 0; }
-  push(x, y, z, frame, flip, flash, scale, alpha) {
-    if (this.count >= this.max) return;
-    const i = this.count++, p = i * 4;
-    this.pos[p] = x; this.pos[p + 1] = y; this.pos[p + 2] = z; this.pos[p + 3] = alpha === undefined ? 1 : alpha;
-    this.data[p] = frame; this.data[p + 1] = flip; this.data[p + 2] = flash; this.data[p + 3] = scale;
-  }
-  end() {
-    this.geo.instanceCount = this.count;
-    this.aPos.needsUpdate = true; this.aData.needsUpdate = true;
-  }
-  reset() { this.count = 0; this.geo.instanceCount = 0; }
-}
-
-/* ---------- 4. PARTÍCULAS (pool en anillo; cuadrados de píxel que miran a la cámara) ---------- */
-class ParticleSystem {
-  constructor(scene, max, color, alpha, tex) {
-    this.max = max; this.cursor = 0;
-    this.px = new Float32Array(max); this.py = new Float32Array(max); this.pz = new Float32Array(max);
-    this.vx = new Float32Array(max); this.vy = new Float32Array(max); this.vz = new Float32Array(max);
-    this.life = new Float32Array(max); this.maxLife = new Float32Array(max);
-    this.size = new Float32Array(max); this.grav = new Float32Array(max);
-    this.batch = new SpriteBatch(scene, { max, texture: tex, w: 1, h: 1, anchor: 0.5, additive: true, tint: color, alpha, cut: 0.02, renderOrder: 6 });
-  }
-  setColor(hex) { this.batch.setTint(hex); }
-  /** Reutiliza la ranura más antigua: nunca se crean objetos nuevos */
-  emit(x, y, z, vx, vy, vz, life, size, grav) {
-    const i = this.cursor;
-    this.cursor = (i + 1) % this.max;
-    this.px[i] = x; this.py[i] = y; this.pz[i] = z;
-    this.vx[i] = vx; this.vy[i] = vy; this.vz[i] = vz;
-    this.life[i] = life; this.maxLife[i] = life; this.size[i] = size; this.grav[i] = grav || 0;
-  }
-  update(dt) {
-    const b = this.batch;
-    b.begin();
-    for (let i = 0; i < this.max; i++) {
-      if (this.life[i] <= 0) continue;
-      this.life[i] -= dt;
-      if (this.life[i] <= 0) continue;
-      this.vy[i] -= this.grav[i] * dt;
-      this.px[i] += this.vx[i] * dt; this.py[i] += this.vy[i] * dt; this.pz[i] += this.vz[i] * dt;
-      if (this.py[i] < 0.05) { this.py[i] = 0.05; this.vy[i] *= -0.4; this.vx[i] *= 0.8; this.vz[i] *= 0.8; }
-      b.push(this.px[i], this.py[i], this.pz[i], 0, 0, 0, this.size[i] * (this.life[i] / this.maxLife[i]), 1);
-    }
-    b.end();
-  }
-  reset() { this.life.fill(0); this.batch.reset(); }
-}
-
-/** Agrupa los 4 sistemas de partículas del juego */
-class FX {
-  constructor(scene, tex) {
-    this.sparks = new ParticleSystem(scene, 500, 0xffe066, 1.0, tex.spark);   // chispas de impacto y estela de Ki
-    this.aura = new ParticleSystem(scene, 400, 0xfff2b0, 0.85, tex.spark);    // aura de carga, ondas expansivas
-    this.trail = new ParticleSystem(scene, 240, 0x7fe8ff, 0.5, tex.spark);    // polvo/energía del dash
-    this.gore = new ParticleSystem(scene, 300, 0xc0392b, 0.95, tex.spark);    // restos al derrotar enemigos
-    this.all = [this.sparks, this.aura, this.trail, this.gore];
-  }
-  /** Explosión esférica de partículas */
-  burst(sys, x, y, z, n, speed, life, size, grav) {
-    for (let i = 0; i < n; i++) {
-      const u = rand(-1, 1), phi = rand(0, Math.PI * 2), r = Math.sqrt(1 - u * u), s = speed * rand(0.35, 1);
-      sys.emit(x, y, z, r * Math.cos(phi) * s, u * s * 0.8 + speed * 0.25, r * Math.sin(phi) * s,
-        life * rand(0.6, 1), size * rand(0.6, 1.2), grav || 0);
-    }
-  }
-  /** Anillo plano que se expande (onda de choque) */
-  ring(sys, x, y, z, n, speed, life, size) {
-    const o = rand(0, 6.28);
-    for (let i = 0; i < n; i++) {
-      const a = o + (i / n) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
-      sys.emit(x + c, y, z + s, c * speed, 0.3, s * speed, life, size, 0);
-    }
-  }
-  update(dt) { for (let i = 0; i < 4; i++) this.all[i].update(dt); }
-  reset() { for (let i = 0; i < 4; i++) this.all[i].reset(); }
-}
-
-/* ---------- 5. POOL DE RÁFAGAS DE KI (sprite de orbe pixel art) ---------- */
-class KiPool {
-  constructor(scene, max, tex) {
-    this.max = max;
-    this.b = [];                     // pool: los objetos se crean UNA vez y se reciclan
-    for (let i = 0; i < max; i++) {
-      this.b.push({ active: false, x: 0, y: 1.4, z: 0, vx: 0, vz: 0, life: 0, dmg: 0, r: 0.5, trail: 0, crit: false });
-    }
-    this.sb = new SpriteBatch(scene, { max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, tint: 0xfff0a0, cut: 0.05, renderOrder: 5 });
-  }
-  setColor(hex) { this.sb.setTint(hex); }
-  fire(x, z, dx, dz, speed, dmg, r, crit) {
-    for (let i = 0; i < this.max; i++) {
-      const b = this.b[i];
-      if (b.active) continue;
-      b.active = true; b.x = x; b.z = z; b.y = 1.4;
-      b.vx = dx * speed; b.vz = dz * speed; b.life = 1.6; b.dmg = dmg; b.r = r; b.crit = crit; b.trail = 0;
-      return true;
-    }
-    return false;   // pool lleno: se ignora el disparo
-  }
-  update(dt, game) {
-    const sb = this.sb;
-    sb.begin();
-    for (let i = 0; i < this.max; i++) {
-      const b = this.b[i];
-      if (!b.active) continue;
-      b.life -= dt;
-      b.x += b.vx * dt; b.z += b.vz * dt;
-      if (b.life <= 0 || Math.abs(b.x) > CFG.ARENA + 15 || Math.abs(b.z) > CFG.ARENA + 15) { b.active = false; continue; }
-      if (game.horde.hitTest(b, game)) { b.active = false; continue; }
-      b.trail -= dt;
-      if (b.trail <= 0) {
-        b.trail = 0.03;
-        game.fx.sparks.emit(b.x, b.y, b.z, rand(-1, 1), rand(0, 1.5), rand(-1, 1), 0.25, b.r * 0.5, 0);
-      }
-      sb.push(b.x, b.y, b.z, 0, 0, 0, (b.crit ? 3.6 : 2.6) * b.r * 1.3, 1);
-    }
-    sb.end();
-  }
-  reset() { for (let i = 0; i < this.max; i++) this.b[i].active = false; this.sb.reset(); }
-}
-
-/* ---------- 6. ORBES DE EXPERIENCIA (gemas pixel art, swap-remove) ---------- */
-class XpOrbs {
-  constructor(scene, max, tex) {
-    this.max = max; this.n = 0; this.t = 0;
-    this.x = new Float32Array(max); this.z = new Float32Array(max); this.v = new Float32Array(max);
-    this.sb = new SpriteBatch(scene, { max, texture: tex.gem, w: 1, h: 1, anchor: 0.5, tint: 0x57f0ff, renderOrder: 1 });
-  }
-  spawn(x, z, val) {
-    if (this.n >= this.max) { this.v[this.max - 1] += val; return; }   // lleno: acumula en el último
-    const i = this.n++;
-    this.x[i] = x; this.z[i] = z; this.v[i] = val;
-  }
-  update(dt, player, game) {
-    this.t += dt;
-    const mr2 = player.magnet * player.magnet;
-    for (let i = this.n - 1; i >= 0; i--) {
-      const dx = player.x - this.x[i], dz = player.z - this.z[i], d2 = dx * dx + dz * dz;
-      if (d2 < 1.7) {                       // recogida
-        game.addXp(this.v[i]);
-        const l = --this.n;
-        this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.v[i] = this.v[l];
-      } else if (d2 < mr2) {                // imán hacia el jugador
-        const d = Math.sqrt(d2), s = (26 * dt) / d;
-        this.x[i] += dx * s; this.z[i] += dz * s;
-      }
-    }
-    this.sb.begin();
-    for (let i = 0; i < this.n; i++) this.sb.push(this.x[i], 0.7 + Math.sin(this.t * 4 + this.x[i]) * 0.15, this.z[i], 0, 0, 0, 0.8, 1);
-    this.sb.end();
-  }
-  reset() { this.n = 0; this.sb.reset(); }
-}
-
-/* ---------- 7. JUGADOR (sprite 2D en el mundo 3D) ---------- */
-class Player {
-  constructor(scene, sheet, tex) {
-    const H = 3.6, W = H * (sheet.w / sheet.h);              // tamaño del sprite en unidades del mundo
-    const base = { texture: sheet.tex, cols: sheet.cols, rows: sheet.rows, w: W, h: H, anchor: 0.04 };
-    this.sprite = new SpriteBatch(scene, Object.assign({ max: 1, blend: true, renderOrder: 3 }, base));
-    // Imágenes residuales del dash: copias traslúcidas del propio sprite
-    this.ghost = new SpriteBatch(scene, Object.assign({ max: 12, blend: true, tint: 0x8defff, alpha: 0.5, renderOrder: 2 }, base));
-    this.shield = new SpriteBatch(scene, { max: 1, texture: tex.shield, w: 1, h: 1, anchor: 0.5, additive: true, alpha: 0.5, tint: 0x9be7ff, cut: 0.02, renderOrder: 5 });
-    this.ghosts = [];
-    for (let i = 0; i < 12; i++) this.ghosts.push({ t: 0, x: 0, z: 0, frame: 0, flip: 0 });
-    this.reset();
-  }
-
-  reset() {
-    this.x = 0; this.z = 0; this.vx = 0; this.vz = 0;
-    this.flip = 0;                                            // 0 = mira a la derecha, 1 = a la izquierda
-    this.maxHp = 100; this.hp = 100; this.maxKi = 100; this.ki = 100;
-    this.level = 1; this.xp = 0; this.xpNext = this.xpFor(1);
-    this.dmgMul = 1; this.speedMul = 1; this.fireRateMul = 1; this.magnet = 5;
-    this.formIdx = 0;
-    this.dashT = 0; this.dashCd = 0; this.dashX = 1; this.dashZ = 0; this.iframes = 0; this.ghostT = 0;
-    this.charging = false; this.shockT = 0; this.fireT = 0.3; this.prevSpace = false;
-    this.animT = 0; this.atkT = 0; this.atkFrame = FIGHTER.punch; this.hurtT = 0;
-    this.frame = FIGHTER.idle; this.dying = false; this.deathT = 0;
-    for (let i = 0; i < this.ghosts.length; i++) this.ghosts[i].t = 0;
-  }
-
-  get form() { return FORMS[this.formIdx]; }
-  xpFor(level) { return Math.floor(5 + level * 4 + level * level * 0.9); }
-
-  takeDamage(amount, game) {
-    if (this.iframes > 0 || game.state !== 'play') return;
-    this.hp -= amount;
-    this.iframes = 0.55; this.hurtT = 0.3;
-    game.ui.flash = 1;
-    game.shake(0.45);
-    game.hitstop = 0.04;                                      // micro-congelación al recibir golpe
-    game.fx.burst(game.fx.sparks, this.x, 1.3, this.z, 8, 7, 0.4, 0.35, 8);
-  }
-
-  /** Empieza la animación de muerte */
-  die() { this.dying = true; this.deathT = 0; this.charging = false; this.vx = 0; this.vz = 0; }
-
-  update(dt, game) {
-    const form = this.form;
-    // --- Lectura de entrada (siempre sobre el objeto global `keys`) ---
-    let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
-    let iz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
-    const il = Math.hypot(ix, iz);
-    if (il > 0) { ix /= il; iz /= il; }
-
-    this.animT += dt;
-    this.iframes = Math.max(0, this.iframes - dt);
-    this.dashCd = Math.max(0, this.dashCd - dt);
-    this.atkT = Math.max(0, this.atkT - dt);
-    this.hurtT = Math.max(0, this.hurtT - dt);
-    this.charging = !!keys.KeyC && this.dashT <= 0;
-
-    // --- Dash (Shunkan Ido): se activa solo en el flanco de bajada de ESPACIO ---
-    const space = !!keys.Space;
-    if (space && !this.prevSpace && this.dashT <= 0 && this.dashCd <= 0 && this.ki >= CFG.DASH_COST && !this.charging) {
-      this.dashX = il > 0 ? ix : (this.flip ? -1 : 1);
-      this.dashZ = il > 0 ? iz : 0;
-      this.dashT = CFG.DASH_TIME; this.dashCd = CFG.DASH_CD; this.ghostT = 0;
-      this.ki -= CFG.DASH_COST;
-      this.iframes = Math.max(this.iframes, CFG.DASH_TIME + 0.1);
-      game.fx.burst(game.fx.trail, this.x, 0.8, this.z, 12, 5, 0.5, 0.6, 0);
-      game.shake(0.25);
-    }
-    this.prevSpace = space;
-
-    // --- Movimiento ---
-    const speed = 9 * this.speedMul * form.speedMul;
-    if (this.dashT > 0) {
-      this.dashT -= dt;
-      this.vx = this.dashX * CFG.DASH_SPEED; this.vz = this.dashZ * CFG.DASH_SPEED;
-      this.ghostT -= dt;
-      if (this.ghostT <= 0) this.spawnGhost();                // estela de imágenes residuales
-    } else {
-      const tx = this.charging ? 0 : ix * speed, tz = this.charging ? 0 : iz * speed;
-      const k = 1 - Math.exp(-16 * dt);                       // aceleración suave independiente del framerate
-      this.vx += (tx - this.vx) * k; this.vz += (tz - this.vz) * k;
-    }
-    for (let i = 0; i < this.ghosts.length; i++) if (this.ghosts[i].t > 0) this.ghosts[i].t -= dt;
-    this.x = clamp(this.x + this.vx * dt, -CFG.ARENA, CFG.ARENA);
-    this.z = clamp(this.z + this.vz * dt, -CFG.ARENA, CFG.ARENA);
-    const sp = Math.hypot(this.vx, this.vz);
-
-    // --- Ki: regeneración pasiva / carga táctica ---
-    if (this.charging) {
-      this.ki = Math.min(this.maxKi, this.ki + 35 * dt);
-      this.hp = Math.min(this.maxHp, this.hp + 6 * dt);
-      const n = Math.max(1, Math.round(dt * 130));            // aura de partículas ascendentes
-      for (let i = 0; i < n; i++) {
-        const a = rand(0, 6.28), r = rand(0.9, 1.6);
-        game.fx.aura.emit(this.x + Math.cos(a) * r, rand(0.1, 0.6), this.z + Math.sin(a) * r, 0, rand(4, 7), 0, rand(0.45, 0.8), rand(0.12, 0.28), 0);
-      }
-      this.shockT -= dt;
-      if (this.shockT <= 0) {                                 // onda expansiva que repele a los enemigos
-        this.shockT = 0.55;
-        game.horde.shockwave(this.x, this.z, 8, 17);
-        game.fx.ring(game.fx.aura, this.x, 0.5, this.z, 40, 15, 0.45, 0.3);
-        game.shake(0.14);
-      }
-    } else {
-      this.ki = Math.min(this.maxKi, this.ki + 4 * dt);
-      this.shockT = 0;
-    }
-
-    // --- Disparo automático hacia el enemigo más cercano ---
-    this.fireT -= dt;
-    if (this.fireT <= 0 && !this.charging) {
-      const t = game.horde.nearest(this.x, this.z, 32);
-      if (t >= 0) {
-        let dx = game.horde.x[t] - this.x, dz = game.horde.z[t] - this.z;
-        const d = Math.hypot(dx, dz) + 1e-4;
-        dx /= d; dz /= d;
-        const crit = Math.random() < 0.1;
-        const dmg = 15 * this.dmgMul * form.dmgMul * (crit ? 2 : 1);
-        game.ki.fire(this.x + dx * 1.1, this.z + dz * 1.1, dx, dz, 30, dmg, form.kiRadius, crit);
-        this.flip = dx < 0 ? 1 : 0;                           // se gira hacia el objetivo
-        this.atkT = 0.18; this.atkFrame = crit ? FIGHTER.kick : FIGHTER.punch;
-        this.fireT = 0.32 / this.fireRateMul;
-      } else this.fireT = 0.1;
-    }
-    if (Math.abs(this.vx) > 0.8 && this.atkT <= 0) this.flip = this.vx < 0 ? 1 : 0;
-
-    // --- Fotograma de animación según el estado ---
-    if (this.hurtT > 0) this.frame = FIGHTER.hurt;
-    else if (this.dashT > 0) this.frame = FIGHTER.dash;
-    else if (this.atkT > 0) this.frame = this.atkFrame;
-    else if (sp > 0.8) this.frame = FIGHTER.walk[((this.animT * 9) | 0) % FIGHTER.walk.length];
-    else this.frame = FIGHTER.idle;
-  }
-
-  spawnGhost() {
-    this.ghostT = 0.025;
-    for (let i = 0; i < this.ghosts.length; i++) {
-      const g = this.ghosts[i];
-      if (g.t <= 0) { g.t = 0.3; g.x = this.x; g.z = this.z; g.frame = this.frame; g.flip = this.flip; return; }
-    }
-  }
-
-  /** Animación de muerte: caída -> tumbado -> se desvanece. Devuelve true cuando termina */
-  updateDeath(dt) { this.deathT += dt; return this.deathT >= 1.9; }
-
-  /** Vuelca el estado al GPU (sprite, imágenes residuales, escudo y sombra) */
-  syncSprite(shadows) {
-    let y = 0, alpha = 1, flash = 0;
-    if (this.dying) {
-      const t = this.deathT;
-      this.frame = t < 0.35 ? FIGHTER.death[0] : t < 0.9 ? FIGHTER.death[1] : FIGHTER.death[2];
-      alpha = clamp(1 - (t - 1.1) / 0.75, 0, 1);
-    } else {
-      if (this.dashT > 0) y = 0.5;
-      else if (this.frame === FIGHTER.walk[0] || this.frame === FIGHTER.walk[1] || this.frame === FIGHTER.walk[2]) y = Math.abs(Math.sin(this.animT * 9)) * 0.12;
-      flash = this.hurtT > 0.22 ? 1 : 0;
-      if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;   // parpadeo de invulnerabilidad
-    }
-    this.sprite.begin();
-    this.sprite.push(this.x, y, this.z, this.frame, this.flip, flash, 1, alpha);
-    this.sprite.end();
-    this.ghost.begin();
-    for (let i = 0; i < this.ghosts.length; i++) {
-      const g = this.ghosts[i];
-      if (g.t > 0) this.ghost.push(g.x, 0.5, g.z, g.frame, g.flip, 0, 1, g.t / 0.3);
-    }
-    this.ghost.end();
-    this.shield.begin();
-    if (this.charging) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 5 * (1 + Math.sin(this.animT * 12) * 0.05), 1);
-    this.shield.end();
-    shadows.push(this.x, 0.06, this.z, 0, 0, 0, 2.5 * (1 - y * 0.4), alpha);
-  }
-}
-
-/* ---------- 8. HORDA (sprites instanciados + rejilla espacial) ---------- */
-class HordeManager {
-  constructor(scene, max, sheet) {
-    this.max = max; this.n = 0; this.speed = 3.4;
-    // Estructura de arrays (SoA): cero objetos por enemigo => cero basura para el GC
-    this.x = new Float32Array(max); this.z = new Float32Array(max);
-    this.hp = new Float32Array(max); this.hitT = new Float32Array(max);
-    this.kx = new Float32Array(max); this.kz = new Float32Array(max);
-    this.phase = new Float32Array(max); this.flip = new Float32Array(max);
-
-    // Rejilla espacial (listas enlazadas en typed arrays): colisiones sin O(n²)
-    this.half = CFG.ARENA + 6;
-    this.cols = Math.ceil((this.half * 2) / CFG.CELL);
-    this.heads = new Int32Array(this.cols * this.cols);
-    this.next = new Int32Array(max);
-
-    // PLACEHOLDER: los enemigos reutilizan el spritesheet del luchador, teñido de rojo y más pequeño
-    const H = 2.9;
-    this.sb = new SpriteBatch(scene, {
-      max, texture: sheet.tex, cols: sheet.cols, rows: sheet.rows,
-      w: H * (sheet.w / sheet.h), h: H, anchor: 0.04, tint: 0xff7f95, renderOrder: 0
-    });
-  }
-
-  cellOf(x, z) {
-    const cx = clamp(Math.floor((x + this.half) / CFG.CELL), 0, this.cols - 1);
-    const cz = clamp(Math.floor((z + this.half) / CFG.CELL), 0, this.cols - 1);
-    return cz * this.cols + cx;
-  }
-
-  spawn(x, z, hp) {
-    if (this.n >= this.max) return false;
-    const i = this.n++;
-    this.x[i] = x; this.z[i] = z; this.hp[i] = hp; this.hitT[i] = 0;
-    this.kx[i] = 0; this.kz[i] = 0; this.phase[i] = rand(0, 40); this.flip[i] = 0;
-    return true;
-  }
-
-  /** Elimina el enemigo i copiando el último en su hueco (O(1), array siempre compacto) */
-  remove(i) {
-    const l = --this.n;
-    this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.hp[i] = this.hp[l]; this.hitT[i] = this.hitT[l];
-    this.kx[i] = this.kx[l]; this.kz[i] = this.kz[l]; this.phase[i] = this.phase[l]; this.flip[i] = this.flip[l];
-  }
-
-  /** Simulación: reconstruye la rejilla, persigue al jugador, separa enemigos y detecta contacto */
-  update(dt, player, game) {
-    const n = this.n, x = this.x, z = this.z, kx = this.kx, kz = this.kz, heads = this.heads, next = this.next, cols = this.cols;
-    heads.fill(-1);
-    for (let i = 0; i < n; i++) { const c = this.cellOf(x[i], z[i]); next[i] = heads[c]; heads[c] = i; }
-
-    const px = player.x, pz = player.z, lim = CFG.ARENA + 2, sepR = 1.3, sepR2 = sepR * sepR;
-    const kd = Math.exp(-7 * dt), touch = CFG.PLAYER_R + CFG.ENEMY_R + 0.15, dmg = game.enemyDamage();
-    for (let i = 0; i < n; i++) {
-      const xi = x[i], zi = z[i];
-      let dx = px - xi, dz = pz - zi;
-      const d = Math.sqrt(dx * dx + dz * dz) + 1e-4;
-      dx /= d; dz /= d;
-      let vx = dx * this.speed, vz = dz * this.speed;
-
-      // Separación con vecinos de las 9 celdas cercanas
-      const c = this.cellOf(xi, zi), cx = c % cols, cz = (c / cols) | 0;
-      let sx = 0, sz = 0;
-      for (let gz = cz - 1; gz <= cz + 1; gz++) {
-        if (gz < 0 || gz >= cols) continue;
-        for (let gx = cx - 1; gx <= cx + 1; gx++) {
-          if (gx < 0 || gx >= cols) continue;
-          let j = heads[gz * cols + gx];
-          while (j !== -1) {
-            if (j !== i) {
-              const ex = xi - x[j], ez = zi - z[j], e2 = ex * ex + ez * ez;
-              if (e2 < sepR2 && e2 > 1e-6) { const e = Math.sqrt(e2), f = (sepR - e) / sepR; sx += (ex / e) * f; sz += (ez / e) * f; }
-            }
-            j = next[j];
-          }
-        }
-      }
-      vx += sx * 5 + kx[i]; vz += sz * 5 + kz[i];
-      kx[i] *= kd; kz[i] *= kd;
-      x[i] = clamp(xi + vx * dt, -lim, lim);
-      z[i] = clamp(zi + vz * dt, -lim, lim);
-      if (Math.abs(dx) > 0.2) this.flip[i] = dx < 0 ? 1 : 0;   // mira hacia donde camina
-      this.phase[i] += dt * 8;
-      if (this.hitT[i] > 0) this.hitT[i] -= dt;
-      if (d < touch && this.hp[i] > 0) player.takeDamage(dmg, game);   // colisión esfera-esfera con el jugador
-    }
-  }
-
-  /** Colisión de una ráfaga contra la rejilla (esfera-esfera). Devuelve true si impacta */
-  hitTest(b, game) {
-    const cols = this.cols, rr = (b.r + CFG.ENEMY_R) * (b.r + CFG.ENEMY_R);
-    const c = this.cellOf(b.x, b.z), cx = c % cols, cz = (c / cols) | 0;
-    for (let gz = cz - 1; gz <= cz + 1; gz++) {
-      if (gz < 0 || gz >= cols) continue;
-      for (let gx = cx - 1; gx <= cx + 1; gx++) {
-        if (gx < 0 || gx >= cols) continue;
-        let j = this.heads[gz * cols + gx];
-        while (j !== -1) {
-          if (this.hp[j] > 0) {
-            const dx = this.x[j] - b.x, dz = this.z[j] - b.z;
-            if (dx * dx + dz * dz < rr) { this.damage(j, b, game); return true; }
-          }
-          j = this.next[j];
-        }
-      }
-    }
-    return false;
-  }
-
-  damage(j, b, game) {
-    this.hp[j] -= b.dmg;
-    this.hitT[j] = 0.12;
-    this.kx[j] += b.vx * 0.22; this.kz[j] += b.vz * 0.22;     // retroceso
-    game.fx.burst(game.fx.sparks, b.x, 1.2, b.z, b.crit ? 10 : 4, b.crit ? 9 : 5, 0.3, b.crit ? 0.4 : 0.25, 6);
-    if (b.crit) { game.hitstop = 0.04; game.shake(0.3); } else game.shake(0.06);
-  }
-
-  /** Enemigo vivo más cercano dentro de `range` (o -1) */
-  nearest(px, pz, range) {
-    let best = -1, bd = range * range;
-    for (let i = 0; i < this.n; i++) {
-      if (this.hp[i] <= 0) continue;
-      const dx = this.x[i] - px, dz = this.z[i] - pz, d2 = dx * dx + dz * dz;
-      if (d2 < bd) { bd = d2; best = i; }
-    }
-    return best;
-  }
-
-  /** Onda expansiva: empuja a los enemigos cercanos */
-  shockwave(px, pz, radius, force) {
-    const r2 = radius * radius;
-    for (let i = 0; i < this.n; i++) {
-      const dx = this.x[i] - px, dz = this.z[i] - pz, d2 = dx * dx + dz * dz;
-      if (d2 < r2 && d2 > 1e-6) {
-        const d = Math.sqrt(d2), f = force * (1.2 - d / radius);
-        this.kx[i] += (dx / d) * f; this.kz[i] += (dz / d) * f;
-      }
-    }
-  }
-
-  /** Retira los enemigos con vida <= 0 (de atrás hacia delante para no romper índices) */
-  reap(game) {
-    for (let i = this.n - 1; i >= 0; i--) {
-      if (this.hp[i] <= 0) { game.onEnemyKilled(this.x[i], this.z[i]); this.remove(i); }
-    }
-  }
-
-  /** Vuelca la horda al GPU (tras reap, para que los índices coincidan) */
-  sync(shadows) {
-    const sb = this.sb, walk = FIGHTER.walk;
-    sb.begin();
-    for (let i = 0; i < this.n; i++) {
-      const ph = this.phase[i], hit = this.hitT[i] > 0 ? this.hitT[i] : 0;
-      const bob = Math.abs(Math.sin(ph * 1.1)) * 0.14;
-      sb.push(this.x[i], bob, this.z[i], walk[(ph | 0) % walk.length], this.flip[i], hit * 8, 1 + hit * 1.5, 1);   // destello blanco al ser golpeado
-      shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, 1.9, 1);
-    }
-    sb.end();
-  }
-
-  reset() { this.n = 0; this.sb.reset(); }
-}
-
-/* ---------- 9. MUNDO: terreno baldío, mesetas, luces y cielo ---------- */
-class World {
-  constructor(scene) {
-    scene.background = new THREE.Color(0xf2b676);
-    scene.fog = new THREE.Fog(0xf0b878, 75, 190);
-    scene.add(new THREE.HemisphereLight(0xfff0d0, 0x8a5a30, 0.45));
-
-    // Luz cenital con sombras suaves: sigue al jugador para mantener la sombra nítida
-    this.sun = new THREE.DirectionalLight(0xfff4e0, 0.6);
-    this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
-    const sc = this.sun.shadow.camera;
-    sc.left = -42; sc.right = 42; sc.top = 42; sc.bottom = -42; sc.near = 1; sc.far = 130;
-    this.sun.shadow.bias = -0.0006;
-    scene.add(this.sun, this.sun.target);
-
-    // Suelo con textura procedural (grietas y manchas) si el canvas 2D está disponible
-    const tex = this.makeGroundTexture();
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(700, 700),
-      toonMat(tex ? 0xffffff : 0xc4986a, tex ? { map: tex } : {}));
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    // Mesetas rocosas alrededor de la arena (decorado, instanciadas)
-    const rockGeo = new THREE.CylinderGeometry(0.62, 1, 1, 7);
-    const rocks = new THREE.InstancedMesh(rockGeo, toonMat(0x9c5a2e), 70);
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
-    for (let i = 0; i < 70; i++) {
-      const a = rand(0, Math.PI * 2), r = CFG.ARENA + rand(14, 90), w = rand(6, 15), h = rand(8, 34);
-      q.setFromAxisAngle(up, rand(0, 6.28));
-      p.set(Math.cos(a) * r, h / 2 - 0.5, Math.sin(a) * r);
-      s.set(w, h, w);
-      rocks.setMatrixAt(i, m.compose(p, q, s));
-    }
-    rocks.castShadow = rocks.receiveShadow = true;
-    scene.add(rocks);
-
-    // Piedras pequeñas repartidas por la arena (planas, no estorban)
-    const stones = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), toonMat(0xa8693a), 90);
-    for (let i = 0; i < 90; i++) {
-      const w = rand(0.3, 0.9);
-      q.setFromAxisAngle(up, rand(0, 6.28));
-      p.set(rand(-CFG.ARENA, CFG.ARENA), 0, rand(-CFG.ARENA, CFG.ARENA));
-      s.set(w, w * 0.35, w * rand(0.7, 1.3));
-      stones.setMatrixAt(i, m.compose(p, q, s));
-    }
-    stones.receiveShadow = true;
-    scene.add(stones);
-
-    // Línea que marca el límite de la arena
-    const A = CFG.ARENA;
-    const border = new THREE.LineLoop(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-A, 0.06, -A), new THREE.Vector3(A, 0.06, -A), new THREE.Vector3(A, 0.06, A), new THREE.Vector3(-A, 0.06, A)]),
-      new THREE.LineBasicMaterial({ color: 0xff7a1a }));
-    scene.add(border);
-  }
-
-  makeGroundTexture() {
-    const S = 256, c = document.createElement('canvas');
-    c.width = c.height = S;
-    const g = c.getContext && c.getContext('2d');
-    if (!g) return null;
-    g.fillStyle = '#c4986a';
-    g.fillRect(0, 0, S, S);
-    // Manchas y grietas dibujadas "con envoltura" para que la textura encaje sin costuras
-    const wrap = (fn) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) fn(ox, oy); };
-    for (let i = 0; i < 120; i++) {
-      const x = Math.random() * S, y = Math.random() * S, r = 6 + Math.random() * 26;
-      g.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '110,75,45' : '225,185,135') + ',' + (0.05 + Math.random() * 0.07) + ')';
-      wrap((ox, oy) => { g.beginPath(); g.arc(x + ox, y + oy, r, 0, 7); g.fill(); });
-    }
-    g.strokeStyle = 'rgba(80,50,30,.5)';
-    g.lineWidth = 1.5;
-    for (let i = 0; i < 12; i++) {
-      const pts = [];
-      let x = Math.random() * S, y = Math.random() * S;
-      for (let k = 0; k < 6; k++) { pts.push([x, y]); x += (Math.random() - 0.5) * 44; y += (Math.random() - 0.5) * 44; }
-      wrap((ox, oy) => {
-        g.beginPath(); g.moveTo(pts[0][0] + ox, pts[0][1] + oy);
-        for (let k = 1; k < pts.length; k++) g.lineTo(pts[k][0] + ox, pts[k][1] + oy);
-        g.stroke();
-      });
-    }
-    const t = new THREE.CanvasTexture(c);
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(36, 36);
-    t.magFilter = THREE.NearestFilter;          // píxeles gruesos, a juego con los sprites
-    t.anisotropy = 4;
-    return t;
-  }
-
-  /** La luz y su sombra siguen al jugador */
-  follow(x, z) {
-    this.sun.position.set(x + 14, 42, z + 10);
-    this.sun.target.position.set(x, 0, z);
-  }
-}
-
-/* ---------- 10. INTERFAZ (HUD estilo Corporación Cápsula) ---------- */
-class UIManager {
-  constructor() {
-    const $ = (id) => document.getElementById(id);
-    this.el = {
-      lvl: $('lvl'), form: $('formName'), kills: $('kills'), time: $('time'), horde: $('horde'), fps: $('fps'),
-      hpBar: $('hpBar'), hpTxt: $('hpTxt'), kiBar: $('kiBar'), kiTxt: $('kiTxt'), xpBar: $('xpBar'), xpTxt: $('xpTxt'),
-      dashFill: $('dashFill'), abDash: $('abDash'), abCharge: $('abCharge'),
-      vignette: $('vignette'), toast: $('toast'),
-      screen: $('screen'), title: $('scrTitle'), sub: $('scrSub'), stats: $('scrStats'), btn: $('scrBtn')
-    };
-    this.last = {};       // caché de valores: solo se toca el DOM cuando algo cambia
-    this.flash = 0;
-    this.fpsAcc = 0; this.fpsFrames = 0;
-  }
-  text(key, value) {
-    if (this.last[key] !== value) { this.last[key] = value; this.el[key].textContent = value; }
-  }
-  bar(key, ratio, label) {
-    const q = Math.round(clamp(ratio, 0, 1) * 400) / 400;
-    if (this.last[key + 'R'] !== q) { this.last[key + 'R'] = q; this.el[key + 'Bar'].style.transform = 'scaleX(' + q + ')'; }
-    this.text(key + 'Txt', label);
-  }
-  toggle(key, cls, on) {
-    const k = key + cls;
-    if (this.last[k] !== on) { this.last[k] = on; this.el[key].classList.toggle(cls, on); }
-  }
-  update(game, rawDt) {
-    const p = game.player;
-    this.text('lvl', String(p.level));
-    this.text('form', p.form.name);
-    this.bar('hp', p.hp / p.maxHp, Math.ceil(p.hp) + ' / ' + p.maxHp);
-    this.bar('ki', p.ki / p.maxKi, Math.floor(p.ki) + ' / ' + p.maxKi);
-    this.bar('xp', p.xp / p.xpNext, Math.floor(p.xp) + ' / ' + p.xpNext);
-    this.text('kills', String(game.kills));
-    const t = Math.floor(game.time);
-    this.text('time', String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'));
-    this.text('horde', String(game.horde.n));
-    // Cooldown del dash
-    const ready = p.dashCd <= 0 ? 1 : 1 - p.dashCd / CFG.DASH_CD;
-    const q = Math.round(ready * 50) / 50;
-    if (this.last.dashR !== q) { this.last.dashR = q; this.el.dashFill.style.transform = 'scaleX(' + q + ')'; }
-    this.toggle('abDash', 'low', p.ki < CFG.DASH_COST);
-    this.toggle('abCharge', 'on', p.charging);
-    // Destello rojo al recibir daño
-    if (this.flash > 0) {
-      this.flash = Math.max(0, this.flash - rawDt * 3);
-      this.el.vignette.style.opacity = this.flash;
-    }
-    // Contador de FPS (se refresca cada 0.5 s)
-    this.fpsAcc += rawDt; this.fpsFrames++;
-    if (this.fpsAcc >= 0.5) { this.text('fps', String(Math.round(this.fpsFrames / this.fpsAcc))); this.fpsAcc = 0; this.fpsFrames = 0; }
-  }
-  toast(msg) {
-    const t = this.el.toast;
-    t.textContent = msg;
-    t.classList.remove('go');
-    void t.offsetWidth;            // fuerza reflow para reiniciar la animación CSS
-    t.classList.add('go');
-  }
-  showScreen(title, sub, stats, btn) {
-    this.el.title.textContent = title; this.el.sub.textContent = sub;
-    this.el.stats.textContent = stats; this.el.btn.textContent = btn;
-    this.el.screen.classList.add('show');
-  }
-  hideScreen() { this.el.screen.classList.remove('show'); }
-  fatal(msg) { this.showScreen('ERROR', 'NO SE PUDO INICIAR EL JUEGO', msg, 'REINTENTAR'); this.el.btn.onclick = () => location.reload(); }
-}
-
-/* ---------- 11. JUEGO: bucle principal y orquestación ---------- */
-class Game {
-  constructor(sheet) {
-    this.ui = new UIManager();
-    this.state = 'menu';          // menu | play | pause | dying | over
-    this.time = 0; this.kills = 0; this.spawnAcc = 0;
-    this.hitstop = 0; this.shakeAmt = 0;
-    this.clock = null;
-    try {
-      if (typeof THREE === 'undefined') throw new Error('Three.js no se cargó desde el CDN. Revisa tu conexión a internet.');
-      if (!sheet) throw new Error('No se pudo cargar el spritesheet (assets/sprites.js). Comprueba que la carpeta "assets" está junto a index.html.');
-      this.initGL(sheet);
-    } catch (err) {
-      console.error(err);
-      this.ui.fatal(String(err.message || err));
-      return;
-    }
-    this.bindEvents();
-    this.syncSprites();
-    this.ui.update(this, 0);      // HUD con valores iniciales desde el menú
-    this.clock = new THREE.Clock();
-    this.loop = this.loop.bind(this);
-    requestAnimationFrame(this.loop);
-  }
-
-  initGL(sheet) {
-    const canvas = document.getElementById('game');
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    this.renderer.setSize(window.innerWidth, window.innerHeight, false);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 400);
-    this.camBase = new THREE.Vector3(0, 24, 16);
-    this.camLook = new THREE.Vector3(0, 0, 0);
-    this.camera.position.copy(this.camBase);
-    this.camera.lookAt(this.camLook);
-
-    initShared();
-    const tex = makeTextures();
-    this.world = new World(this.scene);
-    // Sombras "blob" planas bajo cada sprite (los sprites 2D no proyectan sombra 3D)
-    this.shadows = new SpriteBatch(this.scene, {
-      max: CFG.MAX_ENEMIES + 2, texture: tex.shadow, w: 1, h: 0.5, anchor: 0.5, flat: true,
-      blend: true, tint: 0x000000, alpha: 0.38, cut: 0.02, renderOrder: 1
-    });
-    this.fx = new FX(this.scene, tex);
-    this.player = new Player(this.scene, sheet, tex);
-    this.horde = new HordeManager(this.scene, CFG.MAX_ENEMIES, sheet);
-    this.ki = new KiPool(this.scene, CFG.MAX_BULLETS, tex);
-    this.orbs = new XpOrbs(this.scene, CFG.MAX_ORBS, tex);
-    this.applyForm(0);
-    this.world.follow(0, 0);
-  }
-
-  bindEvents() {
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight, false);
-    });
-    this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
-      e.preventDefault();
-      this.state = 'pause';
-      this.ui.fatal('Se perdió el contexto WebGL (la GPU se reinició). Recarga la página.');
-    });
-    window.addEventListener('keydown', (e) => {
-      if (e.repeat) return;
-      if (e.code === 'Enter' && (this.state === 'menu' || this.state === 'over')) this.start();
-      else if (e.code === 'KeyR' && this.state === 'over') this.start();
-      else if (e.code === 'KeyP' || e.code === 'Escape') this.togglePause();
-    });
-    this.ui.el.btn.onclick = () => {
-      this.ui.el.btn.blur();
-      if (this.state === 'pause') this.togglePause(); else this.start();
-    };
-    document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'play') this.togglePause(); });
-  }
-
-  /** Sincroniza todos los sprites con la GPU (jugador, horda y sombras) */
-  syncSprites() {
-    this.shadows.begin();
-    this.player.syncSprite(this.shadows);
-    this.horde.sync(this.shadows);
-    this.shadows.end();
-  }
-
-  start() {
-    this.player.reset(); this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset();
-    this.time = 0; this.kills = 0; this.spawnAcc = 0; this.hitstop = 0; this.shakeAmt = 0;
-    this.applyForm(0);
-    for (let i = 0; i < 14; i++) this.spawnEnemy();
-    this.camBase.set(0, 24, 16); this.camLook.set(0, 0, 0);
-    this.syncSprites();
-    this.state = 'play';
-    this.ui.hideScreen();
-    this.clock.getDelta();       // descarta el tiempo acumulado en el menú
-  }
-
-  togglePause() {
-    if (this.state === 'play') { this.state = 'pause'; this.ui.showScreen('PAUSA', 'JUEGO DETENIDO', '', 'CONTINUAR [P]'); }
-    else if (this.state === 'pause') { this.state = 'play'; this.ui.hideScreen(); this.clock.getDelta(); }
-  }
-
-  gameOver() {
-    this.state = 'over';
-    const t = Math.floor(this.time);
-    this.ui.showScreen('DERROTA', 'HAS CAÍDO EN COMBATE',
-      'ENEMIGOS DERROTADOS: ' + this.kills + '\nNIVEL ALCANZADO: ' + this.player.level +
-      '\nTIEMPO: ' + String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'), 'REINTENTAR [R]');
-  }
-
-  /** Aplica una forma de la tabla FORMS (color de Ki y de aura). La Fase 2 añadirá más formas y sus spritesheets. */
-  applyForm(idx) {
-    const f = FORMS[idx];
-    this.player.formIdx = idx;
-    this.ki.setColor(f.kiColor);
-    this.fx.aura.setColor(f.aura);
-  }
-
-  /** Cambia de forma según el nivel (hoy solo existe BASE) */
-  checkTransformation() {
-    let best = 0;
-    for (let i = 0; i < FORMS.length; i++) if (this.player.level >= FORMS[i].minLevel) best = i;
-    if (best !== this.player.formIdx) { this.applyForm(best); this.ui.toast(FORMS[best].name + '!'); }
-  }
-
-  shake(a) { this.shakeAmt = Math.min(1.4, Math.max(this.shakeAmt, a)); }
-
-  enemyDamage() { return 7 + this.time * 0.03; }
-
-  spawnEnemy() {
-    const p = this.player, lim = CFG.ARENA + 1;
-    let a = rand(0, Math.PI * 2);
-    const r = rand(26, 34);
-    let x = clamp(p.x + Math.cos(a) * r, -lim, lim), z = clamp(p.z + Math.sin(a) * r, -lim, lim);
-    if (Math.hypot(x - p.x, z - p.z) < 14) {      // si el borde la acercó demasiado, spawnea en el lado opuesto
-      a += Math.PI;
-      x = clamp(p.x + Math.cos(a) * r, -lim, lim); z = clamp(p.z + Math.sin(a) * r, -lim, lim);
-    }
-    this.horde.spawn(x, z, 14 + this.time * 0.25);
-  }
-
-  onEnemyKilled(x, z) {
-    this.kills++;
-    this.orbs.spawn(x, z, 1);
-    this.fx.burst(this.fx.gore, x, 1, z, 7, 6, 0.55, 0.3, 12);
-    this.fx.burst(this.fx.sparks, x, 1, z, 4, 5, 0.35, 0.25, 6);
-  }
-
-  addXp(v) {
-    const p = this.player;
-    p.xp += v;
-    while (p.xp >= p.xpNext) {
-      p.xp -= p.xpNext;
-      p.level++;
-      p.xpNext = p.xpFor(p.level);
-      this.onLevelUp();
-    }
-  }
-
-  /** Subida de nivel. FASE 2: aquí se pausará el juego para mostrar las 3 cartas de mejora. */
-  onLevelUp() {
-    const p = this.player;
-    p.hp = Math.min(p.maxHp, p.hp + 15);
-    p.dmgMul += 0.04;
-    this.ui.toast('¡NIVEL ' + p.level + '!');
-    this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 36, 12, 0.5, 0.3);
-    this.shake(0.4);
-    this.checkTransformation();
-  }
-
-  /** Cámara de seguimiento con interpolación suave + temblor de pantalla */
-  updateCamera(dt, rawDt) {
-    const p = this.player, k = 1 - Math.exp(-5 * dt);
-    this.camBase.x += (p.x - this.camBase.x) * k;
-    this.camBase.z += (p.z + 16 - this.camBase.z) * k;
-    this.camLook.x += (p.x - this.camLook.x) * k;
-    this.camLook.z += (p.z - this.camLook.z) * k;
-    const s = this.shakeAmt;
-    this.camera.position.set(this.camBase.x + (Math.random() - 0.5) * s * 1.2, this.camBase.y + (Math.random() - 0.5) * s * 1.2, this.camBase.z);
-    this.camera.lookAt(this.camLook);
-    this.shakeAmt = Math.max(0, s - rawDt * 2.6);
-  }
-
-  /** Un paso de simulación (dt ya incluye hitstop) */
-  update(dt) {
-    const p = this.player;
-    this.time += dt;
-    p.update(dt, this);
-
-    // Spawn progresivo: cada segundo salen más enemigos y más fuertes
-    this.spawnAcc += Math.min(4 + this.time * 0.09, 22) * dt;
-    while (this.spawnAcc >= 1) { this.spawnAcc -= 1; this.spawnEnemy(); }
-    this.horde.speed = 3.4 + Math.min(this.time * 0.01, 2.2);
-
-    const edt = dt * (p.charging ? CFG.CHARGE_TIME_SCALE : 1);   // cargar Ki ralentiza el mundo
-    this.horde.update(edt, p, this);
-    this.ki.update(dt, this);
-    this.horde.reap(this);       // los enemigos muertos se retiran DESPUÉS de las colisiones
-    this.orbs.update(dt, p, this);
-    this.world.follow(p.x, p.z);
-    if (p.hp <= 0) { p.die(); this.state = 'dying'; }
-    this.syncSprites();
-  }
-
-  loop() {
-    requestAnimationFrame(this.loop);
-    const rawDt = Math.min(this.clock.getDelta(), 0.05);         // delta time acotado
-    if (this.state === 'play') {
-      let dt = 0;
-      if (this.hitstop > 0) this.hitstop -= rawDt;               // hitstop: simulación congelada unos ms
-      else dt = rawDt;
-      if (dt > 0) this.update(dt);
-      this.fx.update(dt);
-      this.updateCamera(Math.max(dt, rawDt * 0.25), rawDt);
-      this.ui.update(this, rawDt);
-    } else if (this.state === 'dying') {                         // el mundo se congela el luchador cae al suelo
-      const done = this.player.updateDeath(rawDt);
-      this.fx.update(rawDt * 0.4);
-      this.syncSprites();
-      this.updateCamera(rawDt, rawDt);
-      this.ui.update(this, rawDt);
-      if (done) this.gameOver();
-    }
-    this.renderer.render(this.scene, this.camera);
-  }
-}
-
-/* ---------- 12. ARRANQUE (espera a que el spritesheet esté decodificado) ---------- */
-(async function boot() {
-  let sheet = null;
-  try { if (typeof THREE !== 'undefined') sheet = await loadSheet('fighter'); } catch (e) { console.error(e); }
-  window.game = new Game(sheet);
-})();
-</script>
+<div id="loading">CARGANDO...</div>
+<div id="fatal"></div>
+
+<script src="js/core.js"></script>
+<script src="js/data.js"></script>
+<script src="js/world.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>

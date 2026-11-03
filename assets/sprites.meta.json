@@ -1,5 +1,29 @@
 {
- "fighter": {
+ "vegeta": {
+  "cols": 4,
+  "rows": 4,
+  "w": 108,
+  "h": 79
+ },
+ "goku_b": {
+  "cols": 4,
+  "rows": 4,
+  "w": 108,
+  "h": 79
+ },
+ "shade": {
+  "cols": 4,
+  "rows": 4,
+  "w": 108,
+  "h": 79
+ },
+ "black": {
+  "cols": 4,
+  "rows": 4,
+  "w": 108,
+  "h": 79
+ },
+ "goku_a": {
   "cols": 4,
   "rows": 4,
   "w": 108,

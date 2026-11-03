@@ -1,0 +1,262 @@
+'use strict';
+/* =====================================================================
+   DRAGON BALL: ULTIMATE SURVIVOR  ·  core.js
+   Configuración, entrada, utilidades, texturas pixel art, sprites 2D
+   instanciados (SpriteBatch) y partículas. Sin dependencias del juego.
+   ===================================================================== */
+
+const CFG = {
+  ARENA: 220,              // semilado del mapa (±ARENA): 440x440 unidades
+  MAX_ENEMIES: 450, MAX_BULLETS: 160, MAX_ORBS: 400,
+  CELL: 4,                 // celda de la rejilla espacial de enemigos
+  PLAYER_R: 0.6, ENEMY_R: 0.7,
+  DASH_COST: 20, DASH_TIME: 0.2, DASH_SPEED: 42, DASH_CD: 0.55,
+  CHARGE_TIME_SCALE: 0.55  // el mundo va más lento mientras cargas Ki
+};
+
+/* ---------- Entrada: objeto global de estado (evita key-ghosting) ---------- */
+const keys = {};
+const BLOCKED = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+window.addEventListener('keydown', (e) => { if (BLOCKED.has(e.code)) e.preventDefault(); keys[e.code] = true; });
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+/* ---------- Utilidades ---------- */
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = (arr) => arr[(Math.random() * arr.length) | 0];
+/** Generador pseudoaleatorio con semilla: el mapa es siempre el mismo */
+function seeded(seed) {
+  return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const hexToRgb = (h) => [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255];
+
+/** Gradiente de 4 tonos para el cel-shading del terreno */
+const Shared = { toon: null };
+function initShared() {
+  const tex = new THREE.DataTexture(new Uint8Array([90, 150, 215, 255]), 4, 1, THREE.LuminanceFormat);
+  tex.minFilter = tex.magFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.needsUpdate = true;
+  Shared.toon = tex;
+}
+const toonMat = (color, extra) => new THREE.MeshToonMaterial(Object.assign({ color, gradientMap: Shared.toon }, extra || {}));
+
+/* ---------- Texturas pixel art procedurales ---------- */
+/** fn(x,y,w,h) devuelve [r,g,b,a] o null (transparente) */
+function pixelTex(w, h, fn) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext && c.getContext('2d');
+  let tex;
+  if (g && g.createImageData) {
+    const id = g.createImageData(w, h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const p = fn(x, y, w, h), o = (y * w + x) * 4;
+      if (p) { id.data[o] = p[0]; id.data[o + 1] = p[1]; id.data[o + 2] = p[2]; id.data[o + 3] = p[3]; }
+    }
+    g.putImageData(id, 0, 0);
+    tex = new THREE.CanvasTexture(c);
+  } else {
+    tex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat);
+    tex.needsUpdate = true;
+  }
+  tex.magFilter = tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  return tex;
+}
+
+function makeTextures() {
+  const STARS = [[6, 6], [4, 4], [8, 4], [4, 8], [8, 8], [6, 3], [6, 9]];
+  return {
+    spark: pixelTex(2, 2, () => [255, 255, 255, 255]),
+    ki: pixelTex(16, 16, (x, y, w) => {
+      const r = Math.hypot(x + 0.5 - w / 2, y + 0.5 - w / 2) / (w / 2);
+      return r < 0.3 ? [255, 255, 255, 255] : r < 0.55 ? [235, 235, 235, 255] : r < 0.8 ? [185, 185, 185, 230] : r < 1 ? [110, 110, 110, 160] : null;
+    }),
+    gem: pixelTex(9, 9, (x, y) => {
+      const d = Math.abs(x - 4) + Math.abs(y - 4);
+      return d <= 1 ? [255, 255, 255, 255] : d <= 3 ? [190, 190, 190, 255] : d === 4 ? [90, 90, 90, 255] : null;
+    }),
+    shadow: pixelTex(16, 8, (x, y, w, h) => {
+      const dx = (x + 0.5 - w / 2) / (w / 2), dy = (y + 0.5 - h / 2) / (h / 2), d = dx * dx + dy * dy;
+      return d < 0.5 ? [0, 0, 0, 255] : d < 1 && ((x + y) & 1) ? [0, 0, 0, 255] : null;
+    }),
+    ring: pixelTex(48, 48, (x, y, w) => {
+      const r = Math.hypot(x + 0.5 - w / 2, y + 0.5 - w / 2) / (w / 2);
+      return r >= 0.88 && r < 1 ? [255, 255, 255, 255] : r < 0.88 && r > 0.5 && ((x + y) & 1) ? [255, 255, 255, 90] : null;
+    }),
+    senzu: pixelTex(8, 8, (x, y) => {
+      const dx = x - 3.5, dy = y - 3.5, e = Math.pow(dx + dy * 0.6, 2) / 9 + Math.pow(dy - dx * 0.6, 2) / 4;
+      return e < 1 ? (e < 0.4 ? [190, 245, 100, 255] : [80, 165, 45, 255]) : null;
+    }),
+    /* Esferas del Dragón: atlas de 7 fotogramas (1 a 7 estrellas) */
+    dball: pixelTex(84, 12, (x, y) => {
+      const f = (x / 12) | 0, lx = x % 12, r = Math.hypot(lx + 0.5 - 6, y + 0.5 - 6);
+      if (r >= 5.6) return null;
+      for (let i = 0; i <= f; i++) {
+        const s = STARS[i];
+        if ((lx === s[0] || lx === s[0] - 1) && (y === s[1] || y === s[1] - 1)) return [190, 30, 30, 255];
+      }
+      return r < 2.6 && lx < 6 && y < 6 ? [255, 235, 130, 255] : r < 4.4 ? [255, 165, 35, 255] : [205, 95, 10, 255];
+    })
+  };
+}
+
+/** Carga un spritesheet desde window.SPRITE_DATA (assets/sprites.js en base64: funciona con doble clic) */
+function loadSheet(name) {
+  return new Promise((resolve) => {
+    const d = window.SPRITE_DATA && window.SPRITE_DATA[name];
+    if (!d) { resolve(null); return; }
+    const img = new Image();
+    img.onload = () => {
+      const tex = new THREE.Texture(img);
+      tex.magFilter = tex.minFilter = THREE.NearestFilter;
+      tex.generateMipmaps = false;
+      tex.needsUpdate = true;
+      resolve({ tex, cols: d.cols, rows: d.rows, w: d.w, h: d.h });
+    };
+    img.onerror = () => resolve(null);
+    img.src = d.src;
+  });
+}
+function loadSheets(names) {
+  return Promise.all(names.map(loadSheet)).then((list) => { const out = {}; names.forEach((n, i) => { out[n] = list[i]; }); return out; });
+}
+
+/* ---------- SpriteBatch: billboards instanciados con atlas (1 draw call) ---------- */
+const SPRITE_VS = `
+attribute vec4 iPos;    // xyz: pies del sprite en el mundo, w: opacidad
+attribute vec4 iData;   // x: fotograma, y: volteo (0/1), z: destello blanco, w: escala
+attribute vec3 iCol;    // tinte por instancia
+uniform vec2 uGrid; uniform vec2 uSize; uniform float uAnchor; uniform float uFlat;
+varying vec2 vUv; varying float vFlash; varying float vAlpha; varying vec3 vCol;
+void main() {
+  float col = mod(iData.x, uGrid.x);
+  float row = floor(iData.x / uGrid.x);
+  float fx = mix(uv.x, 1.0 - uv.x, iData.y);
+  vUv = vec2((col + fx) / uGrid.x, 1.0 - (row + 1.0 - uv.y) / uGrid.y);
+  vFlash = iData.z; vAlpha = iPos.w; vCol = iCol;
+  vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+  vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+  if (uFlat > 0.5) { right = vec3(1.0, 0.0, 0.0); up = vec3(0.0, 0.0, -1.0); }
+  float s = iData.w;
+  vec3 wp = iPos.xyz + right * (position.x * uSize.x * s) + up * ((position.y + 0.5 - uAnchor) * uSize.y * s);
+  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+}`;
+const SPRITE_FS = `
+uniform sampler2D uMap; uniform vec3 uTint; uniform float uAlpha; uniform float uCut;
+varying vec2 vUv; varying float vFlash; varying float vAlpha; varying vec3 vCol;
+void main() {
+  vec4 c = texture2D(uMap, vUv);
+  if (c.a < uCut) discard;
+  vec3 rgb = mix(c.rgb * uTint * vCol, vec3(1.0), vFlash * 0.85);
+  gl_FragColor = vec4(rgb, c.a * uAlpha * vAlpha);
+}`;
+
+/** Uso por frame: begin() -> push(...) -> end(). Opciones: texture, cols, rows, w, h, anchor, tint, alpha, cut, additive, blend, flat, renderOrder */
+class SpriteBatch {
+  constructor(scene, o) {
+    this.max = o.max; this.count = 0;
+    const base = new THREE.PlaneGeometry(1, 1);
+    this.geo = new THREE.InstancedBufferGeometry();
+    this.geo.setIndex(base.index);
+    this.geo.setAttribute('position', base.attributes.position);
+    this.geo.setAttribute('uv', base.attributes.uv);
+    this.pos = new Float32Array(o.max * 4); this.data = new Float32Array(o.max * 4); this.col = new Float32Array(o.max * 3);
+    this.aPos = new THREE.InstancedBufferAttribute(this.pos, 4); this.aData = new THREE.InstancedBufferAttribute(this.data, 4);
+    this.aCol = new THREE.InstancedBufferAttribute(this.col, 3);
+    for (const a of [this.aPos, this.aData, this.aCol]) a.setUsage(THREE.DynamicDrawUsage);
+    this.geo.setAttribute('iPos', this.aPos); this.geo.setAttribute('iData', this.aData); this.geo.setAttribute('iCol', this.aCol);
+    this.geo.instanceCount = 0;
+    const soft = !!(o.additive || o.blend);
+    this.mat = new THREE.ShaderMaterial({
+      vertexShader: SPRITE_VS, fragmentShader: SPRITE_FS,
+      uniforms: {
+        uMap: { value: o.texture },
+        uGrid: { value: new THREE.Vector2(o.cols || 1, o.rows || 1) },
+        uSize: { value: new THREE.Vector2(o.w || 1, o.h || 1) },
+        uAnchor: { value: o.anchor || 0 }, uFlat: { value: o.flat ? 1 : 0 },
+        uTint: { value: new THREE.Color(o.tint !== undefined ? o.tint : 0xffffff) },
+        uAlpha: { value: o.alpha !== undefined ? o.alpha : 1 }, uCut: { value: o.cut !== undefined ? o.cut : 0.5 }
+      },
+      transparent: soft, depthWrite: !soft, side: THREE.DoubleSide,
+      blending: o.additive ? THREE.AdditiveBlending : THREE.NormalBlending
+    });
+    this.mesh = new THREE.Mesh(this.geo, this.mat);
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = o.renderOrder || 0;
+    scene.add(this.mesh);
+  }
+  setTint(hex) { this.mat.uniforms.uTint.value.setHex(hex); }
+  begin() { this.count = 0; }
+  push(x, y, z, frame, flip, flash, scale, alpha, tint) {
+    if (this.count >= this.max) return;
+    const i = this.count++, p = i * 4, c = i * 3;
+    this.pos[p] = x; this.pos[p + 1] = y; this.pos[p + 2] = z; this.pos[p + 3] = alpha === undefined ? 1 : alpha;
+    this.data[p] = frame; this.data[p + 1] = flip; this.data[p + 2] = flash; this.data[p + 3] = scale;
+    if (tint === undefined) { this.col[c] = this.col[c + 1] = this.col[c + 2] = 1; }
+    else { this.col[c] = ((tint >> 16) & 255) / 255; this.col[c + 1] = ((tint >> 8) & 255) / 255; this.col[c + 2] = (tint & 255) / 255; }
+  }
+  end() { this.geo.instanceCount = this.count; this.aPos.needsUpdate = this.aData.needsUpdate = this.aCol.needsUpdate = true; }
+  reset() { this.count = 0; this.geo.instanceCount = 0; }
+}
+
+/* ---------- Partículas (pool en anillo, cuadrados de píxel, color por partícula) ---------- */
+class ParticleSystem {
+  constructor(scene, max, color, alpha, tex) {
+    this.max = max; this.cursor = 0; this.def = color;
+    const f = () => new Float32Array(max);
+    this.px = f(); this.py = f(); this.pz = f(); this.vx = f(); this.vy = f(); this.vz = f();
+    this.life = f(); this.maxLife = f(); this.size = f(); this.grav = f(); this.tint = new Int32Array(max);
+    this.batch = new SpriteBatch(scene, { max, texture: tex, w: 1, h: 1, anchor: 0.5, additive: true, alpha, cut: 0.02, renderOrder: 6 });
+  }
+  setColor(hex) { this.def = hex; }
+  emit(x, y, z, vx, vy, vz, life, size, grav, tint) {
+    const i = this.cursor;
+    this.cursor = (i + 1) % this.max;
+    this.px[i] = x; this.py[i] = y; this.pz[i] = z; this.vx[i] = vx; this.vy[i] = vy; this.vz[i] = vz;
+    this.life[i] = life; this.maxLife[i] = life; this.size[i] = size; this.grav[i] = grav || 0;
+    this.tint[i] = tint === undefined ? this.def : tint;
+  }
+  update(dt) {
+    const b = this.batch;
+    b.begin();
+    for (let i = 0; i < this.max; i++) {
+      if (this.life[i] <= 0) continue;
+      this.life[i] -= dt;
+      if (this.life[i] <= 0) continue;
+      this.vy[i] -= this.grav[i] * dt;
+      this.px[i] += this.vx[i] * dt; this.py[i] += this.vy[i] * dt; this.pz[i] += this.vz[i] * dt;
+      if (this.py[i] < 0.05) { this.py[i] = 0.05; this.vy[i] *= -0.4; this.vx[i] *= 0.8; this.vz[i] *= 0.8; }
+      b.push(this.px[i], this.py[i], this.pz[i], 0, 0, 0, this.size[i] * (this.life[i] / this.maxLife[i]), 1, this.tint[i]);
+    }
+    b.end();
+  }
+  reset() { this.life.fill(0); this.batch.reset(); }
+}
+
+class FX {
+  constructor(scene, tex) {
+    this.sparks = new ParticleSystem(scene, 600, 0xffe066, 1.0, tex.spark);
+    this.aura = new ParticleSystem(scene, 500, 0xfff2b0, 0.85, tex.spark);
+    this.trail = new ParticleSystem(scene, 240, 0x7fe8ff, 0.5, tex.spark);
+    this.gore = new ParticleSystem(scene, 300, 0xc0392b, 0.95, tex.spark);
+    this.all = [this.sparks, this.aura, this.trail, this.gore];
+  }
+  burst(sys, x, y, z, n, speed, life, size, grav, tint) {
+    for (let i = 0; i < n; i++) {
+      const u = rand(-1, 1), phi = rand(0, Math.PI * 2), r = Math.sqrt(1 - u * u), s = speed * rand(0.35, 1);
+      sys.emit(x, y, z, r * Math.cos(phi) * s, u * s * 0.8 + speed * 0.25, r * Math.sin(phi) * s, life * rand(0.6, 1), size * rand(0.6, 1.2), grav || 0, tint);
+    }
+  }
+  ring(sys, x, y, z, n, speed, life, size, tint) {
+    const o = rand(0, 6.28);
+    for (let i = 0; i < n; i++) {
+      const a = o + (i / n) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+      sys.emit(x + c, y, z + s, c * speed, 0.3, s * speed, life, size, 0, tint);
+    }
+  }
+  update(dt) { for (let i = 0; i < 4; i++) this.all[i].update(dt); }
+  reset() { for (let i = 0; i < 4; i++) this.all[i].reset(); }
+}
