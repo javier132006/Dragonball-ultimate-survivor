@@ -33,6 +33,7 @@ class Player {
     this.ch = ch;
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
     this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
+    this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
     this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1;
     // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
     this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
@@ -99,6 +100,8 @@ class Player {
   xpFor(level) { return Math.floor(6 + level * 3 + level * level * 0.35); }
 
   /** Multiplicador de daño total: vitaminas x forma x pasiva del personaje */
+  /** Suma carga a la Ultimate (solo si el personaje tiene una) */
+  addUlt(n) { if (this.ch.ult) this.ult = Math.min(this.ch.ult.cost, this.ult + n); }
   damageMul() {
     let m = this.statDmg * this.form.dmg * (this.buffT > 0 ? 1 + this.buffDmg : 1);
     if (this.ch.id === 'goku') m *= 1 + 0.015 * (this.level - 1);                     // Zenkai
@@ -355,7 +358,15 @@ class HordeManager {
     this.next = new Int32Array(max);
     this.tints = ENEMY_TYPES.map((t) => t.tint);
     const H = 2.9;
+    this.scene = scene; this.H = H;
     this.sb = new SpriteBatch(scene, { max, texture: sheet.tex, cols: sheet.cols, rows: sheet.rows, w: H * (sheet.w / sheet.h), h: H, anchor: 0.04, renderOrder: 0 });
+    this.bsb = null; this.bossRow = -1;        // jefe con hoja propia (p. ej. Goku Black): lote aparte y fila según la fase
+  }
+  /** Activa la hoja propia del jefe (o la quita con null). La fila `row` es la forma de la fase actual */
+  setBossSheet(sheet, row) {
+    if (!sheet) { this.bossRow = -1; return; }
+    if (!this.bsb) this.bsb = new SpriteBatch(this.scene, { max: 2, texture: sheet.tex, cols: sheet.cols, rows: sheet.rows, w: this.H * (sheet.w / sheet.h), h: this.H, anchor: 0.04, renderOrder: 0 });
+    this.bossRow = row | 0;
   }
 
   cellOf(x, z) {
@@ -545,20 +556,25 @@ class HordeManager {
   }
 
   sync(shadows) {
-    const sb = this.sb, walk = A_STD.walk;
+    const sb = this.sb, bsb = this.bsb, walk = A_STD.walk, bossOwn = bsb && this.bossRow >= 0;
     sb.begin();
+    if (bossOwn) bsb.begin();
     for (let i = 0; i < this.n; i++) {
       const ty = this.type[i], T = ENEMY_TYPES[ty], ph = this.phase[i], hit = this.hitT[i] > 0 ? this.hitT[i] : 0, st = this.stun[i] > 0;
       let y = st ? 0 : Math.abs(Math.sin(ph * 1.1)) * 0.14 * T.scale, tint = this.tints[ty];
       if (T.fly) y = 2.2 + Math.sin(ph * 0.5) * 0.3;
       if (T.shield) tint = this.shield[i] > 0 ? 0xbfe0ff : 0x6a7898;
       if (st) tint = 0x9a9aff;
-      sb.push(this.x[i], y, this.z[i], st ? walk[0] : walk[(ph | 0) % walk.length], this.flip[i], hit * 8, T.scale * (1 + hit * 1.2), 1, tint);
+      if (ty === T_BOSS && bossOwn) {                                  // el jefe usa su hoja: fila = forma de la fase
+        const row = this.bossRow * 4, fr = hit > 0 ? row + 2 : st ? row : row + 1;     // pose de caminar, de golpe o aturdido
+        bsb.push(this.x[i], y, this.z[i], fr, this.flip[i], hit * 8, T.scale * (1 + hit * 1.2), 1, 0xffffff);
+      } else sb.push(this.x[i], y, this.z[i], st ? walk[0] : walk[(ph | 0) % walk.length], this.flip[i], hit * 8, T.scale * (1 + hit * 1.2), 1, tint);
       shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, (T.fly ? 1.2 : 1.9) * T.scale, T.fly ? 0.6 : 1);
     }
     sb.end();
+    if (bossOwn) bsb.end();
   }
-  reset() { this.n = 0; this.heads.fill(-1); this.sb.reset(); }
+  reset() { this.n = 0; this.heads.fill(-1); this.sb.reset(); if (this.bsb) this.bsb.reset(); this.bossRow = -1; }
 }
 
 /* ---------- PROYECTILES DE KI (pool; perforación y explosión opcionales) ---------- */
@@ -754,7 +770,11 @@ class EnemyShots {
     this.lb = new SpriteBatch(scene, { max: 400, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
   }
   mark(x, z, r, delay, dmg) { for (const m of this.marks) if (!m.on) { m.on = true; m.x = x; m.z = z; m.r = r; m.t = m.T = delay; m.dmg = dmg; return; } }
-  line(x, z, dx, dz, len, hw, warn, dmg) { for (const l of this.lines) if (!l.on) { l.on = true; l.x = x; l.z = z; l.dx = dx; l.dz = dz; l.len = len; l.hw = hw; l.t = warn; l.fire = 0.45; l.dmg = dmg; l.hit = false; return; } }
+  /** Rayo con aviso. Devuelve el rayo (para engancharle `onFire`, un aviso al dispararse) o null si no hay hueco */
+  line(x, z, dx, dz, len, hw, warn, dmg, tint) {
+    for (const l of this.lines) if (!l.on) { l.on = true; l.x = x; l.z = z; l.dx = dx; l.dz = dz; l.len = len; l.hw = hw; l.t = warn; l.fire = 0.45; l.dmg = dmg; l.hit = false; l.tint = tint || 0xff4070; l.onFire = null; return l; }
+    return null;
+  }
   fire(x, z, dx, dz, speed, dmg) {
     for (const s of this.s) if (!s.on) { s.on = true; s.x = x; s.z = z; s.vx = dx * speed; s.vz = dz * speed; s.life = 5; s.dmg = dmg; return; }
   }
@@ -800,13 +820,14 @@ class EnemyShots {
       const firing = l.t <= 0;
       if (firing && !l.hit) {
         l.hit = true; game.shake(0.5); SFX.play('bigbeam');
+        if (l.onFire) l.onFire(l);
         const ex = p.x - l.x, ez = p.z - l.z, tt = ex * l.dx + ez * l.dz;
         if (tt > -1 && tt < l.len && Math.abs(ex * l.dz - ez * l.dx) < l.hw + CFG.PLAYER_R) p.takeDamage(l.dmg, game);
       }
       for (let s = 0.8; s < l.len; s += firing ? 0.9 : 1.6) {
         const bx = l.x + l.dx * s, bz = l.z + l.dz * s;
-        if (firing) { this.lb.push(bx, 1.4, bz, 0, 0, 0, l.hw * 2.4, 0.35, 0xff4070); this.lb.push(bx, 1.4, bz, 0, 0, 0, l.hw, 0.6, 0xffffff); }
-        else this.lb.push(bx, 0.3, bz, 0, 0, 0, 0.5, 0.5 + 0.5 * Math.sin(game.time * 30), 0xff3050);
+        if (firing) { this.lb.push(bx, 1.4, bz, 0, 0, 0, l.hw * 2.4, 0.35, l.tint); this.lb.push(bx, 1.4, bz, 0, 0, 0, l.hw, 0.6, 0xffffff); }
+        else this.lb.push(bx, 0.3, bz, 0, 0, 0, 0.5, 0.5 + 0.5 * Math.sin(game.time * 30), l.tint);
       }
     }
     this.lb.end();

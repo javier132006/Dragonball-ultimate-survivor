@@ -43,6 +43,7 @@ class TouchControls {
     this.tap('tbPause', () => { if (game.state === 'play' || game.state === 'pause') game.togglePause(); });
     this.tap('tbLv', () => { if (game.state === 'play' && game.practice) game.practiceLevel(); });
     this.tap('tbMap', () => { if (game.state === 'play') { game.showMap = !game.showMap; game.ui.el.bigmap.style.display = game.showMap ? 'block' : 'none'; } });
+    this.tap('tbUlt', () => { if (game.state === 'play') game.ultimate(); });       // Ultimate (Grieta de Black)
   }
   hold(id, code) {
     const el = document.getElementById(id);
@@ -112,5 +113,8 @@ class TouchControls {
     document.getElementById('tbBase').style.display = game.player.formIdx > 0 ? 'flex' : 'none';
     document.getElementById('tbTp').classList.toggle('cd', game.player.tpCd > 0);
     document.getElementById('tbLv').style.display = game.practice ? 'flex' : 'none';
+    const ub = document.getElementById('tbUlt'), U = game.player.ch.ult;
+    ub.style.display = U ? 'flex' : 'none';
+    ub.classList.toggle('ready', !!U && game.player.ult >= U.cost);
   }
 }

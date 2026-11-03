@@ -57,6 +57,8 @@ const CHARACTERS = [
     id: 'black', name: 'GOKU BLACK', role: 'Asesino · Guadaña de ki', cost: 6000,
     hp: 90, ki: 100, spd: 1.1, dmg: 1.1, start: ['scythe'], unique: ['scythe', 'darkorbs'],
     passive: { name: 'Justicia Divina', desc: 'Recuperas 0,6 de vida por cada enemigo derrotado.' },
+    // Ultimate: se carga matando enemigos y al derrotar élites o jefes. Abre una grieta en el espacio que corta el mapa.
+    ult: { name: 'GRIETA DE BLACK', key: 'Q', cost: 100, dmg: 9, len: 46, hw: 1.7 },
     portrait: { sheet: 'black', frame: 0 },
     forms: [
       form('BASE', 1, 'black', rowAnim(0, false, { atk: 3, alt: SHADE_ALT }), 1.0, 1.0, 0xb26bff, 0, 0xffffff),
@@ -315,7 +317,11 @@ const STAGES = [
     boss: { name: 'SUPER BUU', tint: 0xff9ad8, scale: 3.3, hp: 30000, r: 2.0, pat: [['fan', 'dash'], ['fan', 'dash', 'summon'], ['fan', 'dash', 'spiral', 'rain']] } },
   { id: 'rift', name: 'DIMENSIÓN FRACTURADA', theme: 2, R: 62, hp: 2.6, dmg: 1.7, spawn: 0, pois: false, final: true, fx: 'lowgrav', tint0: 0xffa8d8, next: [],
     desc: 'Gravedad baja: el dash llega más lejos. Solo queda el jefe final.',
-    boss: { name: 'ZAMASU FUSIONADO', tint: 0xff6fbd, scale: 4.4, hp: 60000, r: 2.6, pat: [['fan', 'ring', 'spiral'], ['fan', 'ring', 'beam', 'rain'], ['fan', 'ring', 'spiral', 'beam', 'rain', 'summon']] } }
+    // Goku Black: 4 fases = sus 4 formas (filas de la hoja "black"). Cada fase cambia de forma, de aura y de ataques.
+    boss: { name: 'GOKU BLACK', tint: 0xb26bff, scale: 3.9, hp: 70000, r: 2.2, sheet: 'black', rows: [0, 1, 2, 3],
+      forms: ['BASE', 'SUPER SAIYAN', 'SUPER SAIYAN ROSÉ', 'ROSÉ · PODER TOTAL'],
+      tints: [0xb26bff, 0xffe36a, 0xff7ac8, 0xff4fb0],
+      pat: [['fan', 'ring', 'grieta'], ['fan', 'dash', 'grieta', 'ring'], ['fan', 'ring', 'grieta', 'rain', 'beam'], ['fan', 'dash', 'grieta', 'rain', 'beam', 'summon']] } }
 ];
 const ROUTE_LEN = 4;      // mapas por partida: Tierra -> (Namek o Planeta Vegeta) -> Cámara del Tiempo -> Dimensión
 const SWARM_TIME = 600;   // a los 10 minutos de cada mapa llega el enjambre final

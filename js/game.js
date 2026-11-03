@@ -29,6 +29,7 @@ class Game {
     this.state = 'menu';
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0;
     this.bossUid = 0; this.nextBoss = 180; this.leashT = 0; this.hitstop = 0; this.shakeAmt = 0;
+    this.ultT = -1; this.ultCut = false; this.ultFx = null;   // Ultimate: secuencia de impacto (el elemento se busca al usarlo)
     this.cash = 0; this.capsOpened = 0; this.diff = DIFFS[0]; this.won = false;
     // Estructura de la partida: mapas (STAGES), enjambre final, maldiciones y desafíos
     this.run = newRun(); this.stageIdx = 0; this.stage = STAGES[0]; this.stageTime = 0; this.swarm = false; this.waveT = 60;
@@ -169,6 +170,7 @@ class Game {
       else if ((s === 'play' || s === 'pause') && (e.code === 'KeyP' || e.code === 'Escape')) this.togglePause();
       else if (s === 'play' && e.code === 'KeyE') this.interact();
       else if (s === 'play' && e.code === 'KeyG') this.transform();
+      else if (s === 'play' && e.code === 'KeyQ') this.ultimate();
       else if (s === 'play' && e.code === 'KeyH') this.revertForm();
       else if (s === 'trade' && (e.code === 'KeyE' || e.code === 'Escape')) this.closeTrade();
       else if (s === 'play' && e.code === 'KeyM') { this.showMap = !this.showMap; ui.el.bigmap.style.display = this.showMap ? 'block' : 'none'; }
@@ -360,6 +362,9 @@ class Game {
     this.modList = this.daily ? dailyMods() : [];
     this.mods = {}; for (const m of this.modList) this.mods[m.id] = true;
     WORLD_SEED_XOR = this.daily ? dailySeed() % 100000 : 0;
+    // Relieve: cada partida tiene colinas distintas; el desafío diario usa siempre el relieve del día
+    RELIEF_SEED = this.daily ? (dailySeed() % 1000003) + 17 : Math.floor(Math.random() * 1000003);
+    this.ultT = -1; const uf = this.ultFx || (this.ultFx = document.getElementById('ultFx')); if (uf) uf.style.opacity = 0;
     this.player.reset(ch); this.weapons.reset(ch);
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
@@ -396,7 +401,7 @@ class Game {
     this.bossUid = 0; this.bossDead = false; this.bossSpawned = false; this.victoryT = 0; this.zoneBusy = null;
     this.boss = { t: {}, next: 0 }; this.phase = 0; this.bossInv = 0; this.night = 0; this.wasNight = false; this.nightT = 0;
     CFG.ARENA = S.R;
-    if (this.world.th !== THEMES[S.theme] || this.world.R !== S.R || this.world.seedX !== WORLD_SEED_XOR) {
+    if (this.world.th !== THEMES[S.theme] || this.world.R !== S.R || this.world.seedX !== WORLD_SEED_XOR || this.world.reliefSeed !== RELIEF_SEED) {
       this.world.dispose(this.scene);
       this.world = new World(this.scene, S.theme);
       this.world.onBreak = this.onCrystalBreak;
@@ -1004,8 +1009,10 @@ class Game {
     const lvMul = 1 + 0.025 * (this.player.level - 1);
     const i = this.horde.spawn(x, z, B.hp * lvMul * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15) * (this.mods.bigboss ? 1.5 : 1), T_BOSS);
     if (i >= 0) {
-      this.bossUid = this.horde.uid[i]; this.bossSpawned = true; this.boss = { t: { fan: 2, ring: 5, spiral: 6, dash: 4, rain: 5, beam: 6, summon: 9 }, spiral: 0, spA: 0, spT: 0, dashW: 0 };
+      this.bossUid = this.horde.uid[i]; this.bossSpawned = true; this.boss = { t: { fan: 2, ring: 5, spiral: 6, dash: 4, rain: 5, beam: 6, summon: 9, grieta: 4 }, spiral: 0, spA: 0, spT: 0, dashW: 0 };
       this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = 0.62; this.horde.tints[T_BOSS] = B.tint;
+      // Jefe con hoja propia (Goku Black): se dibuja con sus sprites y la fila de la forma de cada fase
+      this.horde.setBossSheet(B.sheet && this.ui.sheets ? this.ui.sheets[B.sheet] : null, B.rows ? B.rows[0] : 0);
       this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
       this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.tint);
     }
@@ -1016,11 +1023,11 @@ class Game {
     if (i < 0) return;
     const b = this.boss, st = Math.min(this.step, 3), p = this.player, B = this.stage.boss, frac = h.hp[i] / h.maxHp[i];
     const bx = h.x[i], bz = h.z[i], dmg = this.enemyDamage() * 0.8;
-    // Cambio de fase
-    const target = frac < 0.33 ? 2 : frac < 0.66 ? 1 : 0;
+    // Cambio de fase: una por cada lista de ataques (3 en casi todos; 4 en Goku Black, una por forma)
+    const NP = B.pat.length, target = Math.min(NP - 1, Math.floor((1 - frac) * NP));
     if (target > this.phase) { this.phase = target; this.onBossPhase(bx, bz); }
-    const ph = this.phase, pat = B.pat[ph], sp = 1 - ph * 0.15 - st * 0.05;
-    const CD = { fan: 2.6, ring: 6.5, spiral: 9, dash: 5, rain: 7.5, beam: 8, summon: 15 };
+    const ph = this.phase, pat = B.pat[ph], sp = 1 - ph * (0.45 / NP) - st * 0.05;
+    const CD = { fan: 2.6, ring: 6.5, spiral: 9, dash: 5, rain: 7.5, beam: 8, summon: 15, grieta: 6 };
     const a = Math.atan2(p.z - bz, p.x - bx), ca = Math.cos(a), sa = Math.sin(a);
     for (const k of pat) {
       b.t[k] -= dt;
@@ -1041,7 +1048,8 @@ class Game {
         SFX.play('warn');
       } else if (k === 'beam') {                                  // rayo con aviso (apártate de la línea roja)
         this.shots.line(bx, bz, ca, sa, 46, 1.6, 0.9, dmg * 2.4); SFX.play('warn');
-      } else if (k === 'summon') this.bossSummon(bx, bz, 6 + st * 2);
+      } else if (k === 'grieta') this.bossRift(bx, bz, a, dmg);
+      else if (k === 'summon') this.bossSummon(bx, bz, 6 + st * 2);
     }
     // Espiral: dos chorros de disparos que giran
     if (b.spiral > 0) {
@@ -1054,6 +1062,21 @@ class Game {
       if (b.dashW <= 0) { h.kx[i] = ca * 75; h.kz[i] = sa * 75; this.shake(0.5); SFX.play('dash'); }
     }
   }
+  /** Tajo de Black: tres cortes morados con aviso que se abren hacia el jugador. Al abrirse, destello e impacto */
+  bossRift(bx, bz, a, dmg) {
+    for (const o of [-0.24, 0, 0.24]) {
+      const L = this.shots.line(bx, bz, Math.cos(a + o), Math.sin(a + o), 46, 1.5, 1.1, dmg * 2.2, 0xb050ff);
+      if (L) L.onFire = (l) => this.riftCut(l);
+    }
+    this.fx.ring(this.fx.aura, bx, 0.4, bz, 40, 14, 0.7, 0.5, 0xb26bff);
+    SFX.play('warn');
+  }
+  /** Al abrirse el tajo: sacudida, destello y chispas moradas a lo largo de la grieta */
+  riftCut(l) {
+    this.shake(0.9); this.hitstop = Math.max(this.hitstop, 0.06);
+    if (!Save.d.opt.flash) this.impT = Math.max(this.impT, 0.12);
+    for (let s = 0; s < l.len; s += 3) this.fx.burst(this.fx.sparks, l.x + l.dx * s, 1.2, l.z + l.dz * s, 3, 6, 0.5, 0.4, 6, 0xc070ff);
+  }
   /** Refuerzos en círculo alrededor del jefe */
   bossSummon(bx, bz, n) {
     this.ui.toast('¡REFUERZOS!', true);
@@ -1064,22 +1087,69 @@ class Game {
   }
   /** Nueva fase del jefe: grito, onda que te aparta, breve invulnerabilidad, más velocidad y refuerzos */
   onBossPhase(bx, bz) {
-    const p = this.player, ph = this.phase, B = this.stage.boss;
-    this.bossInv = 1.2; ENEMY_TYPES[T_BOSS].spd = 0.62 + ph * 0.14;
-    this.horde.tints[T_BOSS] = ph === 2 ? 0xff7070 : B.tint;
+    const p = this.player, ph = this.phase, B = this.stage.boss, last = ph === B.pat.length - 1;
+    const col = B.tints ? B.tints[ph] : ph === 2 ? 0xff3050 : B.tint;   // color de la nueva forma
+    this.bossInv = 1.2; ENEMY_TYPES[T_BOSS].spd = 0.62 + ph * 0.12;
+    this.horde.tints[T_BOSS] = B.tints ? col : ph === 2 ? 0xff7070 : B.tint;
+    ENEMY_TYPES[T_BOSS].scale = B.scale * (1 + ph * 0.04);             // el jefe crece con cada transformación
+    if (B.rows) this.horde.bossRow = B.rows[ph];                       // cambia a la fila de su nueva forma
     const dx = p.x - bx, dz = p.z - bz, d = Math.hypot(dx, dz) || 1;
     if (d < 14) { p.kbx = dx / d * 22; p.kbz = dz / d * 22; }
     this.horde.shockwave(bx, bz, 16, 30);
-    this.fx.ring(this.fx.aura, bx, 0.5, bz, 70, 26, 0.8, 0.5, ph === 2 ? 0xff3050 : B.tint);
+    // Transformación: grito, aura de la nueva forma, destello e impacto
+    this.fx.ring(this.fx.aura, bx, 0.5, bz, 70, 26, 0.8, 0.5, col);
+    this.fx.ring(this.fx.aura, bx, 0.5, bz, 40, 12, 0.5, 0.4, 0xffffff);
+    this.fx.burst(this.fx.aura, bx, 2, bz, 80, 20, 1, 0.7, 1.5, col);
     this.fx.burst(this.fx.sparks, bx, 2, bz, 50, 14, 0.8, 0.5, 2, 0xffffff);
-    this.shake(1.1); this.hitstop = 0.1;
-    if (!Save.d.opt.flash) this.impT = 0.14;
-    this.ui.toast('¡' + B.name + ' · FASE ' + (ph + 1) + '!'); SFX.play('phase');
-    this.ui.toast(ph === 2 ? 'ÚLTIMA FASE: ataca con todo' : 'Aprende sus nuevos ataques', true);
+    this.shake(1.3); this.hitstop = 0.16;
+    if (!Save.d.opt.flash) this.impT = 0.2;
+    SFX.scream(1.2, 150 + ph * 25);
+    this.ui.toast('¡' + B.name + (B.forms ? ' · ' + B.forms[ph] : ' · FASE ' + (ph + 1)) + '!'); SFX.play('phase');
+    this.ui.toast(last ? 'ÚLTIMA FASE: ataca con todo' : 'Aprende sus nuevos ataques', true);
     this.bossSummon(bx, bz, 8 + this.step * 3);
     if (ph === 2) this.track('phase3', 1);
   }
 
+  /** Ultimate del personaje (Grieta de Black). Solo con la carga completa y jugando */
+  ultimate() {
+    const p = this.player, U = p.ch.ult;
+    if (!U || this.state !== 'play' || this.ultT >= 0 || p.ult < U.cost || p.dying) return;
+    p.ult = 0; p.iframes = Math.max(p.iframes, 1.2);
+    this.ultT = 0; this.ultCut = false;
+    this.hitstop = Math.max(this.hitstop, 0.5);                  // el mundo se congela mientras dura el destello
+    this.shake(0.6); SFX.play('boom');
+  }
+  /** Secuencia de la Ultimate en tiempo real: destellos de impacto de colores y, al final, el tajo */
+  updateUlt(dt) {
+    if (this.ultT < 0) return;
+    this.ultT += dt;
+    const t = this.ultT, el = this.ultFx || (this.ultFx = document.getElementById('ultFx'));
+    // Fotogramas [tiempo, color, opacidad]: negro, blanco, morado y rosa, y una caída suave
+    const F = [[0, '#000', 1], [0.09, '#fff', 0.9], [0.18, '#b050ff', 0.75], [0.27, '#ff3fa0', 0.5], [0.4, '#b050ff', 0.25]];
+    if (t >= 0.5) { this.ultT = -1; if (el) el.style.opacity = 0; return; }
+    if (t >= 0.27 && !this.ultCut) { this.ultCut = true; this.ultSlash(); }
+    let f = F[0]; for (const k of F) if (t >= k[0]) f = k;
+    if (el) { el.style.background = f[1]; el.style.opacity = f[2]; }
+  }
+  /** El tajo: dos cortes que cruzan el mapa a través del jugador. Daña a todo lo que toca */
+  ultSlash() {
+    const p = this.player, U = p.ch.ult, a = this.camYaw, L = U.len, dmg = U.dmg * p.damageMul();
+    for (const [dx, dz] of [[Math.cos(a), Math.sin(a)], [-Math.sin(a), Math.cos(a)]]) {
+      this.horde.damageLine(p.x - dx * L, p.z - dz * L, dx, dz, 2 * L, U.hw, dmg, this);
+      for (let s = -L; s < L; s += 2.5) this.fx.burst(this.fx.sparks, p.x + dx * s, 1.2, p.z + dz * s, 2, 7, 0.55, 0.45, 8, 0xd080ff);
+    }
+    // El tajo también hiere al jefe si cruza alguna de las dos líneas: un 5% de su vida máxima
+    const bi = this.horde.indexOfUid(this.bossUid);
+    if (bi >= 0) {
+      const ex = this.horde.x[bi] - p.x, ez = this.horde.z[bi] - p.z, r = U.hw + ENEMY_TYPES[T_BOSS].r;
+      const d1 = Math.abs(ex * Math.sin(a) - ez * Math.cos(a)), d2 = Math.abs(ex * Math.cos(a) + ez * Math.sin(a));
+      if (Math.min(d1, d2) < r) this.horde.hurt(bi, this.horde.maxHp[bi] * 0.05, 0, 0, this);
+    }
+    this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 90, 34, 0.9, 0.6, 0xb050ff);
+    this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 60, 20, 0.7, 0.5, 0xffffff);
+    this.shake(1.6); SFX.play('bigbeam'); SFX.play('bigboom');
+    p.iframes = Math.max(p.iframes, 0.8);
+  }
   onEnemyKilled(x, z, type, uid) {
     this.kills++; this.track('kills', 1);
     this.addCombo();
@@ -1096,6 +1166,7 @@ class Game {
     const p = this.player;
     if (p.killHeal) p.hp = Math.min(p.maxHp, p.hp + p.killHeal);
     if (p.ch.id === 'black') p.hp = Math.min(p.maxHp, p.hp + 0.6);          // pasiva: Justicia Divina
+    p.addUlt(type === T_BOSS ? 25 : type === 4 ? 4 : 0.8);                   // la Ultimate se carga con cada enemigo
     if (type === 4) {
       this.track('elites', 1);
       this.fx.ring(this.fx.aura, x, 0.4, z, 36, 12, 0.6, 0.4, 0xffc83a);
@@ -1268,7 +1339,8 @@ class Game {
     const k = 1 - Math.exp(-6 * dt);
     this.camLook.x += (p.x - this.camLook.x) * k;
     this.camLook.z += (p.z - this.camLook.z) * k;
-    this.camLook.y = menu ? 0 : 1.4;
+    // La cámara sigue el suelo bajo el jugador (con suavidad, para que las colinas no den saltos)
+    this.camLook.y += ((menu ? 0 : 1.4 + groundH(p.x, p.z)) - this.camLook.y) * k;
     this.camDist += (this.camDistT - this.camDist) * (1 - Math.exp(-8 * rawDt));
     const cp = Math.cos(this.camPitch), sp = Math.sin(this.camPitch), s = this.shakeAmt, d = this.camDist;
     this.camera.position.set(
@@ -1399,6 +1471,7 @@ class Game {
     if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }
     if (s === 'play' && IS_TOUCH && window.innerHeight > window.innerWidth) this.togglePause();   // móvil en vertical: pausa
     if (s === 'play') {
+      this.updateUlt(rawDt);                                   // la secuencia de la Ultimate va en tiempo real (no se para con el hitstop)
       let dt = 0;
       if (this.hitstop > 0) this.hitstop -= rawDt; else dt = rawDt;
       if (dt > 0) this.update(dt);

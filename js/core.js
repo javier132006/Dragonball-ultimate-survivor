@@ -144,12 +144,27 @@ function loadSheets(names) {
   return Promise.all(names.map(loadSheet)).then((list) => { const out = {}; names.forEach((n, i) => { out[n] = list[i]; }); return out; });
 }
 
+/* ---------- Mapa de alturas compartido (relieve del terreno) ----------
+   world.js escribe aquí la altura de cada celda; los sprites la leen en el shader
+   y se apoyan en el suelo sin recalcular nada en JavaScript. */
+const HM = { N: 256, EXT: 640, MIN: -3, RANGE: 12 };      // 256x256 celdas sobre 640 unidades; alturas de -3 a 9
+HM.data = new Uint8Array(HM.N * HM.N * 4);
+HM.tex = new THREE.DataTexture(HM.data, HM.N, HM.N, THREE.RGBAFormat);
+HM.tex.minFilter = HM.tex.magFilter = THREE.LinearFilter;
+HM.tex.wrapS = HM.tex.wrapT = THREE.ClampToEdgeWrapping;
+HM.tex.needsUpdate = true;
+const HM_UNIFORMS = {
+  uHMap: { value: HM.tex }, uHO: { value: new THREE.Vector2(-HM.EXT / 2, -HM.EXT / 2) },
+  uHS: { value: HM.EXT }, uHR: { value: new THREE.Vector2(HM.MIN, HM.RANGE) }
+};
+
 /* ---------- SpriteBatch: billboards instanciados con atlas (1 draw call) ---------- */
 const SPRITE_VS = `
 attribute vec4 iPos;    // xyz: pies del sprite en el mundo, w: opacidad
 attribute vec4 iData;   // x: fotograma, y: volteo (0/1), z: destello blanco, w: escala
 attribute vec3 iCol;    // tinte por instancia
 uniform vec2 uGrid; uniform vec2 uSize; uniform float uAnchor; uniform float uFlat;
+uniform sampler2D uHMap; uniform vec2 uHO; uniform float uHS; uniform vec2 uHR;
 varying vec2 vUv; varying float vFlash; varying float vAlpha; varying vec3 vCol;
 void main() {
   float col = mod(iData.x, uGrid.x);
@@ -161,7 +176,9 @@ void main() {
   vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   if (uFlat > 0.5) { right = vec3(1.0, 0.0, 0.0); up = vec3(0.0, 0.0, -1.0); }
   float s = iData.w;
-  vec3 wp = iPos.xyz + right * (position.x * uSize.x * s) + up * ((position.y + 0.5 - uAnchor) * uSize.y * s);
+  // Altura del terreno bajo el sprite (mapa de alturas en la GPU)
+  float ground = texture2D(uHMap, clamp((iPos.xz - uHO) / uHS, 0.0, 1.0)).r * uHR.y + uHR.x;
+  vec3 wp = iPos.xyz + vec3(0.0, ground, 0.0) + right * (position.x * uSize.x * s) + up * ((position.y + 0.5 - uAnchor) * uSize.y * s);
   gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
 }`;
 const SPRITE_FS = `
@@ -198,7 +215,8 @@ class SpriteBatch {
         uSize: { value: new THREE.Vector2(o.w || 1, o.h || 1) },
         uAnchor: { value: o.anchor || 0 }, uFlat: { value: o.flat ? 1 : 0 },
         uTint: { value: new THREE.Color(o.tint !== undefined ? o.tint : 0xffffff) },
-        uAlpha: { value: o.alpha !== undefined ? o.alpha : 1 }, uCut: { value: o.cut !== undefined ? o.cut : 0.5 }
+        uAlpha: { value: o.alpha !== undefined ? o.alpha : 1 }, uCut: { value: o.cut !== undefined ? o.cut : 0.5 },
+        ...HM_UNIFORMS
       },
       transparent: soft, depthWrite: !soft, side: THREE.DoubleSide,
       blending: o.additive ? THREE.AdditiveBlending : THREE.NormalBlending

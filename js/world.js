@@ -39,6 +39,25 @@ const THEMES = [
 ];
 /* Semilla extra del mapa (el desafío diario la cambia para que el mapa sea el del día) */
 let WORLD_SEED_XOR = 0;
+/* Semilla del relieve: aleatoria en cada partida (en el diario la fija Game.start con la del día) */
+let RELIEF_SEED = Math.floor(Math.random() * 1000003);
+
+/** Altura del terreno en (x,z) antes de aplicar los lagos. Centro plano para empezar; colinas y montañas suaves */
+function reliefAt(x, z) {
+  const m = sm(22, 75, Math.hypot(x, z));                        // zona de inicio y alrededores: plana
+  const a = noise2(x * 0.011, z * 0.011, 40 + RELIEF_SEED), b = noise2(x * 0.027, z * 0.027, 60 + RELIEF_SEED), c = noise2(x * 0.07, z * 0.07, 80 + RELIEF_SEED);
+  const v = 0.5 * a + 0.32 * b + 0.18 * c - 0.44;                 // mayor que 0: montaña; menor que 0: hondonada suave
+  const cany = 1 + 0.5 * biomeWeights(x, z)[2];                 // los cañones son más altos
+  return clamp((v > 0 ? v * 1.9 : v * 0.3) * 7.5 * m * cany, -1, 7);
+}
+/** Altura del suelo en (x,z), leída del mapa de alturas (misma que usan los sprites en la GPU) */
+function groundH(x, z) {
+  const N = HM.N, cell = HM.EXT / N, lim = HM.EXT / 2, D = HM.data;
+  const fx = clamp((x + lim) / cell - 0.5, 0, N - 1.001), fz = clamp((z + lim) / cell - 0.5, 0, N - 1.001);
+  const i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
+  const h = (a, b) => D[(b * N + a) * 4] / 255 * HM.RANGE + HM.MIN;
+  return (h(i, j) * (1 - u) + h(i + 1, j) * u) * (1 - v) + (h(i, j + 1) * (1 - u) + h(i + 1, j + 1) * u) * v;
+}
 const _bw = [0, 0, 0, 0];
 /** Pesos de cada bioma en (x,z). El centro del mapa siempre es yermo. */
 function biomeWeights(x, z) {
@@ -78,8 +97,10 @@ class World {
     // Colisiones estáticas (rejilla de celdas de 8 unidades)
     this.cx = []; this.cz = []; this.cr = []; this.cdest = [];
     this.destr = [];                       // cristales destructibles: {x,z,hp,col,idx}
-    this.lakes = [];
     this.px = 0; this.pz = 0;              // resultado de push()
+    this.reliefSeed = RELIEF_SEED;
+    this.lakes = this.planLakes();         // primero los lagos: el relieve los aplana
+    this.buildHeight();
     this.buildGround(scene);
     this.buildProps(scene);
     this.buildGrid();
@@ -96,14 +117,47 @@ class World {
     }
   }
 
+  /** Lagos (solo visuales): posiciones fijas en la semilla del mapa; más tarde el relieve se aplana bajo ellos */
+  planLakes() {
+    const R = this.R, out = [], rng = this.rng;
+    if (R < 100) return out;
+    for (let k = 0; k < 60 && out.length < 9; k++) {
+      const x = (rng() * 2 - 1) * R * 0.9, z = (rng() * 2 - 1) * R * 0.9, r = 10 + rng() * 14;
+      if (Math.hypot(x, z) < 45) continue;
+      if (out.some((l) => Math.hypot(l.x - x, l.z - z) < r + l.r + 25)) continue;
+      out.push({ x, z, r });
+    }
+    return out;
+  }
+
+  /** Rellena el mapa de alturas: relieve + hondonadas planas bajo los lagos */
+  buildHeight() {
+    const N = HM.N, cell = HM.EXT / N, lim = HM.EXT / 2, D = HM.data;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = -lim + (i + 0.5) * cell, z = -lim + (j + 0.5) * cell;
+      let h = reliefAt(x, z);
+      for (const l of this.lakes) {
+        const d = Math.hypot(x - l.x, z - l.z), t = clamp((d - l.r) / 5, 0, 1);
+        h = -0.4 + (h + 0.4) * sm(0, 1, t);                        // dentro del lago: nivel -0.4; se suaviza en 5 unidades
+      }
+      const b = clamp(Math.round((h - HM.MIN) / HM.RANGE * 255), 0, 255), o = (j * N + i) * 4;
+      D[o] = D[o + 1] = D[o + 2] = b; D[o + 3] = 255;
+    }
+    HM.tex.needsUpdate = true;
+  }
+
   buildGround(scene) {
     const S = (this.R + 90) * 2, geo = new THREE.PlaneGeometry(S, S, 150, 150);
     geo.rotateX(-Math.PI / 2);
     const p = geo.attributes.position, col = new Float32Array(p.count * 3);
     for (let i = 0; i < p.count; i++) {
-      const w = biomeWeights(p.getX(i), p.getZ(i));
-      for (let c = 0; c < 3; c++) col[i * 3 + c] = w[0] * BIOME_COL[0][c] + w[1] * BIOME_COL[1][c] + w[2] * BIOME_COL[2][c] + w[3] * BIOME_COL[3][c];
+      const x = p.getX(i), z = p.getZ(i), h = groundH(x, z), w = biomeWeights(x, z);
+      p.setY(i, h);
+      const shade = 0.9 + clamp(h / 7, -0.12, 0.14);               // las zonas altas se ven un poco más claras
+      for (let c = 0; c < 3; c++) col[i * 3 + c] = (w[0] * BIOME_COL[0][c] + w[1] * BIOME_COL[1][c] + w[2] * BIOME_COL[2][c] + w[3] * BIOME_COL[3][c]) * shade;
     }
+    p.needsUpdate = true;
+    geo.computeVertexNormals();                                     // la luz marca las laderas
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const tex = this.makeGroundTexture();
     const ground = new THREE.Mesh(geo, toonMat(0xffffff, Object.assign({ vertexColors: true }, tex ? { map: tex } : {})));
@@ -144,7 +198,7 @@ class World {
   inst(scene, geo, mat, list, shadow) {
     const m = new THREE.InstancedMesh(geo, mat, Math.max(1, list.length));
     const M = new THREE.Matrix4(), q = new THREE.Quaternion(), P = new THREE.Vector3(), Sc = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
-    list.forEach((o, i) => { q.setFromAxisAngle(up, o[6] || 0); P.set(o[0], o[1], o[2]); Sc.set(o[3], o[4], o[5]); m.setMatrixAt(i, M.compose(P, q, Sc)); });
+    list.forEach((o, i) => { q.setFromAxisAngle(up, o[6] || 0); P.set(o[0], o[1] + groundH(o[0], o[2]), o[2]); Sc.set(o[3], o[4], o[5]); m.setMatrixAt(i, M.compose(P, q, Sc)); });
     m.count = list.length;
     m.castShadow = m.receiveShadow = !!shadow;
     scene.add(m);
@@ -192,7 +246,7 @@ class World {
     flat.rotateX(-Math.PI / 2);
     const craters = [], lakes = [];
     for (let i = 0; i < N(28); i++) { const [x, z] = spot(25), r = rr(5, 11); craters.push([x, 0.04, z, r, 1, r, 0]); }
-    for (let i = 0, nl = R < 100 ? 0 : 9; i < nl; i++) { const [x, z] = spot(45), r = rr(10, 24); lakes.push([x, 0.06, z, r, 1, r, 0]); this.lakes.push({ x, z, r }); }
+    for (const l of this.lakes) lakes.push([l.x, 0.06, l.z, l.r, 1, l.r, 0]);
     this.inst(scene, flat, new THREE.MeshBasicMaterial({ color: th.crater, transparent: true, opacity: 0.55 }), craters, false);
     this.inst(scene, flat, new THREE.MeshBasicMaterial({ color: th.lake, transparent: true, opacity: 0.8 }), lakes, false);
     // Cristales destructibles: se rompen con el ki y sueltan experiencia y semillas
@@ -289,7 +343,7 @@ class World {
     for (const d of this.destr) {
       d.hp = d.max; this.cr[d.col] = d.s * 0.8;
       const o = this.crystalPlace[d.idx];
-      q.setFromAxisAngle(up, o[6]); P.set(o[0], o[1], o[2]); S.set(o[3], o[4], o[5]);
+      q.setFromAxisAngle(up, o[6]); P.set(o[0], o[1] + groundH(o[0], o[2]), o[2]); S.set(o[3], o[4], o[5]);
       this.crystals.setMatrixAt(d.idx, M.compose(P, q, S));
     }
     this.crystals.instanceMatrix.needsUpdate = true;

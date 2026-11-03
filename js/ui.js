@@ -10,7 +10,7 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
-      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abBlock', 'blockFill', 'abTp', 'tpFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abBlock', 'blockFill', 'abTp', 'tpFill', 'abUlt', 'ultFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'cardFoot', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
@@ -124,6 +124,12 @@ class UIManager {
     this.setC(e.abBlock, 'ab' + (p.blocking ? ' on' : p.guardT > 0 || p.ki < 10 ? ' low' : ''));
     sc(e.tpFill, 1 - p.tpCd / p.tpMax);
     this.setC(e.abTp, 'ab' + (p.tpCd > 0 || p.ki < 35 ? ' low' : ''));
+    // Ultimate: solo para los personajes que la tienen; se ilumina cuando está cargada
+    if (p.ch.ult) {
+      if (e.abUlt.style.display !== '') e.abUlt.style.display = '';
+      sc(e.ultFill, p.ult / p.ch.ult.cost);
+      this.setC(e.abUlt, 'ab' + (p.ult >= p.ch.ult.cost ? ' on' : ''));
+    } else if (e.abUlt.style.display !== 'none') e.abUlt.style.display = 'none';
     // FPS suavizado
     this.fpsAcc += dt; this.fpsN++;
     if (this.fpsAcc >= 0.5) { T(e.fps, String(Math.round(this.fpsN / this.fpsAcc))); this.fpsAcc = 0; this.fpsN = 0; }
