@@ -453,7 +453,7 @@ button{font-family:var(--db);font-weight:400;font-size:20px;letter-spacing:2px;c
 #rotate .phone::after{content:'';position:absolute;left:50%;bottom:6px;width:12px;height:12px;margin-left:-6px;border-radius:50%;border:2px solid var(--or)}
 @keyframes rotp{0%,20%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
 @media (orientation:portrait){html.touch #rotate{display:flex}}
-html.touch #abil,html.touch #controls,html.touch #mmWrap,html.touch #tfBtn{display:none!important}
+html.touch #abil,html.touch #controls,html.touch #tfBtn{display:none!important}
 html.touch #bossBox{top:56px}
 
 /* ---------- Pantallas bajas (móvil en horizontal) ---------- */
@@ -550,6 +550,54 @@ html.touch #bossBox{top:56px}
 .card .fh{display:inline-block;margin-top:6px;font-size:9px;color:#ffb0f0;font-weight:700;letter-spacing:.3px}
 @media (max-width:900px){.rr{grid-template-columns:auto 1fr auto}.rr .dim{display:none}}
 @media (max-height:520px){#wstrip{top:112px}#abil .ab{width:120px}}
+
+/* ---------- HUD de partida más visual: radar local, panel compacto y franja de técnicas ---------- */
+#rhud{position:fixed;top:12px;right:14px;display:flex;flex-direction:column;align-items:flex-end;gap:12px;pointer-events:none;z-index:3}
+#rhud #mmWrap{position:relative;right:auto;bottom:auto;border-radius:18px;padding:5px;border:3px solid var(--or);
+  background:linear-gradient(160deg,#1d2e66,#0a0f1e);box-shadow:0 0 0 2px #000,0 0 22px rgba(255,140,0,.35)}
+#rhud #mmWrap::before,#rhud #mmWrap::after{display:none}
+#rhud #mm{width:184px;height:184px;border-radius:13px;filter:none;image-rendering:auto}
+#rhud .mmLbl{bottom:auto;top:-11px;padding:0 10px;background:#0a0f1e;border:2px solid var(--or);border-radius:8px;font-size:12px;line-height:16px;color:var(--yl)}
+#rhud #pr{position:relative;top:auto;right:auto;min-width:0;width:200px;padding:8px 10px 9px;text-align:left}
+#pr .kb{display:flex;align-items:baseline;justify-content:space-between;gap:6px;border-bottom:1px solid rgba(255,160,40,.35);padding-bottom:2px;margin-bottom:5px}
+#pr .kb span{font-family:var(--db);font-size:14px;letter-spacing:2px;color:var(--yl)}
+#rhud #kills{display:inline;font-size:34px;line-height:1}
+#pr .pg{display:grid;grid-template-columns:1fr 1fr;gap:4px 6px}
+#pr .pc{display:flex;align-items:center;gap:5px;font-size:11px;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+#pr .pc.w{grid-column:1/-1}#pr .pc.sm{font-size:9px;opacity:.85}
+#pr .pc i{font-style:normal;width:16px;height:16px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;background:var(--or);color:#1a0800;box-shadow:0 0 0 1px #000}
+#pr .pc i.z{background:#ffd84a}#pr .pc i.db{background:radial-gradient(circle at 35% 30%,#fff2a0,#ff9a00);color:#b01010}
+#pr .pc b{color:#fff;font-weight:700}#pr .pc em{margin-left:auto;font-style:normal;opacity:.7}#pr .pc em b{font-weight:400}
+#pr .goal{justify-content:space-between;padding:3px 6px;background:rgba(0,0,0,.35);border-left:3px solid var(--yl);font-family:var(--db);font-size:14px;letter-spacing:1px}
+#pr .goal span{color:var(--yl)}#pr .goal b{font-family:var(--db);font-weight:400;font-size:16px}
+#stageName{color:#ffb070!important}
+html.touch #rhud #mm{width:118px;height:118px}
+html.touch #rhud #pr{width:158px}
+/* Franja izquierda: técnicas grandes con nivel y pasivas pequeñas (como mucho 2 filas) */
+#wstrip{display:block;max-width:none}
+.wrow{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.wt{position:relative;width:44px;height:48px;border-radius:8px;background:linear-gradient(180deg,#1d2e66,#0a0f24);border:2px solid var(--or);box-shadow:0 0 0 1px #000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--yl);font-size:20px;line-height:1}
+.wt i{font-style:normal;text-shadow:0 0 8px rgba(255,180,40,.7)}
+.wt u{display:flex;gap:2px;margin-top:5px}.wt u s{width:5px;height:4px;background:rgba(255,255,255,.18);text-decoration:none}.wt u s.on{background:var(--yl)}
+.wt.fu{border-color:#ff5a3a;box-shadow:0 0 0 1px #000,0 0 12px rgba(255,80,60,.8)}.wt.fu i{color:#ffb0a0}
+.wt.uq{border-color:#ffd84a}
+.wrow.pas{max-width:236px;gap:3px}
+.wp{position:relative;width:26px;height:26px;border-radius:6px;background:rgba(10,14,32,.92);border:1px solid rgba(156,255,106,.6);color:#9cff6a;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1px #000}
+.wp b{position:absolute;right:1px;bottom:-1px;font-size:8px;color:#fff;text-shadow:1px 1px 0 #000}
+.wp.more{color:#fff;border-color:#fff;font-size:10px;font-weight:700}
+#controls{transition:opacity 1.5s}#controls.off{opacity:0}
+#combo{top:68%}
+@media (max-height:520px){#combo{right:auto;left:max(14px,env(safe-area-inset-left));top:auto;bottom:16px;transform:skewX(-10deg);text-align:left}#combo .cbar{margin:4px 0 0}
+  #pr .pc{display:none!important}#pr .pc:first-child,#pr .pc.goal{display:flex!important}.wrow.pas{max-width:200px}
+  #rhud{flex-direction:row-reverse;align-items:flex-start}}
+html.touch #prompt{bottom:auto;top:30%}
+@media (max-height:520px){
+  #rhud{top:6px;right:max(6px,env(safe-area-inset-right));gap:8px}
+  #rhud #mm{width:104px;height:104px}#rhud #pr{width:118px;padding:5px 7px}#rhud #kills{font-size:22px}#pr .kb span{font-size:10px}
+  #pr .pg{grid-template-columns:1fr}#pr .pc{font-size:9px}#pr .pc.sm,#pr .pc:nth-child(5),#pr .pc:nth-child(6){display:none}#pr .goal{font-size:10px}#pr .goal b{font-size:11px}
+  .wt{width:30px;height:32px;font-size:13px}.wt u{margin-top:3px}.wt u s{width:3px;height:3px}.wrow.pas{max-width:150px}.wp{width:18px;height:18px;font-size:9px}
+}
 </style>
 </head>
 <body>
@@ -568,17 +616,22 @@ html.touch #bossBox{top:56px}
     <div class="row"><span>EXP</span><div class="bar xp"><i id="xpBar"></i><em id="xpTxt"></em></div></div>
   </div>
   <div id="wstrip"></div>
-  <div class="panel" id="pr">
-    <div class="lbl">ENEMIGOS DERROTADOS</div>
-    <b id="kills">0</b>
-    <div class="mini">TIEMPO <b id="time">00:00</b></div>
-    <div class="mini">ZENI <b id="zeniHud" style="color:var(--xp)">0</b></div>
-    <div class="mini"><b id="stageName">MAPA</b></div>
-    <div class="mini"><span id="goalL">ENJAMBRE EN</span> <b id="goal">--:--</b></div>
-    <div class="mini"><b id="diffName">FÁCIL</b></div>
-    <div class="mini">ESFERAS <b id="balls">0 / 7</b></div>
-    <div class="mini">ZONA <b id="biome">YERMO</b></div>
-    <div class="mini">HORDA <b id="horde">0</b> · FPS <b id="fps">--</b></div>
+  <!-- Derecha: radar local (gira con la cámara) y datos de la partida -->
+  <div id="rhud">
+    <div id="mmWrap"><canvas id="mm" width="368" height="368"></canvas><span class="mmLbl">RADAR</span></div>
+    <div class="panel" id="pr">
+      <div class="kb"><b id="kills">0</b><span>ENEMIGOS</span></div>
+      <div class="pg">
+        <div class="pc"><i>⏱</i><b id="time">00:00</b></div>
+        <div class="pc"><i class="z">Ƶ</i><b id="zeniHud">0</b></div>
+        <div class="pc w"><i>◆</i><b id="stageName">MAPA</b></div>
+        <div class="pc w goal"><span id="goalL">ENJAMBRE EN</span><b id="goal">--:--</b></div>
+        <div class="pc"><i class="db">★</i><b id="balls">0 / 7</b></div>
+        <div class="pc"><i>☠</i><b id="horde">0</b></div>
+        <div class="pc w sm"><b id="diffName">FÁCIL</b></div>
+        <div class="pc w sm"><i>⌖</i><b id="biome">YERMO</b><em>FPS <b id="fps">--</b></em></div>
+      </div>
+    </div>
   </div>
   <div id="bossBox"><div id="bossName">JEFE</div><div class="bar"><i id="bossBar"></i></div></div>
   <div id="abil">
@@ -589,7 +642,6 @@ html.touch #bossBox{top:56px}
   </div>
   <div id="controls">WASD: mover · RATÓN: cámara · ESPACIO: dash · C: cargar ki · SHIFT: bloquear · F: teletransporte · G: transformarse · H: forma base · E: interactuar · M: mapa · TAB: estadísticas · P/ESC: pausa · También con mando</div>
   <div id="zoneBox"><div id="zoneName">HABITACIÓN DEL ESPÍRITU Y EL TIEMPO · <b id="zoneTxt">0%</b></div><div class="bar"><i id="zoneBar"></i></div></div>
-  <div id="mmWrap"><canvas id="mm" width="140" height="140"></canvas><span class="mmLbl">RADAR</span></div>
   <div id="combo"><b id="comboN">0</b><span>COMBO</span><div class="cbar"><i id="comboBar"></i></div></div>
   <div id="tfBtn"><span class="key">G</span><div><small id="tfSub">TRANSFORMACIÓN DISPONIBLE</small><b id="tfName"></b></div></div>
 </div>

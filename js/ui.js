@@ -10,7 +10,7 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
-      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abBlock', 'blockFill', 'abTp', 'tpFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abBlock', 'blockFill', 'abTp', 'tpFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'cardFoot', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
@@ -46,7 +46,7 @@ class UIManager {
   toast(text, small) {
     if (small) {
       const f = this.el.feed;
-      if (f.children.length > 4) f.removeChild(f.firstChild);
+      if (f.children.length > 2) f.removeChild(f.firstChild);          // como mucho 3 avisos pequeños a la vez
       const d = document.createElement('div');
       d.textContent = text; f.appendChild(d);
       setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 1300);
@@ -133,7 +133,9 @@ class UIManager {
     else D(e.bossBox, 'none');
     this.updateStrip(game);
     this.mmT -= dt;
-    if (this.mmT <= 0) { this.mmT = 0.1; this.drawMinimap(game, bi); if (game.showMap) this.paintMap(this.el.bigmapc.getContext('2d'), this.el.bigmapc.width, game, bi, true); }
+    if (this.mmT <= 0) { this.mmT = 0.05; this.drawMinimap(game, bi); if (game.showMap) this.paintMap(this.el.bigmapc.getContext('2d'), this.el.bigmapc.width, game, bi, true); }
+    // La ayuda de controles se desvanece a los 20 s de partida (deja la pantalla limpia)
+    this.setC(e.controls, game.time > 20 ? 'off' : '');
   }
 
   /** Aviso "[E] abrir cápsula" con su precio cuando estás cerca de una */
@@ -153,14 +155,92 @@ class UIManager {
     for (const id in p.items) key += id + p.items[id] + ',';
     if (key === this.wKey) return;
     this.wKey = key;
-    let h = '';
-    for (const w of game.weapons.list) h += '<div class="wi" title="' + WEAPONS[w.id].name + '"><i>' + WEAPONS[w.id].icon + '</i><b>' + w.lv + '</b></div>';
-    for (const s of STATS) if (p.stacks[s.id]) h += '<div class="wi st" title="' + s.name + '"><i>' + s.icon + '</i><b>' + p.stacks[s.id] + '</b></div>';
-    for (const id in p.items) { const it = itemById(id), c = RARITIES[it.rarity].color; h += '<div class="wi it" style="border-color:' + c + ';color:' + c + '" title="' + it.name + '"><i>' + it.icon + '</i><b>' + p.items[id] + '</b></div>'; }
+    // Técnicas: casillas grandes con su nivel (las fusiones brillan en rojo)
+    let h = '<div class="wrow tech">';
+    for (const w of game.weapons.list) {
+      const W = WEAPONS[w.id];
+      let pips = ''; if (!W.fusion) for (let k = 1; k <= MAX_WEAPON_LEVEL; k++) pips += '<s class="' + (k <= w.lv ? 'on' : '') + '"></s>';
+      h += '<div class="wt' + (W.fusion ? ' fu' : W.unique ? ' uq' : '') + '" title="' + W.name + (W.fusion ? ' (fusión)' : ' · nv ' + w.lv) + '"><i>' + W.icon + '</i><u>' + (W.fusion ? '<s class="on" style="width:20px"></s>' : pips) + '</u></div>';
+    }
+    h += '</div>';
+    // Pasivas (vitaminas y objetos): pequeñas y como mucho 2 filas; el resto se resume en «+N»
+    const pas = [];
+    for (const st of STATS) if (p.stacks[st.id]) pas.push('<div class="wp" title="' + st.name + ' x' + p.stacks[st.id] + '">' + st.icon + '<b>' + p.stacks[st.id] + '</b></div>');
+    for (const id in p.items) { const it = itemById(id), c = RARITIES[it.rarity].color; pas.push('<div class="wp" style="border-color:' + c + ';color:' + c + '" title="' + it.name + ' x' + p.items[id] + '">' + it.icon + (p.items[id] > 1 ? '<b>' + p.items[id] + '</b>' : '') + '</div>'); }
+    const MAXP = 15;
+    if (pas.length) h += '<div class="wrow pas">' + pas.slice(0, pas.length > MAXP + 1 ? MAXP : MAXP + 1).join('') + (pas.length > MAXP + 1 ? '<div class="wp more" title="Mira la lista completa en la pausa (TAB)">+' + (pas.length - MAXP) + '</div>' : '') + '</div>';
     this.el.wstrip.innerHTML = h;
   }
 
-  drawMinimap(game, bossIdx) { this.paintMap(this.mmCtx, this.el.mm.width, game, bossIdx, false); }
+  /** Radar local: zona de unos 50 m alrededor del jugador, girado con la cámara (arriba = hacia donde miras).
+      Muestra enemigos, cápsulas, semillas, esferas, puntos de interés, disparos y avisos; lo lejano se marca en el borde */
+  drawMinimap(game, bossIdx) {
+    const g = this.mmCtx;
+    if (!g) return;
+    const N = this.el.mm.width, C = N / 2, R0 = 42, S = C / R0, p = game.player, w = game.world, R = CFG.ARENA, t = game.time;
+    const c = Math.cos(game.camYaw), s = Math.sin(game.camYaw), px = p.x, pz = p.z, lim = R0 * 1.45;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#0a0f1e'; g.fillRect(0, 0, N, N);
+    // Terreno: la imagen del mapa entero, girada y ampliada alrededor del jugador
+    if (w.mini) {
+      const k = (2 * R) / w.mini.width, a = S * k;
+      g.imageSmoothingEnabled = true;
+      g.setTransform(a * c, a * s, -a * s, a * c, C + S * ((-R - px) * c - (-R - pz) * s), C + S * ((-R - px) * s + (-R - pz) * c));
+      g.drawImage(w.mini, 0, 0);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    g.fillStyle = 'rgba(4,8,24,.38)'; g.fillRect(0, 0, N, N);       // oscurece el terreno para que resalten los puntos
+    // Borde del mapa
+    g.strokeStyle = 'rgba(255,60,60,.7)'; g.lineWidth = 2; g.beginPath();
+    for (const [ax, az] of [[-R, -R], [R, -R], [R, R], [-R, R], [-R, -R]]) { const dx = ax - px, dz = az - pz; g.lineTo(C + (dx * c - dz * s) * S, C + (dx * s + dz * c) * S); }
+    g.stroke();
+    if (game.night > 0.05) { g.fillStyle = 'rgba(5,8,40,' + (0.45 * game.night).toFixed(2) + ')'; g.fillRect(0, 0, N, N); }
+    // Anillos de distancia (15 y 30 m)
+    g.strokeStyle = 'rgba(255,255,255,.12)'; g.lineWidth = 1;
+    for (const r of [15, 30]) { g.beginPath(); g.arc(C, C, r * S, 0, 6.2832); g.stroke(); }
+    const pos = (x, z) => { const dx = x - px, dz = z - pz; this._mx = C + (dx * c - dz * s) * S; this._my = C + (dx * s + dz * c) * S; return Math.abs(dx) < lim && Math.abs(dz) < lim; };
+    const inBox = () => this._mx > 2 && this._mx < N - 2 && this._my > 2 && this._my < N - 2;
+    const dot = (x, z, sz, col) => { if (pos(x, z) && inBox()) { g.fillStyle = col; g.fillRect(this._mx - sz / 2, this._my - sz / 2, sz, sz); } };
+    // Lleva al borde del radar lo que está fuera (jefes, grietas, esferas y puntos de interés)
+    const edge = (x, z, col, label, size) => {
+      const dx = x - px, dz = z - pz, sx = (dx * c - dz * s) * S, sy = (dx * s + dz * c) * S, m = C - 9, f = Math.max(Math.abs(sx), Math.abs(sy)) / m;
+      const ex = C + (f > 1 ? sx / f : sx), ey = C + (f > 1 ? sy / f : sy);
+      g.fillStyle = col; g.strokeStyle = '#000'; g.lineWidth = 1.5;
+      g.beginPath(); g.arc(ex, ey, size || 6, 0, 6.2832); g.fill(); g.stroke();
+      if (label) { g.fillStyle = '#000'; g.font = 'bold ' + Math.round((size || 6) * 1.4) + 'px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, ex, ey + 0.5); }
+    };
+    // Recogibles: orbes de experiencia, semillas y cápsulas
+    const o = game.orbs;
+    for (let i = 0; i < o.n; i++) dot(o.x[i], o.z[i], 4, '#57f0ff');
+    const pk = game.pickups;
+    for (let i = 0; i < pk.sn; i++) dot(pk.sx[i], pk.sz[i], 5, '#9cff6a');
+    const CC = ['#ff7ad0', '#ffd24a', '#b050ff'], cp = game.capsules;
+    for (let i = 0; i < cp.n; i++) if (pos(cp.x[i], cp.z[i]) && inBox()) { g.fillStyle = CC[cp.gold[i]]; g.strokeStyle = '#000'; g.lineWidth = 1.5; g.beginPath(); g.arc(this._mx, this._my, cp.gold[i] ? 6 : 5, 0, 6.2832); g.fill(); g.stroke(); }
+    // Enemigos por tipo
+    const h = game.horde, EC = ['#ff3a3a', '#7fe0ff', '#ff9a5a', '#ff2050', '#ffc83a', '#6aff3a', '#8ab0ff', '#ff8af0'], ES = [6, 6, 9, 12, 11, 7, 8, 7];
+    for (let i = 0; i < h.n; i++) { const ty = h.type[i]; if (ty !== T_BOSS) dot(h.x[i], h.z[i], ES[ty], EC[ty]); }
+    // Disparos enemigos y zonas marcadas (peligro)
+    for (const sh of game.shots.s) if (sh.on) dot(sh.x, sh.z, 3, '#ff4070');
+    for (const m of game.shots.marks) if (m.on && pos(m.x, m.z)) { g.strokeStyle = '#ff3050'; g.lineWidth = 2; g.beginPath(); g.arc(this._mx, this._my, m.r * S, 0, 6.2832); g.stroke(); }
+    // Compañeros
+    for (const a of game.allies.list) dot(a.x, a.z, 7, '#7fe07a');
+    // Puntos de interés (se ven también en el borde si están lejos)
+    const PC = { boss: '#ff3050', time: '#6fd0ff', temple: '#5be07a', merchant: '#ffd24a', swapper: '#ff9a3a' }, PL = { boss: '!', time: '⧗', temple: '▲', merchant: 'B', swapper: 'R' };
+    for (const q of game.points.list) {
+      if (q.used && q.type !== 'merchant' && q.type !== 'swapper') continue;
+      edge(q.x, q.z, PC[q.type], PL[q.type], 7);
+    }
+    for (let i = 0; i < 7; i++) if (!pk.got[i]) edge(pk.bx[i], pk.bz[i], '#ffb030', '★', 6);
+    for (const r of game.points.rifts) edge(r.x, r.z, '#' + r.col.toString(16).padStart(6, '0'), '◎', 8 + Math.sin(t * 6));
+    const ri = game.rivalUid ? h.indexOfUid(game.rivalUid) : -1;
+    if (ri >= 0) edge(h.x[ri], h.z[ri], '#ff9a00', '⚔', 7);
+    if (bossIdx >= 0) edge(h.x[bossIdx], h.z[bossIdx], '#ff2050', '☠', 9 + Math.sin(t * 8) * 1.5);
+    // Jugador (flecha hacia arriba = hacia donde mira la cámara) y norte
+    g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(C, C - 9); g.lineTo(C + 7, C + 7); g.lineTo(C, C + 3); g.lineTo(C - 7, C + 7); g.closePath(); g.stroke(); g.fill();
+    g.fillStyle = '#ff5a5a'; g.font = 'bold 14px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('N', C + s * (C - 12), C - c * (C - 12));
+  }
 
   /** Dibuja el mapa (minimapa o mapa grande): cápsulas (normal/dorada/maldita), santuarios, comerciantes, altar, grieta y jefe */
   paintMap(g, N, game, bossIdx, big) {
