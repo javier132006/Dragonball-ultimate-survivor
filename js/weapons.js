@@ -266,14 +266,30 @@ class WeaponSystem {
   discs(w, dt, g, p) {
     if (!this.ready(w, dt, p)) return;
     const a = this.aim(g, p, 30); if (!a) return;
-    const lv = w.lv, n = 3 + (lv >= 3) + (lv >= 5) * 2, dm = 24 * (lv >= 2 ? 1.3 : 1);
-    w.cd = lv >= 4 ? 4 : 5.2;
-    const base = Math.atan2(a.dz, a.dx), col = this.col(w, p);
+    const C = WEAPONS[w.id].cfg || {}, lv = w.lv, n = (C.n || 3) + (lv >= 3) + (lv >= 5) * 2, dm = (C.dmg || 24) * (lv >= 2 ? 1.3 : 1);
+    w.cd = (C.cd || 5.2) * (lv >= 4 ? 0.77 : 1);
+    // Con pocos discos se lanzan en abanico hacia el enemigo; con muchos, en círculo
+    const base = Math.atan2(a.dz, a.dx), col = this.col(w, p), ring = n >= 3;
     for (let i = 0; i < n; i++) {
-      const ang = base + (i / n) * Math.PI * 2;
-      g.ki.fire(p.x, p.z, Math.cos(ang), Math.sin(ang), 17, dm * p.damageMul(), 0.9, false, 1.7, 99, 0, col, 2.8);
+      const ang = ring ? base + (i / n) * Math.PI * 2 : base + (i - (n - 1) / 2) * 0.22;
+      const crit = Math.random() < p.crit;
+      g.ki.fire(p.x, p.z, Math.cos(ang), Math.sin(ang), C.spd || 17, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.9, crit, C.life || 1.7, 99, 0, col, 2.8);
     }
     p.attack(a.dx, a.dz, true, g);
+  }
+
+  /* ----- Taiyoken (Krilin): destello que aturde a los enemigos cercanos ----- */
+  flare(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const lv = w.lv, r = 13 * (lv >= 4 ? 1.3 : 1);
+    if (g.horde.nearest(p.x, p.z, r * 0.7) < 0) return;
+    w.cd = lv >= 5 ? 6 : 9;
+    g.horde.stunRadius(p.x, p.z, r, lv >= 3 ? 3.5 : 2.5);
+    if (lv >= 2) g.horde.damageRadius(p.x, p.z, r, 18 * p.damageMul(), 2, g);
+    g.fx.ring(g.fx.sparks, p.x, 1.4, p.z, 70, r * 3, 0.35, 0.5, 0xffffff);
+    g.fx.burst(g.fx.aura, p.x, 2, p.z, 40, 12, 0.4, 0.6, 0, 0xfff8d0);
+    if (!Save.d.opt.flash) g.ui.flash = Math.max(g.ui.flash, 0.4);
+    g.ui.toast('¡TAIYOKEN!', true); SFX.play('crit');
   }
 
   /* ----- Pulso de Poder: onda circular ----- */
@@ -327,11 +343,11 @@ class WeaponSystem {
 
   /* ----- Guadaña Divina: tajo en arco ----- */
   scythe(w, dt, g, p) {
-    const lv = w.lv, r = 6 * (lv >= 4 ? 1.3 : 1), dm = 16 * (1 + 0.4 * (lv >= 2));
+    const C = WEAPONS[w.id].cfg || {}, lv = w.lv, r = (C.r || 6) * (lv >= 4 ? 1.3 : 1), dm = (C.dmg || 16) * (1 + 0.4 * (lv >= 2));
     if (w.pend > 0) { w.pend -= dt; if (w.pend <= 0) this.slash(g, p, -w.pdx, -w.pdz, r, dm, lv >= 5, this.col(w, p)); }
     if (!this.ready(w, dt, p)) return;
     const a = this.aim(g, p, r + 3); if (!a) return;
-    w.cd = 1.3;
+    w.cd = C.cd || 1.3;
     w.pdx = a.dx; w.pdz = a.dz;
     this.slash(g, p, a.dx, a.dz, r, dm, lv >= 5, this.col(w, p));
     if (lv >= 3) w.pend = 0.2;
@@ -386,11 +402,12 @@ class WeaponSystem {
 
   /* ----- Fusión de Black: doble tajo circular ----- */
   godslash(w, dt, g, p) {
-    const r = 9, dm = 46, col = this.col(w, p);
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv;
+    const r = (C.r || 9) * (lv >= 3 ? 1.2 : 1), dm = (C.dmg || 46) * (1 + 0.3 * (lv >= 2) + 0.3 * (lv >= 5)), col = this.col(w, p);
     if (w.pend > 0) { w.pend -= dt; if (w.pend <= 0) this.slash(g, p, -w.pdx, -w.pdz, r, dm, true, col); }
     if (!this.ready(w, dt, p)) return;
     const a = this.aim(g, p, r + 3); if (!a) return;
-    w.cd = 1.0; w.pdx = a.dx; w.pdz = a.dz; w.pend = 0.18;
+    w.cd = (C.cd || 1.0) * (lv >= 4 && C.cd ? 0.75 : 1); w.pdx = a.dx; w.pdz = a.dz; w.pend = 0.18;
     this.slash(g, p, a.dx, a.dz, r, dm, true, col);
     p.attack(a.dx, a.dz, true, g);
   }

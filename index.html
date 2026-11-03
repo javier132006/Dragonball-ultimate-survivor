@@ -503,6 +503,50 @@ html.touch #bossBox{top:56px}
 .card.fusion small{background:#ff4a3a;color:#fff}
 #tbLv{display:none;left:calc(50% + 66px);top:8px;width:42px;height:42px;font-size:13px;border-color:#7fe07a}
 @media (max-height:520px){#combo b{font-size:40px}#combo span{font-size:15px}#combo{right:10px;top:52%}.dr{grid-template-columns:1fr 1.4fr auto}}
+
+/* ---------- Rasgos de transformación, cartas de forma, desafío diario, récords y opciones ---------- */
+.trt{margin-top:3px;font-size:8px;letter-spacing:.3px;color:#ffd890;max-width:200px;line-height:1.35;text-shadow:1px 1px 0 #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pl .trt{display:block}@media (max-height:520px){#pl .trt{display:none}}
+.trt:empty{display:none}
+.trg{color:#8dff7a}.trb{color:#ff8a8a}
+.trait{display:flex;flex-direction:column;gap:2px;text-align:left;font-size:11px;margin-bottom:8px}.trait b{color:var(--yl)}
+.card.form{border-color:var(--yl)}.card.form .ci{background:radial-gradient(circle at 35% 30%,#fffbe0,#ffd23a 50%,#a86400)}
+.card.form p b{font-family:Orbitron,sans-serif;font-size:11px;color:#fff;text-shadow:none;letter-spacing:1px}
+.card.form p .trg,.card.form p .trb{display:inline-block;margin-top:4px;font-weight:700}
+.card.focus{border-color:#fff;box-shadow:0 0 0 3px #000,0 0 30px rgba(255,255,255,.75);transform:translateY(-6px)}
+.forms.ftl{flex-direction:column}.forms.ftl span{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline}.forms.ftl small{font-size:8px;letter-spacing:.3px}
+#tfBanner .trt{display:inline-flex;flex-direction:column;gap:3px;margin-top:12px;padding:8px 18px;max-width:none;font-style:normal;font-size:clamp(11px,1.6vw,16px);
+  background:rgba(0,0,0,.65);border:2px solid var(--c1,#ffe14a);transform:skewX(-10deg)}
+#tfBanner .trt u{text-decoration:none;font-family:var(--db);font-size:clamp(16px,2.2vw,26px);letter-spacing:2px;color:var(--c1,#ffe14a)}
+#abil{gap:8px}#wstrip{top:214px}
+.playbar .start.alt{font-size:18px;padding:12px 18px}#abil .ab{width:146px;font-size:13px;letter-spacing:1px}
+#controls{max-width:calc(50vw - 330px)}
+.hbtns .big{padding-top:7px;padding-bottom:7px}
+.hcard.daily{margin-bottom:12px;border-color:var(--yl)}.hcard.daily .start{font-size:16px;padding:10px 14px;width:100%;margin-top:8px}
+.mod{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px}.mod i{font-style:normal;font-size:18px;color:var(--yl);width:20px;text-align:center}
+.mod b{display:block;font-size:11px;color:#fff;letter-spacing:1px}.mod small{display:block;font-size:9px;color:#bfeaff;letter-spacing:.3px}
+.score{margin:0 0 10px;padding:8px 14px;border:2px solid var(--or);background:rgba(0,0,0,.35)}
+.score small{display:block;font-family:var(--db);font-size:16px;letter-spacing:3px;color:var(--yl)}
+.score b{display:block;font-family:var(--db);font-weight:400;font-size:44px;line-height:1;color:#fff;text-shadow:3px 3px 0 #000}
+.score span{display:block;font-size:9px;letter-spacing:1px;opacity:.75;margin-top:4px}
+.score.rec{border-color:var(--yl);box-shadow:0 0 22px rgba(255,210,60,.6);animation:pulse 1.2s infinite}
+.rank{display:flex;flex-direction:column;gap:6px;overflow-y:auto}
+.rr{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:12px;padding:8px 12px;background:rgba(8,12,30,.85);border:1px solid var(--line);font-size:11px}
+.rr em{font-family:var(--db);font-style:normal;font-size:24px;color:var(--yl);min-width:28px;text-align:center}.rr b{color:#fff}.rr>b{font-family:var(--db);font-weight:400;font-size:22px;color:var(--yl)}
+.rr.top0{border-color:#ffd84a;box-shadow:0 0 12px rgba(255,210,60,.4)}.rr.top1{border-color:#d8e4f0}.rr.top2{border-color:#e0a070}
+.item.opt.wide,.item.info.wide{grid-column:1/-1}
+.qbs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.qb,.tgl{font-size:14px;padding:7px 16px;background:linear-gradient(180deg,#2a3a7a,#121a44);color:#fff;border:2px solid var(--or)}
+.qb.on,.tgl.on{background:linear-gradient(180deg,#fff2a8,#ff9a00);color:#1a0800}
+#saveTxt{width:100%;height:64px;margin-top:8px;background:rgba(0,0,0,.45);color:#d9f6ff;border:1px solid var(--line);font:10px monospace;padding:6px;resize:vertical}
+.omsg{color:var(--yl)!important;font-weight:700!important}
+#tbBlk{right:calc(max(22px,env(safe-area-inset-right)) + 176px);bottom:18px;width:62px;height:62px;font-size:22px;border-color:#9be7ff}
+#tbTp{right:calc(max(22px,env(safe-area-inset-right)) + 200px);bottom:96px;width:58px;height:58px;font-size:22px;border-color:#c89aff}
+#tbTp.cd{opacity:.4}#tbBlk small,#tbTp small{font-size:7px;letter-spacing:.5px}
+#tbBase{display:none;left:calc(50% - 108px);font-size:11px}
+#tbTf:not(.ready){animation:none;box-shadow:0 0 0 2px #000}
+@media (max-width:900px){.rr{grid-template-columns:auto 1fr auto}.rr .dim{display:none}}
+@media (max-height:520px){#wstrip{top:112px}#abil .ab{width:120px}}
 </style>
 </head>
 <body>
@@ -513,7 +557,7 @@ html.touch #bossBox{top:56px}
   <div class="panel" id="pl">
     <div class="head">
       <div class="pframe"><canvas id="portrait" width="108" height="79"></canvas></div>
-      <div class="who"><div class="nm" id="chName">SON GOKU</div><div class="fm" id="formName">BASE</div><div class="pow">PODER <b id="power">0</b></div></div>
+      <div class="who"><div class="nm" id="chName">SON GOKU</div><div class="fm" id="formName">BASE</div><div class="pow">PODER <b id="power">0</b></div><div class="trt" id="trait"></div></div>
       <div class="lvl"><span class="dball"></span><b id="lvl">1</b><small>NV</small></div>
     </div>
     <div class="row"><span>VIDA</span><div class="bar hp"><i id="hpBar"></i><em id="hpTxt"></em></div></div>
@@ -537,12 +581,14 @@ html.touch #bossBox{top:56px}
   <div id="abil">
     <div class="ab" id="abDash"><div class="fill" id="dashFill"></div><span>DASH <b>[ESPACIO]</b></span></div>
     <div class="ab" id="abCharge"><span>CARGAR KI <b>[C]</b></span></div>
+    <div class="ab" id="abBlock"><div class="fill" id="blockFill"></div><span>BLOQUEAR <b>[SHIFT]</b></span></div>
+    <div class="ab" id="abTp"><div class="fill" id="tpFill"></div><span>TELETRANSP. <b>[F]</b></span></div>
   </div>
-  <div id="controls">WASD: mover · RATÓN: cámara · E: interactuar · G: transformarse · M: mapa · TAB: estadísticas · ESPACIO: dash · C: cargar ki · RUEDA: zoom · T: inclinación por defecto · P/ESC: pausa</div>
+  <div id="controls">WASD: mover · RATÓN: cámara · ESPACIO: dash · C: cargar ki · SHIFT: bloquear · F: teletransporte · G: transformarse · H: forma base · E: interactuar · M: mapa · TAB: estadísticas · P/ESC: pausa · También con mando</div>
   <div id="zoneBox"><div id="zoneName">HABITACIÓN DEL ESPÍRITU Y EL TIEMPO · <b id="zoneTxt">0%</b></div><div class="bar"><i id="zoneBar"></i></div></div>
   <div id="mmWrap"><canvas id="mm" width="140" height="140"></canvas><span class="mmLbl">RADAR</span></div>
   <div id="combo"><b id="comboN">0</b><span>COMBO</span><div class="cbar"><i id="comboBar"></i></div></div>
-  <div id="tfBtn"><span class="key">G</span><div><small>TRANSFORMACIÓN DISPONIBLE</small><b id="tfName"></b></div></div>
+  <div id="tfBtn"><span class="key">G</span><div><small id="tfSub">TRANSFORMACIÓN DISPONIBLE</small><b id="tfName"></b></div></div>
 </div>
 <div id="prompt"></div>
 <div id="feed"></div>
@@ -562,6 +608,9 @@ html.touch #bossBox{top:56px}
   <div class="tbt sm" id="tbPause">II</div>
   <div class="tbt sm" id="tbMap">◎</div>
   <div class="tbt" id="tbLv">NV+</div>
+  <div class="tbt" id="tbBlk">⛨<small>BLOQUEO</small></div>
+  <div class="tbt" id="tbTp">⇝<small>TELETR.</small></div>
+  <div class="tbt sm" id="tbBase">BASE</div>
 </div>
 <div id="rotate"><div class="phone"></div><b>GIRA EL MÓVIL</b><p>Este juego se juega en horizontal</p></div>
 
@@ -604,6 +653,7 @@ html.touch #bossBox{top:56px}
 <script src="js/ui.js"></script>
 <script src="js/transform.js"></script>
 <script src="js/touch.js"></script>
+<script src="js/pad.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

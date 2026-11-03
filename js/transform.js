@@ -50,6 +50,18 @@ const TRANSFORM_FX = {
     { c1: '#ffd400', c2: '#fff6c0', quote: 'Contempla mi forma dorada.', frames: 'WIBIC', charge: 2.0, fx: ['stars', 'ripple', 'bolts'], bolt: '#fff27a', shake: 0.8, kanji: 'ゴールデン' },
     { c1: '#6a4aff', c2: '#c8b8ff', quote: '...Inclinaos ante el emperador.', frames: 'BIBWBIC', charge: 2.4, fx: ['silence', 'shatter', 'bolts'], bolt: '#a080ff', shake: 1.1, kanji: '黒' }
   ],
+  krilin: [
+    null,
+    { c1: '#ffe86a', c2: '#fff8d0', quote: '¡Gracias, Gran Patriarca!', frames: 'WIC', charge: 1.5, fx: ['stars', 'bolts'], bolt: '#fff4a0', shake: 0.6, kanji: '潜在能力' },
+    { c1: '#ffb040', c2: '#ffe0a0', quote: '¡Yo también soy un guerrero Z!', frames: 'IWBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#ffd070', shake: 1.0, kanji: '戦士' },
+    { c1: '#ffffff', c2: '#ffe8b0', quote: '¡¡EL HUMANO MÁS FUERTE DE LA TIERRA!!', frames: 'BIWIBC', charge: 2.2, fx: ['rocks', 'cracks', 'quake', 'bolts'], bolt: '#ffffff', shake: 1.3, kanji: '最強の地球人' }
+  ],
+  trunks: [
+    null,
+    { c1: '#ffd400', c2: '#fff6a0', quote: '¡Por el futuro!', frames: 'WIBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#fff27a', shake: 1.0, kanji: '超サイヤ人' },
+    { c1: '#ffc400', c2: '#ffe8a0', quote: '¡¡HAAAAAAAA!!', frames: 'IWBIBC', charge: 2.1, fx: ['rocks', 'cracks', 'quake'], shake: 1.4, kanji: '超トランクス' },
+    { c1: '#9fe0ff', c2: '#ffffff', quote: '¡No os perdonaré jamás!', frames: 'BIWBIC', charge: 2.2, fx: ['bolts', 'slash', 'sparks', 'shatter'], bolt: '#bfeaff', shake: 1.3, kanji: '怒り' }
+  ],
   black: [
     null,
     { c1: '#ffd84a', c2: '#3a1a4a', quote: 'Contempla la belleza de un dios.', frames: 'IBC', charge: 1.6, fx: ['bolts', 'stars'], bolt: '#ffe890', shake: 0.6, kanji: '超サイヤ人' },
@@ -93,7 +105,7 @@ class TransformScene {
     g.ui.el.hud.classList.add('cine');
     // Sonido: grito sintetizado + carga, música atenuada
     SFX.setDuck(0.3);
-    SFX.scream(this.cfg.charge, { goku: 175, vegeta: 160, black: 150, piccolo: 120, gohan: 200, freezer: 230 }[p.ch.id] || 170);
+    SFX.scream(this.cfg.charge, { goku: 175, vegeta: 160, black: 150, piccolo: 120, gohan: 200, freezer: 230, krilin: 210, trunks: 185 }[p.ch.id] || 170);
     SFX.play('charge');
   }
 
@@ -149,8 +161,10 @@ class TransformScene {
     const g = this.g, p = g.player, col = parseInt(this.cfg.c1.slice(1), 16);
     this.swapped = true;
     SFX.play('impact');
-    p.setForm(this.to); g.applyForm();
-    p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
+    const first = !p.formSeen[this.to];
+    p.setForm(this.to); p.recompute(); g.applyForm();
+    p.formSeen[this.to] = true; p.tfCd = 0;
+    if (first) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);     // la curación solo la primera vez que alcanzas esa forma
     g.fx.ring(g.fx.aura, p.x, 0.4, p.z, 80, 30, 0.9, 0.5, col);
     g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 18, 0.9, 0.5, 2, col);
     g.horde.shockwave(p.x, p.z, 22, 40);
@@ -166,7 +180,9 @@ class TransformScene {
     SFX.play('stinger');
     const f = this.form, c = this.cfg;
     this.banner.style.setProperty('--c1', c.c1); this.banner.style.setProperty('--c2', c.c2);
-    this.banner.innerHTML = '<small>' + (c.kanji || '') + '</small><b>' + f.name + '</b><i>' + c.quote + '</i>';
+    const T = traitOf(this.g.player.ch, this.to);
+    this.banner.innerHTML = '<small>' + (c.kanji || '') + '</small><b>' + f.name + '</b><i>' + c.quote + '</i>' +
+      (T ? '<em class="trt"><u>' + T.name + '</u><span class="trg">✚ ' + T.good + '</span><span class="trb">✖ ' + T.bad + '</span></em>' : '');
   }
   /** Animación del cartel ligada al tiempo de la escena (va bien aunque el ordenador sea lento) */
   animBanner(t, impEnd) {
@@ -378,6 +394,11 @@ class TransformScene {
   /** Fotogramas de impacto: alto contraste, negativo, silueta y color */
   drawImpact(type, px, py, W, H, S, canvas) {
     const x = this.ctx, c = this.cfg;
+    if (Save.d.opt.flash) {                               // modo «reducir destellos»: velo suave de color y líneas
+      x.fillStyle = cssRgba(c.c1, 0.22); x.fillRect(0, 0, W, H);
+      this.speedLines(px, py, W, H, S, cssRgba(c.c2, 0.5), 50, 0.12);
+      return;
+    }
     if (type === 'I') {                                   // negativo en blanco y negro
       canvas.style.filter = 'grayscale(1) contrast(9) invert(1)';
       this.speedLines(px, py, W, H, S, 'rgba(0,0,0,.85)', 70, 0.12);

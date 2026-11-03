@@ -73,13 +73,16 @@ function makePoiTexture() {
 /* ---------- Gestor de puntos de interés ---------- */
 class Points {
   constructor(scene, tex) {
-    this.list = []; this.near = -1; this.rift = null; this.t = 0;
+    this.list = []; this.near = -1; this.rifts = []; this.t = 0;
     this.spr = new SpriteBatch(scene, { max: 40, texture: tex.poi, cols: 8, rows: 1, w: 3.2, h: 3.2, anchor: 0.04, renderOrder: 2 });
     this.glow = new SpriteBatch(scene, { max: 40, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, alpha: 0.2, cut: 0.02, renderOrder: 1 });
   }
-  reset() { this.list.length = 0; this.rift = null; this.near = -1; this.spr.reset(); this.glow.reset(); }
+  reset() { this.list.length = 0; this.rifts.length = 0; this.near = -1; this.spr.reset(); this.glow.reset(); }
   add(type, x, z) { this.list.push({ type, x, z, used: false, charge: 0, stock: null, rerolls: 0 }); }
-  openRift(x, z) { this.rift = { x, z }; }
+  /** Abre una grieta hacia el mapa `to` (color del brillo según el destino) */
+  openRift(x, z, to, col) { this.rifts.push({ x, z, to, col: col || 0xc050ff, near: false }); }
+  /** Grieta junto al jugador (o null) */
+  riftNear() { for (const r of this.rifts) if (r.near) return r; return null; }
 
   /** Coloca los puntos del mapa: separados entre sí y fuera de obstáculos */
   populate(world, stage) {
@@ -117,12 +120,12 @@ class Points {
       if (!o.used || o.type === 'merchant' || o.type === 'swapper') this.glow.push(o.x, 1, o.z, 0, 0, 0, 5 + Math.sin(this.t * 3 + i) * 0.5, 1, T.color);
     }
     this.near = best;
-    if (this.rift) {                                                // Grieta de Black
-      const r = this.rift, T = POI_TYPES.rift, dx = p.x - r.x, dz = p.z - r.z;
-      this.spr.push(r.x, 0.2, r.z, T.frame, 0, 0, T.scale * (1 + Math.sin(this.t * 3) * 0.05), 1);
-      this.glow.push(r.x, 2, r.z, 0, 0, 0, 9 + Math.sin(this.t * 4), 1, T.color);
+    for (const r of this.rifts) {                                   // Grietas de Black (una por destino)
+      const T = POI_TYPES.rift, dx = p.x - r.x, dz = p.z - r.z;
+      this.spr.push(r.x, 0.2, r.z, T.frame, 0, 0, T.scale * (1 + Math.sin(this.t * 3) * 0.05), 1, r.col === 0xc050ff ? undefined : r.col | 0x404040);
+      this.glow.push(r.x, 2, r.z, 0, 0, 0, 9 + Math.sin(this.t * 4), 1, r.col);
       const a = rand(0, 6.28);
-      g.fx.aura.emit(r.x + Math.cos(a) * 3, rand(0.5, 5), r.z + Math.sin(a) * 3, -Math.cos(a) * 2, rand(0, 2), -Math.sin(a) * 2, 0.8, 0.3, 0, 0xd070ff);
+      g.fx.aura.emit(r.x + Math.cos(a) * 3, rand(0.5, 5), r.z + Math.sin(a) * 3, -Math.cos(a) * 2, rand(0, 2), -Math.sin(a) * 2, 0.8, 0.3, 0, r.col);
       r.near = dx * dx + dz * dz < 20;
     }
     this.spr.end(); this.glow.end();

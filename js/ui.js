@@ -10,13 +10,13 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
-      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'goalL', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abBlock', 'blockFill', 'abTp', 'tpFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.flash = 0; this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0; this.wKey = ''; this.mmT = 0; this.lastBiome = -1;
-    this.tab = 'upgrades'; this.mtab = 'missions'; this.screen = 'home'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
-    this.cardHandlers = [];
+    this.tab = 'upgrades'; this.mtab = 'missions'; this.rtab = 'all'; this.screen = 'home'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
+    this.cardHandlers = []; this.cardFocus = 0; this.cardAt = 0; this.hudT = 0; this.optMsg = ''; this.impArmed = false;
     this.mmCtx = this.el.mm && this.el.mm.getContext ? this.el.mm.getContext('2d') : null;
   }
 
@@ -36,6 +36,11 @@ class UIManager {
       g.globalCompositeOperation = 'source-over';
     }
   }
+  /** Escribe texto/estilo solo si cambia (tocar el DOM en cada fotograma sin necesidad cuesta rendimiento) */
+  setT(el, v) { if (el._t !== v) { el._t = v; el.textContent = v; } }
+  setD(el, v) { if (el._d !== v) { el._d = v; el.style.display = v; } }
+  setC(el, v) { if (el._c !== v) { el._c = v; el.className = v; } }
+  setV(el, k, v) { const key = '_v' + k; if (el[key] !== v) { el[key] = v; el.style.setProperty(k, v); } }
   fatal(msg) { this.el.fatal.textContent = msg; this.el.fatal.style.display = 'flex'; }
 
   toast(text, small) {
@@ -55,56 +60,77 @@ class UIManager {
   showHud(on) { this.el.hud.style.display = on ? 'block' : 'none'; }
 
   update(game, dt) {
-    const p = game.player, e = this.el;
-    const sc = (el, v) => { el.style.transform = 'scaleX(' + clamp(v, 0, 1).toFixed(3) + ')'; };
+    const p = game.player, e = this.el, T = this.setT.bind(this), D = this.setD.bind(this);
+    const sc = (el, v) => { const k = clamp(v, 0, 1).toFixed(3); if (el._s !== k) { el._s = k; el.style.transform = 'scaleX(' + k + ')'; } };
     sc(e.hpBar, p.hp / p.maxHp); sc(e.kiBar, p.ki / p.maxKi); sc(e.xpBar, p.xp / p.xpNext);
-    e.hpTxt.textContent = Math.max(0, Math.ceil(p.hp)) + ' / ' + Math.ceil(p.maxHp);
-    e.kiTxt.textContent = Math.floor(p.ki) + ' / ' + p.maxKi;
-    e.xpTxt.textContent = Math.floor(p.xp) + ' / ' + p.xpNext;
-    e.lvl.textContent = p.level; e.formName.textContent = p.form.name; e.chName.textContent = p.ch.name;
-    e.formName.style.setProperty('--fc', '#' + (p.form.aura || 0xffe14a).toString(16).padStart(6, '0'));
-    // Nivel de poder (lectura del scouter): vida, ki, daño y nivel
-    e.power.textContent = Math.round((p.maxHp * 2 + p.maxKi) * p.damageMul() * (1 + p.level * 0.25) * 3).toLocaleString('es-ES');
-    // Aviso de transformación disponible
-    const nf = p.formReady >= 0 ? p.ch.forms[p.formReady] : null;
-    if (nf && game.state === 'play') { e.tfBtn.style.display = 'flex'; if (e.tfName.textContent !== nf.name) e.tfName.textContent = nf.name; e.tfBtn.style.setProperty('--fc', '#' + (nf.aura || 0xffe14a).toString(16).padStart(6, '0')); }
-    else e.tfBtn.style.display = 'none';
-    e.kills.textContent = game.kills; e.time.textContent = fmtTime(game.stageTime); e.horde.textContent = game.horde.n;
-    e.zeniHud.textContent = Math.floor(game.cash);
-    const S = game.stage;
-    e.stageName.textContent = (game.stageIdx + 1) + '/' + STAGES.length + ' · ' + S.name;
-    if (game.practice) { e.goalL.textContent = 'MODO'; e.goal.textContent = 'ENTRENAMIENTO'; e.goal.style.color = '#7fe07a'; }
-    else if (S.final) { e.goalL.textContent = 'OBJETIVO'; e.goal.textContent = 'DERROTA AL JEFE'; e.goal.style.color = '#ff6a8a'; }
-    else if (game.swarm) { e.goalL.textContent = 'ENJAMBRE'; e.goal.textContent = '¡ACTIVO! +' + fmtTime(game.stageTime - SWARM_TIME); e.goal.style.color = '#ff4d5e'; }
-    else { e.goalL.textContent = 'ENJAMBRE EN'; e.goal.textContent = fmtTime(Math.max(0, SWARM_TIME - game.stageTime)); e.goal.style.color = ''; }
-    e.diffName.textContent = game.diff.name + (game.chal ? ' · DESAFÍO ' + game.chal : ''); e.diffName.style.color = game.diff.color;
+    T(e.hpTxt, Math.max(0, Math.ceil(p.hp)) + ' / ' + Math.ceil(p.maxHp));
+    T(e.kiTxt, Math.floor(p.ki) + ' / ' + Math.round(p.maxKi));
+    T(e.xpTxt, Math.floor(p.xp) + ' / ' + p.xpNext);
+    T(e.lvl, String(p.level)); T(e.formName, p.form.name); T(e.chName, p.ch.name);
+    this.setV(e.formName, '--fc', '#' + (p.form.aura || 0xffe14a).toString(16).padStart(6, '0'));
+    T(e.trait, p.trait ? p.trait.name.toUpperCase() + ' · ✚ ' + p.trait.good + ' · ✖ ' + p.trait.bad : '');
+    if (e.trait._t !== e.trait.title) e.trait.title = e.trait._t;
+    // El resto del texto del HUD cambia poco: se refresca 10 veces por segundo
+    this.hudT -= dt;
+    const slow = this.hudT <= 0;
+    if (slow) {
+      this.hudT = 0.1;
+      // Nivel de poder (lectura del scouter): vida, ki, daño y nivel
+      T(e.power, Math.round((p.maxHp * 2 + p.maxKi) * p.damageMul() * (1 + p.level * 0.25) * 3).toLocaleString('es-ES'));
+      T(e.kills, String(game.kills)); T(e.time, fmtTime(game.stageTime)); T(e.horde, String(game.horde.n));
+      T(e.zeniHud, String(Math.floor(game.cash)));
+      const S = game.stage;
+      T(e.stageName, (game.step + 1) + '/' + ROUTE_LEN + ' · ' + S.name);
+      let gl, gv, gc = '';
+      if (game.practice) { gl = 'MODO'; gv = 'ENTRENAMIENTO'; gc = '#7fe07a'; }
+      else if (S.final) { gl = 'OBJETIVO'; gv = 'DERROTA AL JEFE'; gc = '#ff6a8a'; }
+      else if (S.bossAt && !game.bossSpawned) { gl = 'JEFE EN'; gv = fmtTime(Math.max(0, S.bossAt - game.stageTime)); gc = '#ff9ad8'; }
+      else if (game.swarm) { gl = 'ENJAMBRE'; gv = '¡ACTIVO! +' + fmtTime(game.stageTime - game.swarmAt()); gc = '#ff4d5e'; }
+      else { gl = 'ENJAMBRE EN'; gv = fmtTime(Math.max(0, game.swarmAt() - game.stageTime)); }
+      T(e.goalL, gl); T(e.goal, gv); this.setV(e.goal, 'color', gc);
+      T(e.diffName, (game.daily ? 'DESAFÍO DIARIO · ' : '') + game.diff.name + (game.chal ? ' · DESAFÍO ' + game.chal : '')); this.setV(e.diffName, 'color', game.diff.color);
+      T(e.balls, game.pickups.collected + ' / 7');
+      // Bioma actual (y si es de noche)
+      const b = biomeAt(p.x, p.z);
+      if (b !== this.lastBiome) { this.lastBiome = b; if (game.state === 'play' && game.time > 1) this.toast(BIOME_NAMES[b], true); }
+      T(e.biome, (game.night > 0.5 ? '☾ ' : '') + BIOME_NAMES[b]);
+    }
+    // Aviso de transformación disponible (o de que puedes cambiar de forma)
+    const nf = p.formReady >= 0 ? p.ch.forms[p.formReady] : null, can = game.canTransform();
+    if (game.state === 'play' && (nf || (can && p.formIdx === 0))) {
+      D(e.tfBtn, 'flex');
+      T(e.tfSub, nf ? 'TRANSFORMACIÓN DISPONIBLE' : 'PUEDES TRANSFORMARTE');
+      const f = nf || p.ch.forms[p.formOptions().slice(-1)[0]];
+      T(e.tfName, f.name); this.setV(e.tfBtn, '--fc', '#' + (f.aura || 0xffe14a).toString(16).padStart(6, '0'));
+    } else D(e.tfBtn, 'none');
     // Racha de combo
     if (game.combo >= 5) {
-      e.combo.style.display = 'block';
+      D(e.combo, 'block');
       if (e.comboN.textContent !== String(game.combo)) { e.comboN.textContent = game.combo; e.combo.classList.remove('bump'); void e.combo.offsetWidth; e.combo.classList.add('bump'); }
       sc(e.comboBar, game.comboT / 3);
-      e.combo.style.setProperty('--cc', game.combo >= 100 ? '#ff4a3a' : game.combo >= 50 ? '#ff9a00' : '#ffe14a');
-    } else e.combo.style.display = 'none';
+      this.setV(e.combo, '--cc', game.combo >= 100 ? '#ff4a3a' : game.combo >= 50 ? '#ff9a00' : '#ffe14a');
+    } else D(e.combo, 'none');
     // Barra de la Habitación del Tiempo
     const z = game.zoneBusy;
-    if (z && game.state === 'play') { e.zoneBox.style.display = 'block'; sc(e.zoneBar, z.charge); e.zoneTxt.textContent = Math.floor(z.charge * 100) + '%'; } else e.zoneBox.style.display = 'none';
-    this.updatePrompt(game); e.balls.textContent = game.pickups.collected + ' / 7';
+    if (z && game.state === 'play') { D(e.zoneBox, 'block'); sc(e.zoneBar, z.charge); T(e.zoneTxt, Math.floor(z.charge * 100) + '%'); } else D(e.zoneBox, 'none');
+    this.updatePrompt(game);
     this.flash = Math.max(0, this.flash - dt * 2.2);
     const lowHp = p.hp / p.maxHp < 0.3 ? 0.35 + Math.sin(game.time * 8) * 0.15 : 0;
-    e.vignette.style.opacity = Math.max(this.flash * 0.9, lowHp).toFixed(2);
-    e.dashFill.style.transform = 'scaleX(' + (1 - p.dashCd / CFG.DASH_CD).toFixed(2) + ')';
-    e.abDash.className = 'ab' + (p.ki < CFG.DASH_COST ? ' low' : '');
-    e.abCharge.className = 'ab' + (p.charging ? ' on' : '');
+    this.setV(e.vignette, 'opacity', Math.max(this.flash * 0.9, lowHp).toFixed(2));
+    sc(e.dashFill, 1 - p.dashCd / (CFG.DASH_CD * p.dashMul || 1));
+    this.setC(e.abDash, 'ab' + (p.ki < CFG.DASH_COST * p.dashCost ? ' low' : ''));
+    this.setC(e.abCharge, 'ab' + (p.charging ? ' on' : ''));
+    sc(e.blockFill, p.guardT > 0 ? 1 - p.guardT / 1.4 : 1);
+    this.setC(e.abBlock, 'ab' + (p.blocking ? ' on' : p.guardT > 0 || p.ki < 10 ? ' low' : ''));
+    sc(e.tpFill, 1 - p.tpCd / p.tpMax);
+    this.setC(e.abTp, 'ab' + (p.tpCd > 0 || p.ki < 35 ? ' low' : ''));
     // FPS suavizado
     this.fpsAcc += dt; this.fpsN++;
-    if (this.fpsAcc >= 0.5) { e.fps.textContent = Math.round(this.fpsN / this.fpsAcc); this.fpsAcc = 0; this.fpsN = 0; }
-    // Bioma actual
-    const b = biomeAt(p.x, p.z);
-    if (b !== this.lastBiome) { this.lastBiome = b; e.biome.textContent = BIOME_NAMES[b]; if (game.state === 'play' && game.time > 1) this.toast(BIOME_NAMES[b], true); }
+    if (this.fpsAcc >= 0.5) { T(e.fps, String(Math.round(this.fpsN / this.fpsAcc))); this.fpsAcc = 0; this.fpsN = 0; }
     // Barra del jefe
     const bi = game.bossUid ? game.horde.indexOfUid(game.bossUid) : -1;
-    if (bi >= 0) { e.bossBox.style.display = 'block'; sc(e.bossBar, game.horde.hp[bi] / game.horde.maxHp[bi]); }
-    else e.bossBox.style.display = 'none';
+    if (bi >= 0) { D(e.bossBox, 'block'); sc(e.bossBar, game.horde.hp[bi] / game.horde.maxHp[bi]); T(e.bossName, game.stage.boss.name + (game.phase ? ' · FASE ' + (game.phase + 1) : '')); }
+    else D(e.bossBox, 'none');
     this.updateStrip(game);
     this.mmT -= dt;
     if (this.mmT <= 0) { this.mmT = 0.1; this.drawMinimap(game, bi); if (game.showMap) this.paintMap(this.el.bigmapc.getContext('2d'), this.el.bigmapc.width, game, bi, true); }
@@ -113,9 +139,9 @@ class UIManager {
   /** Aviso "[E] abrir cápsula" con su precio cuando estás cerca de una */
   updatePrompt(game) {
     const e = this.el.prompt, info = game.state === 'play' ? game.promptInfo() : null;
-    if (!info) { e.style.display = 'none'; return; }
-    e.style.display = 'block'; e.className = info.ok ? '' : 'no';
-    if (e.textContent !== info.t) e.textContent = info.t;
+    if (!info) { this.setD(e, 'none'); return; }
+    this.setD(e, 'block'); this.setC(e, info.ok ? '' : 'no');
+    this.setT(e, info.t);
   }
 
   /** Iconos de armas y vitaminas equipadas (solo se reconstruye si cambian) */
@@ -159,11 +185,10 @@ class UIManager {
       g.fill(); g.stroke();
       if (big) { g.fillStyle = '#fff'; g.font = '10px Orbitron,monospace'; g.fillText(o.type === 'merchant' ? 'BULMA' : o.type === 'swapper' ? 'ROSHI' : o.type === 'boss' ? 'ALTAR' : o.type === 'time' ? 'TIEMPO' : 'TEMPLO', cx + s + 3, cy + 3); }
     }
-    const r = game.points.rift;
-    if (r) {
+    for (const r of game.points.rifts) {
       const pulse = 5 * k + Math.sin(t * 6) * 2;
-      g.fillStyle = '#d070ff'; g.strokeStyle = '#fff'; g.beginPath(); g.arc(X(r.x), X(r.z), pulse, 0, 6.3); g.fill(); g.stroke();
-      if (big) { g.fillStyle = '#fff'; g.font = '11px Orbitron,monospace'; g.fillText('GRIETA', X(r.x) + pulse + 3, X(r.z) + 3); }
+      g.fillStyle = '#' + r.col.toString(16).padStart(6, '0'); g.strokeStyle = '#fff'; g.beginPath(); g.arc(X(r.x), X(r.z), pulse, 0, 6.3); g.fill(); g.stroke();
+      if (big) { g.fillStyle = '#fff'; g.font = '11px Orbitron,monospace'; g.fillText('GRIETA · ' + STAGES[r.to].name, X(r.x) + pulse + 3, X(r.z) + 3); }
     }
     if (bossIdx >= 0) sq(game.horde.x[bossIdx], game.horde.z[bossIdx], 7 * k, '#ff3050');
     const ri = game.rivalUid ? game.horde.indexOfUid(game.rivalUid) : -1;
@@ -208,6 +233,14 @@ class UIManager {
     e.cardRow.innerHTML = h;
     this.cardHandlers = cards.map((c, i) => () => onPick(c, i));
     e.cards.classList.add('show');
+    this.cardAt = performance.now(); this.cardFocus = 0; this.focusCard(0);
+  }
+  /** Mueve el foco entre las cartas (flechas o mando) */
+  focusCard(d) {
+    const list = this.el.cardRow.children, n = list.length;
+    if (!n) return;
+    this.cardFocus = (this.cardFocus + d + n) % n;
+    for (let i = 0; i < n; i++) list[i].classList.toggle('focus', i === this.cardFocus);
   }
   pickCard(i) { const f = this.cardHandlers[i]; if (f) f(); }
   hideCards() { this.el.cards.classList.remove('show'); this.cardHandlers = []; }
@@ -232,11 +265,11 @@ class UIManager {
   }
 
   renderMenu() {
-    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES' };
+    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES', records: 'RÉCORDS' };
     e.zeniMenu.textContent = Save.d.zeni;
     e.menu.classList.toggle('ishome', s === 'home');
     e.menuNav.innerHTML = s === 'home' ? '' : '<button class="back" data-go="home">◂ VOLVER</button><h3>' + TITLES[s] + '</h3>';
-    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else this.renderMissions();
+    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else if (s === 'records') this.renderRecords(); else this.renderMissions();
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
   }
@@ -252,10 +285,19 @@ class UIManager {
       '<div class="hbtns"><button class="big play" data-go="play">▶ JUGAR<small>' + sel.name + ' · ' + d.name + '</small></button>' +
       '<button class="big" data-go="shop">TIENDA</button>' +
       '<button class="big" data-go="missions">MISIONES' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +
+      '<button class="big" data-go="records">RÉCORDS</button>' +
       '<button class="big" data-go="stats">ESTADÍSTICAS</button>' +
       '<button class="big" data-go="options">OPCIONES</button>' +
       '<button class="big ghost" data-exit>SALIR</button></div></div>' +
-      '<div class="hr"><div class="hcard"><h4>MISIONES DIARIAS</h4>' + daily + '<h4 style="margin-top:12px">RACHA</h4><p>' + Save.d.login.streak + ' día(s) seguidos</p></div></div></div>';
+      '<div class="hr">' + this.dailyCard() + '<div class="hcard"><h4>MISIONES DIARIAS</h4>' + daily + '<h4 style="margin-top:12px">RACHA</h4><p>' + Save.d.login.streak + ' día(s) seguidos</p></div></div></div>';
+  }
+  /** Tarjeta del desafío diario: modificadores de hoy, tu mejor puntuación y botón para jugar */
+  dailyCard() {
+    const mods = dailyMods(), D = Save.d.day && Save.d.day.date === todayStr() ? Save.d.day : null, sel = charById(Save.d.sel);
+    return '<div class="hcard daily"><h4>☀ DESAFÍO DIARIO · ' + todayStr().split('-').reverse().join('/') + '</h4>' +
+      mods.map((m) => '<div class="mod"><i>' + m.icon + '</i><div><b>' + m.name + '</b><small>' + m.text + '</small></div></div>').join('') +
+      '<p class="dim">Mapa del día, dificultad NORMAL. ' + (D ? 'Tu mejor marca hoy: <b>' + D.best.toLocaleString('es-ES') + '</b> (' + D.tries + ' intento' + (D.tries > 1 ? 's' : '') + ')' : 'Termínalo hoy: +300 monedas') + '</p>' +
+      '<button class="start" data-start="daily">JUGAR CON ' + sel.name + '</button></div>';
   }
 
   renderPlay() {
@@ -263,7 +305,7 @@ class UIManager {
     const d = Save.d.diff;
     const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '"><b>' + x.name + '</b><small>' + 'x' + x.coins + ' monedas · +' + x.reward + ' al ganar</small></button>').join('');
     const sel = charById(Save.d.sel);
-    this.el.menuBody.innerHTML += '<div class="dim" style="text-align:center">3 MAPAS · 10 MIN POR MAPA ANTES DEL ENJAMBRE FINAL · MATA AL JEFE PARA ABRIR LA GRIETA</div><div class="playbar"><div class="diffs">' + diffs + '</div><button class="start alt" data-start="practice">ENTRENAMIENTO</button><button class="start" data-start>JUGAR CON ' + sel.name + ' [ENTER]</button></div>';
+    this.el.menuBody.innerHTML += '<div class="dim" style="text-align:center">4 MAPAS POR PARTIDA · ELIGES CAMINO EN LA GRIETA · 10 MIN POR MAPA ANTES DEL ENJAMBRE FINAL · MATA AL JEFE PARA ABRIR LA GRIETA</div><div class="playbar"><div class="diffs">' + diffs + '</div><button class="start alt" data-start="practice">ENTRENAMIENTO</button><button class="start alt" data-start="daily">☀ DESAFÍO DIARIO</button><button class="start" data-start>JUGAR CON ' + sel.name + ' [ENTER]</button></div>';
     for (const cv of this.el.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
   }
 
@@ -289,7 +331,7 @@ class UIManager {
         '<h4>PASIVA · ' + v.passive.name + '</h4><p>' + v.passive.desc + '</p>' +
         '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +
         '<h4>TÉCNICAS (al subir de nivel)</h4>' + techs.map((id) => { const W = WEAPONS[id], lock = W.shop && !Save.d.techs.includes(id); return '<p class="' + (lock ? 'lockt' : '') + '"><i>' + W.icon + '</i> <b>' + W.name + '</b> · NV ' + (W.minLv || 2) + (lock ? ' · 🔒 en la tienda' : '') + '</p>'; }).join('') +
-        '<h4>TRANSFORMACIONES</h4><div class="forms">' + v.forms.map((f) => '<span>' + f.name + ' <em>NV ' + f.lvl + '</em></span>').join('') + '</div>' +
+        '<h4>TRANSFORMACIONES</h4><div class="forms ftl">' + v.forms.map((f, i) => { const T = traitOf(v, i); return '<span>' + f.name + ' <em>NV ' + f.lvl + '</em>' + (T ? '<small class="trg">✚ ' + T.good + '</small><small class="trb">✖ ' + T.bad + '</small>' : '') + '</span>'; }).join('') + '</div>' +
         (best ? '<h4>MEJOR PARTIDA</h4><p>' + fmtTime(best.time) + ' · ' + best.kills + ' enemigos · NV ' + best.level + '</p>' : '');
       if (!owned) det += '<button class="buy" data-buy="' + v.id + '"' + (Save.d.zeni < v.cost ? ' disabled' : '') + '>DESBLOQUEAR · ' + v.cost + ' ●</button>';
     }
@@ -339,17 +381,48 @@ class UIManager {
 
   /* ---------- Opciones: volumen ---------- */
   renderOptions() {
-    const v = Save.d.vol || { mus: 0.5, sfx: 0.75 }, sl = (k, name, val) => '<div class="item opt"><div><b>' + name + '</b><input type="range" min="0" max="100" value="' + Math.round(val * 100) + '" data-vol="' + k + '"></div><b>' + Math.round(val * 100) + '%</b></div>';
+    const v = Save.d.vol || { mus: 0.5, sfx: 0.75 }, O = Save.d.opt, sl = (k, name, val) => '<div class="item opt"><div><b>' + name + '</b><input type="range" min="0" max="100" value="' + Math.round(val * 100) + '" data-vol="' + k + '"></div><b>' + Math.round(val * 100) + '%</b></div>';
+    const qb = [['auto', 'AUTO'], ['high', 'ALTA'], ['medium', 'MEDIA'], ['low', 'BAJA']].map((q) => '<button class="qb' + (O.quality === q[0] ? ' on' : '') + '" data-q="' + q[0] + '">' + q[1] + '</button>').join('');
+    const pr = this.game && this.game.perf ? this.game.perf.pr : 1;
     this.el.menuBody.innerHTML = '<div class="shop">' + sl('mus', 'MÚSICA', v.mus) + sl('sfx', 'EFECTOS DE SONIDO', v.sfx) +
+      '<div class="item opt wide"><div><b>CALIDAD GRÁFICA</b><div class="qbs">' + qb + '</div><p>AUTO ajusta la resolución sola para mantener 60 FPS y quita las sombras si hace falta. BAJA: sin sombras, menos partículas y sin suavizado de bordes (este último, al recargar la página). Resolución actual: x' + pr.toFixed(2) + '</p></div></div>' +
+      '<div class="item opt"><div><b>REDUCIR DESTELLOS</b><p>Quita los fogonazos blancos/negros y los negativos de los impact frames.</p></div><button class="tgl' + (O.flash ? ' on' : '') + '" data-flash>' + (O.flash ? 'ACTIVADO' : 'DESACTIVADO') + '</button></div>' +
+      '<div class="item opt"><div><b>TEMBLOR DE PANTALLA</b><input type="range" min="0" max="100" value="' + Math.round(O.shake * 100) + '" data-shake></div><b>' + Math.round(O.shake * 100) + '%</b></div>' +
+      '<div class="item opt wide"><div><b>COPIA DE SEGURIDAD</b><p>Exporta tu progreso (se descarga un archivo y se copia el texto) o importa una copia pegando el texto o eligiendo el archivo.</p>' +
+      '<textarea id="saveTxt" spellcheck="false" placeholder="Aquí aparecerá el texto de la copia, o pega aquí una copia para importarla"></textarea>' +
+      '<div class="qbs"><button class="qb" data-exp>EXPORTAR</button><button class="qb" data-imp>IMPORTAR' + (this.impArmed ? ' (CONFIRMAR)' : '') + '</button><button class="qb" data-impfile>ELEGIR ARCHIVO…</button><input type="file" id="impFile" accept=".json,.txt,application/json" style="display:none"></div>' +
+      (this.optMsg ? '<p class="omsg">' + this.optMsg + '</p>' : '') + '</div></div>' +
+      '<div class="item info wide"><div><b>CONTROLES</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · SHIFT (o botón derecho) bloquear · F Transmisión Instantánea · G transformarse · H volver a la forma base · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
+      'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · LB/LT bloquear · RB/RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir y A para confirmar.</p></div></div>' +
       '<div class="item info"><div><b>SONIDO SINTETIZADO</b><p>Toda la música y los efectos se generan en el momento con Web Audio (sin archivos). En el móvil, el sonido se activa al tocar la pantalla por primera vez.</p></div></div></div>';
+    this.optMsg = '';
+  }
+
+  /* ---------- Récords: ranking local y desafíos diarios ---------- */
+  renderRecords() {
+    const tabs = '<div class="tabs"><button class="tab ' + (this.rtab === 'all' ? 'on' : '') + '" data-rtab="all">MEJORES PARTIDAS</button><button class="tab ' + (this.rtab === 'daily' ? 'on' : '') + '" data-rtab="daily">DESAFÍO DIARIO</button></div>';
+    let h = '';
+    if (this.rtab === 'daily') {
+      const list = Save.d.rank.filter((r) => r.daily);
+      h = '<div class="msplit"><div>' + this.dailyCard() + '</div><div><h4 class="sec">HISTORIAL (MEJOR MARCA DE CADA DÍA)</h4>' +
+        (Save.d.dayHist.length ? '<div class="rank">' + Save.d.dayHist.map((d) => '<div class="rr"><span>' + d.date.split('-').reverse().join('/') + '</span><span class="dim">' + (d.mods || []).join(' · ') + '</span><b>' + d.best.toLocaleString('es-ES') + '</b></div>').join('') + '</div>' : '<p class="dim">Aún no has jugado ningún desafío diario.</p>') +
+        (list.length ? '<h4 class="sec">TUS MEJORES DESAFÍOS</h4>' + this.rankTable(list) : '') + '</div></div>';
+    } else h = Save.d.rank.length ? this.rankTable(Save.d.rank) : '<p class="dim" style="text-align:center">Juega una partida para entrar en el ranking.</p>';
+    this.el.menuBody.innerHTML = tabs + h;
+  }
+  rankTable(list) {
+    return '<div class="rank">' + list.slice(0, 15).map((r, i) => {
+      const c = charById(r.ch);
+      return '<div class="rr' + (i < 3 ? ' top' + i : '') + '"><em>' + (i + 1) + '</em><span><b>' + (c ? c.name : r.ch) + '</b> · ' + r.date.split('-').reverse().join('/') + (r.daily ? ' · ☀' : '') + (r.win ? ' · ★ VICTORIA' : '') + '</span><span class="dim">' + r.kills + ' enemigos · NV ' + r.level + ' · mapa ' + r.step + '/' + ROUTE_LEN + ' · ' + fmtTime(r.time) + '</span><b>' + r.score.toLocaleString('es-ES') + '</b></div>';
+    }).join('') + '</div>';
   }
 
   /* ---------- Estadísticas acumuladas ---------- */
   renderStatsScreen() {
     const st = Save.d.stats, n = (k) => Math.floor(st[k] || 0);
-    const rows = [['PARTIDAS', n('runs')], ['VICTORIAS', n('wins')], ['TIEMPO JUGADO', fmtTime(n('time'))], ['MAPA MÁS LEJANO', n('maxStage') + ' / ' + STAGES.length], ['NIVEL MÁXIMO', n('maxLevel')],
+    const rows = [['PARTIDAS', n('runs')], ['VICTORIAS', n('wins')], ['TIEMPO JUGADO', fmtTime(n('time'))], ['MAPA MÁS LEJANO', n('maxStage') + ' / ' + ROUTE_LEN], ['NIVEL MÁXIMO', n('maxLevel')],
       ['ENEMIGOS DERROTADOS', n('kills')], ['ÉLITES', n('elites')], ['JEFES', n('bosses')], ['DAÑO TOTAL', n('damage')], ['DAÑO RECIBIDO', n('taken')], ['DASHES', n('dashes')],
-      ['CÁPSULAS ABIERTAS', n('capsules')], ['MALDICIONES', n('curses')], ['DESAFÍOS ACEPTADOS', n('temples')], ['HABITACIONES DEL TIEMPO', n('rooms')], ['DESEOS A SHENRON', n('wishes')], ['COMBO MÁXIMO', n('maxCombo')], ['GOLPE MÁS FUERTE', n('bestHit')], ['TRANSFORMACIONES', n('transforms')], ['FUSIONES', n('fusions')], ['EVENTOS', n('events')], ['RIVALES DERROTADOS', n('rivals')]];
+      ['CÁPSULAS ABIERTAS', n('capsules')], ['MALDICIONES', n('curses')], ['DESAFÍOS ACEPTADOS', n('temples')], ['HABITACIONES DEL TIEMPO', n('rooms')], ['DESEOS A SHENRON', n('wishes')], ['COMBO MÁXIMO', n('maxCombo')], ['GOLPE MÁS FUERTE', n('bestHit')], ['TRANSFORMACIONES', n('transforms')], ['FUSIONES', n('fusions')], ['EVENTOS', n('events')], ['RIVALES DERROTADOS', n('rivals')], ['BLOQUEOS PERFECTOS', n('perfects')], ['TELETRANSPORTES', n('tps')], ['DESAFÍOS DIARIOS', n('dailies')]];
     const best = CHARACTERS.filter((c) => Save.d.best[c.id]).map((c) => { const b = Save.d.best[c.id]; return '<div class="dm"><span>' + c.name + ' · ' + fmtTime(b.time) + ' · ' + b.kills + ' enemigos · NV ' + b.level + '</span></div>'; }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
     this.el.menuBody.innerHTML = '<div class="msplit"><div><div class="sec">TOTALES</div><div class="sum">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div></div><div><div class="sec">MEJORES PARTIDAS</div>' + best + '</div></div>';
   }

@@ -7,7 +7,7 @@
    ===================================================================== */
 
 /* Tiempo mínimo entre dos sonidos iguales (evita saturar con cientos de impactos) */
-const SFX_GAP = { hit: 0.045, ki: 0.06, xp: 0.05, zap: 0.07, crit: 0.12, boom: 0.08, hurt: 0.15, heal: 0.1, slash: 0.1, pulse: 0.1, coin: 0.06 };
+const SFX_GAP = { hit: 0.045, ki: 0.06, xp: 0.05, zap: 0.07, crit: 0.12, boom: 0.08, hurt: 0.15, heal: 0.1, slash: 0.1, pulse: 0.1, coin: 0.06, block: 0.08, warn: 0.25, tp: 0.1 };
 const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);         // número MIDI -> Hz
 
 class SoundEngine {
@@ -110,6 +110,13 @@ class SoundEngine {
   s_win(t) { this.arp(t, [72, 76, 79, 84, 79, 84, 88], 0.12, 'square', 0.06); }
   s_lose(t) { this.arp(t, [69, 65, 62, 57], 0.22, 'triangle', 0.08); }
   s_impact(t) { this.hiss('lowpass', 8000, 80, 0.5, t, 1.2, 0.4, null, 0.002); this.tone('sine', 70, 25, t, 1.0, 0.5); this.tone('square', 2000, 200, t, 0.15, 0.08); }
+  s_block(t) { this.tone('square', 520, 380, t, 0.08, 0.05); this.hiss('bandpass', 2500, 1500, 3, t, 0.08, 0.08); }
+  s_perfect(t) { this.tone('triangle', 1760, 2640, t, 0.18, 0.08); this.tone('sine', 880, 1320, t, 0.25, 0.06); this.hiss('highpass', 6000, 9000, 1, t, 0.15, 0.05); }
+  s_guard(t) { this.tone('sawtooth', 300, 70, t, 0.4, 0.1); this.hiss('lowpass', 1200, 150, 1, t, 0.35, 0.15); }
+  s_tp(t) { this.tone('sine', 2200, 400, t, 0.15, 0.06); this.tone('sine', 400, 2200, t + 0.08, 0.12, 0.05); }
+  s_phase(t) { this.tone('sawtooth', 70, 140, t, 1.2, 0.12, null, 0.05); this.hiss('lowpass', 3000, 100, 0.7, t, 1.2, 0.3, null, 0.01); [45, 51].forEach((n) => this.tone('square', NOTE(n), NOTE(n), t, 0.9, 0.04)); }
+  s_revert(t) { this.tone('sine', 660, 220, t, 0.4, 0.07); }
+  s_warn(t) { this.tone('square', 880, 880, t, 0.08, 0.04); this.tone('square', 880, 880, t + 0.14, 0.08, 0.04); }
   s_stinger(t) { [60, 64, 67, 72].forEach((n) => this.tone('sawtooth', NOTE(n), NOTE(n), t, 1.1, 0.035, null, 0.02)); this.tone('square', NOTE(84), NOTE(84), t, 0.6, 0.03); }
 
   /** Grito de transformación sintetizado: diente de sierra por dos filtros de formante ("A") con vibrato y subida de tono */

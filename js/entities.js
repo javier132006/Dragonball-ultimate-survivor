@@ -33,7 +33,10 @@ class Player {
     this.ch = ch;
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
     this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
-    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1;
+    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1;
+    // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
+    this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
+    this.egoStk = 0; this.auraT = 0; this.boltT = 0; this.tfCd = 0; this.formSeen = {}; this.trait = null; this.tr = {};
     this.initStats();
     this.hp = this.maxHp; this.ki = this.maxKi;
     this.canRevive = Save.lab('revive') > 0;
@@ -56,9 +59,15 @@ class Player {
     this.crit = 0.08 + 0.02 * L('crit'); this.critDmg = 2;
     this.rateMul = 1; this.regen = 0; this.armor = 0; this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.luck = 0;
     this.zeniMul = 1 + 0.1 * L('zeni');
-    // Pasivas de los personajes nuevos
+    this.armor = 0.02 * L('armor'); this.xpMul = 1 + 0.05 * L('xp'); this.luck = L('luck');
+    this.dashCost = 1; this.blockMul = 1 - 0.1 * L('block'); this.tpMax = 6 * (1 - 0.08 * L('tp'));
+    // Pasivas de los personajes
     if (ch.id === 'piccolo') this.regen += 1.5;
     if (ch.id === 'freezer') this.zeniMul += 0.25;
+    if (ch.id === 'krilin') { this.dodge += 0.12; this.dashMul *= 0.75; }
+    if (ch.id === 'trunks') { this.crit += 0.06; this.critDmg += 0.3; }
+    // Modificador del desafío diario «Cañón de cristal»
+    if (typeof game !== 'undefined' && game && game.mods && game.mods.glass) { this.maxHp = Math.round(this.maxHp * 0.6); this.statDmg += 0.5; }
   }
   /** Recalcula todo desde cero: base + vitaminas + objetos + mejoras temporales. Permite quitar o cambiar objetos */
   recompute() {
@@ -67,7 +76,8 @@ class Player {
     for (const s of STATS) for (let k = 0; k < (this.stacks[s.id] || 0); k++) s.apply(this);
     for (const id in this.items) { const it = itemById(id); for (let k = 0; k < this.items[id]; k++) it.apply(this); }
     for (const id of this.buffs) BUFFS[id].apply(this);
-    this.maxHp = Math.max(20, this.maxHp);
+    if (this.trait) applyTraitStats(this, this.trait);                 // rasgo de la transformación actual
+    this.maxHp = Math.max(20, Math.round(this.maxHp));
     this.hp = Math.min(this.maxHp, oh + Math.max(0, this.maxHp - om));
     this.ki = Math.min(this.maxKi, this.ki + Math.max(0, this.maxKi - ok));
   }
@@ -75,6 +85,13 @@ class Player {
   setForm(idx) {
     this.formIdx = idx; this.form = this.ch.forms[idx]; this.anim = this.form.anim;
     this.drawSheet = this.form.sheet; this.frame = this.anim.idle; this.atkFrame = this.anim.atk;
+    this.trait = traitOf(this.ch, idx); this.tr = (this.trait && this.trait.t) || {}; this.egoStk = 0;
+  }
+  /** Formas a las que puedes cambiar ahora (desbloqueadas por nivel y distintas de la actual) */
+  formOptions() {
+    const out = [];
+    for (let i = 1; i < this.ch.forms.length; i++) if (i !== this.formIdx && this.level >= this.ch.forms[i].lvl) out.push(i);
+    return out;
   }
 
   xpFor(level) { return Math.floor(6 + level * 3 + level * level * 0.35); }
@@ -85,23 +102,38 @@ class Player {
     if (this.ch.id === 'goku') m *= 1 + 0.015 * (this.level - 1);                     // Zenkai
     if (this.ch.id === 'vegeta' && this.ki >= this.maxKi * 0.8) m *= 1.25;           // Orgullo Saiyajin
     if (this.ch.id === 'gohan' && this.hp < this.maxHp * 0.5) m *= 1.4;               // Potencial oculto
+    if (this.tr.lowHp && this.hp < this.maxHp * 0.5) m *= 1 + this.tr.lowHp;          // rasgo: más daño con poca vida
+    if (this.egoStk) m *= 1 + this.egoStk;                                            // rasgo: Ego destructor
     return m * this.comboMul;                                                         // bonus de la racha de combos
   }
 
   /** Devuelve true si el golpe entra (para el empujón de los enemigos grandes) */
   takeDamage(amount, game) {
     if (this.iframes > 0 || game.state !== 'play') return false;
-    if (this.dodge > 0 && Math.random() < this.dodge) {            // esquiva (objetos)
+    // Rasgo Ultra Instinto: esquiva todo mientras quede Ki
+    if (this.tr.dodgeKi && this.ki >= this.tr.dodgeKi) { this.ki -= this.tr.dodgeKi; this.iframes = 0.35; game.onAutoDodge(); return false; }
+    if (this.dodge > 0 && Math.random() < this.dodge) {            // esquiva (objetos y rasgos)
       this.iframes = 0.3; game.ui.toast('ESQUIVA', true);
       game.fx.burst(game.fx.trail, this.x, 1, this.z, 8, 4, 0.4, 0.3, 0);
       return false;
     }
-    if (game.practice && this.hp - amount * (1 - this.armor) <= 1) { this.hp = this.maxHp; game.ui.toast('ENTRENAMIENTO · VIDA RESTAURADA', true); }
-    game.onPlayerHit();
-    SFX.play('hurt');
-    this.hp -= amount * (1 - this.armor);
-    this.iframes = 0.55; this.hurtT = 0.3;
-    game.run.taken += amount * (1 - this.armor);
+    // Bloqueo con Ki: perfecto (justo al empezar) = sin daño; normal = 70% menos gastando Ki; sin Ki = guardia rota
+    let blocked = false;
+    if (this.blocking) {
+      if (this.perfectT > 0) { this.iframes = 0.45; game.onPerfectBlock(); return false; }
+      const cost = 10 * this.blockMul;
+      if (this.ki >= cost) { this.ki -= cost; amount *= 0.3; blocked = true; }
+      else { this.guardT = 1.4; this.blocking = false; game.onGuardBreak(); }
+    }
+    const real = amount * (1 - this.armor);
+    if (game.practice && this.hp - real <= 1) { this.hp = this.maxHp; game.ui.toast('ENTRENAMIENTO · VIDA RESTAURADA', true); }
+    if (!blocked) game.onPlayerHit();                               // un golpe bloqueado no rompe el combo
+    SFX.play(blocked ? 'block' : 'hurt');
+    this.hp -= real;
+    this.iframes = blocked ? 0.3 : 0.55; this.hurtT = blocked ? 0 : 0.3;
+    if (this.tr.ego) this.egoStk = Math.min(this.tr.ego, this.egoStk + 0.03);
+    game.run.taken += real;
+    if (blocked) { game.fx.burst(game.fx.aura, this.x, 1.3, this.z, 10, 6, 0.3, 0.3, 0, 0x9be7ff); game.shake(0.15); return false; }
     game.ui.flash = 1;
     game.shake(0.45);
     game.hitstop = 0.04;
@@ -131,14 +163,35 @@ class Player {
     this.iframes = Math.max(0, this.iframes - dt); this.dashCd = Math.max(0, this.dashCd - dt);
     this.atkT = Math.max(0, this.atkT - dt); this.hurtT = Math.max(0, this.hurtT - dt); this.beamT = Math.max(0, this.beamT - dt);
     this.charging = !!keys.KeyC && this.dashT <= 0;
+    this.tpCd = Math.max(0, this.tpCd - dt); this.guardT = Math.max(0, this.guardT - dt); this.perfectT = Math.max(0, this.perfectT - dt); this.tfCd = Math.max(0, this.tfCd - dt);
+
+    // --- Bloqueo con Ki (SHIFT o botón derecho): ventana de bloqueo perfecto al empezar ---
+    const wantBlock = !!(keys.ShiftLeft || keys.ShiftRight || keys.Mouse2);
+    this.blocking = wantBlock && !this.charging && this.dashT <= 0 && this.guardT <= 0 && this.ki > 1;
+    if (this.blocking && !this.prevBlock) this.perfectT = 0.22;
+    this.prevBlock = this.blocking;
+    if (this.blocking) this.ki = Math.max(0, this.ki - 6 * this.blockMul * dt);
+
+    // --- Transmisión Instantánea (F): te teletransportas 14 m hacia donde te mueves ---
+    const fKey = !!keys.KeyF;
+    if (fKey && !this.prevF && this.tpCd <= 0 && this.ki >= 35 && !this.charging && this.dashT <= 0) {
+      const dx = il > 0 ? wx : (this.flip ? -game.camCos : game.camCos), dz = il > 0 ? wz : (this.flip ? game.camSin : -game.camSin);
+      const ox = this.x, oz = this.z, lim = CFG.ARENA - 1;
+      game.world.push(clamp(this.x + dx * 14, -lim, lim), clamp(this.z + dz * 14, -lim, lim), CFG.PLAYER_R);
+      this.x = game.world.px; this.z = game.world.pz; this.vx = 0; this.vz = 0;
+      this.ki -= 35; this.tpCd = this.tpMax; this.iframes = Math.max(this.iframes, 0.45);
+      game.onTeleport(ox, oz, this.x, this.z);
+    }
+    this.prevF = fKey;
 
     // --- Dash / Shunkan Ido: solo en el flanco de bajada de ESPACIO ---
     const space = !!keys.Space;
-    if (space && !this.prevSpace && this.dashT <= 0 && this.dashCd <= 0 && this.ki >= CFG.DASH_COST && !this.charging) {
+    const dashCost = CFG.DASH_COST * this.dashCost;
+    if (space && !this.prevSpace && this.dashT <= 0 && this.dashCd <= 0 && this.ki >= dashCost && !this.charging) {
       this.dashX = il > 0 ? wx : (this.flip ? -game.camCos : game.camCos);
       this.dashZ = il > 0 ? wz : (this.flip ? this.dashZ * 0 + game.camSin : -game.camSin);
       this.dashT = CFG.DASH_TIME; this.dashCd = CFG.DASH_CD * this.dashMul; this.ghostT = 0;
-      this.ki -= CFG.DASH_COST; game.run.dashes++; SFX.play('dash');
+      this.ki -= dashCost; game.run.dashes++; SFX.play('dash');
       this.dashT *= this.dashBoost > 1 ? 1.25 : 1;                 // gravedad baja: dash más largo
       this.iframes = Math.max(this.iframes, CFG.DASH_TIME + 0.1);
       game.fx.burst(game.fx.trail, this.x, 0.8, this.z, 12, 5, 0.5, 0.6, 0);
@@ -148,7 +201,7 @@ class Player {
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow;
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * this.grav * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1);
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
@@ -172,10 +225,11 @@ class Player {
     if (this.moving && this.atkT <= 0 && this.beamT <= 0) this.flip = this.vx * game.camCos - this.vz * game.camSin < 0 ? 1 : 0;
 
     // --- Ki, vida y carga táctica ---
-    this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
+    if (!game.mods.noregen) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
+    this.traitTick(dt, game);
     if (this.charging) {
       this.ki = Math.min(this.maxKi, this.ki + 35 * dt);
-      this.hp = Math.min(this.maxHp, this.hp + 6 * dt);
+      if (!game.mods.noregen) this.hp = Math.min(this.maxHp, this.hp + 6 * dt);
       const n = Math.max(1, Math.round(dt * 130)), ac = this.form.aura || 0xfff2b0;
       for (let i = 0; i < n; i++) {
         const a = rand(0, 6.28), r = rand(0.9, 1.6);
@@ -188,7 +242,7 @@ class Player {
         game.fx.ring(game.fx.aura, this.x, 0.5, this.z, 40, 15, 0.45, 0.3, ac);
         game.shake(0.14);
       }
-    } else { this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }
+    } else { if (!this.blocking && !this.tr.kiDrain) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
 
     // --- Aura continua de la transformación (el Kaio-ken la tiñe de rojo) ---
     if (this.form.aura || this.buffT > 0) {
@@ -199,6 +253,42 @@ class Player {
       }
     }
     this.pose();
+  }
+
+  /** Efectos continuos del rasgo de la forma: gasto de Ki o vida, aura que quema y rayos */
+  traitTick(dt, game) {
+    const T = this.tr;
+    if (T.kiDrain) {
+      this.ki = Math.max(0, this.ki - T.kiDrain * dt);
+      if (this.ki <= 0 && this.formIdx > 0) { game.revertForm('¡SIN KI! PIERDES LA TRANSFORMACIÓN'); return; }
+    }
+    if (T.hpDrain && this.hp > this.maxHp * 0.15) this.hp = Math.max(this.maxHp * 0.15, this.hp - this.maxHp * T.hpDrain * dt);
+    if (T.aura) {
+      this.auraT -= dt;
+      if (this.auraT <= 0) {
+        this.auraT = 0.5; DMG_SRC = 'aura';
+        game.horde.damageRadius(this.x, this.z, 4.5, T.aura * 0.5 * this.damageMul(), 3, game);
+        DMG_SRC = 'otros';
+        game.fx.ring(game.fx.aura, this.x, 0.3, this.z, 16, 9, 0.3, 0.3, this.form.aura || 0xffffff);
+      }
+    }
+    if (T.bolt) {
+      this.boltT -= dt;
+      if (this.boltT <= 0) {
+        this.boltT = 1.4;
+        const h = game.horde, col = this.form.ki;
+        let hits = 0;
+        for (let k = 0; k < 24 && hits < 3 && h.n; k++) {
+          const j = (Math.random() * h.n) | 0, ex = h.x[j] - this.x, ez = h.z[j] - this.z;
+          if (h.hp[j] <= 0 || ex * ex + ez * ez > 196) continue;
+          hits++; DMG_SRC = 'bolt';
+          h.hurt(j, T.bolt * this.damageMul(), 0, 0, game);
+          for (let s = 0; s <= 6; s++) game.fx.sparks.emit(this.x + ex * s / 6 + rand(-0.4, 0.4), 1.4 + rand(-0.3, 0.6), this.z + ez * s / 6 + rand(-0.4, 0.4), 0, 0, 0, 0.18, 0.45, 0, col);
+        }
+        DMG_SRC = 'otros';
+        if (hits) SFX.play('zap');
+      }
+    }
   }
 
   /** Elige hoja y fotograma según el estado */
@@ -242,6 +332,8 @@ class Player {
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
     this.shield.begin();
     if (this.charging) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 5 * (1 + Math.sin(this.animT * 12) * 0.05), 1);
+    if (this.blocking) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 3.6 * (1 + Math.sin(this.animT * 20) * 0.04), this.perfectT > 0 ? 1.6 : 1, this.perfectT > 0 ? 0xffffff : 0x9be7ff);
+    else if (this.guardT > 0 && ((this.animT * 10) | 0) % 2) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 3, 0.6, 0xff4060);
     this.shield.end();
     shadows.push(this.x, 0.06, this.z, 0, 0, 0, 2.5 * (1 - y * 0.3), alpha);
   }
@@ -254,6 +346,7 @@ class HordeManager {
     const f = () => new Float32Array(max);
     this.x = f(); this.z = f(); this.hp = f(); this.maxHp = f(); this.hitT = f(); this.kx = f(); this.kz = f(); this.phase = f(); this.flip = f();
     this.type = new Uint8Array(max); this.uid = new Int32Array(max);
+    this.stun = f(); this.aux = f(); this.shield = new Uint8Array(max);       // aturdimiento, temporizador propio y escudo
     this.half = CFG.ARENA + 8;
     this.cols = Math.ceil((this.half * 2) / CFG.CELL);
     this.heads = new Int32Array(this.cols * this.cols).fill(-1);
@@ -277,6 +370,7 @@ class HordeManager {
     const i = this.n++;
     this.x[i] = x; this.z[i] = z; this.hp[i] = hp; this.maxHp[i] = hp; this.hitT[i] = 0; this.kx[i] = 0; this.kz[i] = 0;
     this.phase[i] = rand(0, 40); this.flip[i] = 0; this.type[i] = type; this.uid[i] = this.uidNext++;
+    this.stun[i] = 0; this.aux[i] = rand(1.5, 4); this.shield[i] = ENEMY_TYPES[type].shield || 0;
     return i;
   }
   remove(i) {
@@ -284,19 +378,37 @@ class HordeManager {
     this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.hp[i] = this.hp[l]; this.maxHp[i] = this.maxHp[l]; this.hitT[i] = this.hitT[l];
     this.kx[i] = this.kx[l]; this.kz[i] = this.kz[l]; this.phase[i] = this.phase[l]; this.flip[i] = this.flip[l];
     this.type[i] = this.type[l]; this.uid[i] = this.uid[l];
+    this.stun[i] = this.stun[l]; this.aux[i] = this.aux[l]; this.shield[i] = this.shield[l];
   }
   indexOfUid(u) { for (let i = 0; i < this.n; i++) if (this.uid[i] === u) return i; return -1; }
 
   update(dt, player, game) {
     const n = this.n, x = this.x, z = this.z, kx = this.kx, kz = this.kz, heads = this.heads, next = this.next, cols = this.cols, world = game.world;
     const px = player.x, pz = player.z, lim = CFG.ARENA + 2, kd = Math.exp(-7 * dt), dmg = game.enemyDamage(), cc = game.camCos, cs = game.camSin;
+    const shots = game.shots, t = game.time;
     for (let i = 0; i < n; i++) {
       const T = ENEMY_TYPES[this.type[i]], xi = x[i], zi = z[i], sepR = T.r * 1.8, sepR2 = sepR * sepR;
       let dx = px - xi, dz = pz - zi;
       const d = Math.sqrt(dx * dx + dz * dz) + 1e-4;
       dx /= d; dz /= d;
+      if (this.hitT[i] > 0) this.hitT[i] -= dt;
+      // Aturdido (Taiyoken): solo le afecta el empujón
+      if (this.stun[i] > 0) {
+        this.stun[i] -= dt;
+        world.push(clamp(xi + kx[i] * dt, -lim, lim), clamp(zi + kz[i] * dt, -lim, lim), T.r * 0.8);
+        x[i] = world.px; z[i] = world.pz; kx[i] *= kd; kz[i] *= kd;
+        continue;
+      }
       const sp = this.speed * T.spd;
       let vx = dx * sp, vz = dz * sp, sx = 0, sz = 0;
+      if (T.fly) {                                              // volador: mantiene la distancia, rodea y dispara
+        const side = (this.uid[i] & 1) ? 1 : -1;
+        if (d < 8) { vx = -vx; vz = -vz; } else if (d < 12) { vx = -dz * sp * side; vz = dx * sp * side; }
+        this.aux[i] -= dt;
+        if (this.aux[i] <= 0 && d < 24) { this.aux[i] = rand(2.6, 4); shots.fire(xi, zi, dx, dz, 12, dmg * 0.8); }
+      } else if (T.boom && d < CFG.PLAYER_R + T.r + 0.5 && this.hp[i] > 0) {   // kamikaze: explota al llegar
+        this.aux[i] = -99; this.hp[i] = 0; continue;
+      } else if (T.boom && d < 7 && ((t * 10) | 0) % 2) this.hitT[i] = 0.06;      // parpadea antes de explotar
       const c = this.cellOf(xi, zi), cx = c % cols, cz = (c / cols) | 0;
       for (let gz = cz - 1; gz <= cz + 1; gz++) {
         if (gz < 0 || gz >= cols) continue;
@@ -311,18 +423,21 @@ class HordeManager {
       }
       vx += sx * 5 + kx[i]; vz += sz * 5 + kz[i];
       kx[i] *= kd; kz[i] *= kd;
-      world.push(clamp(xi + vx * dt, -lim, lim), clamp(zi + vz * dt, -lim, lim), T.r * 0.8);   // esquiva rocas, árboles y mesetas
-      x[i] = world.px; z[i] = world.pz;
+      if (T.fly) { x[i] = clamp(xi + vx * dt, -lim, lim); z[i] = clamp(zi + vz * dt, -lim, lim); }    // vuela por encima de todo
+      else { world.push(clamp(xi + vx * dt, -lim, lim), clamp(zi + vz * dt, -lim, lim), T.r * 0.8); x[i] = world.px; z[i] = world.pz; }   // esquiva rocas, árboles y mesetas
       this.flip[i] = dx * cc - dz * cs < 0 ? 1 : 0;
       this.phase[i] += dt * 8 * (0.6 + T.spd * 0.4);
-      if (this.hitT[i] > 0) this.hitT[i] -= dt;
-      if (d < CFG.PLAYER_R + T.r + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game) && T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6); }
+      if (!T.fly && d < CFG.PLAYER_R + T.r + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game) && T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6); }
     }
   }
 
   /** Aplica daño a un enemigo (la retirada se hace después, en reap) */
-  hurt(i, dmg, kx, kz, game) {
+  hurt(i, dmg, kx, kz, game, area) {
     if (this.hp[i] <= 0) return;
+    if (this.shield[i] > 0) {                                     // Blindado: el escudo absorbe el golpe (las explosiones lo rompen)
+      if (area) this.shield[i] = 0; else { this.shield[i]--; dmg *= 0.1; game.fx.burst(game.fx.sparks, this.x[i], 1.3, this.z[i], 4, 5, 0.25, 0.3, 0, 0x8ab0ff); }
+    }
+    if (this.type[i] === T_BOSS && game.bossInv > 0) dmg *= 0.1;  // el jefe cambiando de fase apenas recibe daño
     const real = Math.min(dmg, this.hp[i]), R = game.run;
     R.damage += real; if (dmg > R.best) R.best = dmg;
     R.byW[DMG_SRC] = (R.byW[DMG_SRC] || 0) + real;
@@ -377,7 +492,7 @@ class HordeManager {
         for (let j = this.heads[gz * cols + gx]; j !== -1; j = this.next[j]) {
           if (j >= this.n || this.hp[j] <= 0) continue;
           const dx = this.x[j] - px, dz = this.z[j] - pz, rr = r + ENEMY_TYPES[this.type[j]].r, d2 = dx * dx + dz * dz;
-          if (d2 < rr * rr) { const d = Math.sqrt(d2) || 1; this.hurt(j, dmg, (dx / d) * knock, (dz / d) * knock, game); }
+          if (d2 < rr * rr) { const d = Math.sqrt(d2) || 1; this.hurt(j, dmg, (dx / d) * knock, (dz / d) * knock, game, true); }
         }
       }
     }
@@ -409,17 +524,35 @@ class HordeManager {
       if (d2 < r2 && d2 > 1e-6) { const d = Math.sqrt(d2), f = force * (1.2 - d / radius) * (this.type[i] === 3 ? 0.15 : 1); this.kx[i] += (dx / d) * f; this.kz[i] += (dz / d) * f; }
     }
   }
+  /** Aturde a los enemigos en un radio (los jefes, mucho menos) */
+  stunRadius(px, pz, r, t) {
+    const r2 = r * r;
+    for (let i = 0; i < this.n; i++) {
+      const dx = this.x[i] - px, dz = this.z[i] - pz;
+      if (dx * dx + dz * dz < r2) this.stun[i] = Math.max(this.stun[i], this.type[i] === T_BOSS ? t * 0.25 : t);
+    }
+  }
   reap(game) {
-    for (let i = this.n - 1; i >= 0; i--) if (this.hp[i] <= 0) { game.onEnemyKilled(this.x[i], this.z[i], this.type[i], this.uid[i]); this.remove(i); }
+    for (let i = this.n - 1; i >= 0; i--) {
+      if (this.hp[i] > 0) continue;
+      const x = this.x[i], z = this.z[i], ty = this.type[i], self = ty === T_BOOM && this.aux[i] === -99, uid = this.uid[i];
+      this.remove(i);
+      if (self) game.onKamikaze(x, z);                           // explotó contra ti: sin recompensa
+      else { game.onEnemyKilled(x, z, ty, uid); if (ty === T_BOOM) game.kamikazeChain(x, z); }
+    }
   }
 
   sync(shadows) {
     const sb = this.sb, walk = A_STD.walk;
     sb.begin();
     for (let i = 0; i < this.n; i++) {
-      const T = ENEMY_TYPES[this.type[i]], ph = this.phase[i], hit = this.hitT[i] > 0 ? this.hitT[i] : 0;
-      sb.push(this.x[i], Math.abs(Math.sin(ph * 1.1)) * 0.14 * T.scale, this.z[i], walk[(ph | 0) % walk.length], this.flip[i], hit * 8, T.scale * (1 + hit * 1.2), 1, this.tints[this.type[i]]);
-      shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, 1.9 * T.scale, 1);
+      const ty = this.type[i], T = ENEMY_TYPES[ty], ph = this.phase[i], hit = this.hitT[i] > 0 ? this.hitT[i] : 0, st = this.stun[i] > 0;
+      let y = st ? 0 : Math.abs(Math.sin(ph * 1.1)) * 0.14 * T.scale, tint = this.tints[ty];
+      if (T.fly) y = 2.2 + Math.sin(ph * 0.5) * 0.3;
+      if (T.shield) tint = this.shield[i] > 0 ? 0xbfe0ff : 0x6a7898;
+      if (st) tint = 0x9a9aff;
+      sb.push(this.x[i], y, this.z[i], st ? walk[0] : walk[(ph | 0) % walk.length], this.flip[i], hit * 8, T.scale * (1 + hit * 1.2), 1, tint);
+      shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, (T.fly ? 1.2 : 1.9) * T.scale, T.fly ? 0.6 : 1);
     }
     sb.end();
   }
@@ -609,10 +742,17 @@ class Capsules {
 /* ---------- Disparos enemigos (los jefes): pool de 100 ---------- */
 class EnemyShots {
   constructor(scene, tex) {
-    this.max = 100; this.s = [];
+    this.max = 140; this.s = [];
     for (let i = 0; i < this.max; i++) this.s.push({ on: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, dmg: 0 });
     this.sb = new SpriteBatch(scene, { max: this.max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
+    // Zonas marcadas en el suelo (explotan tras el aviso) y rayos con aviso de los jefes
+    this.marks = []; for (let i = 0; i < 24; i++) this.marks.push({ on: false, x: 0, z: 0, r: 3, t: 0, T: 1, dmg: 0 });
+    this.lines = []; for (let i = 0; i < 6; i++) this.lines.push({ on: false, x: 0, z: 0, dx: 1, dz: 0, len: 30, hw: 1.4, t: 0, fire: 0, dmg: 0, hit: false });
+    this.mb = new SpriteBatch(scene, { max: 24, texture: tex.ring, w: 2, h: 2, anchor: 0.5, flat: true, additive: true, cut: 0.02, renderOrder: 4 });
+    this.lb = new SpriteBatch(scene, { max: 400, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
   }
+  mark(x, z, r, delay, dmg) { for (const m of this.marks) if (!m.on) { m.on = true; m.x = x; m.z = z; m.r = r; m.t = m.T = delay; m.dmg = dmg; return; } }
+  line(x, z, dx, dz, len, hw, warn, dmg) { for (const l of this.lines) if (!l.on) { l.on = true; l.x = x; l.z = z; l.dx = dx; l.dz = dz; l.len = len; l.hw = hw; l.t = warn; l.fire = 0.45; l.dmg = dmg; l.hit = false; return; } }
   fire(x, z, dx, dz, speed, dmg) {
     for (const s of this.s) if (!s.on) { s.on = true; s.x = x; s.z = z; s.vx = dx * speed; s.vz = dz * speed; s.life = 5; s.dmg = dmg; return; }
   }
@@ -630,6 +770,44 @@ class EnemyShots {
       this.sb.push(s.x, 1.3, s.z, 0, 0, 0, 1.5, 1, 0xff5070);
     }
     this.sb.end();
+    // Zonas marcadas: el círculo se cierra y explota
+    this.mb.begin();
+    for (const m of this.marks) {
+      if (!m.on) continue;
+      m.t -= dt;
+      if (m.t <= 0) {
+        m.on = false;
+        const dx = p.x - m.x, dz = p.z - m.z;
+        if (dx * dx + dz * dz < m.r * m.r) p.takeDamage(m.dmg, game);
+        game.fx.burst(game.fx.sparks, m.x, 0.8, m.z, 18, m.r * 2.5, 0.45, 0.4, 6, 0xff4060);
+        game.fx.ring(game.fx.aura, m.x, 0.3, m.z, 22, m.r * 3, 0.35, 0.35, 0xff6040);
+        SFX.play('boom');
+        continue;
+      }
+      const k = 1 - m.t / m.T;
+      this.mb.push(m.x, 0.12, m.z, 0, 0, 0, m.r, 0.5 + k * 0.5, 0xff3050);
+      this.mb.push(m.x, 0.13, m.z, 0, 0, 0, m.r * k, 0.9, 0xffb040);
+    }
+    this.mb.end();
+    // Rayos: línea fina de aviso y luego el disparo
+    this.lb.begin();
+    for (const l of this.lines) {
+      if (!l.on) continue;
+      if (l.t > 0) l.t -= dt; else l.fire -= dt;
+      if (l.fire <= 0) { l.on = false; continue; }
+      const firing = l.t <= 0;
+      if (firing && !l.hit) {
+        l.hit = true; game.shake(0.5); SFX.play('bigbeam');
+        const ex = p.x - l.x, ez = p.z - l.z, tt = ex * l.dx + ez * l.dz;
+        if (tt > -1 && tt < l.len && Math.abs(ex * l.dz - ez * l.dx) < l.hw + CFG.PLAYER_R) p.takeDamage(l.dmg, game);
+      }
+      for (let s = 0.8; s < l.len; s += firing ? 0.9 : 1.6) {
+        const bx = l.x + l.dx * s, bz = l.z + l.dz * s;
+        if (firing) { this.lb.push(bx, 1.4, bz, 0, 0, 0, l.hw * 2.4, 0.35, 0xff4070); this.lb.push(bx, 1.4, bz, 0, 0, 0, l.hw, 0.6, 0xffffff); }
+        else this.lb.push(bx, 0.3, bz, 0, 0, 0, 0.5, 0.5 + 0.5 * Math.sin(game.time * 30), 0xff3050);
+      }
+    }
+    this.lb.end();
   }
-  reset() { for (const s of this.s) s.on = false; this.sb.reset(); }
+  reset() { for (const s of this.s) s.on = false; for (const m of this.marks) m.on = false; for (const l of this.lines) l.on = false; this.sb.reset(); this.mb.reset(); this.lb.reset(); }
 }

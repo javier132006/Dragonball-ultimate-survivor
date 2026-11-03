@@ -27,8 +27,18 @@ const THEMES = [
     mesas: [0x4f9f78, 0x3d8f9a, 0x6aa88f], rim: 0x3f8f70, rock: 0x5f9f88, pebble: 0x58a890, trunk: 0x6b8f5a, crown: 0x8be8b0, dead: 0x4a6b52, pillar: 0xa8c8b8, crater: 0x1f6a58, lake: 0x35e0a8, crystal: 0xffa0e8 },
   { seed: 99087, names: ['VACÍO', 'RUINAS', 'GRIETA', 'ABISMO'], cols: [[0.3, 0.22, 0.44], [0.24, 0.18, 0.38], [0.44, 0.17, 0.38], [0.28, 0.28, 0.42]],
     bg: 0x140a24, fog: 0x1a0e30, fogRange: [40, 150], hemi: [0xc8a0ff, 0x30184a, 0.55], sun: 0.5, tex: '#8a78a8',
-    mesas: [0x3a2a58, 0x56306a, 0x2a2440], rim: 0x2a1c46, rock: 0x4a3868, pebble: 0x6a4a88, trunk: 0x3a2a48, crown: 0x8040c0, dead: 0x2a1c38, pillar: 0x7a68b0, crater: 0x0a0414, lake: 0xd040a0, crystal: 0xff90e0 }
+    mesas: [0x3a2a58, 0x56306a, 0x2a2440], rim: 0x2a1c46, rock: 0x4a3868, pebble: 0x6a4a88, trunk: 0x3a2a48, crown: 0x8040c0, dead: 0x2a1c38, pillar: 0x7a68b0, crater: 0x0a0414, lake: 0xd040a0, crystal: 0xff90e0 },
+  // 3 · Planeta Vegeta: cielo rojo, roca carmesí y lagos de lava
+  { seed: 4417, names: ['LLANURA ROJA', 'CAMPO DE CRÁTERES', 'CAÑÓN CARMESÍ', 'RUINAS SAIYAJIN'], cols: [[0.66, 0.34, 0.25], [0.52, 0.27, 0.22], [0.74, 0.42, 0.26], [0.45, 0.32, 0.34]],
+    bg: 0xc8503a, fog: 0xc85a40, fogRange: [70, 280], hemi: [0xffd0b0, 0x5a2018, 0.5], sun: 0.6, tex: '#dcae96',
+    mesas: [0x8a3a2a, 0x6a2a22, 0x5a4a52], rim: 0x5a2418, rock: 0x7a3a2a, pebble: 0x8a4a32, trunk: 0x5a3a2a, crown: 0xb05a2a, dead: 0x3a2420, pillar: 0xb8a8a0, crater: 0x2a1010, lake: 0xff6a1a, crystal: 0xffa040 },
+  // 4 · Cámara del Espíritu y el Tiempo: vacío blanco infinito
+  { seed: 1031, names: ['VACÍO BLANCO', 'VACÍO BLANCO', 'VACÍO BLANCO', 'VACÍO BLANCO'], cols: [[0.95, 0.95, 0.97], [0.9, 0.91, 0.96], [0.97, 0.95, 0.92], [0.88, 0.9, 0.96]],
+    bg: 0xf8f8ff, fog: 0xffffff, fogRange: [30, 125], hemi: [0xffffff, 0xc8c8d8, 0.7], sun: 0.45, tex: '#f2f2f8',
+    mesas: [0xe6e6ee, 0xdcdce6, 0xd2d2de], rim: 0xf4f4fa, rock: 0xd4d4de, pebble: 0xdadae2, trunk: 0xc8c8d0, crown: 0xe8e8f0, dead: 0xc0c0cc, pillar: 0xe0e0ea, crater: 0xc8c8d8, lake: 0xa8ccff, crystal: 0x9fe0ff }
 ];
+/* Semilla extra del mapa (el desafío diario la cambia para que el mapa sea el del día) */
+let WORLD_SEED_XOR = 0;
 const _bw = [0, 0, 0, 0];
 /** Pesos de cada bioma en (x,z). El centro del mapa siempre es yermo. */
 function biomeWeights(x, z) {
@@ -46,13 +56,16 @@ function biomeAt(x, z) {
 class World {
   constructor(scene, themeIdx) {
     const th = this.th = THEMES[themeIdx || 0], before = scene.children.length;
-    BIOME_COL = th.cols; BIOME_NAMES = th.names; BIOME_SEED = (themeIdx || 0) * 5;
-    this.R = CFG.ARENA;
+    this.scene = scene;
+    BIOME_COL = th.cols; BIOME_NAMES = th.names; BIOME_SEED = (themeIdx || 0) * 5 + (WORLD_SEED_XOR % 97);
+    this.R = CFG.ARENA; this.seedX = WORLD_SEED_XOR;
     this.dens = clamp((this.R / 220) * (this.R / 220), 0.1, 1);       // en mapas pequeños hay menos props
-    this.rng = seeded(th.seed);
+    this.rng = seeded(th.seed ^ WORLD_SEED_XOR);
     scene.background = new THREE.Color(th.bg);
     scene.fog = new THREE.Fog(th.fog, th.fogRange[0], th.fogRange[1]);
-    scene.add(new THREE.HemisphereLight(th.hemi[0], th.hemi[1], th.hemi[2]));
+    this.hemi = new THREE.HemisphereLight(th.hemi[0], th.hemi[1], th.hemi[2]);
+    scene.add(this.hemi);
+    this.night = 0; this._c = new THREE.Color();
     // Luz cenital con sombras suaves: sigue al jugador para mantener la sombra nítida
     this.sun = new THREE.DirectionalLight(0xfff4e0, th.sun);
     this.sun.castShadow = true;
@@ -229,23 +242,45 @@ class World {
 
   /** Daño en área a los cristales. Devuelve true si rompió alguno (this.onBreak se llama por cada uno) */
   damageArea(x, z, r, dmg) {
+    // Solo mira las celdas de la rejilla que toca el área (antes recorría todos los cristales en cada llamada)
     let hit = false;
-    for (let i = 0; i < this.destr.length; i++) {
-      const d = this.destr[i];
-      if (d.hp <= 0) continue;
-      const dx = d.x - x, dz = d.z - z, rr = r + d.s;
-      if (dx * dx + dz * dz < rr * rr) {
-        hit = true;
-        d.hp -= dmg;
-        if (d.hp <= 0) {
-          this.cr[d.col] = 0;
-          this.crystals.setMatrixAt(d.idx, this.zero);
-          this.crystals.instanceMatrix.needsUpdate = true;
-          if (this.onBreak) this.onBreak(d.x, d.z);
+    const cc = this.gCols, rc = Math.ceil((r + 2) / this.GC), c = this.cellOf(x, z), ca = c % cc, cb = (c / cc) | 0;
+    for (let b = cb - rc; b <= cb + rc; b++) {
+      if (b < 0 || b >= cc) continue;
+      for (let a = ca - rc; a <= ca + rc; a++) {
+        if (a < 0 || a >= cc) continue;
+        for (let j = this.gHead[b * cc + a]; j !== -1; j = this.gNext[j]) {
+          const k = this.cdest[j];
+          if (k < 0) continue;
+          const d = this.destr[k];
+          if (d.hp <= 0) continue;
+          const dx = d.x - x, dz = d.z - z, rr = r + d.s;
+          if (dx * dx + dz * dz >= rr * rr) continue;
+          hit = true;
+          d.hp -= dmg;
+          if (d.hp <= 0) {
+            this.cr[d.col] = 0;
+            this.crystals.setMatrixAt(d.idx, this.zero);
+            this.crystals.instanceMatrix.needsUpdate = true;
+            if (this.onBreak) this.onBreak(d.x, d.z);
+          }
         }
       }
     }
     return hit;
+  }
+
+  /** Día y noche: n = 0 (día) .. 1 (noche cerrada). Oscurece luces, cielo y niebla (menos visibilidad) */
+  setNight(n) {
+    if (Math.abs(n - this.night) < 0.004) return;
+    this.night = n;
+    const th = this.th, scene = this.scene, NIGHT = 0x0b1030;
+    scene.background.setHex(th.bg).lerp(this._c.setHex(NIGHT), n * 0.85);
+    scene.fog.color.setHex(th.fog).lerp(this._c.setHex(NIGHT), n * 0.85);
+    scene.fog.near = th.fogRange[0] * (1 - n * 0.6); scene.fog.far = th.fogRange[1] * (1 - n * 0.55);
+    this.hemi.intensity = th.hemi[2] * (1 - n * 0.5);
+    this.hemi.color.setHex(th.hemi[0]).lerp(this._c.setHex(0x8aa0ff), n * 0.6);
+    this.sun.intensity = th.sun * (1 - n * 0.75);
   }
 
   /** Restaura los cristales al empezar una partida */

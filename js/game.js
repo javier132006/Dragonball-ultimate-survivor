@@ -7,9 +7,17 @@
    ===================================================================== */
 
 /** Estadísticas de la partida en curso (se muestran en la pausa y al terminar) */
-const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0 });
+const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0, bosses: 0, perfects: 0, tps: 0, blocked: 0, route: [] });
 /** Nombre legible del origen del daño (gráfica de daño por técnica) */
-const SRC_NAMES = { otros: 'Otros (ondas, explosiones)', ally: 'Compañeros', mines: 'Minas de Energía', transform: 'Transformación' };
+const SRC_NAMES = { otros: 'Otros (ondas, explosiones)', ally: 'Compañeros', mines: 'Minas de Energía', transform: 'Transformación', aura: 'Aura de transformación', bolt: 'Rayos de la forma', counter: 'Contraataques', tp: 'Transmisión Instantánea', chain: 'Saibaimen en cadena' };
+/** Color del brillo de cada grieta según el mapa al que lleva */
+const RIFT_COL = { namek: 0x6aff8a, vegeta: 0xff6a3a, room: 0xffffff, rift: 0xc050ff };
+/** Calidad gráfica: resolución máxima, sombras y cantidad de partículas */
+const QUALITY = {
+  high: { pr: 2, shadow: 2048, every: 1, fx: 1 },
+  medium: { pr: 1.25, shadow: 1024, every: 2, fx: 0.8 },
+  low: { pr: 0.85, shadow: 0, every: 0, fx: 0.5 }
+};
 const srcName = (id) => (WEAPONS[id] ? WEAPONS[id].icon + ' ' + WEAPONS[id].name : SRC_NAMES[id] || id);
 const fmtK = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e4 ? Math.round(v / 1e3) + 'k' : String(Math.round(v));
 /** Precio base (Zeni) de los objetos del vendedor según su rareza */
@@ -29,6 +37,11 @@ class Game {
     // Combos, impact frames, eventos aleatorios, modo práctica y logros
     this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = 120; this.storm = 0; this.rivalUid = 0;
     this.practice = false; this.achT = 1; this.smashT = 0; this.lakeMsg = false;
+    // Ruta, desafío diario, jefes con fases, día/noche y explosiones pendientes de los kamikaze
+    this.step = 0; this.daily = false; this.mods = {}; this.modList = []; this.phase = 0; this.bossInv = 0; this.night = 0; this.nightT = 0; this.wasNight = false;
+    this.booms = []; this.dodgeMsgT = 0; this.cardT = 0; this.lastResult = null;
+    // Rendimiento: resolución dinámica (calidad AUTO) y sombras que no se recalculan en cada fotograma
+    this.perf = { acc: 0, n: 0, good: 0, pr: 1, shadowN: 0 };
     // Cámara orbital: yaw (giro), pitch (inclinación) y dist (zoom)
     this.camYaw = 0; this.camPitch = 0.98; this.camDist = 19; this.camDistT = 19; this.camCos = 1; this.camSin = 0;
     this.drag = false;
@@ -44,6 +57,7 @@ class Game {
     this.ui.sheets = sheets;
     this.cine = new TransformScene(this);                // cinemática de transformación
     this.touch = new TouchControls(this);                // controles táctiles (solo en móvil)
+    this.pad = new PadInput(this);                       // mando (Gamepad API)
     this.bindEvents();
     this.clock = new THREE.Clock();
     this.loop = this.loop.bind(this);
@@ -53,7 +67,8 @@ class Game {
 
   initGL(sheets) {
     const canvas = document.getElementById('game');
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    // El suavizado de bordes solo se puede elegir al crear el renderer: en calidad BAJA se desactiva (al recargar)
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: Save.d.opt.quality !== 'low', powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_TOUCH ? 1.5 : 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.renderer.shadowMap.enabled = true;
@@ -86,6 +101,46 @@ class Game {
       if (Math.random() < 0.3) this.pickups.drop(x, z);
     };
     this.world.onBreak = this.onCrystalBreak;
+    this.applyQuality();
+  }
+
+  /* ---------- Calidad gráfica ---------- */
+  /** Nivel efectivo: en AUTO se parte de MEDIA y se ajusta la resolución sobre la marcha */
+  qualityCfg() { const q = Save.d.opt.quality; return QUALITY[q] || QUALITY.medium; }
+  applyQuality() {
+    const Q = this.qualityCfg(), dpr = window.devicePixelRatio || 1, auto = Save.d.opt.quality === 'auto';
+    this.perf.max = Math.min(dpr, IS_TOUCH ? Math.min(1.5, Q.pr) : (auto ? 1.5 : Q.pr));
+    this.perf.pr = auto ? Math.min(this.perf.max, Math.max(this.perf.pr || 1, 0.7)) : this.perf.max;
+    this.perf.good = 0; this.perf.acc = 0; this.perf.n = 0; this.perf.noShadow = false;
+    this.renderer.setPixelRatio(this.perf.pr);
+    this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+    this.fx.q = Q.fx;
+    this.applyShadow();
+  }
+  applyShadow() {
+    const Q = this.qualityCfg(), sun = this.world.sun, on = Q.shadow > 0 && !this.perf.noShadow;
+    this.renderer.shadowMap.autoUpdate = false; this.renderer.shadowMap.needsUpdate = true;
+    sun.castShadow = on;
+    if (on && sun.shadow.mapSize.x !== Q.shadow) {
+      sun.shadow.mapSize.set(Q.shadow, Q.shadow);
+      if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+    }
+  }
+  /** Calidad AUTO: cada 2 s mira el tiempo medio por fotograma; baja o sube la resolución (y quita sombras si hace falta) */
+  autoQuality(rawDt) {
+    const P = this.perf;
+    if (Save.d.opt.quality !== 'auto') return;
+    P.acc += rawDt; P.n++;
+    if (P.acc < 2) return;
+    const ft = P.acc / P.n; P.acc = 0; P.n = 0;
+    if (ft > 1 / 48) {
+      P.good = 0;
+      if (P.pr > 0.62) { P.pr = Math.max(0.6, P.pr - 0.15); this.renderer.setPixelRatio(P.pr); this.renderer.setSize(window.innerWidth, window.innerHeight, false); }
+      else if (!P.noShadow) { P.noShadow = true; this.applyShadow(); }
+    } else if (ft < 1 / 57 && ++P.good >= 3 && P.pr < P.max) {
+      P.good = 0; P.pr = Math.min(P.max, P.pr + 0.1);
+      this.renderer.setPixelRatio(P.pr); this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+    }
   }
 
   /* ---------- Entradas, ratón y botones ---------- */
@@ -106,7 +161,7 @@ class Game {
       if (this.ui.el.modal.classList.contains('show') || this.ui.el.exit.classList.contains('show')) return;
       const s = this.state;
       if (s === 'menu' && e.code === 'Enter') this.start(false);
-      else if (s === 'over' && (e.code === 'Enter' || e.code === 'KeyR')) this.start(this.practice);
+      else if (s === 'over' && (e.code === 'Enter' || e.code === 'KeyR')) this.start(this.practice, this.daily);
       else if (s === 'play' && this.practice && e.code === 'KeyL') this.practiceLevel();
       else if (s === 'play' && this.practice && e.code === 'KeyK') this.practiceClear();
       else if (s === 'play' && this.practice && e.code === 'KeyJ') { this.cash += 500; SFX.play('coin'); }
@@ -114,16 +169,23 @@ class Game {
       else if ((s === 'play' || s === 'pause') && (e.code === 'KeyP' || e.code === 'Escape')) this.togglePause();
       else if (s === 'play' && e.code === 'KeyE') this.interact();
       else if (s === 'play' && e.code === 'KeyG') this.transform();
+      else if (s === 'play' && e.code === 'KeyH') this.revertForm();
       else if (s === 'trade' && (e.code === 'KeyE' || e.code === 'Escape')) this.closeTrade();
       else if (s === 'play' && e.code === 'KeyM') { this.showMap = !this.showMap; ui.el.bigmap.style.display = this.showMap ? 'block' : 'none'; }
       else if ((s === 'play' || s === 'pause') && e.code === 'Tab') { e.preventDefault(); this.togglePause(); }
-      else if ((s === 'levelup' || s === 'wish') && /^Digit[1-3]$/.test(e.code)) ui.pickCard(+e.code[5] - 1);
+      else if ((s === 'levelup' || s === 'wish') && /^Digit[1-4]$/.test(e.code)) { if (this.cardsReady()) ui.pickCard(+e.code[5] - 1); }
+      else if ((s === 'levelup' || s === 'wish') && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) ui.focusCard(e.code === 'ArrowLeft' ? -1 : 1);
+      else if ((s === 'levelup' || s === 'wish') && (e.code === 'Enter' || e.code === 'Space')) { if (this.cardsReady()) ui.pickCard(ui.cardFocus); }
     });
     // Cámara con el ratón: arrastra con el botón derecho (o central), rueda para el zoom
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
     // Cámara libre estilo Megabonk: el ratón queda capturado (pointer lock) y mueve la cámara siempre
-    cv.addEventListener('mousedown', (e) => { if (this.state === 'play' && !this.locked()) this.grabMouse(); else if (e.button !== 0) this.drag = true; });
-    window.addEventListener('mouseup', () => { this.drag = false; });
+    cv.addEventListener('mousedown', (e) => {
+      if (this.state === 'play' && !this.locked()) this.grabMouse();
+      else if (this.locked() && e.button === 2) keys.Mouse2 = true;          // botón derecho con el ratón capturado = bloquear
+      else if (e.button !== 0) this.drag = true;
+    });
+    window.addEventListener('mouseup', (e) => { this.drag = false; if (e.button === 2) keys.Mouse2 = false; });
     window.addEventListener('mousemove', (e) => {
       if (this.state !== 'play' && this.state !== 'dying') return;
       if (!this.locked() && !this.drag) return;                       // sin captura: botón derecho + arrastrar
@@ -136,7 +198,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -151,12 +213,30 @@ class Game {
       else if (D.tech) this.buyTech(D.tech);
       else if (D.claim) this.claimMission(D.claim);
       else if (D.diff) { Save.d.diff = D.diff; Save.write(); ui.renderMenu(); }
-      else if (D.start !== undefined) this.start(D.start === 'practice');
+      else if (D.start !== undefined) this.start(D.start === 'practice', D.start === 'daily');
       else if (D.exit !== undefined) ui.showExit(true);
+      else if (D.rtab) { ui.rtab = D.rtab; ui.renderMenu(); }
+      else if (D.q) { Save.d.opt.quality = D.q; Save.write(); this.perf.pr = 1; this.applyQuality(); ui.renderMenu(); }
+      else if (D.flash !== undefined) { Save.d.opt.flash = !Save.d.opt.flash; Save.write(); ui.renderMenu(); }
+      else if (D.exp !== undefined) this.exportSave();
+      else if (D.imp !== undefined) this.importSave();
+      else if (D.impfile !== undefined) { const f = document.getElementById('impFile'); if (f) f.click(); }
+    });
+    // Importar desde archivo .json
+    ui.el.menu.addEventListener('change', (e) => {
+      if (e.target.id !== 'impFile' || !e.target.files[0]) return;
+      const r = new FileReader();
+      r.onload = () => { const ta = document.getElementById('saveTxt'); if (ta) ta.value = String(r.result); this.importSave(); };
+      r.readAsText(e.target.files[0]);
     });
     ui.el.exit.addEventListener('click', () => ui.showExit(false));
     // Volumen (pantalla de opciones)
     ui.el.menu.addEventListener('input', (e) => {
+      if (e.target.dataset && e.target.dataset.shake !== undefined) {
+        Save.d.opt.shake = +e.target.value / 100; Save.write();
+        const lab = e.target.parentNode.querySelector('b'); if (lab) lab.textContent = e.target.value + '%';
+        return;
+      }
       const v = e.target.dataset && e.target.dataset.vol;
       if (!v) return;
       const cur = Save.d.vol || { mus: 0.5, sfx: 0.75 }, val = +e.target.value / 100;
@@ -176,7 +256,7 @@ class Game {
     });
     ui.el.modal.addEventListener('click', (e) => { if (e.target.closest('[data-login]')) this.claimLogin(); else if (e.target.closest('[data-close]')) ui.hideModal(); });
     ui.el.cardRow.addEventListener('click', (e) => { const c = e.target.closest('.card'); if (c) ui.pickCard(+c.dataset.i); });
-    ui.el.scrA.onclick = () => { ui.el.scrA.blur(); if (this.state === 'pause') this.togglePause(); else this.start(this.practice); };
+    ui.el.scrA.onclick = () => { ui.el.scrA.blur(); if (this.state === 'pause') this.togglePause(); else this.start(this.practice, this.daily); };
     ui.el.scrB.onclick = () => { ui.el.scrB.blur(); if (this.state === 'pause') this.abandon(); else this.toMenu(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'play') this.togglePause(); });
   }
@@ -212,6 +292,31 @@ class Game {
     Save.d.zeni -= cost; Save.d.up[id] = lvl + 1; Save.write();
     this.previewPlayer(); this.ui.renderMenu();
   }
+  /** Copia de seguridad: texto en la caja, al portapapeles y como archivo .json */
+  exportSave() {
+    const str = Save.exportStr(), ta = document.getElementById('saveTxt');
+    if (ta) { ta.value = str; ta.select(); }
+    try { if (navigator.clipboard) navigator.clipboard.writeText(str).catch(() => {}); } catch (e) { /* sin portapapeles */ }
+    try {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(Save.d)], { type: 'application/json' }));
+      a.download = 'dragonball-survivor-' + todayStr() + '.json'; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch (e) { /* sin descargas */ }
+    this.ui.optMsg = 'COPIA EXPORTADA: se ha descargado el archivo y copiado el texto.'; this.ui.renderMenu();
+    const t2 = document.getElementById('saveTxt'); if (t2) t2.value = str;
+  }
+  /** Restaura una copia (pide pulsar dos veces para no borrar el progreso por error) */
+  importSave() {
+    const ta = document.getElementById('saveTxt'), str = ta ? ta.value : '';
+    if (!str.trim()) { this.ui.optMsg = 'Pega primero el texto de la copia o elige un archivo .json.'; this.ui.renderMenu(); return; }
+    if (!this.ui.impArmed) { this.ui.impArmed = true; this.ui.optMsg = '¿Seguro? Se sustituirá tu progreso actual. Pulsa IMPORTAR otra vez para confirmar.'; this.ui.renderMenu(); const t2 = document.getElementById('saveTxt'); if (t2) t2.value = str; return; }
+    this.ui.impArmed = false;
+    const ok = Save.importStr(str);
+    this.ui.optMsg = ok ? '¡PARTIDA IMPORTADA!' : 'Ese texto no es una copia válida.';
+    if (ok) { SFX.applyVol(); this.applyQuality(); this.previewPlayer(); }
+    this.ui.renderMenu();
+  }
   /** El personaje elegido se ve en el mundo 3D detrás del menú */
   previewPlayer() {
     this.player.reset(charById(Save.d.sel));
@@ -227,7 +332,8 @@ class Game {
 
   toMenu() {
     this.state = 'menu'; this.releaseMouse();
-    if (this.stageIdx !== 0) this.loadStage(0);                 // el menú siempre muestra el primer mapa
+    if (this.stageIdx !== 0 || WORLD_SEED_XOR) { WORLD_SEED_XOR = 0; this.daily = false; this.mods = {}; this.loadStage(0); }   // el menú siempre muestra el primer mapa
+    this.world.setNight(0); this.night = 0;
     this.points.reset(); this.shots.reset(); this.showMap = false; this.ui.el.bigmap.style.display = 'none'; this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
     this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.weapons.reset(charById(Save.d.sel));
     this.pickups.senzu.reset(); this.pickups.balls.reset(); this.capsules.n = 0; this.capsules.spr.reset(); this.capsules.glow.reset();
@@ -244,11 +350,16 @@ class Game {
   }
 
   /* ---------- Partida ---------- */
-  start(practice) {
+  start(practice, daily) {
     const ch = charById(Save.d.sel);
     if (!ch || ch.soon || !Save.d.unlocked.includes(ch.id)) return;
+    // Desafío diario: mapa con la semilla del día, 2 modificadores y dificultad NORMAL para todos
+    this.daily = !!daily && !practice;
+    this.modList = this.daily ? dailyMods() : [];
+    this.mods = {}; for (const m of this.modList) this.mods[m.id] = true;
+    WORLD_SEED_XOR = this.daily ? dailySeed() % 100000 : 0;
     this.player.reset(ch); this.weapons.reset(ch);
-    this.diff = diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
+    this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
     this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
     this.practice = !!practice; this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = rand(90, 130); this.rivalUid = 0; this.achT = 1;
@@ -256,6 +367,7 @@ class Game {
     this.run = newRun(); this.curseHp = 0; this.curseDmg = 0; this.chal = 0; this.coinMul = 1; this.showMap = false; this.ui.el.bigmap.style.display = 'none';
     this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
     if (IS_TOUCH) { goFullscreen(); this.camDistT = 22; }
+    this.step = 0; this.booms.length = 0;
     this.loadStage(0);
     this.applyForm();
     for (let i = 0; i < 14; i++) this.spawnEnemy();
@@ -269,8 +381,9 @@ class Game {
     if (ch.portrait) this.ui.drawFrame(this.ui.el.portrait, ch.portrait.sheet, ch.portrait.frame, ch.portrait.tint);
     this.state = 'play';
     this.clock.getDelta();
-    this.ui.toast(this.practice ? 'ENTRENAMIENTO' : ch.name);
+    this.ui.toast(this.practice ? 'ENTRENAMIENTO' : this.daily ? 'DESAFÍO DIARIO' : ch.name);
     if (this.practice) this.ui.toast('L: subir de nivel · K: limpiar la horda · J: +500 Zeni', true);
+    for (const m of this.modList) this.ui.toast(m.icon + ' ' + m.name + ': ' + m.text, true);
     SFX.music('battle');
   }
 
@@ -279,62 +392,76 @@ class Game {
     const S = STAGES[idx];
     this.stageIdx = idx; this.stage = S; this.stageTime = 0; this.waveT = 60; this.swarm = false;
     this.bossUid = 0; this.bossDead = false; this.bossSpawned = false; this.victoryT = 0; this.zoneBusy = null;
-    this.boss = { t1: 3, t2: 6, next: 0 };
+    this.boss = { t: {}, next: 0 }; this.phase = 0; this.bossInv = 0; this.night = 0; this.wasNight = false; this.nightT = 0;
     CFG.ARENA = S.R;
-    if (this.world.th !== THEMES[S.theme] || this.world.R !== S.R) {
+    if (this.world.th !== THEMES[S.theme] || this.world.R !== S.R || this.world.seedX !== WORLD_SEED_XOR) {
       this.world.dispose(this.scene);
       this.world = new World(this.scene, S.theme);
       this.world.onBreak = this.onCrystalBreak;
-    } else this.world.reset();
-    this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.shots.reset();
-    this.pickups.reset(this.world); this.capsules.reset(this.world, S.final ? 0 : 28); this.points.reset();
+      this.applyShadow();
+    } else { this.world.reset(); this.world.setNight(0); }
+    this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.shots.reset(); this.booms.length = 0;
+    this.pickups.reset(this.world); this.capsules.reset(this.world, S.final ? 0 : S.caps || 28); this.points.reset();
+    if (this.run.route[this.run.route.length - 1] !== S.name) this.run.route.push(S.name);
     if (S.pois) this.points.populate(this.world, S);
     if (S.final) { this.pickups.got.fill(1); this.pickups.sn = 0; }
     // Aspecto de la horda y del jefe de este mapa
     this.horde.tints = ENEMY_TYPES.map((t) => t.tint);
-    this.horde.tints[0] = [0xffffff, 0xb8ffa0, 0xffa8d8][idx];
-    const B = S.boss, T = ENEMY_TYPES[3];
-    T.name = B.name; T.tint = B.tint; T.scale = B.scale; T.r = B.r; this.horde.tints[3] = B.tint;
+    this.horde.tints[0] = S.tint0;
+    const B = S.boss, T = ENEMY_TYPES[T_BOSS];
+    T.name = B.name; T.tint = B.tint; T.scale = B.scale; T.r = B.r; T.spd = 0.62; this.horde.tints[T_BOSS] = B.tint;
     this.ui.el.bossName.textContent = B.name;
     const p = this.player;
     p.x = 0; p.z = 0; p.vx = 0; p.vz = 0; p.kbx = 0; p.kbz = 0; this.camLook.set(0, 1.4, 0);
-    // Efecto de cada mapa: el agua de Namek cura; en la dimensión fracturada la gravedad es baja (dash más largo)
-    p.dashBoost = idx === 2 ? 1.4 : 1;
+    // Efecto de cada mapa: agua que cura (Namek), gravedad x10 (Planeta Vegeta), gravedad baja (dimensión), tiempo (Cámara)
+    p.dashBoost = S.fx === 'lowgrav' ? 1.4 : 1;
+    p.grav = S.fx === 'gravity' ? 0.88 : 1;
     this.lakeMsg = false;
-    if (idx === 1) this.ui.toast('EL AGUA DE NAMEK CURA', true);
-    if (idx === 2) this.ui.toast('GRAVEDAD BAJA: DASH MÁS LARGO', true);
+    if (S.desc && this.state !== 'menu') this.ui.toast(S.desc, true);
     this.horde.buildGrid();
   }
   /** Pasa a la siguiente fase por la grieta: se conservan nivel, armas y objetos */
-  nextStage() {
+  nextStage(to) {
     const p = this.player;
-    this.zeniRun += 150 * (this.stageIdx + 1);
+    this.zeniRun += 150 * (this.step + 1);
     this.track('stages', 1);
     p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.35); p.ki = p.maxKi;
-    this.loadStage(this.stageIdx + 1);
+    this.step++;
+    this.loadStage(to);
     this.syncSprites();
     this.ui.toast(this.stage.name);
     if (this.stage.final) this.ui.toast('EL ÚLTIMO COMBATE', true);
   }
-  enterRift() {
-    if (this.state !== 'play') return;
-    this.state = 'transition'; this.transT = 0; this.transDone = false; SFX.play('rift');
+  enterRift(r) {
+    if (this.state !== 'play' || !r) return;
+    this.state = 'transition'; this.transT = 0; this.transDone = false; this.riftTo = r.to; SFX.play('rift');
     this.ui.el.fade.style.opacity = 1;
-    const r = this.points.rift;
-    this.fx.ring(this.fx.aura, r.x, 0.5, r.z, 50, 20, 0.7, 0.4, 0xd070ff);
+    this.fx.ring(this.fx.aura, r.x, 0.5, r.z, 50, 20, 0.7, 0.4, r.col);
+  }
+  /** Al morir el jefe se abren las grietas hacia los mapas siguientes (dos = eliges camino) */
+  openRifts(x, z) {
+    const nx = this.stage.next, ui = this.ui;
+    nx.forEach((to, k) => {
+      const off = nx.length > 1 ? (k ? 7 : -7) : 0, a = this.camYaw;
+      this.points.openRift(clamp(x + Math.cos(a) * off, -CFG.ARENA + 4, CFG.ARENA - 4), clamp(z - Math.sin(a) * off, -CFG.ARENA + 4, CFG.ARENA - 4), to, RIFT_COL[STAGES[to].id]);
+    });
+    if (nx.length > 1) { ui.toast('ELIGE TU CAMINO'); ui.toast(nx.map((i) => STAGES[i].name).join(' · O · '), true); }
+    else ui.toast('LA GRIETA SE ABRE · [E] PARA ENTRAR', true);
   }
 
   /* ---------- Interacciones con E ---------- */
   interact() {
     const pts = this.points, c = this.capsules;
-    if (pts.rift && pts.rift.near) { this.enterRift(); return; }
+    const rn = pts.riftNear();
+    if (rn) { this.enterRift(rn); return; }
     if (c.near >= 0) { this.tryOpenCapsule(); return; }
     if (pts.near >= 0) this.usePoi(pts.list[pts.near]);
   }
   /** Texto del aviso inferior según lo que tengas cerca (null = nada) */
   promptInfo() {
     const pts = this.points, c = this.capsules;
-    if (pts.rift && pts.rift.near) return { t: '[E] ENTRAR EN LA GRIETA', ok: true };
+    const rn = pts.riftNear();
+    if (rn) return { t: '[E] GRIETA HACIA ' + STAGES[rn.to].name, ok: true };
     if (c.near >= 0) {
       const k = c.gold[c.near], cost = this.capsuleCost(k);
       return { t: '[E] ABRIR CÁPSULA' + (k === 1 ? ' DORADA' : k === 2 ? ' MALDITA ☠' : '') + ' · ' + cost + ' ZENI', ok: this.cash >= cost };
@@ -467,9 +594,11 @@ class Game {
       ['KI MÁXIMO', Math.round(p.maxKi)], ['REGEN. KI', p.kiRegen.toFixed(1) + '/s'], ['IMÁN', p.magnet.toFixed(1)], ['SUERTE', p.luck],
       ['EXPERIENCIA', 'x' + p.xpMul.toFixed(2)], ['ZENI', 'x' + (p.zeniMul * this.coinMul).toFixed(2)]].map((x) => row(x[0], x[1])).join('') + '</div>';
     h += '<h4 class="sh">PARTIDA</h4><div class="sum">' + [
-      ['MAPA', (this.stageIdx + 1) + ' / ' + STAGES.length], ['TIEMPO EN EL MAPA', fmtTime(this.stageTime)], ['ENEMIGOS', this.kills], ['DAÑO TOTAL', Math.floor(r.damage)],
+      ['MAPA', (this.step + 1) + ' / ' + ROUTE_LEN + ' · ' + this.stage.name], ['TIEMPO EN EL MAPA', fmtTime(this.stageTime)], ['ENEMIGOS', this.kills], ['DAÑO TOTAL', Math.floor(r.damage)],
       ['GOLPE MÁS FUERTE', Math.floor(r.best)], ['DAÑO RECIBIDO', Math.floor(r.taken)], ['DASHES', r.dashes], ['CÁPSULAS', this.capsOpened],
-      ['MALDICIONES', r.curses], ['DESAFÍOS', r.temples + ' (nv ' + this.chal + ')'], ['HABITACIONES DEL TIEMPO', r.rooms], ['ZENI', Math.floor(this.cash)], ['COMBO MÁXIMO', r.maxCombo], ['EVENTOS', r.events]].map((x) => row(x[0], x[1])).join('') + '</div>' + this.dmgChart();
+      ['MALDICIONES', r.curses], ['DESAFÍOS', r.temples + ' (nv ' + this.chal + ')'], ['HABITACIONES DEL TIEMPO', r.rooms], ['ZENI', Math.floor(this.cash)], ['COMBO MÁXIMO', r.maxCombo], ['EVENTOS', r.events], ['BLOQUEOS PERFECTOS', r.perfects], ['TELETRANSPORTES', r.tps]].map((x) => row(x[0], x[1])).join('') + '</div>' + this.dmgChart();
+    if (p.trait) h += '<h4 class="sh">FORMA · ' + p.form.name + '</h4><div class="trait"><b>' + p.trait.name + '</b><span class="trg">✚ ' + p.trait.good + '</span><span class="trb">✖ ' + p.trait.bad + '</span></div>';
+    if (this.modList.length) h += '<h4 class="sh">DESAFÍO DIARIO</h4><div class="chips">' + this.modList.map((m) => '<span class="bf">' + m.icon + ' ' + m.name + '</span>').join('') + '</div>';
     const items = Object.keys(p.items).map((id) => { const it = itemById(id), c = RARITIES[it.rarity].color; return '<span style="border-color:' + c + ';color:' + c + '" title="' + it.text + '">' + it.icon + ' ' + it.name + (p.items[id] > 1 ? ' x' + p.items[id] : '') + '</span>'; });
     const bf = p.buffs.map((id) => '<span class="bf' + (id[0] === 'c' ? ' cu' : '') + '" title="' + BUFFS[id].text + '">' + BUFFS[id].icon + ' ' + BUFFS[id].name + '</span>');
     if (items.length || bf.length) h += '<h4 class="sh">OBJETOS Y BENDICIONES</h4><div class="chips">' + items.concat(bf).join('') + '</div>';
@@ -511,6 +640,53 @@ class Game {
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
 
+  /* ---------- Bloqueo, Transmisión Instantánea y esquiva del Ultra Instinto ---------- */
+  onPerfectBlock() {
+    const p = this.player;
+    this.run.perfects++; this.track('perfects', 1);
+    p.ki = Math.min(p.maxKi, p.ki + 12);
+    this.horde.shockwave(p.x, p.z, 9, 26);
+    this.fx.ring(this.fx.aura, p.x, 0.6, p.z, 40, 16, 0.45, 0.4, 0xffffff);
+    this.hitstop = Math.max(this.hitstop, 0.06); this.shake(0.4);
+    if (!Save.d.opt.flash) this.impT = Math.max(this.impT, 0.06);
+    SFX.play('perfect'); this.ui.toast('¡BLOQUEO PERFECTO!', true);
+  }
+  onGuardBreak() { SFX.play('guard'); this.ui.toast('¡GUARDIA ROTA!', true); this.shake(0.6); }
+  onTeleport(ox, oz, x, z) {
+    const p = this.player, col = p.form.ki;
+    this.run.tps++; this.track('tps', 1);
+    this.fx.burst(this.fx.trail, ox, 1.2, oz, 18, 6, 0.4, 0.4, 0, col);
+    this.fx.ring(this.fx.aura, x, 0.5, z, 30, 12, 0.35, 0.35, col);
+    DMG_SRC = 'tp'; this.horde.damageRadius(x, z, 3.2, 14 * p.damageMul(), 12, this); DMG_SRC = 'otros';
+    this.shake(0.3); SFX.play('tp');
+  }
+  onAutoDodge() {
+    const p = this.player;
+    p.spawnGhost(); p.ghostT = 0;
+    DMG_SRC = 'counter'; this.horde.damageRadius(p.x, p.z, 4, 25 * p.damageMul(), 14, this); DMG_SRC = 'otros';
+    this.fx.burst(this.fx.trail, p.x, 1.2, p.z, 10, 6, 0.3, 0.35, 0, 0xdff4ff);
+    SFX.play('dash');
+    if (this.dodgeMsgT <= 0) { this.dodgeMsgT = 1.5; this.ui.toast('ESQUIVA · CONTRAATAQUE', true); }
+  }
+  /** El kamikaze explota contra ti (se resuelve después de recoger las bajas, con la rejilla al día) */
+  onKamikaze(x, z) { this.booms.push({ x, z, self: true }); }
+  kamikazeChain(x, z) { this.booms.push({ x, z, self: false }); }
+  resolveBooms() {
+    const p = this.player;
+    for (const b of this.booms) {
+      if (b.self) {
+        const dx = p.x - b.x, dz = p.z - b.z;
+        if (dx * dx + dz * dz < 3.4 * 3.4) p.takeDamage(this.enemyDamage() * ENEMY_TYPES[T_BOOM].dmg, this);
+        DMG_SRC = 'otros'; this.horde.damageRadius(b.x, b.z, 3.2, 20, 8, this);
+      } else { DMG_SRC = 'chain'; this.horde.damageRadius(b.x, b.z, 3.6, 30 * p.damageMul(), 10, this); }
+      this.fx.burst(this.fx.sparks, b.x, 1, b.z, 18, 9, 0.45, 0.4, 6, 0x9aff4a);
+      this.fx.ring(this.fx.aura, b.x, 0.4, b.z, 20, 10, 0.35, 0.35, 0x6aff3a);
+      SFX.play('boom');
+    }
+    DMG_SRC = 'otros';
+    this.booms.length = 0;
+  }
+
   /* ---------- Eventos aleatorios ---------- */
   setStorm(t) {
     this.storm = t;
@@ -542,7 +718,7 @@ class Game {
   /* ---------- Logros: se comprueban cada segundo ---------- */
   checkAch() {
     if (this.practice) return;
-    const st = Save.d.stats, r = this.run, live = { maxCombo: r.maxCombo, bestHit: r.best, maxStage: this.stageIdx + 1 };
+    const st = Save.d.stats, r = this.run, live = { maxCombo: r.maxCombo, bestHit: r.best, maxStage: this.step + 1 };
     for (const a of ACHIEVEMENTS) {
       if (Save.d.ach[a.id]) continue;
       const v = Math.max(st[a.stat] || 0, live[a.stat] || 0);
@@ -568,7 +744,7 @@ class Game {
   /** Cierra la partida: monedas, récord, estadísticas y misiones. Devuelve {coins, bonus} */
   finishRun(win) {
     const p = this.player, id = p.ch.id, d = this.diff;
-    if (this.practice) return { coins: 0, bonus: 0 };              // el entrenamiento no da recompensas
+    if (this.practice) return { coins: 0, bonus: 0, score: 0 };    // el entrenamiento no da recompensas
     let coins = Math.floor(this.zeniRun * d.coins), bonus = 0;
     if (win) {                                    // primera victoria con ese personaje y dificultad = premio completo; después, un 20%
       const key = id + ':' + d.id, first = !Save.d.clears[key];
@@ -578,24 +754,41 @@ class Game {
     }
     coins += bonus;
     Save.d.zeni += coins;
-    this.track('runs', 1); this.track('time', Math.floor(this.time)); this.trackMax('maxLevel', p.level); this.trackMax('maxStage', this.stageIdx + 1);
+    this.track('runs', 1); this.track('time', Math.floor(this.time)); this.trackMax('maxLevel', p.level); this.trackMax('maxStage', this.step + 1);
+    // Puntuación y ranking local (los 15 mejores)
+    const score = runScore({ kills: this.kills, level: p.level, bosses: this.run.bosses, step: this.step, time: this.time, win });
+    const prevTop = Save.d.rank.length ? Save.d.rank[0].score : 0;
+    Save.d.rank.push({ score, ch: id, kills: this.kills, level: p.level, time: Math.floor(this.time), step: this.step + 1, win: !!win, daily: this.daily, date: todayStr(), diff: d.id });
+    Save.d.rank.sort((a, b) => b.score - a.score); Save.d.rank.length = Math.min(Save.d.rank.length, 15);
+    let dayBonus = 0;
+    if (this.daily) {
+      const t = todayStr(), D = Save.d.day && Save.d.day.date === t ? Save.d.day : { date: t, best: 0, tries: 0, done: false };
+      D.tries++; D.best = Math.max(D.best, score);
+      if (!D.done) { D.done = true; dayBonus = 300; coins += dayBonus; Save.d.zeni += dayBonus; this.track('dailies', 1); }
+      Save.d.day = D;
+      const h = Save.d.dayHist.find((x) => x.date === t);
+      if (h) h.best = Math.max(h.best, score); else Save.d.dayHist.unshift({ date: t, best: score, mods: this.modList.map((m) => m.icon + ' ' + m.name) });
+      Save.d.dayHist.length = Math.min(Save.d.dayHist.length, 14);
+    }
     this.track('damage', Math.floor(this.run.damage)); this.track('taken', Math.floor(this.run.taken)); this.track('dashes', this.run.dashes); this.trackMax('maxCombo', this.run.maxCombo); this.trackMax('bestHit', Math.floor(this.run.best));
     this.checkAch();
     const b = Save.d.best[id];
     if (!b || this.time > b.time) Save.d.best[id] = { time: Math.floor(this.time), kills: this.kills, level: p.level };
     Save.write();
-    return { coins, bonus };
+    return { coins, bonus, score, record: score > prevTop, dayBonus };
   }
   abandon() { this.finishRun(false); this.toMenu(); }
 
   runSummary(r) {
     const rows = [['ENEMIGOS DERROTADOS', this.kills], ['NIVEL ALCANZADO', this.player.level], ['TIEMPO', fmtTime(this.time)],
-      ['CÁPSULAS ABIERTAS', this.capsOpened], ['MAPA ALCANZADO', (this.stageIdx + 1) + ' / ' + STAGES.length], ['DAÑO TOTAL', Math.floor(this.run.damage)],
+      ['CÁPSULAS ABIERTAS', this.capsOpened], ['MAPA ALCANZADO', (this.step + 1) + ' / ' + ROUTE_LEN], ['DAÑO TOTAL', Math.floor(this.run.damage)],
       ['GOLPE MÁS FUERTE', Math.floor(this.run.best)], ['DAÑO RECIBIDO', Math.floor(this.run.taken)], ['DASHES', this.run.dashes], ['DIFICULTAD', this.diff.name]];
-    let h = '<div class="sum">' + rows.map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
+    let h = '';
+    if (!this.practice) h += '<div class="score' + (r.record ? ' rec' : '') + '"><small>' + (r.record ? '¡NUEVO RÉCORD!' : this.daily ? 'PUNTUACIÓN · DESAFÍO DIARIO' : 'PUNTUACIÓN') + '</small><b>' + (r.score || 0).toLocaleString('es-ES') + '</b><span>' + this.run.route.join(' ▸ ') + '</span></div>';
+    h += '<div class="sum">' + rows.map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
     h += this.dmgChart();
     if (this.practice) return h + '<div class="reward">ENTRENAMIENTO<small>El modo práctica no da monedas ni cuenta para misiones y logros</small></div>';
-    h += '<div class="reward">+' + r.coins + ' MONEDAS' + (r.bonus ? '<small>incluye ' + r.bonus + ' de bonificación por completar el nivel</small>' : '') + '</div>';
+    h += '<div class="reward">+' + r.coins + ' MONEDAS' + (r.bonus ? '<small>incluye ' + r.bonus + ' de bonificación por completar el nivel</small>' : '') + (r.dayBonus ? '<small>incluye ' + r.dayBonus + ' por terminar el desafío de hoy</small>' : '') + '</div>';
     return h;
   }
   gameOver() {
@@ -614,21 +807,44 @@ class Game {
     this.fx.aura.setColor(p.form.aura || 0xfff2b0);
     this.fx.sparks.setColor(p.form.ki);
   }
-  /** Al subir de nivel: si llegas al nivel de la siguiente forma, la transformación queda DISPONIBLE (tú decides cuándo) */
+  /** Al subir de nivel: si desbloqueas una forma nueva queda DISPONIBLE (tú decides cuándo y cuál) */
   checkTransformation() {
-    const p = this.player, next = p.ch.forms[p.formIdx + 1];
-    const ready = next && p.level >= next.lvl ? p.formIdx + 1 : -1;
-    if (ready >= 0 && p.formReady !== ready) { this.ui.toast('¡' + next.name + ' DISPONIBLE!  [G]', true); }
+    const p = this.player, opts = p.formOptions().filter((i) => i > p.formIdx && !p.formSeen[i]);
+    const ready = opts.length ? opts[opts.length - 1] : -1;
+    if (ready >= 0 && p.formReady !== ready) this.ui.toast('¡' + p.ch.forms[ready].name + ' DISPONIBLE!  [G]', true);
     p.formReady = ready;
   }
-  /** G / botón: lanza la cinemática de la siguiente forma */
+  /** Se puede usar G: hay alguna forma a la que cambiar y no estás recuperando el aliento */
+  canTransform() { const p = this.player; return this.state === 'play' && !this.cine.on && p.tfCd <= 0 && p.formOptions().length > 0; }
+  /** G / botón: si solo hay una forma, cinemática directa; si hay varias, eliges con cartas (con sus rasgos) */
   transform() {
     const p = this.player;
-    if (this.state !== 'play' || p.formReady < 0 || this.cine.on) return;
-    const idx = p.formReady;
-    p.formReady = -1;
+    if (this.state !== 'play' || this.cine.on) return;
+    if (p.tfCd > 0) { this.ui.toast('RECUPERANDO EL ALIENTO · ' + Math.ceil(p.tfCd) + ' s', true); return; }
+    const opts = p.formOptions();
+    if (!opts.length) return;
+    if (opts.length === 1) { this.startCine(opts[0]); return; }
+    const list = opts.slice(-4);                                       // las 4 más poderosas
+    this.state = 'wish'; this.releaseMouse(); this.cardT = 0;
+    this.ui.showCards('TRANSFORMACIÓN', 'ELIGE TU FORMA [1 · 2 · 3 · 4]', list.map((i) => {
+      const f = p.ch.forms[i], T = traitOf(p.ch, i);
+      return { type: 'form', id: i, icon: '⚡', tag: 'NV ' + f.lvl + ' · DAÑO x' + f.dmg.toFixed(2), title: f.name, text: T ? '<b>' + T.name + '</b><br><span class="trg">✚ ' + T.good + '</span><br><span class="trb">✖ ' + T.bad + '</span>' : '', max: 0, lv: 0 };
+    }), (c) => { this.ui.hideCards(); this.state = 'play'; this.startCine(c.id); });
+  }
+  startCine(idx) {
+    this.player.formReady = -1;
     this.state = 'transform';
     this.cine.start(idx);
+  }
+  /** H: vuelves a la forma base (sin rasgos). Tras destransformarte hay 20 s antes de volver a transformarte */
+  revertForm(msg) {
+    const p = this.player;
+    if (p.formIdx === 0 || (this.state !== 'play' && this.state !== 'transform')) return;
+    p.setForm(0); p.recompute(); this.applyForm();
+    p.tfCd = 20;
+    this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 30, 10, 0.4, 0.35, 0xffffff);
+    this.ui.toast(msg || 'VUELVES A TU FORMA BASE', true); SFX.play('revert');
+    this.checkTransformation();
   }
 
   gainZeni(v) { this.zeniRun += v * this.player.zeniMul * this.coinMul; }
@@ -715,7 +931,7 @@ class Game {
     if (v > (p[stat] || 0)) p[stat] = v;
   }
   gainCash(v) { this.cash += v * this.player.zeniMul * this.coinMul * (1 + Math.min(this.combo, 100) * 0.005); }   // la racha de combo da hasta +50% de Zeni
-  capsuleCost(gold) { return Math.round(20 * Math.pow(1.22, this.capsOpened) * (gold === 2 ? 0.4 : gold ? 1.6 : 1)); }
+  capsuleCost(gold) { return Math.round(20 * Math.pow(1.22, this.capsOpened) * (gold === 2 ? 0.4 : gold ? 1.6 : 1) * (this.mods.rich ? 0.5 : 1)); }
   /** E: abre la cápsula cercana si hay dinero suficiente. Cada apertura encarece las siguientes */
   tryOpenCapsule() {
     const c = this.capsules, i = c.near;
@@ -728,9 +944,10 @@ class Game {
     this.openCapsule(gold, x, z);
   }
 
-  shake(a) { this.shakeAmt = Math.min(1.4, Math.max(this.shakeAmt, a)); }
-  pressure() { return this.stageTime + this.stageIdx * 240; }
-  swarmLvl() { return this.swarm ? 1 + (this.stageTime - SWARM_TIME) / 60 : 0; }          // minutos de enjambre (0 = aún no)
+  shake(a) { a *= Save.d.opt.shake; this.shakeAmt = Math.min(1.4, Math.max(this.shakeAmt, a)); }
+  pressure() { return this.stageTime + this.step * 240; }
+  swarmAt() { return this.stage.swarmAt || SWARM_TIME; }
+  swarmLvl() { return this.swarm ? 1 + (this.stageTime - this.swarmAt()) / 60 : 0; }          // minutos de enjambre (0 = aún no)
   enemyDamage() { return (7 + this.pressure() * 0.03) * this.diff.dmg * this.stage.dmg * (1 + this.curseDmg + this.chal * 0.15) * (1 + Math.max(0, this.swarmLvl() - 1) * 0.15); }
 
   /** Explosión de área reutilizable (minas, meteoros, Big Bang) */
@@ -758,9 +975,17 @@ class Game {
     const r = Math.random(), t0 = this.pressure(), sw = this.swarmLvl();
     let t;
     if (sw > 0) t = r < 0.04 + sw * 0.015 ? 4 : r < 0.25 + sw * 0.04 ? 2 : r < 0.55 ? 1 : 0;          // el enjambre trae más élites y brutos
-    else t = t0 > 45 && r < 0.02 + t0 / 14000 ? 4 : t0 > 90 && r < 0.14 ? 2 : t0 > 35 && r < 0.37 ? 1 : 0;
+    else t = t0 > 45 && r < (0.02 + t0 / 14000) * (this.mods.elite ? 3 : 1) ? 4 : t0 > 90 && r < 0.14 ? 2 : t0 > 35 && r < 0.37 ? 1 : 0;
+    // Tipos nuevos: kamikaze (desde el minuto 1), blindados (2) y voladores (2,5). De noche hay más veloces
+    if (t === 0) {
+      const q = Math.random();
+      if (t0 > 60 && q < 0.1 + (this.mods.boom ? 0.25 : 0)) t = T_BOOM;
+      else if (t0 > 120 && q < 0.22) t = T_SHIELD;
+      else if (t0 > 150 && q < 0.3) t = T_FLY;
+      else if (this.night > 0.5 && q < 0.5) t = T_FAST;
+    }
     this.spawnPos(32, 40);
-    const hpMul = this.diff.hp * this.stage.hp * (1 + this.curseHp + this.chal * 0.25) * (1 + sw * 0.3);
+    const hpMul = this.diff.hp * this.stage.hp * (1 + this.curseHp + this.chal * 0.25) * (1 + sw * 0.3) * (this.mods.rich ? 1.3 : 1);
     this.horde.spawn(this._sx, this._sz, (14 + t0 * 0.25) * ENEMY_TYPES[t].hp * hpMul, t);
   }
   /** Invoca al jefe del mapa (en el altar, o en un punto fijo en el mapa final) */
@@ -768,37 +993,84 @@ class Game {
     const B = this.stage.boss;
     if (x === undefined) { this.spawnPos(26, 30); x = this._sx; z = this._sz; }
     x = clamp(x, -CFG.ARENA, CFG.ARENA); z = clamp(z, -CFG.ARENA, CFG.ARENA);
-    const i = this.horde.spawn(x, z, B.hp * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15), 3);
+    // La vida del jefe escala con tu nivel (+2,5% por nivel) para que el combate dure aunque llegues muy fuerte
+    const lvMul = 1 + 0.025 * (this.player.level - 1);
+    const i = this.horde.spawn(x, z, B.hp * lvMul * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15) * (this.mods.bigboss ? 1.5 : 1), T_BOSS);
     if (i >= 0) {
-      this.bossUid = this.horde.uid[i]; this.bossSpawned = true; this.boss = { t1: 3, t2: 6, next: 0 };
+      this.bossUid = this.horde.uid[i]; this.bossSpawned = true; this.boss = { t: { fan: 2, ring: 5, spiral: 6, dash: 4, rain: 5, beam: 6, summon: 9 }, spiral: 0, spA: 0, spT: 0, dashW: 0 };
+      this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = 0.62; this.horde.tints[T_BOSS] = B.tint;
       this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
       this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.tint);
     }
   }
-  /** Ataques del jefe: abanico dirigido, anillo de disparos y refuerzos al perder vida */
+  /** IA del jefe: 3 fases (al 66% y al 33% de vida) y en cada una su lista de ataques (STAGES[].boss.pat) */
   bossAI(dt) {
     const h = this.horde, i = h.indexOfUid(this.bossUid);
     if (i < 0) return;
-    const b = this.boss, st = this.stageIdx, p = this.player, frac = h.hp[i] / h.maxHp[i], rage = frac < 0.5 ? 1 : 0;
+    const b = this.boss, st = Math.min(this.step, 3), p = this.player, B = this.stage.boss, frac = h.hp[i] / h.maxHp[i];
     const bx = h.x[i], bz = h.z[i], dmg = this.enemyDamage() * 0.8;
-    b.t1 -= dt; b.t2 -= dt;
-    if (b.t1 <= 0) {                                              // abanico dirigido al jugador
-      b.t1 = 2.6 - rage * 0.7 - st * 0.3;
-      const a = Math.atan2(p.z - bz, p.x - bx), n = 3 + st * 2;
-      for (let k = 0; k < n; k++) { const o = a + (k - (n - 1) / 2) * 0.2; this.shots.fire(bx, bz, Math.cos(o), Math.sin(o), 11 + st, dmg); }
+    // Cambio de fase
+    const target = frac < 0.33 ? 2 : frac < 0.66 ? 1 : 0;
+    if (target > this.phase) { this.phase = target; this.onBossPhase(bx, bz); }
+    const ph = this.phase, pat = B.pat[ph], sp = 1 - ph * 0.15 - st * 0.05;
+    const CD = { fan: 2.6, ring: 6.5, spiral: 9, dash: 5, rain: 7.5, beam: 8, summon: 15 };
+    const a = Math.atan2(p.z - bz, p.x - bx), ca = Math.cos(a), sa = Math.sin(a);
+    for (const k of pat) {
+      b.t[k] -= dt;
+      if (b.t[k] > 0) continue;
+      b.t[k] = CD[k] * sp * rand(0.85, 1.15);
+      if (k === 'fan') {                                          // abanico dirigido al jugador
+        const n = Math.min(9, 3 + st * 2);
+        for (let q = 0; q < n; q++) { const o = a + (q - (n - 1) / 2) * 0.2; this.shots.fire(bx, bz, Math.cos(o), Math.sin(o), 11 + st, dmg); }
+      } else if (k === 'ring') {                                  // anillo de energía
+        this.shots.ring(bx, bz, 14 + st * 5, 8 + st, dmg, rand(0, 6.28));
+        this.fx.ring(this.fx.aura, bx, 0.5, bz, 40, 14, 0.5, 0.4, B.tint);
+      } else if (k === 'spiral') { b.spiral = 2.4; b.spA = rand(0, 6.28); }
+      else if (k === 'dash') {                                    // embestida con aviso
+        b.dashW = 0.6; this.fx.ring(this.fx.aura, bx, 0.4, bz, 30, 6, 0.6, 0.45, 0xff3050);
+      } else if (k === 'rain') {                                  // zonas marcadas alrededor del jugador
+        const n = 5 + ph * 2;
+        for (let q = 0; q < n; q++) { const r = q === 0 ? 0 : rand(3, 10), o = rand(0, 6.28); this.shots.mark(p.x + Math.cos(o) * r, p.z + Math.sin(o) * r, 3, 1.15 + q * 0.05, dmg * 1.6); }
+        SFX.play('warn');
+      } else if (k === 'beam') {                                  // rayo con aviso (apártate de la línea roja)
+        this.shots.line(bx, bz, ca, sa, 46, 1.6, 0.9, dmg * 2.4); SFX.play('warn');
+      } else if (k === 'summon') this.bossSummon(bx, bz, 6 + st * 2);
     }
-    if (b.t2 <= 0) {                                              // anillo de energía
-      b.t2 = 7 - rage * 2 - st;
-      this.shots.ring(bx, bz, 14 + st * 5, 8 + st, dmg, rand(0, 6.28));
-      this.fx.ring(this.fx.aura, bx, 0.5, bz, 40, 14, 0.5, 0.4, this.stage.boss.tint);
+    // Espiral: dos chorros de disparos que giran
+    if (b.spiral > 0) {
+      b.spiral -= dt; b.spT -= dt;
+      if (b.spT <= 0) { b.spT = 0.09; b.spA += 0.33; for (const o of [0, Math.PI]) this.shots.fire(bx, bz, Math.cos(b.spA + o), Math.sin(b.spA + o), 10, dmg * 0.8); }
     }
-    const TH = [0.75, 0.5, 0.25];
-    while (b.next < 3 && frac < TH[b.next]) {                      // refuerzos
-      b.next++;
-      this.ui.toast('¡REFUERZOS!', true);
-      const n = 10 + st * 5;
-      for (let k = 0; k < n; k++) { const a = (k / n) * 6.28; this.horde.spawn(clamp(bx + Math.cos(a) * 7, -CFG.ARENA, CFG.ARENA), clamp(bz + Math.sin(a) * 7, -CFG.ARENA, CFG.ARENA), (14 + this.pressure() * 0.25) * this.diff.hp * this.stage.hp, k % 4 === 0 ? 2 : 0); }
+    // Embestida: tras el aviso sale disparado hacia el jugador
+    if (b.dashW > 0) {
+      b.dashW -= dt;
+      if (b.dashW <= 0) { h.kx[i] = ca * 75; h.kz[i] = sa * 75; this.shake(0.5); SFX.play('dash'); }
     }
+  }
+  /** Refuerzos en círculo alrededor del jefe */
+  bossSummon(bx, bz, n) {
+    this.ui.toast('¡REFUERZOS!', true);
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * 6.28, t = k % 4 === 0 ? T_BRUTE : k % 3 === 0 ? T_BOOM : T_BASIC;
+      this.horde.spawn(clamp(bx + Math.cos(a) * 7, -CFG.ARENA, CFG.ARENA), clamp(bz + Math.sin(a) * 7, -CFG.ARENA, CFG.ARENA), (14 + this.pressure() * 0.25) * this.diff.hp * this.stage.hp * ENEMY_TYPES[t].hp, t);
+    }
+  }
+  /** Nueva fase del jefe: grito, onda que te aparta, breve invulnerabilidad, más velocidad y refuerzos */
+  onBossPhase(bx, bz) {
+    const p = this.player, ph = this.phase, B = this.stage.boss;
+    this.bossInv = 1.2; ENEMY_TYPES[T_BOSS].spd = 0.62 + ph * 0.14;
+    this.horde.tints[T_BOSS] = ph === 2 ? 0xff7070 : B.tint;
+    const dx = p.x - bx, dz = p.z - bz, d = Math.hypot(dx, dz) || 1;
+    if (d < 14) { p.kbx = dx / d * 22; p.kbz = dz / d * 22; }
+    this.horde.shockwave(bx, bz, 16, 30);
+    this.fx.ring(this.fx.aura, bx, 0.5, bz, 70, 26, 0.8, 0.5, ph === 2 ? 0xff3050 : B.tint);
+    this.fx.burst(this.fx.sparks, bx, 2, bz, 50, 14, 0.8, 0.5, 2, 0xffffff);
+    this.shake(1.1); this.hitstop = 0.1;
+    if (!Save.d.opt.flash) this.impT = 0.14;
+    this.ui.toast('¡' + B.name + ' · FASE ' + (ph + 1) + '!'); SFX.play('phase');
+    this.ui.toast(ph === 2 ? 'ÚLTIMA FASE: ataca con todo' : 'Aprende sus nuevos ataques', true);
+    this.bossSummon(bx, bz, 8 + this.step * 3);
+    if (ph === 2) this.track('phase3', 1);
   }
 
   onEnemyKilled(x, z, type, uid) {
@@ -823,16 +1095,17 @@ class Game {
       for (let i = 0; i < 4; i++) this.orbs.spawn(x, z, 4);
       this.ui.toast('+' + Math.round(ENEMY_TYPES[4].cash * p.zeniMul) + ' ZENI · ÉLITE', true); SFX.play('coin');
       if (Math.random() < 0.3) this.capsules.add(x, z, false, this.world);
-    } else if (type === 3) {
-      this.track('bosses', 1);
-      this.bossUid = 0; this.pendingLevels++; this.bossDead = true; this.shots.reset();
+    } else if (type === T_BOSS) {
+      this.track('bosses', 1); this.run.bosses++;
+      this.bossUid = 0; this.pendingLevels++; this.bossDead = true; this.shots.reset(); this.bossInv = 0;
       this.capsules.add(x, z, true, this.world);
+      if (this.mods.bigboss) { this.capsules.add(x + 3, z, true, this.world); this.gainCash(200); }
       for (let i = 0; i < 4; i++) this.pickups.drop(x + rand(-3, 3), z + rand(-3, 3));
       for (let i = 0; i < 12; i++) this.orbs.spawn(x, z, 5);
       this.fx.ring(this.fx.aura, x, 0.4, z, 50, 18, 0.7, 0.45, 0xffd24a);
       this.ui.toast('¡' + this.stage.boss.name + ' DERROTADO!'); this.shake(1); SFX.play('bigboom'); SFX.music('battle');
       if (this.stage.final) this.victoryT = 2.2;
-      else { this.points.openRift(x, z); this.ui.toast('LA GRIETA SE ABRE · [E] PARA ENTRAR', true); }
+      else this.openRifts(x, z);
     } else {
       if (Math.random() < 0.012) this.pickups.drop(x, z);
       if (type === 2 && Math.random() < 0.04) this.capsules.add(x, z, false, this.world);
@@ -840,11 +1113,14 @@ class Game {
   }
 
   /* ---------- Experiencia y mejoras ---------- */
+  /** Multiplicador de experiencia del mapa: Cámara del Tiempo x2, gravedad x10 +30%, noche +20% */
+  stageXp() { const f = this.stage.fx; return (f === 'time' ? 2 : f === 'gravity' ? 1.3 : 1) * (this.night > 0.5 ? 1.2 : 1); }
   addXp(v) {
     const p = this.player;
-    p.xp += v * p.xpMul;
+    p.xp += v * p.xpMul * this.stageXp();
     while (p.xp >= p.xpNext) {
       p.xp -= p.xpNext; p.level++; p.xpNext = p.xpFor(p.level);
+      if (p.level > 300) { p.xp = 0; break; }
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.1);
       this.pendingLevels++;
       this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 36, 12, 0.5, 0.3);
@@ -911,6 +1187,8 @@ class Game {
     });
   }
   resume() { this.state = 'play'; this.grabMouse(); this.clock.getDelta(); }
+  /** Evita elegir carta sin querer (por ejemplo, con el dash pulsado justo cuando se abren) */
+  cardsReady() { return performance.now() - this.ui.cardAt > 350; }
 
   /* ---------- Esferas del Dragón y deseo de Shenron ---------- */
   onBall(n, x, z) {
@@ -967,6 +1245,22 @@ class Game {
     this.shakeAmt = Math.max(0, s - rawDt * 2.6);
   }
 
+  /** Ciclo día/noche: 4 minutos (día, atardecer, noche, amanecer). De noche se ve menos, hay más veloces y +20% EXP */
+  updateNight(dt) {
+    const ph = (this.stageTime % 240) / 240;
+    let n = ph < 0.45 ? 0 : ph < 0.55 ? (ph - 0.45) / 0.1 : ph < 0.9 ? 1 : 1 - (ph - 0.9) / 0.1;
+    if (this.mods.night) n = 1;
+    this.night = n;
+    this.nightT -= dt;
+    if (this.nightT <= 0) { this.nightT = 0.2; this.world.setNight(n); }
+    const isNight = n > 0.5;
+    if (isNight !== this.wasNight) {
+      this.wasNight = isNight;
+      if (isNight) { this.ui.toast('☾ CAE LA NOCHE'); this.ui.toast('Menos visibilidad · más enemigos veloces · +20% EXP', true); }
+      else this.ui.toast('☀ AMANECE', true);
+    }
+  }
+
   /* ---------- Un paso de simulación (dt ya incluye el hitstop) ---------- */
   update(dt) {
     const p = this.player, h = this.horde;
@@ -978,7 +1272,8 @@ class Game {
     if (S.final) {                                                  // mapa final: solo el jefe (y sus refuerzos)
       if (!this.bossSpawned && this.stageTime > 2) this.spawnBoss(0, -22);
     } else {
-      if (!this.swarm && !this.practice && this.stageTime >= SWARM_TIME) {            // a los 10 minutos llega el enjambre final
+      if (S.bossAt && !this.bossSpawned && this.stageTime >= S.bossAt) this.spawnBoss();   // Cámara del Tiempo: el jefe llega solo
+      if (!this.swarm && !this.practice && this.stageTime >= this.swarmAt()) {            // a los 10 minutos llega el enjambre final
         this.swarm = true; this.ui.toast('¡ENJAMBRE FINAL!'); this.shake(1); SFX.play('alarm'); SFX.music('boss');
       }
       const sw = this.swarmLvl();
@@ -988,25 +1283,32 @@ class Game {
       if (this.waveT <= 0 && !this.swarm) {                         // oleada normal cada minuto
         this.waveT = 60;
         this.ui.toast('¡OLEADA!', true);
-        for (let k = 0, n = 12 + this.stageIdx * 6; k < n; k++) this.spawnEnemy();
+        for (let k = 0, n = 12 + this.step * 6; k < n; k++) this.spawnEnemy();
       }
     }
     if (this.victoryT > 0) { this.victoryT -= dt; if (this.victoryT <= 0) { this.victory(); return; } }
-    h.speed = (3.4 + Math.min(t0 * 0.01, 2.2) + Math.min(this.swarmLvl() * 0.12, 1)) * (this.storm > 0 ? 0.6 : 1);
+    h.speed = (3.4 + Math.min(t0 * 0.01, 2.2) + Math.min(this.swarmLvl() * 0.12, 1)) * (this.storm > 0 ? 0.6 : 1) * (this.mods.fast ? 1.25 : 1);
+    this.bossInv = Math.max(0, this.bossInv - dt); this.dodgeMsgT -= dt;
     // Combo: se pierde si pasan 3 s sin derribar a nadie
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) { this.combo = 0; p.comboMul = 1; } }
     this.impCd -= dt;
     // Eventos aleatorios (no en el mapa final)
-    if (!S.final) { this.eventT -= dt; if (this.eventT <= 0) { this.eventT = rand(100, 150); this.startEvent(pick(['senzu', 'rival', 'storm', 'ally'])); } }
+    if (!S.final && S.fx !== 'time') { this.eventT -= dt; if (this.eventT <= 0) { this.eventT = rand(110, 160); this.startEvent(pick(['senzu', 'rival', 'storm', 'ally'])); } }
+    // Día y noche (Tierra y Planeta Vegeta): ciclo de 4 minutos
+    if (S.night) this.updateNight(dt);
     if (this.storm > 0) { this.storm -= dt; if (this.storm <= 0) { this.setStorm(0); this.ui.toast('LA TORMENTA AMAINA', true); } }
-    // Namek: el agua de los lagos cura
-    if (this.stageIdx === 1) {
+    // Namek: el agua de los lagos cura · Planeta Vegeta: los lagos son de lava y queman
+    if (S.fx === 'lake' || S.fx === 'gravity') {
       let wet = false;
-      for (const l of this.world.lakes) { const dx = p.x - l.x, dz = p.z - l.z; if (dx * dx + dz * dz < (l.r + 2.5) * (l.r + 2.5)) { wet = true; break; } }
-      if (wet) {
+      for (const l of this.world.lakes) { const dx = p.x - l.x, dz = p.z - l.z; if (dx * dx + dz * dz < (l.r + (S.fx === 'lake' ? 2.5 : -1)) ** 2) { wet = true; break; } }
+      if (wet && S.fx === 'lake') {
         p.hp = Math.min(p.maxHp, p.hp + 6 * dt);
         if (Math.random() < dt * 14) this.fx.aura.emit(p.x + rand(-1, 1), 0.2, p.z + rand(-1, 1), 0, rand(2, 4), 0, 0.5, 0.2, 0, 0x7fe8ff);
         if (!this.lakeMsg) { this.lakeMsg = true; this.ui.toast('EL AGUA DE NAMEK TE CURA', true); SFX.play('heal'); }
+      } else if (wet) {
+        if (!this.practice || p.hp > p.maxHp * 0.2) p.hp -= p.maxHp * 0.06 * dt;
+        if (Math.random() < dt * 20) this.fx.sparks.emit(p.x + rand(-1, 1), 0.2, p.z + rand(-1, 1), 0, rand(3, 6), 0, 0.5, 0.3, 0, 0xff6a1a);
+        if (!this.lakeMsg) { this.lakeMsg = true; this.ui.toast('¡LAVA! SAL DE AHÍ', true); SFX.play('hurt'); }
       }
     }
     // Brutos, élites y jefes rompen los cristales al pasar
@@ -1024,6 +1326,7 @@ class Game {
     this.ki.update(dt, this);
     h.reap(this);                                                   // se retiran DESPUÉS de las colisiones
     h.buildGrid();
+    if (this.booms.length) this.resolveBooms();                     // explosiones de los kamikaze
     this.orbs.update(dt, p, this);
     this.pickups.update(dt, p, this);
     this.capsules.update(dt, p, this);
@@ -1039,7 +1342,7 @@ class Game {
       this.leashT = 0.5;
       for (let i = 0; i < h.n; i++) {
         const dx = h.x[i] - p.x, dz = h.z[i] - p.z;
-        if (dx * dx + dz * dz > 6400 && h.type[i] !== 3 && !S.final) { this.spawnPos(32, 40); h.x[i] = this._sx; h.z[i] = this._sz; }
+        if (dx * dx + dz * dz > 6400 && h.type[i] !== T_BOSS && !S.final) { this.spawnPos(32, 40); h.x[i] = this._sx; h.z[i] = this._sz; }
       }
     }
 
@@ -1068,8 +1371,11 @@ class Game {
       // Impact frame de crítico: negativo en B/N y luego destello de contraste
       if (this.impT > 0) {
         this.impT -= rawDt;
-        this.renderer.domElement.style.filter = this.impT > 0.07 ? 'grayscale(1) contrast(9) invert(1)' : this.impT > 0 ? 'contrast(2.2) brightness(1.5) saturate(2)' : '';
+        // Con «reducir destellos» no hay negativo ni fogonazo: solo un leve aumento de contraste
+        const soft = Save.d.opt.flash;
+        this.renderer.domElement.style.filter = this.impT <= 0 ? '' : soft ? 'contrast(1.25) saturate(1.3)' : this.impT > 0.07 ? 'grayscale(1) contrast(9) invert(1)' : 'contrast(2.2) brightness(1.5) saturate(2)';
       }
+      this.autoQuality(rawDt);
       this.fx.update(dt);
       this.updateCamera(Math.max(dt, rawDt * 0.25), rawDt, false);
       this.ui.update(this, rawDt);
@@ -1092,7 +1398,7 @@ class Game {
     } else if (s === 'transition') {                                  // viaje por la grieta con fundido a negro
       this.transT += rawDt;
       this.fx.update(rawDt); this.updateCamera(rawDt, rawDt, false);
-      if (this.transT > 0.7 && !this.transDone) { this.transDone = true; this.nextStage(); this.ui.el.fade.style.opacity = 0; }
+      if (this.transT > 0.7 && !this.transDone) { this.transDone = true; this.nextStage(this.riftTo); this.ui.el.fade.style.opacity = 0; }
       if (this.transT > 1.4) { this.state = 'play'; this.clock.getDelta(); }
     } else if (s === 'menu') {
       this.player.animT += rawDt;
@@ -1104,6 +1410,10 @@ class Game {
       this.updateCamera(0.0001, 0, false);
     }
     this.touch.update(this);
+    this.pad.poll(rawDt);
+    // Sombras: en calidad MEDIA se recalculan uno de cada dos fotogramas
+    const Q = this.qualityCfg();
+    if (Q.every && (++this.perf.shadowN % Q.every === 0)) this.renderer.shadowMap.needsUpdate = true;
     this.renderer.render(this.scene, this.camera);
   }
 }
