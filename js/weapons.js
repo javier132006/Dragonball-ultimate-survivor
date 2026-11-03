@@ -80,6 +80,21 @@ class WeaponSystem {
     p.attack(a.dx, a.dz, crit, g);
   }
 
+  /* ----- Ráfaga Explosiva (ataque básico de Vegeta): esferas que explotan ----- */
+  blast(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const a = this.aim(g, p, 30); if (!a) return;
+    const lv = w.lv, n = 1 + (lv >= 3) + (lv >= 5), dm = 11 * (lv >= 2 ? 1.2 : 1), aoe = 1.7 * (lv >= 4 ? 1.4 : 1);
+    w.cd = 0.85 / (lv >= 5 ? 1.3 : 1);
+    let crit = false;
+    for (let i = 0; i < n; i++) {
+      const ang = (i - (n - 1) / 2) * 0.2, c = Math.cos(ang), s = Math.sin(ang);
+      crit = Math.random() < p.crit;
+      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 22, dm * p.damageMul() * (crit ? 2 : 1), 0.6, crit, 1.4, 0, aoe, this.col(w, p));
+    }
+    p.attack(a.dx, a.dz, crit, g);
+  }
+
   /* ----- Masenko: abanico de ráfagas cortas ----- */
   fan(w, dt, g, p) {
     if (!this.ready(w, dt, p)) return;

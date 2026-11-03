@@ -302,7 +302,8 @@ class Game {
     if (W.list.length < MAX_WEAPONS) {
       for (const id in WEAPONS) {
         const u = WEAPONS[id].unique;
-        if (!W.get(id) && (!u || u === p.ch.id)) { pool.push({ t: 'weapon', id }); if (u) pool.push({ t: 'weapon', id }); }
+        const D = WEAPONS[id];
+        if (!W.get(id) && (!u || u === p.ch.id) && (D.minLv || 0) <= p.level && (!D.shop || (Save.d.techs || []).includes(id))) { pool.push({ t: 'weapon', id }); if (u) pool.push({ t: 'weapon', id }); }
       }
     }
     for (const s of STATS) if ((p.stacks[s.id] || 0) < s.max) pool.push({ t: 'stat', id: s.id });
@@ -315,7 +316,7 @@ class Game {
     const cards = out.map((c) => {
       if (c.t === 'weapon') {
         const d = WEAPONS[c.id], cur = W.levelOf(c.id), nl = cur + 1;
-        return { type: 'weapon', id: c.id, icon: d.icon, tag: cur ? 'MEJORA · NV ' + nl : d.unique ? 'ATAQUE ÚNICO' : 'NUEVA ARMA', title: d.name, text: d.lv[nl - 1], max: MAX_WEAPON_LEVEL, lv: nl };
+        return { type: 'weapon', id: c.id, icon: d.icon, tag: cur ? 'MEJORA · NV ' + nl : d.unique ? 'TÉCNICA' : 'NUEVA ARMA', title: d.name, text: d.lv[nl - 1], max: MAX_WEAPON_LEVEL, lv: nl };
       }
       const s = STATS.find((x) => x.id === c.id), n = (p.stacks[c.id] || 0) + 1;
       return { type: 'stat', id: c.id, icon: s.icon, tag: 'VITAMINA · ' + n + '/' + s.max, title: s.name, text: s.text, max: s.max, lv: n };

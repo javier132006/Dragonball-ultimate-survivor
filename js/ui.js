@@ -174,7 +174,8 @@ class UIManager {
       det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p>' +
         bar('VIDA', v.hp, 160) + bar('KI', v.ki, 160) + bar('VEL', Math.round(v.spd * 100), 150) + bar('DAÑO', Math.round(v.dmg * 100), 150) +
         '<h4>PASIVA · ' + v.passive.name + '</h4><p>' + v.passive.desc + '</p>' +
-        '<h4>ATAQUES ÚNICOS</h4>' + v.unique.map((id) => '<p><i>' + WEAPONS[id].icon + '</i> <b>' + WEAPONS[id].name + '</b> · ' + WEAPONS[id].lv[0] + '</p>').join('') +
+        '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +
+        '<h4>TÉCNICAS (al subir de nivel)</h4>' + v.unique.filter((id) => id !== v.start[0]).map((id) => '<p><i>' + WEAPONS[id].icon + '</i> <b>' + WEAPONS[id].name + '</b> · desde NV ' + (WEAPONS[id].minLv || 2) + '</p>').join('') +
         '<h4>TRANSFORMACIONES</h4><div class="forms">' + v.forms.map((f) => '<span>' + f.name + ' <em>NV ' + f.lvl + '</em></span>').join('') + '</div>' +
         (best ? '<h4>MEJOR PARTIDA</h4><p>' + fmtTime(best.time) + ' · ' + best.kills + ' enemigos · NV ' + best.level + '</p>' : '');
       if (!owned) det += '<button class="buy" data-buy="' + v.id + '"' + (Save.d.zeni < v.cost ? ' disabled' : '') + '>DESBLOQUEAR · ' + v.cost + ' ZENI</button>';
