@@ -10,7 +10,7 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
-      'biome', 'goalL', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'biome', 'power', 'tfBtn', 'tfName', 'goalL', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
@@ -56,6 +56,13 @@ class UIManager {
     e.kiTxt.textContent = Math.floor(p.ki) + ' / ' + p.maxKi;
     e.xpTxt.textContent = Math.floor(p.xp) + ' / ' + p.xpNext;
     e.lvl.textContent = p.level; e.formName.textContent = p.form.name; e.chName.textContent = p.ch.name;
+    e.formName.style.setProperty('--fc', '#' + (p.form.aura || 0xffe14a).toString(16).padStart(6, '0'));
+    // Nivel de poder (lectura del scouter): vida, ki, daño y nivel
+    e.power.textContent = Math.round((p.maxHp * 2 + p.maxKi) * p.damageMul() * (1 + p.level * 0.25) * 3).toLocaleString('es-ES');
+    // Aviso de transformación disponible
+    const nf = p.formReady >= 0 ? p.ch.forms[p.formReady] : null;
+    if (nf && game.state === 'play') { e.tfBtn.style.display = 'flex'; if (e.tfName.textContent !== nf.name) e.tfName.textContent = nf.name; e.tfBtn.style.setProperty('--fc', '#' + (nf.aura || 0xffe14a).toString(16).padStart(6, '0')); }
+    else e.tfBtn.style.display = 'none';
     e.kills.textContent = game.kills; e.time.textContent = fmtTime(game.stageTime); e.horde.textContent = game.horde.n;
     e.zeniHud.textContent = Math.floor(game.cash);
     const S = game.stage;
@@ -224,7 +231,7 @@ class UIManager {
       return '<div class="dm' + (done ? ' done' : '') + '"><span>' + m.desc + '</span><div class="mb"><i style="width:' + (pr / m.goal * 100) + '%"></i></div></div>';
     }).join('');
     this.el.menuBody.innerHTML = '<div class="home"><div class="hl">' +
-      '<div class="titlebox"><small>DRAGON BALL</small><h1>ULTIMATE<br>SURVIVOR</h1><p>SOBREVIVE · TRANSFÓRMATE · REÚNE LAS 7 ESFERAS</p></div>' +
+      '<div class="titlebox"><div class="logo-db"><span class="dball"></span><h1>DRAGON <br>BALL</h1></div><div class="ribbon">ULTIMATE SURVIVOR</div><p>SOBREVIVE · TRANSFÓRMATE · REÚNE LAS 7 ESFERAS</p></div>' +
       '<div class="hbtns"><button class="big play" data-go="play">▶ JUGAR<small>' + sel.name + ' · ' + d.name + '</small></button>' +
       '<button class="big" data-go="shop">TIENDA</button>' +
       '<button class="big" data-go="missions">MISIONES' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +

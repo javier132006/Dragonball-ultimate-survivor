@@ -32,7 +32,7 @@ class Player {
   reset(ch) {
     this.ch = ch;
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
-    this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false;
+    this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.initStats();
     this.hp = this.maxHp; this.ki = this.maxKi;
     this.canRevive = Save.lab('revive') > 0;
@@ -112,8 +112,9 @@ class Player {
     // --- Entrada relativa a la cámara: W siempre avanza "hacia arriba" en pantalla ---
     let ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
     let iz = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
-    const il = Math.hypot(ix, iz);
+    let il = Math.hypot(ix, iz);
     if (il > 0) { ix /= il; iz /= il; }
+    else if (stick.on) { ix = stick.x; iz = stick.z; il = Math.hypot(ix, iz); if (il < 0.15) { ix = iz = il = 0; } }   // joystick táctil (analógico)
     const wx = ix * game.camCos + iz * game.camSin, wz = -ix * game.camSin + iz * game.camCos;
 
     this.animT += dt;

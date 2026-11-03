@@ -35,6 +35,8 @@ class Game {
       return;
     }
     this.ui.sheets = sheets;
+    this.cine = new TransformScene(this);                // cinemática de transformación
+    this.touch = new TouchControls(this);                // controles táctiles (solo en móvil)
     this.bindEvents();
     this.clock = new THREE.Clock();
     this.loop = this.loop.bind(this);
@@ -45,7 +47,7 @@ class Game {
   initGL(sheets) {
     const canvas = document.getElementById('game');
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, IS_TOUCH ? 1.5 : 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -86,6 +88,9 @@ class Game {
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight, false);
       this.applyView();
+      if (this.cine.on) this.cine.resize();
+      // En el móvil, si lo pones en vertical se pausa la partida
+      if (IS_TOUCH && window.innerHeight > window.innerWidth && this.state === 'play') this.togglePause();
     });
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.state = 'pause'; ui.fatal('Se perdió el contexto WebGL (la GPU se reinició). Recarga la página.'); });
     window.addEventListener('keydown', (e) => {
@@ -97,6 +102,7 @@ class Game {
       else if (s === 'over' && (e.code === 'KeyM' || e.code === 'Escape')) this.toMenu();
       else if ((s === 'play' || s === 'pause') && (e.code === 'KeyP' || e.code === 'Escape')) this.togglePause();
       else if (s === 'play' && e.code === 'KeyE') this.interact();
+      else if (s === 'play' && e.code === 'KeyG') this.transform();
       else if (s === 'trade' && (e.code === 'KeyE' || e.code === 'Escape')) this.closeTrade();
       else if (s === 'play' && e.code === 'KeyM') { this.showMap = !this.showMap; ui.el.bigmap.style.display = this.showMap ? 'block' : 'none'; }
       else if ((s === 'play' || s === 'pause') && e.code === 'Tab') { e.preventDefault(); this.togglePause(); }
@@ -154,7 +160,7 @@ class Game {
   }
 
   locked() { return document.pointerLockElement === this.renderer.domElement; }
-  grabMouse() { try { const r = this.renderer.domElement.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* sin pointer lock */ } }
+  grabMouse() { if (IS_TOUCH) return; try { const r = this.renderer.domElement.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* sin pointer lock */ } }
   releaseMouse() { try { if (this.locked()) document.exitPointerLock(); } catch (e) { /* nada */ } }
 
   /* ---------- Menú: selección, compras y vista previa ---------- */
@@ -223,6 +229,7 @@ class Game {
     this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
     this.run = newRun(); this.curseHp = 0; this.curseDmg = 0; this.chal = 0; this.coinMul = 1; this.showMap = false; this.ui.el.bigmap.style.display = 'none';
     this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
+    if (IS_TOUCH) { goFullscreen(); this.camDistT = 22; }
     this.loadStage(0);
     this.applyForm();
     for (let i = 0; i < 14; i++) this.spawnEnemy();
@@ -489,20 +496,21 @@ class Game {
     this.fx.aura.setColor(p.form.aura || 0xfff2b0);
     this.fx.sparks.setColor(p.form.ki);
   }
-  /** Cambia de forma según el nivel (cada personaje tiene su tabla de transformaciones) */
+  /** Al subir de nivel: si llegas al nivel de la siguiente forma, la transformación queda DISPONIBLE (tú decides cuándo) */
   checkTransformation() {
+    const p = this.player, next = p.ch.forms[p.formIdx + 1];
+    const ready = next && p.level >= next.lvl ? p.formIdx + 1 : -1;
+    if (ready >= 0 && p.formReady !== ready) { this.ui.toast('¡' + next.name + ' DISPONIBLE!  [G]', true); }
+    p.formReady = ready;
+  }
+  /** G / botón: lanza la cinemática de la siguiente forma */
+  transform() {
     const p = this.player;
-    let best = 0;
-    p.ch.forms.forEach((f, i) => { if (p.level >= f.lvl) best = i; });
-    if (best === p.formIdx) return;
-    p.setForm(best); this.applyForm();
-    p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);
-    this.ui.toast(p.form.name + '!');
-    const c = p.form.aura || 0xffffff;
-    this.fx.ring(this.fx.aura, p.x, 0.4, p.z, 60, 22, 0.8, 0.45, c);
-    this.fx.burst(this.fx.sparks, p.x, 1.4, p.z, 50, 14, 0.9, 0.5, 2, c);
-    this.horde.shockwave(p.x, p.z, 16, 26);
-    this.shake(1.2); this.hitstop = 0.18;
+    if (this.state !== 'play' || p.formReady < 0 || this.cine.on) return;
+    const idx = p.formReady;
+    p.formReady = -1;
+    this.state = 'transform';
+    this.cine.start(idx);
   }
 
   gainZeni(v) { this.zeniRun += v * this.player.zeniMul * this.coinMul; }
@@ -883,6 +891,7 @@ class Game {
     requestAnimationFrame(this.loop);
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     const s = this.state;
+    if (s === 'play' && IS_TOUCH && window.innerHeight > window.innerWidth) this.togglePause();   // móvil en vertical: pausa
     if (s === 'play') {
       let dt = 0;
       if (this.hitstop > 0) this.hitstop -= rawDt; else dt = rawDt;
@@ -897,6 +906,15 @@ class Game {
       this.updateCamera(rawDt, rawDt, false);
       this.ui.update(this, rawDt);
       if (done) this.gameOver();
+    } else if (s === 'transform') {                                   // cinemática: el mundo se congela, el personaje carga
+      const done = this.cine.update(rawDt);
+      const p = this.player;
+      p.animT += rawDt; p.pose();
+      this.fx.update(rawDt);
+      this.syncSprites();
+      this.updateCamera(rawDt, rawDt, false);
+      this.ui.update(this, rawDt);
+      if (done) { this.state = 'play'; this.checkTransformation(); this.clock.getDelta(); }
     } else if (s === 'transition') {                                  // viaje por la grieta con fundido a negro
       this.transT += rawDt;
       this.fx.update(rawDt); this.updateCamera(rawDt, rawDt, false);
@@ -911,6 +929,7 @@ class Game {
     } else {                                                          // pausa, cartas, deseo, fin: mundo congelado
       this.updateCamera(0.0001, 0, false);
     }
+    this.touch.update(this);
     this.renderer.render(this.scene, this.camera);
   }
 }
