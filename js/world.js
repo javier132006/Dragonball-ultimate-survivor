@@ -13,12 +13,26 @@ function noise2(x, z, s) {
   return (h(ix, iz) * (1 - u) + h(ix + 1, iz) * u) * (1 - v) + (h(ix, iz + 1) * (1 - u) + h(ix + 1, iz + 1) * u) * v;
 }
 /* Colores de bioma: 0 yermo, 1 llanura verde, 2 cañón rojo, 3 tierra ceniza */
-const BIOME_COL = [[0.86, 0.7, 0.52], [0.5, 0.72, 0.42], [0.82, 0.45, 0.32], [0.58, 0.55, 0.58]];
-const BIOME_NAMES = ['YERMO', 'LLANURA', 'CAÑÓN', 'TIERRA CENIZA'];
+let BIOME_COL = [[0.86, 0.7, 0.52], [0.5, 0.72, 0.42], [0.82, 0.45, 0.32], [0.58, 0.55, 0.58]];
+let BIOME_NAMES = ['YERMO', 'LLANURA', 'CAÑÓN', 'TIERRA CENIZA'];
+let BIOME_SEED = 0;
+
+/* ---------- Temas de mapa (uno por fase de la partida) ---------- */
+const THEMES = [
+  { seed: 20241103, names: ['YERMO', 'LLANURA', 'CAÑÓN', 'TIERRA CENIZA'], cols: [[0.86, 0.7, 0.52], [0.5, 0.72, 0.42], [0.82, 0.45, 0.32], [0.58, 0.55, 0.58]],
+    bg: 0xf2b676, fog: 0xf0b878, fogRange: [90, 330], hemi: [0xfff0d0, 0x8a5a30, 0.45], sun: 0.6, tex: '#e4d8c8',
+    mesas: [0xa87a46, 0xa0482a, 0x6d6a70], rim: 0x8f5a34, rock: 0x9a6a44, pebble: 0xa8693a, trunk: 0x7a5232, crown: 0x3f9a4a, dead: 0x4a3b32, pillar: 0x9a9aa2, crater: 0x4a3626, lake: 0x3ea6e8, crystal: 0x9fe0ff },
+  { seed: 777123, names: ['LLANURA AZUL', 'BOSQUE DE AJAS', 'MARES VERDES', 'ISLOTES'], cols: [[0.32, 0.72, 0.62], [0.3, 0.68, 0.4], [0.26, 0.55, 0.72], [0.5, 0.74, 0.66]],
+    bg: 0x9be8b4, fog: 0x9be8b4, fogRange: [80, 300], hemi: [0xe8fff0, 0x3a7a62, 0.5], sun: 0.62, tex: '#cdeed8',
+    mesas: [0x4f9f78, 0x3d8f9a, 0x6aa88f], rim: 0x3f8f70, rock: 0x5f9f88, pebble: 0x58a890, trunk: 0x6b8f5a, crown: 0x8be8b0, dead: 0x4a6b52, pillar: 0xa8c8b8, crater: 0x1f6a58, lake: 0x35e0a8, crystal: 0xffa0e8 },
+  { seed: 99087, names: ['VACÍO', 'RUINAS', 'GRIETA', 'ABISMO'], cols: [[0.3, 0.22, 0.44], [0.24, 0.18, 0.38], [0.44, 0.17, 0.38], [0.28, 0.28, 0.42]],
+    bg: 0x140a24, fog: 0x1a0e30, fogRange: [40, 150], hemi: [0xc8a0ff, 0x30184a, 0.55], sun: 0.5, tex: '#8a78a8',
+    mesas: [0x3a2a58, 0x56306a, 0x2a2440], rim: 0x2a1c46, rock: 0x4a3868, pebble: 0x6a4a88, trunk: 0x3a2a48, crown: 0x8040c0, dead: 0x2a1c38, pillar: 0x7a68b0, crater: 0x0a0414, lake: 0xd040a0, crystal: 0xff90e0 }
+];
 const _bw = [0, 0, 0, 0];
 /** Pesos de cada bioma en (x,z). El centro del mapa siempre es yermo. */
 function biomeWeights(x, z) {
-  const a = noise2(x * 0.011, z * 0.011, 1), b = noise2(x * 0.017 + 7, z * 0.017 - 3, 2), far = sm(18, 60, Math.hypot(x, z));
+  const a = noise2(x * 0.011, z * 0.011, 1 + BIOME_SEED), b = noise2(x * 0.017 + 7, z * 0.017 - 3, 2 + BIOME_SEED), far = sm(18, 60, Math.hypot(x, z));
   const g = sm(0.52, 0.62, a) * far, r = sm(0.46, 0.36, a) * sm(0.45, 0.55, b) * far, s = sm(0.46, 0.36, a) * (1 - sm(0.45, 0.55, b)) * far;
   _bw[0] = Math.max(0, 1 - g - r - s); _bw[1] = g; _bw[2] = r; _bw[3] = s;
   return _bw;
@@ -30,14 +44,17 @@ function biomeAt(x, z) {
 }
 
 class World {
-  constructor(scene) {
+  constructor(scene, themeIdx) {
+    const th = this.th = THEMES[themeIdx || 0], before = scene.children.length;
+    BIOME_COL = th.cols; BIOME_NAMES = th.names; BIOME_SEED = (themeIdx || 0) * 5;
     this.R = CFG.ARENA;
-    this.rng = seeded(20241103);
-    scene.background = new THREE.Color(0xf2b676);
-    scene.fog = new THREE.Fog(0xf0b878, 90, 330);
-    scene.add(new THREE.HemisphereLight(0xfff0d0, 0x8a5a30, 0.45));
+    this.dens = clamp((this.R / 220) * (this.R / 220), 0.1, 1);       // en mapas pequeños hay menos props
+    this.rng = seeded(th.seed);
+    scene.background = new THREE.Color(th.bg);
+    scene.fog = new THREE.Fog(th.fog, th.fogRange[0], th.fogRange[1]);
+    scene.add(new THREE.HemisphereLight(th.hemi[0], th.hemi[1], th.hemi[2]));
     // Luz cenital con sombras suaves: sigue al jugador para mantener la sombra nítida
-    this.sun = new THREE.DirectionalLight(0xfff4e0, 0.6);
+    this.sun = new THREE.DirectionalLight(0xfff4e0, th.sun);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     const sc = this.sun.shadow.camera;
@@ -54,6 +71,16 @@ class World {
     this.buildProps(scene);
     this.buildGrid();
     this.buildMinimap();
+    this.objs = scene.children.slice(before);
+  }
+
+  /** Quita el mapa de la escena y libera memoria (al cambiar de fase) */
+  dispose(scene) {
+    for (const o of this.objs) {
+      scene.remove(o);
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    }
   }
 
   buildGround(scene) {
@@ -76,7 +103,7 @@ class World {
     c.width = c.height = S;
     const g = c.getContext && c.getContext('2d');
     if (!g) return null;
-    g.fillStyle = '#e4d8c8';
+    g.fillStyle = this.th.tex;
     g.fillRect(0, 0, S, S);
     const wrap = (fn) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) fn(ox, oy); };
     for (let i = 0; i < 120; i++) {
@@ -114,12 +141,12 @@ class World {
   collider(x, z, r, dest) { this.cx.push(x); this.cz.push(z); this.cr.push(r); this.cdest.push(dest === undefined ? -1 : dest); }
 
   buildProps(scene) {
-    const rng = this.rng, R = this.R, rr = (a, b) => a + rng() * (b - a);
-    const spot = (minD) => { for (let k = 0; k < 20; k++) { const x = rr(-R, R), z = rr(-R, R); if (Math.hypot(x, z) > minD) return [x, z]; } return [R * 0.9, R * 0.9]; };
+    const rng = this.rng, R = this.R, th = this.th, rr = (a, b) => a + rng() * (b - a), N = (c) => Math.max(3, Math.round(c * this.dens)), sc = R < 100 ? 0.3 : 1;
+    const spot = (minD0) => { const minD = minD0 * sc; for (let k = 0; k < 20; k++) { const x = rr(-R, R), z = rr(-R, R); if (Math.hypot(x, z) > minD) return [x, z]; } return [R * 0.9, R * 0.9]; };
     const cyl = new THREE.CylinderGeometry(0.62, 1, 1, 7), ico = new THREE.IcosahedronGeometry(1, 0);
     // Mesetas por bioma (rojas en el cañón, grises en la tierra ceniza, ocres en el resto)
-    const mesas = [[], [], []], MC = [0xa87a46, 0xa0482a, 0x6d6a70];
-    for (let i = 0; i < 90; i++) {
+    const mesas = [[], [], []], MC = th.mesas;
+    for (let i = 0; i < N(90); i++) {
       const [x, z] = spot(30), b = biomeAt(x, z), k = b === 2 ? 1 : b === 3 ? 2 : 0, w = rr(3, 6.5), h = rr(9, 26);
       mesas[k].push([x, h / 2 - 0.5, z, w, h, w, rr(0, 6.28)]);
       this.collider(x, z, w * 0.82);
@@ -128,42 +155,42 @@ class World {
     // Muralla de mesetas gigantes fuera del mapa (oculta el borde)
     const rim = [];
     for (let i = 0; i < 130; i++) { const a = rr(0, 6.28), d = R + rr(8, 80), w = rr(8, 18), h = rr(24, 70); rim.push([Math.cos(a) * d, h / 2 - 0.5, Math.sin(a) * d, w, h, w, rr(0, 6.28)]); }
-    this.inst(scene, cyl, toonMat(0x8f5a34), rim, false);
+    this.inst(scene, cyl, toonMat(th.rim), rim, false);
     // Rocas grandes (con colisión) y guijarros decorativos
     const rocks = [], pebbles = [];
-    for (let i = 0; i < 150; i++) { const [x, z] = spot(14), s = rr(1.1, 2.6); rocks.push([x, s * 0.45, z, s, s * 0.8, s * rr(0.8, 1.2), rr(0, 6.28)]); this.collider(x, z, s * 0.85); }
-    for (let i = 0; i < 400; i++) { const [x, z] = spot(0), w = rr(0.25, 0.8); pebbles.push([x, 0, z, w, w * 0.35, w * rr(0.7, 1.3), rr(0, 6.28)]); }
-    this.inst(scene, ico, toonMat(0x9a6a44), rocks, true);
-    this.inst(scene, ico, toonMat(0xa8693a), pebbles, false);
+    for (let i = 0; i < N(150); i++) { const [x, z] = spot(14), s = rr(1.1, 2.6); rocks.push([x, s * 0.45, z, s, s * 0.8, s * rr(0.8, 1.2), rr(0, 6.28)]); this.collider(x, z, s * 0.85); }
+    for (let i = 0; i < N(400); i++) { const [x, z] = spot(0), w = rr(0.25, 0.8); pebbles.push([x, 0, z, w, w * 0.35, w * rr(0.7, 1.3), rr(0, 6.28)]); }
+    this.inst(scene, ico, toonMat(th.rock), rocks, true);
+    this.inst(scene, ico, toonMat(th.pebble), pebbles, false);
     // Árboles (llanuras y tierra ceniza) y ruinas
     const trunks = [], crowns = [], dead = [], pillars = [];
-    for (let i = 0; i < 700 && trunks.length + dead.length < 230; i++) {
+    for (let i = 0; i < 700 && trunks.length + dead.length < N(230); i++) {
       const [x, z] = spot(20), b = biomeAt(x, z);
       if (b === 1) { const h = rr(3.5, 6); trunks.push([x, h / 2, z, 0.35, h, 0.35, 0]); crowns.push([x, h + 1.1, z, rr(1.8, 2.8), rr(1.6, 2.4), rr(1.8, 2.8), rr(0, 6)]); this.collider(x, z, 0.5); }
       else if (b === 3 && rng() < 0.6) { const h = rr(3, 5); dead.push([x, h / 2, z, 0.3, h, 0.3, rr(0, 6)]); this.collider(x, z, 0.45); }
       else if (b === 3 && rng() < 0.5) { const h = rr(3, 8); pillars.push([x, h / 2, z, 1.1, h, 1.1, rr(0, 6)]); this.collider(x, z, 1.0); }
     }
-    this.inst(scene, new THREE.CylinderGeometry(0.8, 1, 1, 6), toonMat(0x7a5232), trunks, true);
-    this.inst(scene, new THREE.IcosahedronGeometry(1, 1), toonMat(0x3f9a4a), crowns, true);
-    this.inst(scene, new THREE.CylinderGeometry(0.6, 1, 1, 5), toonMat(0x4a3b32), dead, true);
-    this.inst(scene, new THREE.CylinderGeometry(0.85, 1, 1, 8), toonMat(0x9a9aa2), pillars, true);
+    this.inst(scene, new THREE.CylinderGeometry(0.8, 1, 1, 6), toonMat(th.trunk), trunks, true);
+    this.inst(scene, new THREE.IcosahedronGeometry(1, 1), toonMat(th.crown), crowns, true);
+    this.inst(scene, new THREE.CylinderGeometry(0.6, 1, 1, 5), toonMat(th.dead), dead, true);
+    this.inst(scene, new THREE.CylinderGeometry(0.85, 1, 1, 8), toonMat(th.pillar), pillars, true);
     // Cráteres y lagos (solo visuales)
     const flat = new THREE.CircleGeometry(1, 28);
     flat.rotateX(-Math.PI / 2);
     const craters = [], lakes = [];
-    for (let i = 0; i < 28; i++) { const [x, z] = spot(25), r = rr(5, 11); craters.push([x, 0.04, z, r, 1, r, 0]); }
-    for (let i = 0; i < 9; i++) { const [x, z] = spot(45), r = rr(10, 24); lakes.push([x, 0.06, z, r, 1, r, 0]); this.lakes.push({ x, z, r }); }
-    this.inst(scene, flat, new THREE.MeshBasicMaterial({ color: 0x4a3626, transparent: true, opacity: 0.55 }), craters, false);
-    this.inst(scene, flat, new THREE.MeshBasicMaterial({ color: 0x3ea6e8, transparent: true, opacity: 0.8 }), lakes, false);
+    for (let i = 0; i < N(28); i++) { const [x, z] = spot(25), r = rr(5, 11); craters.push([x, 0.04, z, r, 1, r, 0]); }
+    for (let i = 0, nl = R < 100 ? 0 : 9; i < nl; i++) { const [x, z] = spot(45), r = rr(10, 24); lakes.push([x, 0.06, z, r, 1, r, 0]); this.lakes.push({ x, z, r }); }
+    this.inst(scene, flat, new THREE.MeshBasicMaterial({ color: th.crater, transparent: true, opacity: 0.55 }), craters, false);
+    this.inst(scene, flat, new THREE.MeshBasicMaterial({ color: th.lake, transparent: true, opacity: 0.8 }), lakes, false);
     // Cristales destructibles: se rompen con el ki y sueltan experiencia y semillas
     const cr = [];
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < N(80); i++) {
       const [x, z] = spot(16), s = rr(1.2, 1.9);
       cr.push([x, s * 1.1, z, s * 0.8, s * 1.4, s * 0.8, rr(0, 6)]);
       this.destr.push({ x, z, hp: 50, max: 50, col: this.cx.length, idx: i, s });
       this.collider(x, z, s * 0.8, i);
     }
-    this.crystals = this.inst(scene, new THREE.OctahedronGeometry(1, 0), toonMat(0x9fe0ff), cr, true);
+    this.crystals = this.inst(scene, new THREE.OctahedronGeometry(1, 0), toonMat(th.crystal), cr, true);
     this.crystalPlace = cr;
     this.zero = new THREE.Matrix4().makeScale(0, 0, 0);
   }
@@ -248,7 +275,7 @@ class World {
       g.fillStyle = 'rgb(' + v[0] + ',' + v[1] + ',' + v[2] + ')';
       g.fillRect(i, j, 1, 1);
     }
-    g.fillStyle = '#3ea6e8';
+    g.fillStyle = '#' + this.th.lake.toString(16).padStart(6, '0');
     for (const l of this.lakes) { g.beginPath(); g.arc((l.x / this.R + 1) / 2 * N, (l.z / this.R + 1) / 2 * N, l.r / this.R * N / 2, 0, 7); g.fill(); }
     this.mini = c;
   }

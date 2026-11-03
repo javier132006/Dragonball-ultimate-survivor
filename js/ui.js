@@ -10,7 +10,7 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
-      'biome', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'biome', 'goalL', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
@@ -56,9 +56,17 @@ class UIManager {
     e.kiTxt.textContent = Math.floor(p.ki) + ' / ' + p.maxKi;
     e.xpTxt.textContent = Math.floor(p.xp) + ' / ' + p.xpNext;
     e.lvl.textContent = p.level; e.formName.textContent = p.form.name; e.chName.textContent = p.ch.name;
-    e.kills.textContent = game.kills; e.time.textContent = fmtTime(game.time); e.horde.textContent = game.horde.n;
+    e.kills.textContent = game.kills; e.time.textContent = fmtTime(game.stageTime); e.horde.textContent = game.horde.n;
     e.zeniHud.textContent = Math.floor(game.cash);
-    e.goal.textContent = fmtTime(Math.max(0, game.diff.goal - game.time)); e.diffName.textContent = game.diff.name; e.diffName.style.color = game.diff.color;
+    const S = game.stage;
+    e.stageName.textContent = (game.stageIdx + 1) + '/' + STAGES.length + ' · ' + S.name;
+    if (S.final) { e.goalL.textContent = 'OBJETIVO'; e.goal.textContent = 'DERROTA AL JEFE'; e.goal.style.color = '#ff6a8a'; }
+    else if (game.swarm) { e.goalL.textContent = 'ENJAMBRE'; e.goal.textContent = '¡ACTIVO! +' + fmtTime(game.stageTime - SWARM_TIME); e.goal.style.color = '#ff4d5e'; }
+    else { e.goalL.textContent = 'ENJAMBRE EN'; e.goal.textContent = fmtTime(Math.max(0, SWARM_TIME - game.stageTime)); e.goal.style.color = ''; }
+    e.diffName.textContent = game.diff.name + (game.chal ? ' · DESAFÍO ' + game.chal : ''); e.diffName.style.color = game.diff.color;
+    // Barra de la Habitación del Tiempo
+    const z = game.zoneBusy;
+    if (z && game.state === 'play') { e.zoneBox.style.display = 'block'; sc(e.zoneBar, z.charge); e.zoneTxt.textContent = Math.floor(z.charge * 100) + '%'; } else e.zoneBox.style.display = 'none';
     this.updatePrompt(game); e.balls.textContent = game.pickups.collected + ' / 7';
     this.flash = Math.max(0, this.flash - dt * 2.2);
     const lowHp = p.hp / p.maxHp < 0.3 ? 0.35 + Math.sin(game.time * 8) * 0.15 : 0;
@@ -78,17 +86,15 @@ class UIManager {
     else e.bossBox.style.display = 'none';
     this.updateStrip(game);
     this.mmT -= dt;
-    if (this.mmT <= 0) { this.mmT = 0.1; this.drawMinimap(game, bi); }
+    if (this.mmT <= 0) { this.mmT = 0.1; this.drawMinimap(game, bi); if (game.showMap) this.paintMap(this.el.bigmapc.getContext('2d'), this.el.bigmapc.width, game, bi, true); }
   }
 
   /** Aviso "[E] abrir cápsula" con su precio cuando estás cerca de una */
   updatePrompt(game) {
-    const c = game.capsules, e = this.el.prompt;
-    if (c.near < 0 || game.state !== 'play') { e.style.display = 'none'; return; }
-    const cost = game.capsuleCost(c.gold[c.near]), ok = game.cash >= cost;
-    e.style.display = 'block'; e.className = ok ? '' : 'no';
-    const t = '[E] ABRIR CÁPSULA' + (c.gold[c.near] ? ' DORADA' : '') + ' · ' + cost + ' ZENI';
-    if (e.textContent !== t) e.textContent = t;
+    const e = this.el.prompt, info = game.state === 'play' ? game.promptInfo() : null;
+    if (!info) { e.style.display = 'none'; return; }
+    e.style.display = 'block'; e.className = info.ok ? '' : 'no';
+    if (e.textContent !== info.t) e.textContent = info.t;
   }
 
   /** Iconos de armas y vitaminas equipadas (solo se reconstruye si cambian) */
@@ -107,20 +113,40 @@ class UIManager {
     this.el.wstrip.innerHTML = h;
   }
 
-  drawMinimap(game, bossIdx) {
-    const g = this.mmCtx, w = game.world, p = game.player;
+  drawMinimap(game, bossIdx) { this.paintMap(this.mmCtx, this.el.mm.width, game, bossIdx, false); }
+
+  /** Dibuja el mapa (minimapa o mapa grande): cápsulas (normal/dorada/maldita), santuarios, comerciantes, altar, grieta y jefe */
+  paintMap(g, N, game, bossIdx, big) {
     if (!g) return;
-    const N = this.el.mm.width, R = CFG.ARENA, X = (v) => ((v / R + 1) / 2) * N;
+    const w = game.world, p = game.player, R = CFG.ARENA, X = (v) => ((v / R + 1) / 2) * N, k = big ? 2 : 1, t = game.time;
     g.clearRect(0, 0, N, N);
     if (w.mini) g.drawImage(w.mini, 0, 0, N, N);
-    g.fillStyle = '#ffd84a';
-    for (let i = 0; i < 7; i++) if (!game.pickups.got[i]) g.fillRect(X(game.pickups.bx[i]) - 2, X(game.pickups.bz[i]) - 2, 4, 4);
-    if (bossIdx >= 0) { g.fillStyle = '#ff3050'; g.fillRect(X(game.horde.x[bossIdx]) - 3, X(game.horde.z[bossIdx]) - 3, 6, 6); }
-    g.fillStyle = '#ff7ad0';
-    for (let i = 0; i < game.capsules.n; i++) g.fillRect(X(game.capsules.x[i]) - 1, X(game.capsules.z[i]) - 1, 3, 3);
-    g.fillStyle = '#fff'; g.fillRect(X(p.x) - 2, X(p.z) - 2, 5, 5);
-    // Indicador de la orientación de la cámara
-    g.strokeStyle = '#35e0ff'; g.beginPath(); g.moveTo(X(p.x), X(p.z)); g.lineTo(X(p.x) - Math.sin(game.camYaw) * 12, X(p.z) - Math.cos(game.camYaw) * 12); g.stroke();
+    const sq = (x, z, s, c) => { g.fillStyle = c; g.fillRect(X(x) - s / 2, X(z) - s / 2, s, s); };
+    for (let i = 0; i < 7; i++) if (!game.pickups.got[i]) sq(game.pickups.bx[i], game.pickups.bz[i], 3 * k, '#ffd84a');
+    const CC = ['#ff7ad0', '#ffd24a', '#b050ff'];
+    for (let i = 0; i < game.capsules.n; i++) sq(game.capsules.x[i], game.capsules.z[i], (game.capsules.gold[i] ? 3 : 2) * k, CC[game.capsules.gold[i]]);
+    const PC = { boss: '#ff3050', time: '#6fd0ff', temple: '#5be07a', merchant: '#ffd24a', swapper: '#ff9a3a' };
+    for (const o of game.points.list) {
+      const used = o.used && o.type !== 'merchant' && o.type !== 'swapper', s = 5 * k, c = used ? '#667' : PC[o.type];
+      g.fillStyle = c; g.strokeStyle = '#000'; g.lineWidth = 1;
+      const cx = X(o.x), cy = X(o.z);
+      g.beginPath();
+      if (o.type === 'boss') { g.moveTo(cx, cy - s); g.lineTo(cx + s, cy); g.lineTo(cx, cy + s); g.lineTo(cx - s, cy); g.closePath(); }
+      else if (o.type === 'time') g.arc(cx, cy, s * 0.8, 0, 6.3);
+      else if (o.type === 'temple') { g.moveTo(cx, cy - s); g.lineTo(cx + s, cy + s * 0.8); g.lineTo(cx - s, cy + s * 0.8); g.closePath(); }
+      else g.rect(cx - s * 0.7, cy - s * 0.7, s * 1.4, s * 1.4);
+      g.fill(); g.stroke();
+      if (big) { g.fillStyle = '#fff'; g.font = '10px Orbitron,monospace'; g.fillText(o.type === 'merchant' ? 'BULMA' : o.type === 'swapper' ? 'ROSHI' : o.type === 'boss' ? 'ALTAR' : o.type === 'time' ? 'TIEMPO' : 'TEMPLO', cx + s + 3, cy + 3); }
+    }
+    const r = game.points.rift;
+    if (r) {
+      const pulse = 5 * k + Math.sin(t * 6) * 2;
+      g.fillStyle = '#d070ff'; g.strokeStyle = '#fff'; g.beginPath(); g.arc(X(r.x), X(r.z), pulse, 0, 6.3); g.fill(); g.stroke();
+      if (big) { g.fillStyle = '#fff'; g.font = '11px Orbitron,monospace'; g.fillText('GRIETA', X(r.x) + pulse + 3, X(r.z) + 3); }
+    }
+    if (bossIdx >= 0) sq(game.horde.x[bossIdx], game.horde.z[bossIdx], 7 * k, '#ff3050');
+    sq(p.x, p.z, 5 * k, '#fff');
+    g.strokeStyle = '#35e0ff'; g.beginPath(); g.moveTo(X(p.x), X(p.z)); g.lineTo(X(p.x) - Math.sin(game.camYaw) * 12 * k, X(p.z) - Math.cos(game.camYaw) * 12 * k); g.stroke();
   }
 
   /** Aviso al abrir una cápsula: nombre, rareza y efecto del objeto */
@@ -130,6 +156,10 @@ class UIManager {
     e.innerHTML = '<div class="ip-i" style="color:' + rar.color + '">' + it.icon + '</div><div><small style="color:' + rar.color + '">' + rar.name + '</small><b>' + it.name + '</b><p>' + it.text + '</p></div>';
     e.classList.remove('go'); void e.offsetWidth; e.classList.add('go');
   }
+
+  /* ---------- Comercio (Bulma / Roshi) ---------- */
+  showTrade(html) { this.el.trade.innerHTML = '<div class="tb">' + html + '</div>'; this.el.trade.classList.add('show'); }
+  hideTrade() { this.el.trade.classList.remove('show'); }
 
   /* ---------- Pantallas de pausa / derrota ---------- */
   showScreen(title, sub, html, aText, bText, kind) {
@@ -178,11 +208,11 @@ class UIManager {
   }
 
   renderMenu() {
-    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES' };
+    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES', stats: 'ESTADÍSTICAS' };
     e.zeniMenu.textContent = Save.d.zeni;
     e.menu.classList.toggle('ishome', s === 'home');
     e.menuNav.innerHTML = s === 'home' ? '' : '<button class="back" data-go="home">◂ VOLVER</button><h3>' + TITLES[s] + '</h3>';
-    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else this.renderMissions();
+    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else this.renderMissions();
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame);
   }
@@ -198,6 +228,7 @@ class UIManager {
       '<div class="hbtns"><button class="big play" data-go="play">▶ JUGAR<small>' + sel.name + ' · ' + d.name + '</small></button>' +
       '<button class="big" data-go="shop">TIENDA</button>' +
       '<button class="big" data-go="missions">MISIONES' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +
+      '<button class="big" data-go="stats">ESTADÍSTICAS</button>' +
       '<button class="big ghost" data-exit>SALIR</button></div></div>' +
       '<div class="hr"><div class="hcard"><h4>MISIONES DIARIAS</h4>' + daily + '<h4 style="margin-top:12px">RACHA</h4><p>' + Save.d.login.streak + ' día(s) seguidos</p></div></div></div>';
   }
@@ -205,9 +236,9 @@ class UIManager {
   renderPlay() {
     this.renderChars();
     const d = Save.d.diff;
-    const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '"><b>' + x.name + '</b><small>' + fmtTime(x.goal) + ' · x' + x.coins + ' monedas · +' + x.reward + ' al ganar</small></button>').join('');
+    const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '"><b>' + x.name + '</b><small>' + 'x' + x.coins + ' monedas · +' + x.reward + ' al ganar</small></button>').join('');
     const sel = charById(Save.d.sel);
-    this.el.menuBody.innerHTML += '<div class="playbar"><div class="diffs">' + diffs + '</div><button class="start" data-start>JUGAR CON ' + sel.name + ' [ENTER]</button></div>';
+    this.el.menuBody.innerHTML += '<div class="dim" style="text-align:center">3 MAPAS · 10 MIN POR MAPA ANTES DEL ENJAMBRE FINAL · MATA AL JEFE PARA ABRIR LA GRIETA</div><div class="playbar"><div class="diffs">' + diffs + '</div><button class="start" data-start>JUGAR CON ' + sel.name + ' [ENTER]</button></div>';
     for (const cv of this.el.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame);
   }
 
@@ -279,6 +310,16 @@ class UIManager {
         (own ? '<button disabled>COMPRADA</button>' : '<button data-tech="' + id + '"' + (Save.d.zeni < W.shop ? ' disabled' : '') + '>' + W.shop + ' ●</button>') + '</div>';
     }
     return h + '</div>';
+  }
+
+  /* ---------- Estadísticas acumuladas ---------- */
+  renderStatsScreen() {
+    const st = Save.d.stats, n = (k) => Math.floor(st[k] || 0);
+    const rows = [['PARTIDAS', n('runs')], ['VICTORIAS', n('wins')], ['TIEMPO JUGADO', fmtTime(n('time'))], ['MAPA MÁS LEJANO', n('maxStage') + ' / ' + STAGES.length], ['NIVEL MÁXIMO', n('maxLevel')],
+      ['ENEMIGOS DERROTADOS', n('kills')], ['ÉLITES', n('elites')], ['JEFES', n('bosses')], ['DAÑO TOTAL', n('damage')], ['DAÑO RECIBIDO', n('taken')], ['DASHES', n('dashes')],
+      ['CÁPSULAS ABIERTAS', n('capsules')], ['MALDICIONES', n('curses')], ['DESAFÍOS ACEPTADOS', n('temples')], ['HABITACIONES DEL TIEMPO', n('rooms')], ['DESEOS A SHENRON', n('wishes')]];
+    const best = CHARACTERS.filter((c) => Save.d.best[c.id]).map((c) => { const b = Save.d.best[c.id]; return '<div class="dm"><span>' + c.name + ' · ' + fmtTime(b.time) + ' · ' + b.kills + ' enemigos · NV ' + b.level + '</span></div>'; }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
+    this.el.menuBody.innerHTML = '<div class="msplit"><div><div class="sec">TOTALES</div><div class="sum">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div></div><div><div class="sec">MEJORES PARTIDAS</div>' + best + '</div></div>';
   }
 
   /* ---------- Misiones ---------- */

@@ -32,14 +32,11 @@ class Player {
   reset(ch) {
     this.ch = ch;
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
-    const L = (id) => Save.lab(id);
-    this.maxHp = Math.round(ch.hp * (1 + 0.08 * L('hp'))); this.hp = this.maxHp;
-    this.maxKi = ch.ki; this.ki = ch.ki; this.kiRegen = 4 * (1 + 0.08 * L('ki'));
-    this.statDmg = 1 + 0.04 * L('dmg'); this.speedMul = ch.spd * (1 + 0.03 * L('spd'));
-    this.magnet = 5 * (1 + 0.1 * L('mag')); this.crit = 0.08 + 0.02 * L('crit');
-    this.rateMul = 1; this.regen = 0; this.armor = 0; this.stacks = {};
-    this.canRevive = L('revive') > 0;
-    this.buffT = 0; this.buffDmg = 0; this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.zeniMul = 1 + 0.1 * L('zeni'); this.luck = 0; this.items = {};
+    this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false;
+    this.initStats();
+    this.hp = this.maxHp; this.ki = this.maxKi;
+    this.canRevive = Save.lab('revive') > 0;
+    this.buffT = 0; this.buffDmg = 0;
     this.x = 0; this.z = 0; this.vx = 0; this.vz = 0; this.flip = 0;
     this.level = 1; this.xp = 0; this.xpNext = this.xpFor(1);
     this.dashT = 0; this.dashCd = 0; this.dashX = 1; this.dashZ = 0; this.iframes = 0; this.ghostT = 0;
@@ -48,6 +45,27 @@ class Player {
     this.dying = false; this.deathT = 0;
     this.setForm(0);
     for (const g of this.ghosts) g.t = 0;
+  }
+
+  /** Estadísticas base del personaje + mejoras permanentes del laboratorio */
+  initStats() {
+    const ch = this.ch, L = (id) => Save.lab(id);
+    this.maxHp = Math.round(ch.hp * (1 + 0.08 * L('hp'))); this.maxKi = ch.ki; this.kiRegen = 4 * (1 + 0.08 * L('ki'));
+    this.statDmg = 1 + 0.04 * L('dmg'); this.speedMul = ch.spd * (1 + 0.03 * L('spd')); this.magnet = 5 * (1 + 0.1 * L('mag'));
+    this.crit = 0.08 + 0.02 * L('crit'); this.critDmg = 2;
+    this.rateMul = 1; this.regen = 0; this.armor = 0; this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.luck = 0;
+    this.zeniMul = 1 + 0.1 * L('zeni');
+  }
+  /** Recalcula todo desde cero: base + vitaminas + objetos + mejoras temporales. Permite quitar o cambiar objetos */
+  recompute() {
+    const oh = this.hp, om = this.maxHp, ok = this.maxKi;
+    this.initStats();
+    for (const s of STATS) for (let k = 0; k < (this.stacks[s.id] || 0); k++) s.apply(this);
+    for (const id in this.items) { const it = itemById(id); for (let k = 0; k < this.items[id]; k++) it.apply(this); }
+    for (const id of this.buffs) BUFFS[id].apply(this);
+    this.maxHp = Math.max(20, this.maxHp);
+    this.hp = Math.min(this.maxHp, oh + Math.max(0, this.maxHp - om));
+    this.ki = Math.min(this.maxKi, this.ki + Math.max(0, this.maxKi - ok));
   }
 
   setForm(idx) {
@@ -74,6 +92,7 @@ class Player {
     }
     this.hp -= amount * (1 - this.armor);
     this.iframes = 0.55; this.hurtT = 0.3;
+    game.run.taken += amount * (1 - this.armor);
     game.ui.flash = 1;
     game.shake(0.45);
     game.hitstop = 0.04;
@@ -108,7 +127,7 @@ class Player {
       this.dashX = il > 0 ? wx : (this.flip ? -game.camCos : game.camCos);
       this.dashZ = il > 0 ? wz : (this.flip ? this.dashZ * 0 + game.camSin : -game.camSin);
       this.dashT = CFG.DASH_TIME; this.dashCd = CFG.DASH_CD * this.dashMul; this.ghostT = 0;
-      this.ki -= CFG.DASH_COST;
+      this.ki -= CFG.DASH_COST; game.run.dashes++;
       this.iframes = Math.max(this.iframes, CFG.DASH_TIME + 0.1);
       game.fx.burst(game.fx.trail, this.x, 0.8, this.z, 12, 5, 0.5, 0.6, 0);
       game.shake(0.25);
@@ -224,6 +243,7 @@ class HordeManager {
     this.cols = Math.ceil((this.half * 2) / CFG.CELL);
     this.heads = new Int32Array(this.cols * this.cols).fill(-1);
     this.next = new Int32Array(max);
+    this.tints = ENEMY_TYPES.map((t) => t.tint);
     const H = 2.9;
     this.sb = new SpriteBatch(scene, { max, texture: sheet.tex, cols: sheet.cols, rows: sheet.rows, w: H * (sheet.w / sheet.h), h: H, anchor: 0.04, renderOrder: 0 });
   }
@@ -288,6 +308,7 @@ class HordeManager {
   /** Aplica daño a un enemigo (la retirada se hace después, en reap) */
   hurt(i, dmg, kx, kz, game) {
     if (this.hp[i] <= 0) return;
+    game.run.damage += Math.min(dmg, this.hp[i]); if (dmg > game.run.best) game.run.best = dmg;
     this.hp[i] -= dmg; this.hitT[i] = 0.12;
     const m = this.type[i] === 3 ? 0.15 : 1;
     this.kx[i] += kx * m; this.kz[i] += kz * m;
@@ -379,7 +400,7 @@ class HordeManager {
     sb.begin();
     for (let i = 0; i < this.n; i++) {
       const T = ENEMY_TYPES[this.type[i]], ph = this.phase[i], hit = this.hitT[i] > 0 ? this.hitT[i] : 0;
-      sb.push(this.x[i], Math.abs(Math.sin(ph * 1.1)) * 0.14 * T.scale, this.z[i], walk[(ph | 0) % walk.length], this.flip[i], hit * 8, T.scale * (1 + hit * 1.2), 1, T.tint);
+      sb.push(this.x[i], Math.abs(Math.sin(ph * 1.1)) * 0.14 * T.scale, this.z[i], walk[(ph | 0) % walk.length], this.flip[i], hit * 8, T.scale * (1 + hit * 1.2), 1, this.tints[this.type[i]]);
       shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, 1.9 * T.scale, 1);
     }
     sb.end();
@@ -515,7 +536,7 @@ class Capsules {
   constructor(scene, tex) {
     this.max = 40; this.n = 0; this.t = 0; this.respT = 30; this.near = -1;
     this.x = new Float32Array(this.max); this.z = new Float32Array(this.max); this.gold = new Uint8Array(this.max);
-    this.spr = new SpriteBatch(scene, { max: this.max, texture: tex.capsule, cols: 2, rows: 1, w: 1.5, h: 1.5, anchor: 0.04, renderOrder: 2 });
+    this.spr = new SpriteBatch(scene, { max: this.max, texture: tex.capsule, cols: 3, rows: 1, w: 1.5, h: 1.5, anchor: 0.04, renderOrder: 2 });
     this.glow = new SpriteBatch(scene, { max: this.max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, alpha: 0.22, cut: 0.02, renderOrder: 1 });
   }
   /** Coloca una cápsula; el borde del mapa y los obstáculos se respetan con world.push */
@@ -525,24 +546,27 @@ class Capsules {
     x = clamp(x, -R, R); z = clamp(z, -R, R);
     if (world) { world.push(x, z, 1.4); x = world.px; z = world.pz; }
     const i = this.n++;
-    this.x[i] = x; this.z[i] = z; this.gold[i] = gold ? 1 : 0;
+    this.x[i] = x; this.z[i] = z; this.gold[i] = gold === 2 ? 2 : gold ? 1 : 0;       // 0 normal · 1 dorada · 2 maldita
   }
   removeAt(i) { const l = --this.n; this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.gold[i] = this.gold[l]; }
-  reset(world) {
+  reset(world, count) {
     this.n = 0; this.respT = 30; this.near = -1;
-    for (let i = 0; i < 28; i++) {
+    if (count === undefined) count = 28;
+    for (let i = 0; i < count; i++) {
       let x, z;
       do { x = rand(-CFG.ARENA + 12, CFG.ARENA - 12); z = rand(-CFG.ARENA + 12, CFG.ARENA - 12); } while (Math.hypot(x, z) < 14);
-      this.add(x, z, i % 6 === 0, world);
+      this.add(x, z, i % 6 === 0 ? 1 : i % 7 === 3 ? 2 : 0, world);
     }
   }
   update(dt, player, game) {
     this.t += dt;
     this.respT -= dt;
-    if (this.respT <= 0) {                                   // reaparece una cápsula nueva cada 40 s a distancia media
+    if (this.respT <= 0) {
+      if (game.stage.final) this.respT = 40; else {                                   // reaparece una cápsula nueva cada 40 s a distancia media
       this.respT = 40;
       const a = rand(0, 6.28), r = rand(35, 70);
-      this.add(player.x + Math.cos(a) * r, player.z + Math.sin(a) * r, Math.random() < 0.15, game.world);
+      this.add(player.x + Math.cos(a) * r, player.z + Math.sin(a) * r, Math.random() < 0.12 ? 1 : Math.random() < 0.2 ? 2 : 0, game.world);
+      }
     }
     // Cápsula abrible más cercana (se abre con E si tienes dinero)
     let best = -1, bd = 12;
@@ -554,9 +578,37 @@ class Capsules {
     this.spr.begin(); this.glow.begin();
     for (let i = 0; i < this.n; i++) {
       const b = Math.sin(this.t * 3 + i) * 0.12, g = this.gold[i];
-      this.spr.push(this.x[i], 0.15 + b, this.z[i], g, 0, 0, 1 + g * 0.25, 1);
-      this.glow.push(this.x[i], 0.8 + b, this.z[i], 0, 0, 0, 1.9 + g * 0.9 + Math.sin(this.t * 4 + i) * 0.2, 1, g ? 0xffd24a : 0xffffff);
+      this.spr.push(this.x[i], 0.15 + b, this.z[i], g, 0, 0, g === 1 ? 1.25 : g === 2 ? 1.1 : 1, 1);
+      this.glow.push(this.x[i], 0.8 + b, this.z[i], 0, 0, 0, 1.9 + (g === 1 ? 0.9 : g === 2 ? 0.5 : 0) + Math.sin(this.t * 4 + i) * 0.2, 1, g === 1 ? 0xffd24a : g === 2 ? 0xb040ff : 0xffffff);
     }
     this.spr.end(); this.glow.end();
   }
+}
+
+/* ---------- Disparos enemigos (los jefes): pool de 100 ---------- */
+class EnemyShots {
+  constructor(scene, tex) {
+    this.max = 100; this.s = [];
+    for (let i = 0; i < this.max; i++) this.s.push({ on: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, dmg: 0 });
+    this.sb = new SpriteBatch(scene, { max: this.max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
+  }
+  fire(x, z, dx, dz, speed, dmg) {
+    for (const s of this.s) if (!s.on) { s.on = true; s.x = x; s.z = z; s.vx = dx * speed; s.vz = dz * speed; s.life = 5; s.dmg = dmg; return; }
+  }
+  /** Anillo de n disparos (con un ángulo inicial) */
+  ring(x, z, n, speed, dmg, off) { for (let i = 0; i < n; i++) { const a = off + (i / n) * 6.2832; this.fire(x, z, Math.cos(a), Math.sin(a), speed, dmg); } }
+  update(dt, game) {
+    const p = game.player;
+    this.sb.begin();
+    for (const s of this.s) {
+      if (!s.on) continue;
+      s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt;
+      if (s.life <= 0) { s.on = false; continue; }
+      const dx = p.x - s.x, dz = p.z - s.z;
+      if (dx * dx + dz * dz < 1.1) { p.takeDamage(s.dmg, game); s.on = false; game.fx.burst(game.fx.sparks, s.x, 1.2, s.z, 5, 5, 0.3, 0.3, 6, 0xff4060); continue; }
+      this.sb.push(s.x, 1.3, s.z, 0, 0, 0, 1.5, 1, 0xff5070);
+    }
+    this.sb.end();
+  }
+  reset() { for (const s of this.s) s.on = false; this.sb.reset(); }
 }

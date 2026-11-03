@@ -75,7 +75,7 @@ class WeaponSystem {
     for (let i = 0; i < n; i++) {
       const ang = (i - (n - 1) / 2) * 0.17, c = Math.cos(ang), s = Math.sin(ang);
       crit = Math.random() < p.crit;
-      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 28, dm * p.damageMul() * (crit ? 2 : 1), 0.5, crit, 1.3, lv >= 4 ? 1 : 0, 0, p.form.ki);
+      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 28, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.5, crit, 1.3, lv >= 4 ? 1 : 0, 0, p.form.ki);
     }
     p.attack(a.dx, a.dz, crit, g);
   }
@@ -90,7 +90,7 @@ class WeaponSystem {
     for (let i = 0; i < n; i++) {
       const ang = (i - (n - 1) / 2) * 0.2, c = Math.cos(ang), s = Math.sin(ang);
       crit = Math.random() < p.crit;
-      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 22, dm * p.damageMul() * (crit ? 2 : 1), 0.6, crit, 1.4, 0, aoe, this.col(w, p));
+      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 22, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.6, crit, 1.4, 0, aoe, this.col(w, p));
     }
     p.attack(a.dx, a.dz, crit, g);
   }
@@ -103,7 +103,7 @@ class WeaponSystem {
     w.cd = 1.1 / (lv >= 5 ? 1.3 : 1);
     for (let i = 0; i < n; i++) {
       const ang = (i - (n - 1) / 2) * (0.95 / Math.max(2, n - 1)) * 1.6, c = Math.cos(ang), s = Math.sin(ang), crit = Math.random() < p.crit;
-      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 24, dm * p.damageMul() * (crit ? 2 : 1), 0.55, crit, lv >= 4 ? 0.75 : 0.55, 0, 0, 0xffb040);
+      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 24, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.55, crit, lv >= 4 ? 0.75 : 0.55, 0, 0, 0xffb040);
     }
     p.attack(a.dx, a.dz, false, g);
   }
@@ -116,7 +116,7 @@ class WeaponSystem {
     w.cd = lv >= 5 ? 1.0 : lv >= 3 ? 1.6 : 2.2;
     for (let i = 0; i < n; i++) {
       const ang = n === 1 ? 0 : (i ? 0.3 : -0.3), c = Math.cos(ang), s = Math.sin(ang), crit = Math.random() < p.crit;
-      this.beam(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 26, 0.65, dm * p.damageMul() * (crit ? 2 : 1), 0.25, 99, 0xffe040, false);
+      this.beam(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 26, 0.65, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.25, 99, 0xffe040, false);
     }
     p.attack(a.dx, a.dz, true, g);
   }
@@ -225,7 +225,7 @@ class WeaponSystem {
     if (c.hpCost && p.hp <= p.maxHp * (c.hpCost + 0.05)) return;
     p.ki -= c.cost; if (c.hpCost) p.hp -= p.maxHp * c.hpCost;
     w.cd = c.cd * (lv >= 4 ? 0.8 : 1) * (lv >= 5 ? 0.9 : 1);
-    const crit = Math.random() < p.crit, dm = c.dmg * (1 + 0.4 * (lv - 1)) * p.damageMul() * (crit ? 2 : 1);
+    const crit = Math.random() < p.crit, dm = c.dmg * (1 + 0.4 * (lv - 1)) * p.damageMul() * (crit ? p.critDmg : 1);
     this.beam(p.x, p.z, a.dx, a.dz, c.len * (lv >= 3 ? 1.2 : 1), c.hw * (lv >= 2 ? 1.1 : 1) * (lv >= 5 ? 1.2 : 1), dm, c.life, 0.1, D.color, true);
     p.attack(a.dx, a.dz, true, g); p.beamT = c.life;
     g.shake(0.9); g.ui.toast(D.name.toUpperCase() + '!', true);
@@ -289,7 +289,7 @@ class WeaponSystem {
     const lv = w.lv, big = lv >= 3 ? 1.4 : 1, dm = 30 * (1 + 0.55 * (lv >= 2)) * (lv >= 5 ? 1.4 : 1), crit = Math.random() < p.crit;
     w.cd = lv >= 5 ? 3.5 : lv >= 4 ? 4 : 5;
     p.ki -= 10;
-    this.beam(p.x, p.z, a.dx, a.dz, 26 * big, 1.3 * big * (lv >= 5 ? 1.3 : 1), dm * p.damageMul() * (crit ? 2 : 1) * 0.35, 0.75, 0.1, this.col(w, p), true);
+    this.beam(p.x, p.z, a.dx, a.dz, 26 * big, 1.3 * big * (lv >= 5 ? 1.3 : 1), dm * p.damageMul() * (crit ? p.critDmg : 1) * 0.35, 0.75, 0.1, this.col(w, p), true);
     p.attack(a.dx, a.dz, true, g); p.beamT = 0.75;
     g.shake(0.6);
     g.fx.burst(g.fx.aura, p.x, 1.4, p.z, 18, 6, 0.5, 0.35, 0, this.col(w, p));

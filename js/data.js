@@ -162,13 +162,43 @@ const ITEMS = [
   { id: 'reloj_trunks', icon: '⌚', name: 'Máquina del Tiempo', rarity: 3, text: '+15% de velocidad, dash 20% más rápido y +2 Ki/s.', apply: (p) => { p.speedMul += 0.15; p.dashMul *= 0.8; p.kiRegen += 2; } },
 
   { id: 'esfera4', icon: '★', name: 'Esfera de 4 Estrellas', rarity: 4, text: '+20% de daño, cadencia y velocidad, y +10% de crítico.', apply: (p) => { p.statDmg += 0.2; p.rateMul += 0.2; p.speedMul += 0.2; p.crit += 0.1; } },
-  { id: 'aureola', icon: '◯', name: 'Aureola de Kaiō', rarity: 4, text: 'Revives una vez y recibes un 10% menos de daño.', apply: (p) => { p.canRevive = true; p.armor = Math.min(0.6, p.armor + 0.1); } },
+  { id: 'aureola', icon: '◯', name: 'Aureola de Kaiō', rarity: 4, text: 'Revives una vez y recibes un 10% menos de daño.', apply: (p) => { if (!p.reviveUsed) p.canRevive = true; p.armor = Math.min(0.6, p.armor + 0.1); } },
   { id: 'armadura', icon: '⛨', name: 'Armadura Saiyajin Reforzada', rarity: 4, text: '+15% de armadura, +80 de vida y +2 de vida/s.', apply: (p) => { p.armor = Math.min(0.6, p.armor + 0.15); hp(p, 80); p.regen += 2; } },
 
   { id: 'zenkai', icon: '⚔', name: 'Zenkai Infinito', rarity: 5, text: '+60% de daño y +30% de cadencia.', apply: (p) => { p.statDmg += 0.6; p.rateMul += 0.3; } },
   { id: 'arbol', icon: '✿', name: 'Fruto del Árbol del Poder', rarity: 5, text: '+50% de daño, +30% de experiencia, +100 de vida y +3 de vida/s.', apply: (p) => { p.statDmg += 0.5; p.xpMul += 0.3; hp(p, 100); p.regen += 3; } },
   { id: 'shenron', icon: '☯', name: 'Escama de Shenron', rarity: 5, text: '+15% de esquiva, curas 0,8 por enemigo, +25% de daño y velocidad.', apply: (p) => { p.dodge = Math.min(0.5, p.dodge + 0.15); p.killHeal += 0.8; p.statDmg += 0.25; p.speedMul += 0.25; } }
 ];
+/* ---------- Mejoras temporales de la partida: santuarios, deseos y maldiciones ---------- */
+const BUFFS = {
+  b_dmg: { name: 'Entrenamiento de fuerza', icon: '⬆', text: '+20% de daño.', apply: (p) => { p.statDmg += 0.2; } },
+  b_rate: { name: 'Reflejos acelerados', icon: '⏱', text: '+20% de cadencia de ataque.', apply: (p) => { p.rateMul += 0.2; } },
+  b_hp: { name: 'Cuerpo de acero', icon: '♥', text: '+40 de vida máxima.', apply: (p) => hp(p, 40) },
+  b_spd: { name: 'Pasos de viento', icon: '»', text: '+15% de velocidad.', apply: (p) => { p.speedMul += 0.15; } },
+  b_crit: { name: 'Ojo del guerrero', icon: '✚', text: '+10% de crítico y +25% de daño crítico.', apply: (p) => { p.crit += 0.1; p.critDmg += 0.25; } },
+  b_armor: { name: 'Piel de dragón', icon: '▣', text: 'Recibes un 8% menos de daño.', apply: (p) => { p.armor = Math.min(0.6, p.armor + 0.08); } },
+  b_regen: { name: 'Meditación', icon: '❖', text: '+1,5 de vida por segundo.', apply: (p) => { p.regen += 1.5; } },
+  b_ki: { name: 'Pozo de ki', icon: '⚡', text: '+30 de Ki máximo y +2 Ki/s.', apply: (p) => { p.maxKi += 30; p.kiRegen += 2; } },
+  b_xp: { name: 'Mente despierta', icon: '☰', text: '+25% de experiencia.', apply: (p) => { p.xpMul += 0.25; } },
+  b_luck: { name: 'Buena estrella', icon: '♣', text: '+6 de suerte.', apply: (p) => { p.luck += 6; } },
+  w_hp: { name: 'Vitalidad eterna', icon: '♥', text: '+100 de vida máxima.', apply: (p) => hp(p, 100) },
+  w_dmg: { name: 'Poder ilimitado', icon: '⬆', text: '+35% de daño.', apply: (p) => { p.statDmg += 0.35; } },
+  c_dmg: { name: 'Maldición de debilidad', icon: '☠', text: '-10% de daño.', apply: (p) => { p.statDmg = Math.max(0.3, p.statDmg - 0.1); } },
+  c_hp: { name: 'Maldición de fragilidad', icon: '☠', text: '-20 de vida máxima.', apply: (p) => { p.maxHp -= 20; } },
+  c_spd: { name: 'Maldición de lentitud', icon: '☠', text: '-8% de velocidad.', apply: (p) => { p.speedMul = Math.max(0.4, p.speedMul - 0.08); } },
+  c_rate: { name: 'Maldición de torpeza', icon: '☠', text: '-10% de cadencia.', apply: (p) => { p.rateMul = Math.max(0.4, p.rateMul - 0.1); } }
+};
+const SHRINE_BUFFS = ['b_dmg', 'b_rate', 'b_hp', 'b_spd', 'b_crit', 'b_armor', 'b_regen', 'b_ki', 'b_xp', 'b_luck'];
+const CURSE_BUFFS = ['c_dmg', 'c_hp', 'c_spd', 'c_rate'];
+
+/* ---------- Mapas de la partida: Tierra -> Namekusei -> Dimensión fracturada (jefe final) ---------- */
+const STAGES = [
+  { name: 'TIERRA · YERMO', theme: 0, R: 220, hp: 1, dmg: 1, spawn: 1, pois: true, boss: { name: 'FREEZER', tint: 0xd8b8ff, scale: 3.1, hp: 3500, r: 1.9 } },
+  { name: 'NAMEKUSEI', theme: 1, R: 220, hp: 1.8, dmg: 1.35, spawn: 1.2, pois: true, boss: { name: 'CÉLULA PERFECTO', tint: 0x8aff70, scale: 3.5, hp: 9000, r: 2.1 } },
+  { name: 'DIMENSIÓN FRACTURADA', theme: 2, R: 62, hp: 2.6, dmg: 1.7, spawn: 0, pois: false, final: true, boss: { name: 'ZAMASU FUSIONADO', tint: 0xff6fbd, scale: 4.4, hp: 24000, r: 2.6 } }
+];
+const SWARM_TIME = 600;   // a los 10 minutos de cada mapa llega el enjambre final
+
 const itemById = (id) => ITEMS.find((i) => i.id === id);
 /** Un objeto está disponible en las cápsulas si es común/raro o si lo has desbloqueado en la Tienda */
 const itemAvailable = (it) => it.rarity <= 1 || Save.d.items.includes(it.id);
@@ -189,9 +219,9 @@ const labCost = (l, lvl) => Math.round(l.cost * (1 + lvl * 0.8));
 
 /* ---------- Dificultades: sobrevive hasta el objetivo para ganar ---------- */
 const DIFFS = [
-  { id: 'easy', name: 'FÁCIL', goal: 300, hp: 0.75, dmg: 0.7, spawn: 0.8, coins: 1, reward: 250, color: '#5be07a' },
-  { id: 'normal', name: 'NORMAL', goal: 480, hp: 1, dmg: 1, spawn: 1, coins: 1.5, reward: 600, color: '#ffd84a' },
-  { id: 'hard', name: 'DIFÍCIL', goal: 720, hp: 1.6, dmg: 1.4, spawn: 1.3, coins: 2.5, reward: 1500, color: '#ff4d5e' }
+  { id: 'easy', name: 'FÁCIL', hp: 0.75, dmg: 0.7, spawn: 0.8, coins: 1, reward: 250, color: '#5be07a' },
+  { id: 'normal', name: 'NORMAL', hp: 1, dmg: 1, spawn: 1, coins: 1.5, reward: 600, color: '#ffd84a' },
+  { id: 'hard', name: 'DIFÍCIL', hp: 1.6, dmg: 1.4, spawn: 1.3, coins: 2.5, reward: 1500, color: '#ff4d5e' }
 ];
 const diffById = (id) => DIFFS.find((x) => x.id === id) || DIFFS[0];
 
