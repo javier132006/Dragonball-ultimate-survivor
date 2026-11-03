@@ -150,6 +150,14 @@ button:hover{filter:brightness(1.15)}
 #loading,#fatal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#050c18;z-index:30;font-size:16px;letter-spacing:6px;color:var(--cy)}
 #fatal{display:none;color:#ff8a8a;text-align:center;padding:30px;letter-spacing:2px;line-height:1.7;z-index:31}
 @media (max-width:760px){#menuBody{flex-direction:column;overflow-y:auto}.detail{max-width:none}.card{width:100%;min-height:0}#mmWrap{display:none}}
+
+#itemPop{position:fixed;left:50%;top:17%;transform:translateX(-50%);display:none;align-items:center;gap:14px;padding:12px 20px;max-width:min(520px,92vw);
+  background:linear-gradient(135deg,rgba(7,20,38,.95),rgba(13,37,66,.9));border:2px solid var(--line);pointer-events:none;z-index:9}
+#itemPop.go{display:flex;animation:ipop 3.2s ease-out forwards}
+#itemPop small{font-size:10px;letter-spacing:4px;font-weight:900}#itemPop b{display:block;font-size:17px;letter-spacing:2px;color:#fff;margin:2px 0}
+#itemPop p{font-size:11px;color:#bfeaff;font-weight:400}.ip-i{font-size:42px;line-height:1}
+@keyframes ipop{0%{opacity:0;transform:translateX(-50%) scale(.6)}10%{opacity:1;transform:translateX(-50%) scale(1.06)}18%{transform:translateX(-50%) scale(1)}85%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-20px)}}
+.wi.it{background:rgba(7,20,38,.9)}.item .ic{font-size:30px;width:36px;text-align:center}.item small{font-size:9px;letter-spacing:3px;font-weight:900}
 </style>
 </head>
 <body>
@@ -185,6 +193,7 @@ button:hover{filter:brightness(1.15)}
   <div id="mmWrap"><canvas id="mm" width="140" height="140"></canvas></div>
 </div>
 <div id="feed"></div>
+<div id="itemPop"></div>
 <div id="vignette"></div>
 <div id="toast"></div>
 

@@ -39,6 +39,7 @@ class Player {
     this.magnet = 5 * (1 + 0.1 * L('mag')); this.crit = 0.08 + 0.02 * L('crit');
     this.rateMul = 1; this.regen = 0; this.armor = 0; this.stacks = {};
     this.canRevive = L('revive') > 0;
+    this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.zeniMul = 1 + 0.1 * L('zeni'); this.luck = 0; this.items = {};
     this.x = 0; this.z = 0; this.vx = 0; this.vz = 0; this.flip = 0;
     this.level = 1; this.xp = 0; this.xpNext = this.xpFor(1);
     this.dashT = 0; this.dashCd = 0; this.dashX = 1; this.dashZ = 0; this.iframes = 0; this.ghostT = 0;
@@ -66,6 +67,11 @@ class Player {
 
   takeDamage(amount, game) {
     if (this.iframes > 0 || game.state !== 'play') return;
+    if (this.dodge > 0 && Math.random() < this.dodge) {            // esquiva (objetos)
+      this.iframes = 0.3; game.ui.toast('ESQUIVA', true);
+      game.fx.burst(game.fx.trail, this.x, 1, this.z, 8, 4, 0.4, 0.3, 0);
+      return;
+    }
     this.hp -= amount * (1 - this.armor);
     this.iframes = 0.55; this.hurtT = 0.3;
     game.ui.flash = 1;
@@ -101,7 +107,7 @@ class Player {
     if (space && !this.prevSpace && this.dashT <= 0 && this.dashCd <= 0 && this.ki >= CFG.DASH_COST && !this.charging) {
       this.dashX = il > 0 ? wx : (this.flip ? -game.camCos : game.camCos);
       this.dashZ = il > 0 ? wz : (this.flip ? this.dashZ * 0 + game.camSin : -game.camSin);
-      this.dashT = CFG.DASH_TIME; this.dashCd = CFG.DASH_CD; this.ghostT = 0;
+      this.dashT = CFG.DASH_TIME; this.dashCd = CFG.DASH_CD * this.dashMul; this.ghostT = 0;
       this.ki -= CFG.DASH_COST;
       this.iframes = Math.max(this.iframes, CFG.DASH_TIME + 0.1);
       game.fx.burst(game.fx.trail, this.x, 0.8, this.z, 12, 5, 0.5, 0.6, 0);
@@ -500,5 +506,56 @@ class Pickups {
     this.balls.begin();
     for (let i = 0; i < 7; i++) if (!this.got[i]) this.balls.push(this.bx[i], 1.1 + Math.sin(this.t * 2 + i) * 0.2, this.bz[i], i, 0, 0, 1, 1);
     this.balls.end();
+  }
+}
+
+/* ---------- CÁPSULAS (cofres 2D de Capsule Corp repartidos por el mapa) ---------- */
+class Capsules {
+  constructor(scene, tex) {
+    this.max = 40; this.n = 0; this.t = 0; this.respT = 30;
+    this.x = new Float32Array(this.max); this.z = new Float32Array(this.max); this.gold = new Uint8Array(this.max);
+    this.spr = new SpriteBatch(scene, { max: this.max, texture: tex.capsule, cols: 2, rows: 1, w: 1.5, h: 1.5, anchor: 0.04, renderOrder: 2 });
+    this.glow = new SpriteBatch(scene, { max: this.max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, alpha: 0.22, cut: 0.02, renderOrder: 1 });
+  }
+  /** Coloca una cápsula; el borde del mapa y los obstáculos se respetan con world.push */
+  add(x, z, gold, world) {
+    if (this.n >= this.max) return;
+    const R = CFG.ARENA - 6;
+    x = clamp(x, -R, R); z = clamp(z, -R, R);
+    if (world) { world.push(x, z, 1.4); x = world.px; z = world.pz; }
+    const i = this.n++;
+    this.x[i] = x; this.z[i] = z; this.gold[i] = gold ? 1 : 0;
+  }
+  reset(world) {
+    this.n = 0; this.respT = 30;
+    for (let i = 0; i < 28; i++) {
+      let x, z;
+      do { x = rand(-CFG.ARENA + 12, CFG.ARENA - 12); z = rand(-CFG.ARENA + 12, CFG.ARENA - 12); } while (Math.hypot(x, z) < 14);
+      this.add(x, z, i % 6 === 0, world);
+    }
+  }
+  update(dt, player, game) {
+    this.t += dt;
+    this.respT -= dt;
+    if (this.respT <= 0) {                                   // reaparece una cápsula nueva cada 40 s a distancia media
+      this.respT = 40;
+      const a = rand(0, 6.28), r = rand(35, 70);
+      this.add(player.x + Math.cos(a) * r, player.z + Math.sin(a) * r, Math.random() < 0.15, game.world);
+    }
+    for (let i = this.n - 1; i >= 0; i--) {
+      const dx = player.x - this.x[i], dz = player.z - this.z[i];
+      if (dx * dx + dz * dz < 5.5) {
+        const gold = this.gold[i], x = this.x[i], z = this.z[i], l = --this.n;
+        this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.gold[i] = this.gold[l];
+        game.openCapsule(gold, x, z);
+      }
+    }
+    this.spr.begin(); this.glow.begin();
+    for (let i = 0; i < this.n; i++) {
+      const b = Math.sin(this.t * 3 + i) * 0.12, g = this.gold[i];
+      this.spr.push(this.x[i], 0.15 + b, this.z[i], g, 0, 0, 1 + g * 0.25, 1);
+      this.glow.push(this.x[i], 0.8 + b, this.z[i], 0, 0, 0, 1.9 + g * 0.9 + Math.sin(this.t * 4 + i) * 0.2, 1, g ? 0xffd24a : 0xffffff);
+    }
+    this.spr.end(); this.glow.end();
   }
 }

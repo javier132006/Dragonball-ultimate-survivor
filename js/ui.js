@@ -11,7 +11,7 @@ class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls',
       'biome', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait',
-      'screen', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'menu', 'menuTabs', 'menuBody', 'btnPlay', 'zeniMenu', 'fatal', 'hud'];
+      'itemPop', 'screen', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'menu', 'menuTabs', 'menuBody', 'btnPlay', 'zeniMenu', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.flash = 0; this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0; this.wKey = ''; this.mmT = 0; this.lastBiome = -1;
@@ -85,11 +85,13 @@ class UIManager {
     let key = '';
     for (const w of game.weapons.list) key += w.id + w.lv + ',';
     for (const id in p.stacks) key += id + p.stacks[id] + ',';
+    for (const id in p.items) key += id + p.items[id] + ',';
     if (key === this.wKey) return;
     this.wKey = key;
     let h = '';
     for (const w of game.weapons.list) h += '<div class="wi" title="' + WEAPONS[w.id].name + '"><i>' + WEAPONS[w.id].icon + '</i><b>' + w.lv + '</b></div>';
     for (const s of STATS) if (p.stacks[s.id]) h += '<div class="wi st" title="' + s.name + '"><i>' + s.icon + '</i><b>' + p.stacks[s.id] + '</b></div>';
+    for (const id in p.items) { const it = itemById(id), c = RARITIES[it.rarity].color; h += '<div class="wi it" style="border-color:' + c + ';color:' + c + '" title="' + it.name + '"><i>' + it.icon + '</i><b>' + p.items[id] + '</b></div>'; }
     this.el.wstrip.innerHTML = h;
   }
 
@@ -102,9 +104,19 @@ class UIManager {
     g.fillStyle = '#ffd84a';
     for (let i = 0; i < 7; i++) if (!game.pickups.got[i]) g.fillRect(X(game.pickups.bx[i]) - 2, X(game.pickups.bz[i]) - 2, 4, 4);
     if (bossIdx >= 0) { g.fillStyle = '#ff3050'; g.fillRect(X(game.horde.x[bossIdx]) - 3, X(game.horde.z[bossIdx]) - 3, 6, 6); }
+    g.fillStyle = '#ff7ad0';
+    for (let i = 0; i < game.capsules.n; i++) g.fillRect(X(game.capsules.x[i]) - 1, X(game.capsules.z[i]) - 1, 3, 3);
     g.fillStyle = '#fff'; g.fillRect(X(p.x) - 2, X(p.z) - 2, 5, 5);
     // Indicador de la orientación de la cámara
     g.strokeStyle = '#35e0ff'; g.beginPath(); g.moveTo(X(p.x), X(p.z)); g.lineTo(X(p.x) - Math.sin(game.camYaw) * 12, X(p.z) - Math.cos(game.camYaw) * 12); g.stroke();
+  }
+
+  /** Aviso al abrir una cápsula: nombre, rareza y efecto del objeto */
+  itemPopup(it, rar) {
+    const e = this.el.itemPop;
+    e.style.borderColor = rar.color; e.style.boxShadow = '0 0 24px ' + rar.color;
+    e.innerHTML = '<div class="ip-i" style="color:' + rar.color + '">' + it.icon + '</div><div><small style="color:' + rar.color + '">' + rar.name + '</small><b>' + it.name + '</b><p>' + it.text + '</p></div>';
+    e.classList.remove('go'); void e.offsetWidth; e.classList.add('go');
   }
 
   /* ---------- Pantallas de pausa / derrota ---------- */
@@ -147,8 +159,8 @@ class UIManager {
   renderMenu() {
     const e = this.el, g = this.game;
     e.zeniMenu.textContent = Save.d.zeni;
-    e.menuTabs.innerHTML = ['chars:PERSONAJES', 'shop:TIENDA'].map((t) => { const [k, n] = t.split(':'); return '<button class="tab ' + (this.tab === k ? 'on' : '') + '" data-tab="' + k + '">' + n + '</button>'; }).join('');
-    if (this.tab === 'chars') this.renderChars(); else this.renderShop();
+    e.menuTabs.innerHTML = ['chars:PERSONAJES', 'shop:MEJORAS', 'items:OBJETOS'].map((t) => { const [k, n] = t.split(':'); return '<button class="tab ' + (this.tab === k ? 'on' : '') + '" data-tab="' + k + '">' + n + '</button>'; }).join('');
+    if (this.tab === 'chars') this.renderChars(); else if (this.tab === 'items') this.renderItems(); else this.renderShop();
     const sel = charById(Save.d.sel);
     e.btnPlay.textContent = 'JUGAR CON ' + sel.name + ' [ENTER]';
     // Retratos: se dibujan después de generar el HTML
@@ -191,6 +203,22 @@ class UIManager {
       let pips = ''; for (let k = 0; k < l.max; k++) pips += '<u class="' + (k < lvl ? 'on' : '') + '"></u>';
       h += '<div class="item"><div><b>' + l.name + '</b><p>' + l.desc + '</p><div class="pips">' + pips + '</div></div>' +
         '<button data-lab="' + l.id + '"' + (maxed || Save.d.zeni < cost ? ' disabled' : '') + '>' + (maxed ? 'MÁXIMO' : cost + ' Z') + '</button></div>';
+    }
+    this.el.menuBody.innerHTML = h + '</div>';
+  }
+
+  /** Colección de objetos: comunes y raros ya vienen desbloqueados; el resto se compra con Zeni */
+  renderItems() {
+    let h = '<div class="shop">';
+    const info = '<div class="item" style="grid-column:1/-1"><div><b>CÁPSULAS DE CAPSULE CORP</b><p>Las cápsulas del mapa dan un objeto aleatorio. Aquí desbloqueas qué objetos pueden tocarte: los más raros solo aparecerán si los compras.</p></div></div>';
+    h += info;
+    for (let r = 0; r < 6; r++) {
+      for (const it of ITEMS) {
+        if (it.rarity !== r) continue;
+        const rar = RARITIES[r], own = itemAvailable(it);
+        h += '<div class="item" style="border-left:4px solid ' + rar.color + '"><div class="ic" style="color:' + rar.color + '">' + it.icon + '</div><div><small style="color:' + rar.color + '">' + rar.name + '</small><br><b>' + it.name + '</b><p>' + it.text + '</p></div>' +
+          (own ? '<button disabled>' + (rar.cost ? 'DESBLOQUEADO' : 'DISPONIBLE') + '</button>' : '<button data-item="' + it.id + '"' + (Save.d.zeni < rar.cost ? ' disabled' : '') + '>' + rar.cost + ' Z</button>') + '</div>';
+      }
     }
     this.el.menuBody.innerHTML = h + '</div>';
   }

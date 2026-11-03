@@ -90,6 +90,21 @@ function makeTextures() {
       const dx = x - 3.5, dy = y - 3.5, e = Math.pow(dx + dy * 0.6, 2) / 9 + Math.pow(dy - dx * 0.6, 2) / 4;
       return e < 1 ? (e < 0.4 ? [190, 245, 100, 255] : [80, 165, 45, 255]) : null;
     }),
+    /* Cápsula de Capsule Corp: atlas de 2 fotogramas (normal roja/blanca y dorada) */
+    capsule: pixelTex(32, 16, (x, y) => {
+      const f = x >= 16 ? 1 : 0, lx = x % 16;
+      const inl = (a, b) => {
+        if (a < 0 || a > 15 || b < 0 || b > 15) return false;
+        const dx = a + 0.5 - 8, yy = b + 0.5;
+        return yy < 5.5 ? Math.hypot(dx, yy - 5.5) <= 4 : yy > 10.5 ? Math.hypot(dx, yy - 10.5) <= 4 : Math.abs(dx) <= 4;
+      };
+      if (!inl(lx, y)) return null;
+      if (!inl(lx - 1, y) || !inl(lx + 1, y) || !inl(lx, y - 1) || !inl(lx, y + 1)) return [30, 20, 20, 255];
+      if (y === 8) return [40, 30, 30, 255];
+      const top = y < 8, hi = lx <= 6;
+      if (f) return top ? (hi ? [255, 240, 120, 255] : [255, 190, 30, 255]) : (hi ? [255, 250, 215, 255] : [245, 215, 120, 255]);
+      return top ? (hi ? [255, 110, 100, 255] : [215, 40, 40, 255]) : (hi ? [255, 255, 255, 255] : [215, 220, 230, 255]);
+    }),
     /* Esferas del Dragón: atlas de 7 fotogramas (1 a 7 estrellas) */
     dball: pixelTex(84, 12, (x, y) => {
       const f = (x / 12) | 0, lx = x % 12, r = Math.hypot(lx + 0.5 - 6, y + 0.5 - 6);

@@ -53,10 +53,11 @@ class Game {
     this.ki = new KiPool(this.scene, CFG.MAX_BULLETS, tex);
     this.orbs = new XpOrbs(this.scene, CFG.MAX_ORBS, tex);
     this.pickups = new Pickups(this.scene, tex);
+    this.capsules = new Capsules(this.scene, tex);
     this.weapons = new WeaponSystem(this.scene, tex);
     // Al romper un cristal: orbes de experiencia, chispas y a veces una semilla
     this.world.onBreak = (x, z) => {
-      this.orbs.spawn(x, z, 4); this.zeniRun += 2;
+      this.orbs.spawn(x, z, 4); this.gainZeni(2);
       this.fx.burst(this.fx.sparks, x, 1.2, z, 16, 7, 0.5, 0.35, 8, 0x9fe0ff);
       if (Math.random() < 0.3) this.pickups.drop(x, z);
     };
@@ -97,13 +98,14 @@ class Game {
 
     // Menú (delegación de eventos)
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-tab],[data-ch],[data-buy],[data-equip],[data-lab]');
+      const t = e.target.closest('[data-tab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item]');
       if (!t) return;
       if (t.dataset.tab) { ui.tab = t.dataset.tab; ui.renderMenu(); }
       else if (t.dataset.ch) this.viewChar(t.dataset.ch);
       else if (t.dataset.buy) this.buyChar(t.dataset.buy);
       else if (t.dataset.equip) this.viewChar(t.dataset.equip, true);
       else if (t.dataset.lab) this.buyLab(t.dataset.lab);
+      else if (t.dataset.item) this.buyItem(t.dataset.item);
     });
     ui.el.btnPlay.onclick = () => { ui.el.btnPlay.blur(); this.start(); };
     ui.el.cardRow.addEventListener('click', (e) => { const c = e.target.closest('.card'); if (c) ui.pickCard(+c.dataset.i); });
@@ -151,7 +153,7 @@ class Game {
   toMenu() {
     this.state = 'menu'; this.releaseMouse();
     this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.weapons.reset(charById(Save.d.sel));
-    this.pickups.senzu.reset(); this.pickups.balls.reset();
+    this.pickups.senzu.reset(); this.pickups.balls.reset(); this.capsules.n = 0; this.capsules.spr.reset(); this.capsules.glow.reset();
     this.ui.hideScreen(); this.ui.hideCards();
     this.previewPlayer();
     this.camYaw = 0.5; this.camPitch = 0.75; this.camDistT = 20; this.camDist = 20;
@@ -164,7 +166,7 @@ class Game {
     const ch = charById(Save.d.sel);
     if (!ch || ch.soon || !Save.d.unlocked.includes(ch.id)) return;
     this.player.reset(ch); this.weapons.reset(ch);
-    this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.world.reset(); this.pickups.reset(this.world);
+    this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.world.reset(); this.pickups.reset(this.world); this.capsules.reset(this.world);
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.bossUid = 0; this.nextBoss = 180; this.leashT = 0;
     this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
     this.applyForm();
@@ -231,6 +233,41 @@ class Game {
     this.shake(1.2); this.hitstop = 0.18;
   }
 
+  gainZeni(v) { this.zeniRun += v * this.player.zeniMul; }
+
+  /* ---------- Cápsulas y objetos ---------- */
+  /** Sortea rareza (la suerte y el tiempo suben las altas; la cápsula dorada mejora las probabilidades) y un objeto disponible */
+  rollItem(gold) {
+    const p = this.player, w = gold ? [0, 30, 35, 22, 10, 3] : [60, 26, 9, 3.5, 1.2, 0.3], boost = (1 + p.luck * 0.1) * Math.min(2, 1 + this.time / 900);
+    let tot = 0;
+    for (let i = 1; i < 6; i++) w[i] *= boost;
+    for (let i = 0; i < 6; i++) tot += w[i];
+    let r = Math.random() * tot, tier = 0;
+    for (let i = 0; i < 6; i++) { r -= w[i]; if (r <= 0) { tier = i; break; } }
+    for (let t = tier; t >= 0; t--) {                    // si no hay objetos desbloqueados de esa rareza, baja un escalón
+      const pool = ITEMS.filter((it) => it.rarity === t && itemAvailable(it));
+      if (pool.length) return pick(pool);
+    }
+    return ITEMS[0];
+  }
+  openCapsule(gold, x, z) {
+    const it = this.rollItem(gold), p = this.player, rar = RARITIES[it.rarity], col = parseInt(rar.color.slice(1), 16);
+    it.apply(p);
+    p.items[it.id] = (p.items[it.id] || 0) + 1;
+    this.fx.burst(this.fx.sparks, x, 1, z, 20 + it.rarity * 8, 8, 0.6, 0.4, 5, col);
+    this.fx.ring(this.fx.aura, x, 0.5, z, 30 + it.rarity * 8, 10 + it.rarity * 2, 0.6, 0.4, col);
+    this.shake(0.2 + it.rarity * 0.12);
+    if (it.rarity >= 4) { this.hitstop = 0.12; this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 60, 22, 0.8, 0.45, col); }
+    this.ui.itemPopup(it, rar);
+  }
+  /** Desbloquea un objeto en la Tienda: a partir de ahí puede salir en las cápsulas */
+  buyItem(id) {
+    const it = itemById(id), cost = RARITIES[it.rarity].cost;
+    if (!it || itemAvailable(it) || Save.d.zeni < cost) return;
+    Save.d.zeni -= cost; Save.d.items.push(id); Save.write();
+    this.ui.renderMenu();
+  }
+
   shake(a) { this.shakeAmt = Math.min(1.4, Math.max(this.shakeAmt, a)); }
   enemyDamage() { return 7 + this.time * 0.03; }
 
@@ -268,24 +305,29 @@ class Game {
   onEnemyKilled(x, z, type) {
     this.kills++;
     this.orbs.spawn(x, z, ENEMY_TYPES[type].xp);
-    this.zeniRun += type === 3 ? 60 : 0.5 * ENEMY_TYPES[type].xp;
+    this.gainZeni(type === 3 ? 60 : 0.5 * ENEMY_TYPES[type].xp);
     this.fx.burst(this.fx.gore, x, 1, z, 7, 6, 0.55, 0.3, 12);
     this.fx.burst(this.fx.sparks, x, 1, z, 4, 5, 0.35, 0.25, 6);
     const p = this.player;
+    if (p.killHeal) p.hp = Math.min(p.maxHp, p.hp + p.killHeal);
     if (p.ch.id === 'black') p.hp = Math.min(p.maxHp, p.hp + 0.6);          // pasiva: Justicia Divina
     if (type === 3) {
       this.bossUid = 0; this.pendingLevels++;
+      this.capsules.add(x, z, true, this.world);
       for (let i = 0; i < 4; i++) this.pickups.drop(x + rand(-3, 3), z + rand(-3, 3));
       for (let i = 0; i < 12; i++) this.orbs.spawn(x, z, 5);
       this.fx.ring(this.fx.aura, x, 0.4, z, 50, 18, 0.7, 0.45, 0xffd24a);
       this.ui.toast('¡JEFE DERROTADO!'); this.shake(1);
-    } else if (Math.random() < 0.012) this.pickups.drop(x, z);
+    } else {
+      if (Math.random() < 0.012) this.pickups.drop(x, z);
+      if (type === 2 && Math.random() < 0.04) this.capsules.add(x, z, false, this.world);
+    }
   }
 
   /* ---------- Experiencia y mejoras ---------- */
   addXp(v) {
     const p = this.player;
-    p.xp += v;
+    p.xp += v * p.xpMul;
     while (p.xp >= p.xpNext) {
       p.xp -= p.xpNext; p.level++; p.xpNext = p.xpFor(p.level);
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.1);
@@ -341,7 +383,7 @@ class Game {
 
   /* ---------- Esferas del Dragón y deseo de Shenron ---------- */
   onBall(n, x, z) {
-    this.zeniRun += 50;
+    this.gainZeni(50);
     this.fx.ring(this.fx.aura, x, 0.5, z, 40, 14, 0.7, 0.4, 0xffb030);
     this.ui.toast('ESFERA ' + n + ' / 7', true);
     this.shake(0.4);
@@ -413,6 +455,7 @@ class Game {
     h.buildGrid();
     this.orbs.update(dt, p, this);
     this.pickups.update(dt, p, this);
+    this.capsules.update(dt, p, this);
     this.world.follow(p.x, p.z);
 
     // Enemigos que se quedan muy lejos reaparecen cerca (el mapa es grande)
