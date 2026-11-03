@@ -23,6 +23,20 @@ const fmtK = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e4 ? Math.roun
 /** Precio base (Zeni) de los objetos del vendedor según su rareza */
 const SHOP_PRICE = [40, 90, 200, 420, 850, 1700];
 
+/* Recarga (s) de cada técnica de jefe, pausa que deja después y nombre que se anuncia.
+   Los nombres que empiezan por «¡» se anuncian siempre; el resto, solo la primera vez del combate */
+const BOSS_CD = { fan: 2.6, ring: 6.5, spiral: 9, dash: 5, rain: 7.5, beam: 8, summon: 15, grieta: 6,
+  deathbeam: 4.2, saucer: 7, supernova: 13, kame: 7.5, barrier: 8, celljr: 16, selfdestruct: 26, eraser: 5.5, meteor: 8, rush: 9, roar: 10,
+  majinkame: 7, candy: 6, planetburst: 10, scream: 7.5, regen: 14, thunder: 6, icewall: 7, nova: 10, minusball: 13,
+  punches: 4, glare: 7, powerimpact: 6.5, blink: 9, orbs: 4.5, hakai: 7.5, sphere: 14, wall: 4.5, lightning: 7.5, blades: 8, wrath: 11 };
+const BOSS_GAP = { fan: 0.4, orbs: 0.4, punches: 0.9, regen: 0, summon: 0.3, celljr: 0.3, selfdestruct: 3.4, rush: 3, nova: 1.2 };
+const BOSS_MOVE_NAMES = { deathbeam: 'RAYO MORTAL', saucer: 'DISCO MORTAL', supernova: '¡SUPERNOVA!', kame: 'KA-ME-HA-ME-HA', barrier: 'BARRERA PERFECTA',
+  celljr: '¡CÉLULA JR.!', selfdestruct: '¡AUTODESTRUCCIÓN! ¡ALÉJATE!', eraser: 'CAÑÓN ERASER', meteor: 'METEORO GIGANTE', rush: 'EMBESTIDA GIGANTE',
+  roar: 'GRITO LEGENDARIO', majinkame: 'KAMEHAMEHA DE BUU', candy: 'RAYO DE CARAMELO', planetburst: 'BOMBA PLANETARIA', scream: 'GRITO DE BUU',
+  regen: '¡SE REGENERA!', thunder: 'TRUENO DEL DRAGÓN', icewall: 'MURO DE HIELO', nova: 'ESTRELLA NOVA', minusball: '¡BOLA DE ENERGÍA NEGATIVA!',
+  punches: 'PUÑOS INVISIBLES', glare: 'MIRADA DE JIREN', powerimpact: 'POWER IMPACT', hakai: '¡HAKAI!', sphere: '¡ESFERA DE DESTRUCCIÓN!',
+  lightning: 'RAYOS DE LA ABSOLUCIÓN', blades: 'HOJAS DEL JUICIO', wrath: 'IRA DIVINA', wall: 'MURO DE LUZ', blink: 'TELETRANSPORTE', orbs: 'ESFERAS DE ENERGÍA', grieta: 'GRIETA DE BLACK' };
+
 class Game {
   constructor(sheets) {
     this.ui = new UIManager();
@@ -91,7 +105,7 @@ class Game {
     this.shadows = new SpriteBatch(this.scene, { max: CFG.MAX_ENEMIES + 2, texture: tex.shadow, w: 1, h: 0.5, anchor: 0.5, flat: true, blend: true, tint: 0x000000, alpha: 0.38, cut: 0.02, renderOrder: 1 });
     this.fx = new FX(this.scene, tex);
     this.player = new Player(this.scene, sheets, tex);
-    this.horde = new HordeManager(this.scene, CFG.MAX_ENEMIES, sheets.shade);
+    this.horde = new HordeManager(this.scene, CFG.MAX_ENEMIES, sheets.enemies || sheets.shade);
     this.ki = new KiPool(this.scene, CFG.MAX_BULLETS, tex);
     this.orbs = new XpOrbs(this.scene, CFG.MAX_ORBS, tex);
     this.pickups = new Pickups(this.scene, tex);
@@ -430,6 +444,7 @@ class Game {
   /** Carga un mapa de la partida: mundo (tema y tamaño), puntos de interés, cápsulas y enemigos limpios */
   loadStage(idx) {
     const S = STAGES[idx];
+    S.boss = pickBoss(S);                                         // jefe de este mapa en esta partida (al azar entre los posibles)
     this.stageIdx = idx; this.stage = S; this.stageTime = 0; this.waveT = 60; this.swarm = false;
     this.bossUid = 0; this.bossDead = false; this.bossSpawned = false; this.victoryT = 0; this.zoneBusy = null;
     this.boss = { t: {}, next: 0 }; this.phase = 0; this.bossInv = 0; this.night = 0; this.wasNight = false; this.nightT = 0;
@@ -447,9 +462,10 @@ class Game {
     if (S.final) { this.pickups.got.fill(1); this.pickups.sn = 0; }
     // Aspecto de la horda y del jefe de este mapa
     this.horde.tints = ENEMY_TYPES.map((t) => t.tint);
-    this.horde.tints[0] = S.tint0;
+    this.horde.rows = ENEMY_TYPES.map((t) => t.row);
+    this.horde.rows[T_BASIC] = ENEMY_ROWS[S.basic] || 0;           // tropa básica: Saibaimans o soldados de Freezer
     const B = S.boss, T = ENEMY_TYPES[T_BOSS];
-    T.name = B.name; T.tint = B.tint; T.scale = B.scale; T.r = B.r; T.spd = 0.62; this.horde.tints[T_BOSS] = B.tint;
+    T.name = B.name; T.tint = B.tints[0]; T.scale = B.scale; T.r = B.r; T.spd = 0.62; this.horde.tints[T_BOSS] = B.tints[0];
     this.ui.el.bossName.textContent = B.name;
     const p = this.player;
     p.x = 0; p.z = 0; p.vx = 0; p.vz = 0; p.kbx = 0; p.kbz = 0; this.camLook.set(0, 1.4, 0);
@@ -1040,6 +1056,7 @@ class Game {
       if (t0 > 60 && q < 0.1 + (this.mods.boom ? 0.25 : 0)) t = T_BOOM;
       else if (t0 > 120 && q < 0.22) t = T_SHIELD;
       else if (t0 > 150 && q < 0.3) t = T_FLY;
+      else if (t0 > 180 && q < 0.36) t = T_ABSORB;
       else if (this.night > 0.5 && q < 0.5) t = T_FAST;
     }
     this.spawnPos(32, 40);
@@ -1055,57 +1072,211 @@ class Game {
     const lvMul = 1 + 0.025 * (this.player.level - 1);
     const i = this.horde.spawn(x, z, B.hp * lvMul * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15) * (this.mods.bigboss ? 1.5 : 1), T_BOSS);
     if (i >= 0) {
-      this.bossUid = this.horde.uid[i]; this.bossSpawned = true; this.boss = { t: { fan: 2, ring: 5, spiral: 6, dash: 4, rain: 5, beam: 6, summon: 9, grieta: 4 }, spiral: 0, spA: 0, spT: 0, dashW: 0 };
-      this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = 0.62; this.horde.tints[T_BOSS] = B.tint;
-      // Jefe con hoja propia (Goku Black): se dibuja con sus sprites y la fila de la forma de cada fase
-      this.horde.setBossSheet(B.sheet && this.ui.sheets ? this.ui.sheets[B.sheet] : null, B.rows ? B.rows[0] : 0);
+      this.bossUid = this.horde.uid[i]; this.bossSpawned = true;
+      this.boss = { t: {}, q: [], gap: 1.2, seen: {}, spiral: 0, spA: 0, spT: 0, spTint: 0, dashW: 0, sd: false };
+      this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = 0.62; this.horde.tints[T_BOSS] = B.tints[0];
+      // Cada jefe se dibuja con sus sprites: fila propia en la hoja "bosses" (o una fila por forma en la de Goku Black)
+      const sh = this.ui.sheets && this.ui.sheets[B.sheet];
+      this.horde.setBossSheet(sh || null, B.rows ? B.rows[0] : B.row, BOSS_ANIM[B.sheet], B.sheet);
+      this.horde.bossTint = B.tintSprite !== false;
       this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
-      this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.tint);
+      if (B.moves) this.ui.toast(B.moves, true);                       // sus técnicas, para saber qué esperar
+      this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.col || B.tints[0]);
     }
   }
-  /** IA del jefe: 3 fases (al 66% y al 33% de vida) y en cada una su lista de ataques (STAGES[].boss.pat) */
+  /** IA del jefe: una fase por cada lista de ataques (3, o 4 en Goku Black) y en cada una sus técnicas (BOSSES[].pat).
+      Entre técnica y técnica hay una pausa corta (`gap`) para que cada aviso se lea bien */
   bossAI(dt) {
     const h = this.horde, i = h.indexOfUid(this.bossUid);
     if (i < 0) return;
     const b = this.boss, st = Math.min(this.step, 3), p = this.player, B = this.stage.boss, frac = h.hp[i] / h.maxHp[i];
     const bx = h.x[i], bz = h.z[i], dmg = this.enemyDamage() * 0.8;
-    // Cambio de fase: una por cada lista de ataques (3 en casi todos; 4 en Goku Black, una por forma)
     const NP = B.pat.length, target = Math.min(NP - 1, Math.floor((1 - frac) * NP));
     if (target > this.phase) { this.phase = target; this.onBossPhase(bx, bz); }
     const ph = this.phase, pat = B.pat[ph], sp = 1 - ph * (0.45 / NP) - st * 0.05;
-    const CD = { fan: 2.6, ring: 6.5, spiral: 9, dash: 5, rain: 7.5, beam: 8, summon: 15, grieta: 6 };
-    const a = Math.atan2(p.z - bz, p.x - bx), ca = Math.cos(a), sa = Math.sin(a);
+    const a = Math.atan2(p.z - bz, p.x - bx);
+    // Acciones programadas (ráfagas, rayos en cadena, teletransportes...)
+    for (let k = b.q.length - 1; k >= 0; k--) { const q = b.q[k]; q.t -= dt; if (q.t <= 0) { b.q.splice(k, 1); q.f(); } }
+    b.gap -= dt;
     for (const k of pat) {
+      if (b.t[k] === undefined) b.t[k] = BOSS_CD[k] * 0.4 + rand(0, 1.5);
       b.t[k] -= dt;
-      if (b.t[k] > 0) continue;
-      b.t[k] = CD[k] * sp * rand(0.85, 1.15);
-      if (k === 'fan') {                                          // abanico dirigido al jugador
-        const n = Math.min(9, 3 + st * 2);
-        for (let q = 0; q < n; q++) { const o = a + (q - (n - 1) / 2) * 0.2; this.shots.fire(bx, bz, Math.cos(o), Math.sin(o), 11 + st, dmg); }
-      } else if (k === 'ring') {                                  // anillo de energía
-        this.shots.ring(bx, bz, 14 + st * 5, 8 + st, dmg, rand(0, 6.28));
-        this.fx.ring(this.fx.aura, bx, 0.5, bz, 40, 14, 0.5, 0.4, B.tint);
-      } else if (k === 'spiral') { b.spiral = 2.4; b.spA = rand(0, 6.28); }
-      else if (k === 'dash') {                                    // embestida con aviso
-        b.dashW = 0.6; this.fx.ring(this.fx.aura, bx, 0.4, bz, 30, 6, 0.6, 0.45, 0xff3050);
-      } else if (k === 'rain') {                                  // zonas marcadas alrededor del jugador
-        const n = 5 + ph * 2;
-        for (let q = 0; q < n; q++) { const r = q === 0 ? 0 : rand(3, 10), o = rand(0, 6.28); this.shots.mark(p.x + Math.cos(o) * r, p.z + Math.sin(o) * r, 3, 1.15 + q * 0.05, dmg * 1.6); }
-        SFX.play('warn');
-      } else if (k === 'beam') {                                  // rayo con aviso (apártate de la línea roja)
-        this.shots.line(bx, bz, ca, sa, 46, 1.6, 0.9, dmg * 2.4); SFX.play('warn');
-      } else if (k === 'grieta') this.bossRift(bx, bz, a, dmg);
-      else if (k === 'summon') this.bossSummon(bx, bz, 6 + st * 2);
+      if (b.t[k] > 0 || b.gap > 0) continue;
+      b.t[k] = BOSS_CD[k] * sp * rand(0.85, 1.15);
+      b.gap = BOSS_GAP[k] !== undefined ? BOSS_GAP[k] : 0.8;
+      this.bossMove(k, { i, bx, bz, a, dmg, ph, st, B, NP });
+      const nm = BOSS_MOVE_NAMES[k];                                 // nombre de la técnica (la primera vez, o siempre si es la grande)
+      if (nm && (!b.seen[k] || nm[0] === '¡')) { b.seen[k] = true; this.ui.toast(nm, true); }
     }
     // Espiral: dos chorros de disparos que giran
     if (b.spiral > 0) {
       b.spiral -= dt; b.spT -= dt;
-      if (b.spT <= 0) { b.spT = 0.09; b.spA += 0.33; for (const o of [0, Math.PI]) this.shots.fire(bx, bz, Math.cos(b.spA + o), Math.sin(b.spA + o), 10, dmg * 0.8); }
+      if (b.spT <= 0) { b.spT = 0.09; b.spA += 0.33; for (const o of [0, Math.PI]) this.shots.fire(bx, bz, Math.cos(b.spA + o), Math.sin(b.spA + o), 10, dmg * 0.8, b.spTint ? { tint: b.spTint, size: 2 } : null); }
     }
     // Embestida: tras el aviso sale disparado hacia el jugador
     if (b.dashW > 0) {
       b.dashW -= dt;
-      if (b.dashW <= 0) { h.kx[i] = ca * 75; h.kz[i] = sa * 75; this.shake(0.5); SFX.play('dash'); }
+      if (b.dashW <= 0) { h.kx[i] = Math.cos(a) * 75; h.kz[i] = Math.sin(a) * 75; this.shake(0.5); SFX.play('dash'); h.posBoss('atk', 0.5); }
+    }
+  }
+  /** Posición actual del jefe (para las acciones programadas: el jefe se mueve entre medias) */
+  bossAt() { const i = this.horde.indexOfUid(this.bossUid); return i < 0 ? null : { i, x: this.horde.x[i], z: this.horde.z[i] }; }
+  /** Programa una acción del jefe dentro de `t` segundos (solo si sigue vivo) */
+  later(t, f) { this.boss.q.push({ t, f: () => { const o = this.bossAt(); if (o) f(o); } }); }
+  /** Dirección del jefe hacia el jugador, con un desvío opcional */
+  aim(o, off) { const a = Math.atan2(this.player.z - o.z, this.player.x - o.x) + (off || 0); return [Math.cos(a), Math.sin(a)]; }
+
+  /** Todas las técnicas de los jefes. Las genéricas (fan, ring...) y las de cada villano, sacadas de la serie */
+  bossMove(k, c) {
+    const S = this.shots, p = this.player, h = this.horde, { bx, bz, a, dmg, ph, st, B } = c, col = B.col || 0xff5070, me = { x: bx, z: bz };
+    const ca = Math.cos(a), sa = Math.sin(a);
+    switch (k) {
+      /* ---- genéricas ---- */
+      case 'fan': {                                                  // abanico dirigido al jugador
+        const n = Math.min(9, 3 + st * 2);
+        for (let q = 0; q < n; q++) { const o = a + (q - (n - 1) / 2) * 0.2; S.fire(bx, bz, Math.cos(o), Math.sin(o), 11 + st, dmg, B.sheet === 'black' ? null : { tint: col, size: 1.8 }); }
+        h.posBoss('atk', 0.4); break;
+      }
+      case 'ring':                                                   // anillo de energía
+        S.ring(bx, bz, 14 + st * 5, 8 + st, dmg, rand(0, 6.28));
+        this.fx.ring(this.fx.aura, bx, 0.5, bz, 40, 14, 0.5, 0.4, B.tints[ph]); h.posBoss('cast', 0.5); break;
+      case 'spiral': this.boss.spiral = 2.4; this.boss.spA = rand(0, 6.28); this.boss.spTint = 0; break;
+      case 'dash':                                                   // embestida con aviso
+        this.boss.dashW = 0.6; this.fx.ring(this.fx.aura, bx, 0.4, bz, 30, 6, 0.6, 0.45, 0xff3050); break;
+      case 'rain': {                                                 // zonas marcadas alrededor del jugador
+        const n = 5 + ph * 2;
+        for (let q = 0; q < n; q++) { const r = q === 0 ? 0 : rand(3, 10), o = rand(0, 6.28); S.mark(p.x + Math.cos(o) * r, p.z + Math.sin(o) * r, 3, 1.15 + q * 0.05, dmg * 1.6); }
+        SFX.play('warn'); h.posBoss('cast', 0.8); break;
+      }
+      case 'beam': S.line(bx, bz, ca, sa, 46, 1.6, 0.9, dmg * 2.4); SFX.play('warn'); h.posBoss('atk', 1.2); break;
+      case 'grieta': this.bossRift(bx, bz, a, dmg); h.posBoss('atk', 1.4); break;
+      case 'summon': this.bossSummon(bx, bz, 6 + st * 2); break;
+
+      /* ---- FREEZER ---- */
+      case 'deathbeam': {                                            // Rayo mortal: rayos finos y rapidísimos, uno tras otro
+        const n = ph >= 2 ? 5 : 3;
+        for (let j = 0; j < n; j++) this.later(j * 0.22, (o) => { const [dx, dz] = this.aim(o, rand(-0.06, 0.06)); S.line(o.x, o.z, dx, dz, 40, 0.55, 0.42, dmg * 1.5, 0xff5ad0); });
+        SFX.play('warn'); h.posBoss('atk', 0.25 * n + 0.4); break;
+      }
+      case 'saucer':                                                 // Disco mortal (Kienzan de Freezer): discos que te persiguen
+        for (let j = 0; j < (ph >= 2 ? 3 : 2); j++) { const o = a + (j - 0.5) * 0.9; S.fire(bx, bz, Math.cos(o), Math.sin(o), 9 + st, dmg * 1.4, { tint: 0xffa0f0, size: 2.6, r: 1.2, home: 1.5, life: 6 }); }
+        SFX.play('zap'); h.posBoss('cast', 0.6); break;
+      case 'supernova':                                              // Supernova: la bola gigante que destruye planetas
+        S.ball(bx, bz, p.x, p.z, 2.3, 6.5, dmg * 3, { tint: 0xffa040, size: 13, ring: 18 });
+        SFX.play('charge'); this.shake(0.4); h.posBoss('cast', 1.4); break;
+
+      /* ---- CÉLULA PERFECTO ---- */
+      case 'kame':                                                   // Kamehameha: aviso largo y rayo enorme
+        S.line(bx, bz, ca, sa, 52, 2.3, 1.15, dmg * 2.8, 0x60c8ff);
+        this.fx.ring(this.fx.aura, bx, 1.2, bz, 30, 5, 1, 0.5, 0x60c8ff); SFX.play('charge'); h.posBoss('atk', 1.6); break;
+      case 'barrier':                                                // Barrera perfecta: cúpula que te aparta de golpe
+        S.mark(bx, bz, 7.5, 0.6, dmg * 1.3, { tint: 0x8aff70, ring: 16 }); h.posBoss('cast', 0.8); break;
+      case 'celljr': this.bossSummon(bx, bz, 5 + st, T_CELLJR); break;
+      case 'selfdestruct':                                           // Autodestrucción: se hincha y explota (una vez por combate)
+        if (this.boss.sd) { this.boss.t[k] = 999; break; }
+        this.boss.sd = true; ENEMY_TYPES[T_BOSS].spd = 0;
+        S.mark(bx, bz, 15, 3.2, dmg * 4, { tint: 0xffe060, big: true, ring: 24 });
+        h.posBoss('cast', 3.2); SFX.play('alarm');
+        this.later(3.2, () => { ENEMY_TYPES[T_BOSS].spd = 0.62 + this.phase * 0.12; this.ui.toast('¡HA SOBREVIVIDO A SU PROPIA EXPLOSIÓN!', true); });
+        break;
+
+      /* ---- BROLY ---- */
+      case 'eraser':                                                 // Cañón Eraser: bola verde que estalla
+        S.ball(bx, bz, p.x, p.z, 1.3, 4.5, dmg * 2.2, { tint: 0x7dff5a, size: 7, ring: 10 }); h.posBoss('atk', 0.8); break;
+      case 'meteor': {                                               // Meteoro Gigante: lluvia de esferas verdes
+        const n = 7 + ph * 2;
+        for (let q = 0; q < n; q++) { const r = q === 0 ? 0 : rand(3, 12), o = rand(0, 6.28); S.mark(p.x + Math.cos(o) * r, p.z + Math.sin(o) * r, 2.6, rand(1, 1.8), dmg * 1.5, { tint: 0x7dff5a }); }
+        SFX.play('warn'); h.posBoss('cast', 1); break;
+      }
+      case 'rush':                                                   // Embestida gigante: tres cargas seguidas
+        for (let j = 0; j < 3; j++) this.later(j * 0.95, (o) => { this.boss.dashW = 0.5; this.fx.ring(this.fx.aura, o.x, 0.4, o.z, 30, 6, 0.5, 0.45, 0x7dff5a); });
+        break;
+      case 'roar':                                                   // Grito legendario: onda que te lanza lejos
+        S.mark(bx, bz, 10, 0.7, dmg * 1.4, { tint: 0x7dff5a, ring: 20 }); SFX.scream(0.8, 120); h.posBoss('cast', 0.9); break;
+
+      /* ---- KID BUU ---- */
+      case 'majinkame': S.line(bx, bz, ca, sa, 48, 2, 1, dmg * 2.6, 0xff7ad0); SFX.play('charge'); h.posBoss('atk', 1.4); break;
+      case 'candy':                                                  // Rayo de caramelo: si te da, te ralentiza
+        S.line(bx, bz, ca, sa, 34, 0.8, 0.55, dmg * 0.8, 0xff9ad8, 'slow'); h.posBoss('cast', 0.9); break;
+      case 'planetburst': {                                          // Bomba planetaria: explosiones por todo el mapa
+        const n = 12 + ph * 2;
+        for (let q = 0; q < n; q++) { const r = q === 0 ? 0 : rand(3, 17), o = rand(0, 6.28); S.mark(p.x + Math.cos(o) * r, p.z + Math.sin(o) * r, 2.8, 0.9 + q * 0.09, dmg * 1.5, { tint: 0xff7ad0 }); }
+        SFX.play('warn'); h.posBoss('cast', 1.2); break;
+      }
+      case 'scream':                                                 // Grito de Buu: dos ondas de energía
+        S.ring(bx, bz, 18, 9, dmg, rand(0, 6.28), { tint: 0xff7ad0, size: 1.8 });
+        this.later(0.3, (o) => S.ring(o.x, o.z, 18, 9, dmg, rand(0, 6.28), { tint: 0xff9ae0, size: 1.8 }));
+        SFX.scream(0.7, 260); this.shake(0.5); h.posBoss('cast', 0.7); break;
+      case 'regen': {                                                // Regeneración: recupera vida (sin volver a una fase anterior)
+        const cap = h.maxHp[c.i] * (1 - ph / c.NP) - 1;
+        if (h.hp[c.i] < cap) {
+          h.hp[c.i] = Math.min(cap, h.hp[c.i] + h.maxHp[c.i] * 0.05);
+          this.fx.burst(this.fx.aura, bx, 2, bz, 30, 6, 0.8, 0.6, 1.2, 0xff9ad8); SFX.play('heal');
+        } else this.boss.seen[k] = true;
+        break;
+      }
+
+      /* ---- OMEGA SHENRON ---- */
+      case 'thunder': {                                              // Trueno del dragón: rayos que caen en línea hacia ti
+        const d = Math.hypot(p.x - bx, p.z - bz);
+        for (let j = 0; j < 7; j++) { const r = Math.min(d + 6, 4 + j * 4); S.mark(bx + ca * r, bz + sa * r, 2.4, 0.5 + j * 0.12, dmg * 1.4, { tint: 0xfff07a, bolt: true }); }
+        SFX.play('zap'); h.posBoss('cast', 1.1); break;
+      }
+      case 'icewall':                                                // Muro de hielo (poder de Eis Shenron): te congela
+        S.ring(bx, bz, 18, 7, dmg * 0.8, rand(0, 6.28), { tint: 0xa0e8ff, size: 2.2, eff: 'slow' }); h.posBoss('cast', 0.7); break;
+      case 'nova':                                                   // Estrella Nova (poder de Nuova Shenron): espiral de fuego
+        this.boss.spiral = 2.6; this.boss.spA = rand(0, 6.28); this.boss.spTint = 0xff8a3a; h.posBoss('cast', 2.6); break;
+      case 'minusball':                                              // Bola de energía negativa
+        S.ball(bx, bz, p.x, p.z, 2.6, 8, dmg * 3.4, { tint: 0x6a5aff, size: 15, ring: 24 });
+        SFX.play('charge'); this.shake(0.5); h.posBoss('cast', 1.6); break;
+
+      /* ---- JIREN ---- */
+      case 'punches':                                                // Puños invisibles: ráfaga de golpes de presión
+        for (let j = 0; j < 10; j++) this.later(j * 0.07, (o) => { const [dx, dz] = this.aim(o, rand(-0.12, 0.12)); S.fire(o.x, o.z, dx, dz, 18, dmg * 0.7, { tint: 0xff4a4a, size: 1.4 }); });
+        h.posBoss('atk', 0.9); break;
+      case 'glare':                                                  // Mirada: onda de choque solo con mirarte
+        S.mark(bx, bz, 9, 0.75, dmg * 1.5, { tint: 0xff3030, ring: 12 }); h.posBoss('cast', 0.9); break;
+      case 'powerimpact':                                            // Power Impact: bola de energía rápida
+        S.ball(bx, bz, p.x, p.z, 0.9, 4, dmg * 2.4, { tint: 0xff5040, size: 6 }); h.posBoss('atk', 0.7); break;
+
+      /* ---- BEERUS ---- */
+      case 'orbs':                                                   // Esferas de energía de Beerus
+        S.ring(bx, bz, 10, 7, dmg * 0.9, rand(0, 6.28), { tint: 0xb070ff, size: 2 });
+        for (let q = 0; q < 5; q++) { const o = a + (q - 2) * 0.16; S.fire(bx, bz, Math.cos(o), Math.sin(o), 12, dmg, { tint: 0xd090ff, size: 2 }); }
+        h.posBoss('atk', 0.6); break;
+      case 'hakai': {                                                // Hakai: la zona marcada desaparece (y tú con ella)
+        const n = 1 + (ph >= 1 ? 1 : 0) + (ph >= 2 ? 1 : 0);
+        for (let q = 0; q < n; q++) { const r = q ? rand(4, 7) : 0, o = rand(0, 6.28); S.mark(p.x + Math.cos(o) * r, p.z + Math.sin(o) * r, 3.4, 1.25, dmg * 3.2, { tint: 0x9040ff, big: true }); }
+        SFX.play('warn'); h.posBoss('cast', 1.3); break;
+      }
+      case 'sphere':                                                 // Esfera de destrucción: un sol en miniatura
+        S.ball(bx, bz, p.x, p.z, 2.8, 9, dmg * 3.6, { tint: 0xffb040, size: 16, ring: 28 });
+        SFX.play('charge'); this.shake(0.5); h.posBoss('cast', 1.6); break;
+      case 'blink': {                                                // Teletransporte: reaparece a tu lado y golpea
+        const o = rand(0, 6.28), tx = clamp(p.x + Math.cos(o) * 5, -CFG.ARENA, CFG.ARENA), tz = clamp(p.z + Math.sin(o) * 5, -CFG.ARENA, CFG.ARENA);
+        S.mark(tx, tz, 4.2, 0.75, dmg * 1.6, { tint: col });
+        this.fx.burst(this.fx.aura, bx, 1.5, bz, 20, 5, 0.4, 0.5, 0, col);
+        this.later(0.7, (q) => { h.x[q.i] = tx; h.z[q.i] = tz; h.kx[q.i] = h.kz[q.i] = 0; h.posBoss('atk', 0.5); SFX.play('tp'); this.fx.burst(this.fx.aura, tx, 1.5, tz, 24, 6, 0.4, 0.5, 0, col); });
+        break;
+      }
+
+      /* ---- ZAMASU FUSIONADO ---- */
+      case 'wall':                                                   // Muro de luz: oleadas de orbes
+        for (let j = 0; j < 3; j++) this.later(j * 0.28, (o) => { const aa = Math.atan2(p.z - o.z, p.x - o.x); for (let q = 0; q < 7; q++) { const t = aa + (q - 3) * 0.17; S.fire(o.x, o.z, Math.cos(t), Math.sin(t), 11, dmg * 0.8, { tint: 0xffd0f8, size: 1.8 }); } });
+        h.posBoss('atk', 1); break;
+      case 'lightning':                                              // Rayos de la absolución: caen siguiéndote
+        for (let j = 0; j < 6; j++) this.later(j * 0.28, () => S.mark(p.x, p.z, 2.3, 0.6, dmg * 1.4, { tint: 0xd0a0ff, bolt: true }));
+        SFX.play('zap'); h.posBoss('cast', 1.8); break;
+      case 'blades': {                                               // Hojas del juicio: cuchillas de luz que cruzan la zona
+        const n = 3 + ph;
+        for (let q = 0; q < n; q++) {
+          const o = rand(0, 6.28), dx = Math.cos(o), dz = Math.sin(o), off = rand(-4, 4);
+          S.line(p.x - dx * 20 - dz * off, p.z - dz * 20 + dx * off, dx, dz, 40, 1.1, 0.95 + q * 0.12, dmg * 1.8, 0xff6ac8);
+        }
+        SFX.play('warn'); h.posBoss('cast', 1.2); break;
+      }
+      case 'wrath':                                                  // Ira divina: bola sagrada que cae sobre ti
+        S.ball(bx, bz, p.x, p.z, 1.8, 6, dmg * 3, { tint: 0xff9af0, size: 10, ring: 16 }); SFX.play('charge'); h.posBoss('cast', 1.2); break;
     }
   }
   /** Tajo de Black: tres cortes morados con aviso que se abren hacia el jugador. Al abrirse, destello e impacto */
@@ -1124,21 +1295,22 @@ class Game {
     for (let s = 0; s < l.len; s += 3) this.fx.burst(this.fx.sparks, l.x + l.dx * s, 1.2, l.z + l.dz * s, 3, 6, 0.5, 0.4, 6, 0xc070ff);
   }
   /** Refuerzos en círculo alrededor del jefe */
-  bossSummon(bx, bz, n) {
-    this.ui.toast('¡REFUERZOS!', true);
+  bossSummon(bx, bz, n, only) {
+    if (!only) this.ui.toast('¡REFUERZOS!', true);
     for (let k = 0; k < n; k++) {
-      const a = (k / n) * 6.28, t = k % 4 === 0 ? T_BRUTE : k % 3 === 0 ? T_BOOM : T_BASIC;
+      const a = (k / n) * 6.28, t = only !== undefined ? only : k % 4 === 0 ? T_BRUTE : k % 3 === 0 ? T_BOOM : T_BASIC;
       this.horde.spawn(clamp(bx + Math.cos(a) * 7, -CFG.ARENA, CFG.ARENA), clamp(bz + Math.sin(a) * 7, -CFG.ARENA, CFG.ARENA), (14 + this.pressure() * 0.25) * this.diff.hp * this.stage.hp * ENEMY_TYPES[t].hp, t);
     }
   }
   /** Nueva fase del jefe: grito, onda que te aparta, breve invulnerabilidad, más velocidad y refuerzos */
   onBossPhase(bx, bz) {
     const p = this.player, ph = this.phase, B = this.stage.boss, last = ph === B.pat.length - 1;
-    const col = B.tints ? B.tints[ph] : ph === 2 ? 0xff3050 : B.tint;   // color de la nueva forma
+    const col = B.tintSprite === false ? B.tints[ph] : (B.col || B.tints[ph]);   // color del aura de la nueva forma
     this.bossInv = 1.2; ENEMY_TYPES[T_BOSS].spd = 0.62 + ph * 0.12;
-    this.horde.tints[T_BOSS] = B.tints ? col : ph === 2 ? 0xff7070 : B.tint;
+    this.horde.tints[T_BOSS] = B.tints[ph];
     ENEMY_TYPES[T_BOSS].scale = B.scale * (1 + ph * 0.04);             // el jefe crece con cada transformación
     if (B.rows) this.horde.bossRow = B.rows[ph];                       // cambia a la fila de su nueva forma
+    this.horde.posBoss('cast', 1.2);
     const dx = p.x - bx, dz = p.z - bz, d = Math.hypot(dx, dz) || 1;
     if (d < 14) { p.kbx = dx / d * 22; p.kbz = dz / d * 22; }
     this.horde.shockwave(bx, bz, 16, 30);

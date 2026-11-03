@@ -135,7 +135,7 @@ class UIManager {
     if (this.fpsAcc >= 0.5) { T(e.fps, String(Math.round(this.fpsN / this.fpsAcc))); this.fpsAcc = 0; this.fpsN = 0; }
     // Barra del jefe
     const bi = game.bossUid ? game.horde.indexOfUid(game.bossUid) : -1;
-    if (bi >= 0) { D(e.bossBox, 'block'); sc(e.bossBar, game.horde.hp[bi] / game.horde.maxHp[bi]); T(e.bossName, game.stage.boss.name + (game.phase ? ' · FASE ' + (game.phase + 1) : '')); }
+    if (bi >= 0) { D(e.bossBox, 'block'); sc(e.bossBar, game.horde.hp[bi] / game.horde.maxHp[bi]); T(e.bossName, game.stage.boss.name + (game.stage.boss.forms ? ' · ' + game.stage.boss.forms[game.phase] : game.phase ? ' · FASE ' + (game.phase + 1) : '')); }
     else D(e.bossBox, 'none');
     this.updateStrip(game);
     this.mmT -= dt;

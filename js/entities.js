@@ -34,7 +34,7 @@ class Player {
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
     this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
-    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1;
+    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.slowT = 0; this.confT = 0;
     // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
     this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
     this.egoStk = 0; this.auraT = 0; this.boltT = 0; this.tfCd = 0; this.formSeen = {}; this.trait = null; this.tr = {};
@@ -162,6 +162,9 @@ class Player {
     let il = Math.hypot(ix, iz);
     if (il > 0) { ix /= il; iz /= il; }
     else if (stick.on) { ix = stick.x; iz = stick.z; il = Math.hypot(ix, iz); if (il < 0.15) { ix = iz = il = 0; } }   // joystick táctil (analógico)
+    // Efectos de los enemigos: «Cambio de cuerpo» de Ginyu (controles invertidos) y caramelo/hielo (ralentizado)
+    this.slowT = Math.max(0, this.slowT - dt); this.confT = Math.max(0, this.confT - dt);
+    if (this.confT > 0) { ix = -ix; iz = -iz; }
     const wx = ix * game.camCos + iz * game.camSin, wz = -ix * game.camSin + iz * game.camCos;
 
     this.animT += dt;
@@ -206,7 +209,7 @@ class Player {
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * this.grav * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1);
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1);
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
@@ -332,7 +335,9 @@ class Player {
       flash = this.hurtT > 0.22 ? 1 : 0;
       if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;
     }
-    this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, this.form.tint);
+    // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
+    const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.form.tint;
+    this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint);
     for (const g of this.ghosts) if (g.t > 0) this.gho[g.sheet].push(g.x, 0.5, g.z, g.frame, g.flip, 0, 1, g.t / 0.3, this.form.tint);
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
     this.shield.begin();
@@ -352,22 +357,30 @@ class HordeManager {
     this.x = f(); this.z = f(); this.hp = f(); this.maxHp = f(); this.hitT = f(); this.kx = f(); this.kz = f(); this.phase = f(); this.flip = f();
     this.type = new Uint8Array(max); this.uid = new Int32Array(max);
     this.stun = f(); this.aux = f(); this.shield = new Uint8Array(max);       // aturdimiento, temporizador propio y escudo
+    this.pose = f(); this.poseC = new Uint8Array(max); this.grow = f();       // pose de técnica (tiempo y columna) y crecimiento (Célula)
+    this.abCd = 0;                                                              // pausa global entre técnicas de la horda (que no se amontonen)
     this.half = CFG.ARENA + 8;
     this.cols = Math.ceil((this.half * 2) / CFG.CELL);
     this.heads = new Int32Array(this.cols * this.cols).fill(-1);
     this.next = new Int32Array(max);
     this.tints = ENEMY_TYPES.map((t) => t.tint);
+    this.rows = ENEMY_TYPES.map((t) => t.row);                                  // fila de la hoja de enemigos de cada tipo
     const H = 2.9;
     this.scene = scene; this.H = H;
     this.sb = new SpriteBatch(scene, { max, texture: sheet.tex, cols: sheet.cols, rows: sheet.rows, w: H * (sheet.w / sheet.h), h: H, anchor: 0.04, renderOrder: 0 });
-    this.bsb = null; this.bossRow = -1;        // jefe con hoja propia (p. ej. Goku Black): lote aparte y fila según la fase
+    this.bsb = {}; this.bossSb = null; this.bossRow = -1; this.bossAnim = null; this.bossTint = true;   // jefe con hoja propia: lote aparte
+    this.bossPose = 0; this.bossPoseC = 0;                                      // pose del jefe al lanzar una técnica
   }
-  /** Activa la hoja propia del jefe (o la quita con null). La fila `row` es la forma de la fase actual */
-  setBossSheet(sheet, row) {
-    if (!sheet) { this.bossRow = -1; return; }
-    if (!this.bsb) this.bsb = new SpriteBatch(this.scene, { max: 2, texture: sheet.tex, cols: sheet.cols, rows: sheet.rows, w: this.H * (sheet.w / sheet.h), h: this.H, anchor: 0.04, renderOrder: 0 });
-    this.bossRow = row | 0;
+  /** Activa la hoja propia del jefe (o la quita con null). `row` = fila del jefe (o de su forma actual); `anim` = columnas */
+  setBossSheet(sheet, row, anim, name) {
+    if (!sheet) { this.bossRow = -1; this.bossSb = null; return; }
+    const k = name || 'boss';
+    if (!this.bsb[k]) this.bsb[k] = new SpriteBatch(this.scene, { max: 2, texture: sheet.tex, cols: sheet.cols, rows: sheet.rows, w: this.H * (sheet.w / sheet.h), h: this.H, anchor: 0.04, renderOrder: 0 });
+    for (const n in this.bsb) if (n !== k) this.bsb[n].reset();
+    this.bossSb = this.bsb[k]; this.bossCols = sheet.cols; this.bossRow = row | 0; this.bossAnim = anim || BOSS_ANIM.bosses; this.bossPose = 0;
   }
+  /** El jefe muestra la pose de ataque ('atk') o de técnica ('cast') durante t segundos */
+  posBoss(kind, t) { if (this.bossAnim) { this.bossPoseC = this.bossAnim[kind]; this.bossPose = t; } }
 
   cellOf(x, z) {
     return clamp(Math.floor((z + this.half) / CFG.CELL), 0, this.cols - 1) * this.cols + clamp(Math.floor((x + this.half) / CFG.CELL), 0, this.cols - 1);
@@ -384,6 +397,7 @@ class HordeManager {
     this.x[i] = x; this.z[i] = z; this.hp[i] = hp; this.maxHp[i] = hp; this.hitT[i] = 0; this.kx[i] = 0; this.kz[i] = 0;
     this.phase[i] = rand(0, 40); this.flip[i] = 0; this.type[i] = type; this.uid[i] = this.uidNext++;
     this.stun[i] = 0; this.aux[i] = rand(1.5, 4); this.shield[i] = ENEMY_TYPES[type].shield || 0;
+    this.pose[i] = 0; this.grow[i] = 0;
     return i;
   }
   remove(i) {
@@ -392,6 +406,7 @@ class HordeManager {
     this.kx[i] = this.kx[l]; this.kz[i] = this.kz[l]; this.phase[i] = this.phase[l]; this.flip[i] = this.flip[l];
     this.type[i] = this.type[l]; this.uid[i] = this.uid[l];
     this.stun[i] = this.stun[l]; this.aux[i] = this.aux[l]; this.shield[i] = this.shield[l];
+    this.pose[i] = this.pose[l]; this.poseC[i] = this.poseC[l]; this.grow[i] = this.grow[l];
   }
   indexOfUid(u) { for (let i = 0; i < this.n; i++) if (this.uid[i] === u) return i; return -1; }
 
@@ -399,12 +414,14 @@ class HordeManager {
     const n = this.n, x = this.x, z = this.z, kx = this.kx, kz = this.kz, heads = this.heads, next = this.next, cols = this.cols, world = game.world;
     const px = player.x, pz = player.z, lim = CFG.ARENA + 2, kd = Math.exp(-7 * dt), dmg = game.enemyDamage(), cc = game.camCos, cs = game.camSin;
     const shots = game.shots, t = game.time;
+    this.abCd -= dt; if (this.bossPose > 0) this.bossPose -= dt;
     for (let i = 0; i < n; i++) {
       const T = ENEMY_TYPES[this.type[i]], xi = x[i], zi = z[i], sepR = T.r * 1.8, sepR2 = sepR * sepR;
       let dx = px - xi, dz = pz - zi;
       const d = Math.sqrt(dx * dx + dz * dz) + 1e-4;
       dx /= d; dz /= d;
       if (this.hitT[i] > 0) this.hitT[i] -= dt;
+      if (this.pose[i] > 0) this.pose[i] -= dt;
       // Aturdido (Taiyoken): solo le afecta el empujón
       if (this.stun[i] > 0) {
         this.stun[i] -= dt;
@@ -418,10 +435,28 @@ class HordeManager {
         const side = (this.uid[i] & 1) ? 1 : -1;
         if (d < 8) { vx = -vx; vz = -vz; } else if (d < 12) { vx = -dz * sp * side; vz = dx * sp * side; }
         this.aux[i] -= dt;
-        if (this.aux[i] <= 0 && d < 24) { this.aux[i] = rand(2.6, 4); shots.fire(xi, zi, dx, dz, 12, dmg * 0.8); }
+        if (this.aux[i] <= 0 && d < 24) { this.aux[i] = rand(2.6, 4); shots.fire(xi, zi, dx, dz, 12, dmg * 0.8, { tint: 0xff4a4a, size: 1.9 }); this.pose[i] = 0.35; this.poseC[i] = 5; }
       } else if (T.boom && d < CFG.PLAYER_R + T.r + 0.5 && this.hp[i] > 0) {   // kamikaze: explota al llegar
         this.aux[i] = -99; this.hp[i] = 0; continue;
-      } else if (T.boom && d < 7 && ((t * 10) | 0) % 2) this.hitT[i] = 0.06;      // parpadea antes de explotar
+      } else if (T.boom && d < 7) { this.pose[i] = 0.1; this.poseC[i] = 6; if (((t * 10) | 0) % 2) this.hitT[i] = 0.06; }   // brazos arriba y parpadeo antes de explotar
+      else if (T.ab) {
+        this.aux[i] -= dt;
+        if (T.ab === 'regen') {                                   // Metal Cooler: la Big Gete Star repara su blindaje
+          if (this.shield[i] > 0) this.aux[i] = 7;
+          else if (this.aux[i] <= 0) { this.shield[i] = T.shield; this.aux[i] = 7; this.pose[i] = 0.6; this.poseC[i] = 6; game.fx.burst(game.fx.sparks, xi, 1.6, zi, 10, 4, 0.4, 0.35, 0, 0x9ad8ff); }
+        } else if (this.aux[i] <= 0 && this.abCd <= 0 && d < (T.ab === 'bomber' ? 13 : 17) && d > 4) {
+          this.abCd = 1.1; this.pose[i] = 1; this.poseC[i] = 6;
+          if (T.ab === 'bomber') {                                // Nappa: «Bomber DX», el suelo explota bajo tus pies
+            this.aux[i] = rand(6, 8.5);
+            shots.mark(px, pz, 2.8, 1.15, dmg * 1.5, { tint: 0xffb040 });
+          } else if (T.ab === 'bodychange') {                     // Ginyu: rayo del «Cambio de cuerpo»
+            this.aux[i] = rand(7, 9);
+            shots.line(xi, zi, dx, dz, 24, 1, 0.85, dmg * 0.6, 0xc070ff, 'conf');
+          }
+          continue;                                               // se planta para lanzar la técnica
+        }
+        if (this.pose[i] > 0.1 && this.poseC[i] === 6) continue;      // quieto mientras lanza la técnica
+      }
       const c = this.cellOf(xi, zi), cx = c % cols, cz = (c / cols) | 0;
       for (let gz = cz - 1; gz <= cz + 1; gz++) {
         if (gz < 0 || gz >= cols) continue;
@@ -440,7 +475,15 @@ class HordeManager {
       else { world.push(clamp(xi + vx * dt, -lim, lim), clamp(zi + vz * dt, -lim, lim), T.r * 0.8); x[i] = world.px; z[i] = world.pz; }   // esquiva rocas, árboles y mesetas
       this.flip[i] = dx * cc - dz * cs < 0 ? 1 : 0;
       this.phase[i] += dt * 8 * (0.6 + T.spd * 0.4);
-      if (!T.fly && d < CFG.PLAYER_R + T.r + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game) && T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6); }
+      const R = T.r * (1 + this.grow[i]);
+      if (!T.fly && d < CFG.PLAYER_R + R + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game)) {
+        if (T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6); }
+        if (T.absorb) {                                           // Célula imperfecto: absorbe, se cura y crece
+          this.hp[i] = Math.min(this.maxHp[i] * 1.6, this.hp[i] + this.maxHp[i] * 0.3); this.grow[i] = Math.min(0.6, this.grow[i] + 0.15);
+          this.pose[i] = 0.5; this.poseC[i] = 5;
+          game.fx.burst(game.fx.aura, xi, 1.4, zi, 12, 4, 0.5, 0.45, 1, 0x7dff5a);
+        }
+      }
     }
   }
 
@@ -556,25 +599,30 @@ class HordeManager {
   }
 
   sync(shadows) {
-    const sb = this.sb, bsb = this.bsb, walk = A_STD.walk, bossOwn = bsb && this.bossRow >= 0;
+    const sb = this.sb, bsb = this.bossSb, walk = BOSS_ANIM.bosses.walk, bossOwn = bsb && this.bossRow >= 0, rows = this.rows;
     sb.begin();
     if (bossOwn) bsb.begin();
     for (let i = 0; i < this.n; i++) {
       const ty = this.type[i], T = ENEMY_TYPES[ty], ph = this.phase[i], hit = this.hitT[i] > 0 ? this.hitT[i] : 0, st = this.stun[i] > 0;
-      let y = st ? 0 : Math.abs(Math.sin(ph * 1.1)) * 0.14 * T.scale, tint = this.tints[ty];
+      const sc = T.scale * (1 + this.grow[i]);
+      let y = st ? 0 : Math.abs(Math.sin(ph * 1.1)) * 0.14 * sc, tint = this.tints[ty];
       if (T.fly) y = 2.2 + Math.sin(ph * 0.5) * 0.3;
-      if (T.shield) tint = this.shield[i] > 0 ? 0xbfe0ff : 0x6a7898;
+      if (T.shield && this.shield[i] <= 0) tint = 0x8a96b0;               // blindaje roto: metal apagado
       if (st) tint = 0x9a9aff;
-      if (ty === T_BOSS && bossOwn) {                                  // el jefe usa su hoja: fila = forma de la fase
-        const row = this.bossRow * 4, fr = hit > 0 ? row + 2 : st ? row : row + 1;     // pose de caminar, de golpe o aturdido
-        bsb.push(this.x[i], y, this.z[i], fr, this.flip[i], hit * 8, T.scale * (1 + hit * 1.2), 1, 0xffffff);
-      } else sb.push(this.x[i], y, this.z[i], st ? walk[0] : walk[(ph | 0) % walk.length], this.flip[i], hit * 8, T.scale * (1 + hit * 1.2), 1, tint);
-      shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, (T.fly ? 1.2 : 1.9) * T.scale, T.fly ? 0.6 : 1);
+      if (ty === T_BOSS && bossOwn) {                                  // el jefe usa su hoja: caminar, golpe, técnica o aturdido
+        const A = this.bossAnim, base = this.bossRow * this.bossCols;
+        const col = hit > 0.05 ? A.hit : st ? A.stun : this.bossPose > 0 ? this.bossPoseC : A.walk[(ph | 0) % A.walk.length];
+        bsb.push(this.x[i], y, this.z[i], base + col, this.flip[i], hit * 8, sc * (1 + hit * 1.2), 1, this.bossTint ? tint : 0xffffff);
+      } else {
+        const col = hit > 0.05 || st ? 4 : this.pose[i] > 0 ? this.poseC[i] : walk[(ph | 0) % 4];
+        sb.push(this.x[i], y, this.z[i], rows[ty] * 8 + col, this.flip[i], hit * 8, sc * (1 + hit * 1.2), 1, tint);
+      }
+      shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, (T.fly ? 1.2 : 1.9) * sc, T.fly ? 0.6 : 1);
     }
     sb.end();
     if (bossOwn) bsb.end();
   }
-  reset() { this.n = 0; this.heads.fill(-1); this.sb.reset(); if (this.bsb) this.bsb.reset(); this.bossRow = -1; }
+  reset() { this.n = 0; this.heads.fill(-1); this.sb.reset(); for (const k in this.bsb) this.bsb[k].reset(); this.bossRow = -1; this.bossSb = null; this.bossPose = 0; this.abCd = 0; }
 }
 
 /* ---------- PROYECTILES DE KI (pool; perforación y explosión opcionales) ---------- */
@@ -760,36 +808,78 @@ class Capsules {
 /* ---------- Disparos enemigos (los jefes): pool de 100 ---------- */
 class EnemyShots {
   constructor(scene, tex) {
-    this.max = 140; this.s = [];
-    for (let i = 0; i < this.max; i++) this.s.push({ on: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, dmg: 0 });
+    this.max = 220; this.s = [];
+    for (let i = 0; i < this.max; i++) this.s.push({ on: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, dmg: 0, tint: 0, size: 1.5, r2: 1.1, home: 0, spd: 0, eff: '', ghost: false });
     this.sb = new SpriteBatch(scene, { max: this.max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
     // Zonas marcadas en el suelo (explotan tras el aviso) y rayos con aviso de los jefes
-    this.marks = []; for (let i = 0; i < 24; i++) this.marks.push({ on: false, x: 0, z: 0, r: 3, t: 0, T: 1, dmg: 0 });
-    this.lines = []; for (let i = 0; i < 6; i++) this.lines.push({ on: false, x: 0, z: 0, dx: 1, dz: 0, len: 30, hw: 1.4, t: 0, fire: 0, dmg: 0, hit: false });
-    this.mb = new SpriteBatch(scene, { max: 24, texture: tex.ring, w: 2, h: 2, anchor: 0.5, flat: true, additive: true, cut: 0.02, renderOrder: 4 });
-    this.lb = new SpriteBatch(scene, { max: 400, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
+    this.marks = []; for (let i = 0; i < 40; i++) this.marks.push({ on: false, x: 0, z: 0, r: 3, t: 0, T: 1, dmg: 0, tint: 0, ring: 0, bolt: false, eff: '', big: false });
+    this.lines = []; for (let i = 0; i < 10; i++) this.lines.push({ on: false, x: 0, z: 0, dx: 1, dz: 0, len: 30, hw: 1.4, t: 0, fire: 0, dmg: 0, hit: false, eff: '' });
+    this.mb = new SpriteBatch(scene, { max: 80, texture: tex.ring, w: 2, h: 2, anchor: 0.5, flat: true, additive: true, cut: 0.02, renderOrder: 4 });
+    this.lb = new SpriteBatch(scene, { max: 1200, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
   }
-  mark(x, z, r, delay, dmg) { for (const m of this.marks) if (!m.on) { m.on = true; m.x = x; m.z = z; m.r = r; m.t = m.T = delay; m.dmg = dmg; return; } }
-  /** Rayo con aviso. Devuelve el rayo (para engancharle `onFire`, un aviso al dispararse) o null si no hay hueco */
-  line(x, z, dx, dz, len, hw, warn, dmg, tint) {
-    for (const l of this.lines) if (!l.on) { l.on = true; l.x = x; l.z = z; l.dx = dx; l.dz = dz; l.len = len; l.hw = hw; l.t = warn; l.fire = 0.45; l.dmg = dmg; l.hit = false; l.tint = tint || 0xff4070; l.onFire = null; return l; }
+  /** Zona marcada que explota tras `delay`. Opciones: tint, ring (n disparos al estallar), bolt (rayo que cae del cielo),
+      eff ('slow' = te ralentiza, 'conf' = controles invertidos), big (explosión enorme) */
+  mark(x, z, r, delay, dmg, o) {
+    for (const m of this.marks) if (!m.on) {
+      m.on = true; m.x = x; m.z = z; m.r = r; m.t = m.T = delay; m.dmg = dmg;
+      m.tint = (o && o.tint) || 0xff3050; m.ring = (o && o.ring) || 0; m.bolt = !!(o && o.bolt); m.eff = (o && o.eff) || ''; m.big = !!(o && o.big);
+      return m;
+    }
     return null;
   }
-  fire(x, z, dx, dz, speed, dmg) {
-    for (const s of this.s) if (!s.on) { s.on = true; s.x = x; s.z = z; s.vx = dx * speed; s.vz = dz * speed; s.life = 5; s.dmg = dmg; return; }
+  /** Rayo con aviso. Devuelve el rayo (para engancharle `onFire`, un aviso al dispararse) o null si no hay hueco */
+  line(x, z, dx, dz, len, hw, warn, dmg, tint, eff) {
+    for (const l of this.lines) if (!l.on) { l.on = true; l.x = x; l.z = z; l.dx = dx; l.dz = dz; l.len = len; l.hw = hw; l.t = warn; l.fire = 0.45; l.dmg = dmg; l.hit = false; l.tint = tint || 0xff4070; l.onFire = null; l.eff = eff || ''; return l; }
+    return null;
+  }
+  /** Disparo. Opciones: tint, size (tamaño visual), r (radio de impacto), home (giro hacia ti, rad/s),
+      life, eff ('slow' | 'conf'), ghost (solo se ve: la bola grande que anuncia una zona marcada) */
+  fire(x, z, dx, dz, speed, dmg, o) {
+    for (const s of this.s) if (!s.on) {
+      s.on = true; s.x = x; s.z = z; s.vx = dx * speed; s.vz = dz * speed; s.spd = speed; s.dmg = dmg;
+      s.life = (o && o.life) || 5; s.tint = (o && o.tint) || 0xff5070; s.size = (o && o.size) || 1.5;
+      const r = (o && o.r) || 1.05; s.r2 = r * r; s.home = (o && o.home) || 0; s.eff = (o && o.eff) || ''; s.ghost = !!(o && o.ghost);
+      return s;
+    }
+    return null;
   }
   /** Anillo de n disparos (con un ángulo inicial) */
-  ring(x, z, n, speed, dmg, off) { for (let i = 0; i < n; i++) { const a = off + (i / n) * 6.2832; this.fire(x, z, Math.cos(a), Math.sin(a), speed, dmg); } }
+  ring(x, z, n, speed, dmg, off, o) { for (let i = 0; i < n; i++) { const a = off + (i / n) * 6.2832; this.fire(x, z, Math.cos(a), Math.sin(a), speed, dmg, o); } }
+  /** Bola gigante (Supernova, Cañón Eraser...): viaja visible hasta el punto y allí estalla como zona marcada */
+  ball(x, z, tx, tz, t, r, dmg, o) {
+    const dx = tx - x, dz = tz - z, d = Math.hypot(dx, dz) || 1;
+    this.fire(x, z, dx / d, dz / d, d / t, 0, { ghost: true, life: t, size: ((o && o.size) || r * 1.6) * 0.8, tint: o && o.tint });
+    return this.mark(tx, tz, r, t, dmg, Object.assign({ big: true }, o));
+  }
+  /** Efectos al recibir el golpe: ralentizado (caramelo, hielo) o controles invertidos (cambio de cuerpo) */
+  effect(eff, p, game) {
+    if (eff === 'slow') { p.slowT = 2.6; game.ui.toast('¡RALENTIZADO!', true); }
+    else if (eff === 'conf') { p.confT = 2.6; game.ui.toast('¡CAMBIO DE CUERPO! · CONTROLES INVERTIDOS', true); }
+  }
   update(dt, game) {
     const p = game.player;
     this.sb.begin();
     for (const s of this.s) {
       if (!s.on) continue;
-      s.life -= dt; s.x += s.vx * dt; s.z += s.vz * dt;
+      s.life -= dt;
+      if (s.home > 0 && !s.ghost) {                                // giro hacia el jugador (discos teledirigidos)
+        const a = Math.atan2(s.vz, s.vx), want = Math.atan2(p.z - s.z, p.x - s.x);
+        let d = want - a; d = Math.atan2(Math.sin(d), Math.cos(d));
+        const na = a + clamp(d, -s.home * dt, s.home * dt);
+        s.vx = Math.cos(na) * s.spd; s.vz = Math.sin(na) * s.spd;
+      }
+      s.x += s.vx * dt; s.z += s.vz * dt;
       if (s.life <= 0) { s.on = false; continue; }
-      const dx = p.x - s.x, dz = p.z - s.z;
-      if (dx * dx + dz * dz < 1.1) { p.takeDamage(s.dmg, game); s.on = false; game.fx.burst(game.fx.sparks, s.x, 1.2, s.z, 5, 5, 0.3, 0.3, 6, 0xff4060); continue; }
-      this.sb.push(s.x, 1.3, s.z, 0, 0, 0, 1.5, 1, 0xff5070);
+      if (!s.ghost) {
+        const dx = p.x - s.x, dz = p.z - s.z;
+        if (dx * dx + dz * dz < s.r2) {
+          if (p.takeDamage(s.dmg, game) && s.eff) this.effect(s.eff, p, game);
+          s.on = false; game.fx.burst(game.fx.sparks, s.x, 1.2, s.z, 5, 5, 0.3, 0.3, 6, s.tint); continue;
+        }
+      }
+      const sy = s.ghost ? 1.5 + s.size * 0.35 : 1.3;                // las bolas gigantes van por encima de la cabeza del jefe
+      this.sb.push(s.x, sy, s.z, 0, 0, 0, s.size, 1, s.tint);
+      if (s.size > 3) this.sb.push(s.x, sy, s.z, 0, 0, 0, s.size * 0.45, 0.8, 0xffffff);   // núcleo blanco de las bolas grandes
     }
     this.sb.end();
     // Zonas marcadas: el círculo se cierra y explota
@@ -800,14 +890,18 @@ class EnemyShots {
       if (m.t <= 0) {
         m.on = false;
         const dx = p.x - m.x, dz = p.z - m.z;
-        if (dx * dx + dz * dz < m.r * m.r) p.takeDamage(m.dmg, game);
-        game.fx.burst(game.fx.sparks, m.x, 0.8, m.z, 18, m.r * 2.5, 0.45, 0.4, 6, 0xff4060);
-        game.fx.ring(game.fx.aura, m.x, 0.3, m.z, 22, m.r * 3, 0.35, 0.35, 0xff6040);
-        SFX.play('boom');
+        if (dx * dx + dz * dz < m.r * m.r && p.takeDamage(m.dmg, game) && m.eff) this.effect(m.eff, p, game);
+        const fx = game.fx;
+        if (m.bolt) for (let y = 0; y < 14; y += 1.4) fx.burst(fx.sparks, m.x, y, m.z, 2, 2, 0.3, 0.45, 0, m.tint);   // rayo del cielo
+        fx.burst(fx.sparks, m.x, 0.8, m.z, m.big ? 40 : 18, m.r * 2.5, 0.45, m.big ? 0.6 : 0.4, 6, m.tint);
+        fx.ring(fx.aura, m.x, 0.3, m.z, m.big ? 40 : 22, m.r * 3, 0.35, m.big ? 0.6 : 0.35, m.tint);
+        if (m.big) { fx.burst(fx.aura, m.x, 1.5, m.z, 30, m.r * 1.5, 0.7, 0.8, 1, 0xffffff); game.shake(0.9); SFX.play('bigboom'); }
+        else SFX.play('boom');
+        if (m.ring) this.ring(m.x, m.z, m.ring, 9, m.dmg * 0.35, Math.random() * 6.28, { tint: m.tint });
         continue;
       }
       const k = 1 - m.t / m.T;
-      this.mb.push(m.x, 0.12, m.z, 0, 0, 0, m.r, 0.5 + k * 0.5, 0xff3050);
+      this.mb.push(m.x, 0.12, m.z, 0, 0, 0, m.r, 0.5 + k * 0.5, m.tint);
       this.mb.push(m.x, 0.13, m.z, 0, 0, 0, m.r * k, 0.9, 0xffb040);
     }
     this.mb.end();
@@ -822,9 +916,9 @@ class EnemyShots {
         l.hit = true; game.shake(0.5); SFX.play('bigbeam');
         if (l.onFire) l.onFire(l);
         const ex = p.x - l.x, ez = p.z - l.z, tt = ex * l.dx + ez * l.dz;
-        if (tt > -1 && tt < l.len && Math.abs(ex * l.dz - ez * l.dx) < l.hw + CFG.PLAYER_R) p.takeDamage(l.dmg, game);
+        if (tt > -1 && tt < l.len && Math.abs(ex * l.dz - ez * l.dx) < l.hw + CFG.PLAYER_R && p.takeDamage(l.dmg, game) && l.eff) this.effect(l.eff, p, game);
       }
-      for (let s = 0.8; s < l.len; s += firing ? 0.9 : 1.6) {
+      for (let s = 0.8; s < l.len; s += firing ? Math.max(0.9, l.hw * 0.5) : 1.6) {
         const bx = l.x + l.dx * s, bz = l.z + l.dz * s;
         if (firing) { this.lb.push(bx, 1.4, bz, 0, 0, 0, l.hw * 2.4, 0.35, l.tint); this.lb.push(bx, 1.4, bz, 0, 0, 0, l.hw, 0.6, 0xffffff); }
         else this.lb.push(bx, 0.3, bz, 0, 0, 0, 0.5, 0.5 + 0.5 * Math.sin(game.time * 30), l.tint);
@@ -834,3 +928,4 @@ class EnemyShots {
   }
   reset() { for (const s of this.s) s.on = false; for (const m of this.marks) m.on = false; for (const l of this.lines) l.on = false; this.sb.reset(); this.mb.reset(); this.lb.reset(); }
 }
+

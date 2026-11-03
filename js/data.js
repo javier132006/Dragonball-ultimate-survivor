@@ -6,7 +6,7 @@
    ===================================================================== */
 
 /* Personajes con sprite PROVISIONAL (hoja de otro personaje recoloreada) hasta tener sus sprites propios */
-const SHEET_NAMES = ['goku_a', 'goku_b', 'vegeta', 'black', 'shade'];
+const SHEET_NAMES = ['goku_a', 'goku_b', 'vegeta', 'black', 'shade', 'enemies', 'bosses'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4x4, fila*4+columna) ---------- */
 /* Hoja "estándar" (Vegeta y enemigos): caminar, golpear, herido, dash y muerte */
@@ -214,22 +214,33 @@ const STATS = [
   { id: 'armor', name: 'Gi de Entrenamiento', icon: '▣', max: 5, text: 'Recibes un 7% menos de daño.', apply: (p) => { p.armor = Math.min(0.5, p.armor + 0.07); } }
 ];
 
-/* ---------- Enemigos (todos usan la hoja "shade": se diferencian por tinte, tamaño y stats) ---------- */
+/* ---------- Enemigos: hoja "enemies" (8 columnas por fila) ----------
+   Columnas de cada fila: 0-3 caminar · 4 herido · 5 ataque · 6 técnica · 7 pose.
+   `row` = fila del personaje. Cada tipo tiene su habilidad (`ab`), sacada de la serie. */
+const ENEMY_ROWS = { saibai: 0, soldado: 1, appule: 2, nappa: 3, ginyu: 4, cellimp: 5, a17: 6, mcooler: 7 };
 const ENEMY_TYPES = [
-  { name: 'Sombra', hp: 1, spd: 1, scale: 1, tint: 0xffffff, dmg: 1, xp: 1, r: 0.7, cash: 1 },
-  { name: 'Veloz', hp: 0.55, spd: 1.75, scale: 0.82, tint: 0x7fe0ff, dmg: 0.7, xp: 1.2, r: 0.6, cash: 1.5 },
-  { name: 'Bruto', hp: 3.2, spd: 0.72, scale: 1.5, tint: 0xff9a7a, dmg: 1.6, xp: 3, r: 1.05, cash: 4, knock: 14, smash: true },
-  { name: 'JEFE', hp: 1, spd: 0.62, scale: 2.7, tint: 0xd070ff, dmg: 2.4, xp: 30, r: 1.8, cash: 200, knock: 20, smash: true },
-  { name: 'Élite', hp: 8, spd: 0.95, scale: 1.9, tint: 0xffc83a, dmg: 2, xp: 14, r: 1.3, cash: 30, knock: 10, smash: true },
-  // Saibaiman kamikaze: corre hacia ti y explota (si lo matas antes, su explosión daña a la horda)
-  { name: 'Kamikaze', hp: 0.7, spd: 1.45, scale: 0.9, tint: 0x6aff3a, dmg: 2.4, xp: 1.4, r: 0.65, cash: 2, boom: true },
-  // Blindado: sus 4 primeros golpes recibidos apenas le hacen daño (las explosiones rompen el escudo de golpe)
-  { name: 'Blindado', hp: 2.2, spd: 0.85, scale: 1.2, tint: 0x8ab0ff, dmg: 1.3, xp: 2.2, r: 0.85, cash: 3, shield: 4 },
-  // Volador: vuela por encima de los obstáculos, mantiene la distancia y dispara
-  { name: 'Volador', hp: 0.8, spd: 1.2, scale: 0.95, tint: 0xff8af0, dmg: 0.8, xp: 1.8, r: 0.65, cash: 2.5, fly: true }
+  // Soldado de Freezer (en la Tierra y la Cámara del Tiempo la tropa básica son Saibaimans)
+  { name: 'Soldado de Freezer', row: 1, hp: 1, spd: 1, scale: 1, tint: 0xffffff, dmg: 1, xp: 1, r: 0.7, cash: 1 },
+  // Appule: rápido y frágil
+  { name: 'Appule', row: 2, hp: 0.55, spd: 1.75, scale: 0.95, tint: 0xffffff, dmg: 0.7, xp: 1.2, r: 0.6, cash: 1.5 },
+  // Nappa: bruto. «Bomber DX»: levanta dos dedos y el suelo bajo tus pies explota
+  { name: 'Nappa', row: 3, hp: 3.2, spd: 0.72, scale: 1.4, tint: 0xffffff, dmg: 1.6, xp: 3, r: 1.05, cash: 4, knock: 14, smash: true, ab: 'bomber' },
+  { name: 'JEFE', row: 0, hp: 1, spd: 0.62, scale: 2.7, tint: 0xffffff, dmg: 2.4, xp: 30, r: 1.8, cash: 200, knock: 20, smash: true },
+  // Capitán Ginyu: élite. «Cambio de cuerpo»: si su rayo te alcanza, tus controles se invierten unos segundos
+  { name: 'Capitán Ginyu', row: 4, hp: 8, spd: 0.95, scale: 1.7, tint: 0xffffff, dmg: 2, xp: 14, r: 1.3, cash: 30, knock: 10, smash: true, ab: 'bodychange' },
+  // Saibaiman: corre hacia ti y se autodestruye (si lo matas antes, su explosión daña a la horda)
+  { name: 'Saibaiman', row: 0, hp: 0.7, spd: 1.45, scale: 0.9, tint: 0xd8ff9a, dmg: 2.4, xp: 1.4, r: 0.65, cash: 2, boom: true },
+  // Metal Cooler: cuerpo de metal (sus 4 primeros golpes apenas le hacen daño) que la Big Gete Star vuelve a reparar
+  { name: 'Metal Cooler', row: 7, hp: 2.2, spd: 0.85, scale: 1.2, tint: 0xffffff, dmg: 1.3, xp: 2.2, r: 0.85, cash: 3, shield: 4, ab: 'regen' },
+  // Androide 17: vuela, mantiene la distancia y dispara ráfagas de energía
+  { name: 'Androide 17', row: 6, hp: 0.8, spd: 1.2, scale: 1, tint: 0xffffff, dmg: 0.8, xp: 1.8, r: 0.65, cash: 2.5, fly: true },
+  // Célula imperfecto: «Absorción». Cada vez que te toca te roba vida, se cura y crece
+  { name: 'Célula imperfecto', row: 5, hp: 2.6, spd: 0.9, scale: 1.2, tint: 0xffffff, dmg: 1.2, xp: 2.6, r: 0.9, cash: 3, absorb: true },
+  // Célula Jr.: los hijos de Célula Perfecto. Pequeños, rápidos y azulados
+  { name: 'Célula Jr.', row: 5, hp: 0.9, spd: 1.6, scale: 0.7, tint: 0x9ac0ff, dmg: 1, xp: 1.5, r: 0.55, cash: 2 }
 ];
 /* Índices de tipo para que el código se lea mejor */
-const T_BASIC = 0, T_FAST = 1, T_BRUTE = 2, T_BOSS = 3, T_ELITE = 4, T_BOOM = 5, T_SHIELD = 6, T_FLY = 7;
+const T_BASIC = 0, T_FAST = 1, T_BRUTE = 2, T_BOSS = 3, T_ELITE = 4, T_BOOM = 5, T_SHIELD = 6, T_FLY = 7, T_ABSORB = 8, T_CELLJR = 9;
 
 
 /* ---------- Rarezas y objetos (se encuentran en Cápsulas del mapa) ----------
@@ -299,31 +310,73 @@ const BUFFS = {
 const SHRINE_BUFFS = ['b_dmg', 'b_rate', 'b_hp', 'b_spd', 'b_crit', 'b_armor', 'b_regen', 'b_ki', 'b_xp', 'b_luck'];
 const CURSE_BUFFS = ['c_dmg', 'c_hp', 'c_spd', 'c_rate'];
 
-/* ---------- Mapas de la partida: Tierra -> Namekusei -> Dimensión fracturada (jefe final) ---------- */
-/* Cada jefe tiene 3 fases (100-66%, 66-33%, 33-0%) con su lista de ataques:
-   fan = abanico dirigido · ring = anillo · spiral = espiral giratoria · dash = embestida
-   rain = zonas marcadas en el suelo que explotan · beam = rayo con aviso · summon = refuerzos */
+/* ---------- Jefes: hoja "bosses" (misma disposición de columnas que los enemigos) ----------
+   Cada jefe tiene 3 fases (100-66%, 66-33%, 33-0%); en cada una, su lista de técnicas (`pat`).
+   Las técnicas son las de la serie; las genéricas (fan, ring, dash...) siguen disponibles.
+   La vida no va aquí: la pone el mapa (`bossHp`), así cualquier jefe sirve en cualquier mapa. */
+const BOSS_ANIM = {
+  bosses: { walk: [0, 1, 2, 3], hit: 4, atk: 5, cast: 6, stun: 7 },
+  black: { walk: [1], hit: 2, atk: 3, cast: 3, stun: 0 }          // hoja de 4 columnas: una fila por forma
+};
+const BOSSES = {
+  freezer: { name: 'FREEZER', sheet: 'bosses', row: 0, scale: 3.2, r: 1.9, col: 0xff5ad0,
+    forms: ['FORMA FINAL', 'PODER AL 100%', 'GOLDEN FREEZER'], tints: [0xffffff, 0xffd0f0, 0xffd84a],
+    moves: 'Rayo mortal · Disco mortal · Supernova',
+    pat: [['deathbeam', 'fan'], ['deathbeam', 'saucer', 'dash'], ['deathbeam', 'saucer', 'supernova', 'dash']] },
+  cell: { name: 'CÉLULA PERFECTO', sheet: 'bosses', row: 1, scale: 3.3, r: 2.0, col: 0x60c8ff,
+    forms: ['PERFECTO', 'SÚPER PERFECTO', 'AUTODESTRUCCIÓN'], tints: [0xffffff, 0xfff2a0, 0xffa890],
+    moves: 'Kamehameha · Barrera perfecta · Célula Jr. · Autodestrucción',
+    pat: [['kame', 'fan'], ['kame', 'barrier', 'celljr'], ['kame', 'barrier', 'celljr', 'selfdestruct']] },
+  broly: { name: 'BROLY', sheet: 'bosses', row: 2, scale: 3.5, r: 2.2, col: 0x7dff5a,
+    forms: ['RESTRINGIDO', 'FURIA SAIYAN', 'SUPER SAIYAN LEGENDARIO'], tints: [0xffffff, 0xffe9a0, 0xb8ff8a],
+    moves: 'Cañón Eraser · Meteoro Gigante · Embestida · Grito legendario',
+    pat: [['dash', 'eraser'], ['rush', 'eraser', 'meteor'], ['rush', 'eraser', 'meteor', 'roar']] },
+  buu: { name: 'KID BUU', sheet: 'bosses', row: 3, scale: 3.0, r: 1.8, col: 0xff7ad0,
+    forms: ['MAJIN', 'REGENERACIÓN', 'CAOS PURO'], tints: [0xffffff, 0xffd8ee, 0xff9ac8],
+    moves: 'Kamehameha de Buu · Rayo de caramelo · Bomba planetaria · Grito · Regeneración',
+    pat: [['majinkame', 'scream'], ['majinkame', 'candy', 'planetburst', 'regen'], ['majinkame', 'candy', 'planetburst', 'scream', 'regen']] },
+  omega: { name: 'OMEGA SHENRON', sheet: 'bosses', row: 4, scale: 3.6, r: 2.2, col: 0x7a9cff,
+    forms: ['DRAGÓN OSCURO', 'ESFERAS NEGATIVAS', 'ENERGÍA NEGATIVA'], tints: [0xffffff, 0xd0dcff, 0xa8b4ff],
+    moves: 'Trueno del dragón · Muro de hielo · Estrella Nova · Bola de energía negativa',
+    pat: [['thunder', 'icewall'], ['thunder', 'icewall', 'nova'], ['thunder', 'minusball', 'nova', 'icewall']] },
+  jiren: { name: 'JIREN', sheet: 'bosses', row: 5, scale: 3.4, r: 2.0, col: 0xff4a4a,
+    forms: ['CONTENIDO', 'PODER LIBERADO', 'MÁS ALLÁ DEL LÍMITE'], tints: [0xffffff, 0xffc8b8, 0xff8a7a],
+    moves: 'Puños invisibles · Mirada · Power Impact · Teletransporte',
+    pat: [['punches', 'glare'], ['punches', 'powerimpact', 'blink'], ['punches', 'powerimpact', 'blink', 'glare']] },
+  beerus: { name: 'BEERUS', sheet: 'bosses', row: 6, scale: 3.2, r: 1.9, col: 0xb070ff,
+    forms: ['DIOS DE LA DESTRUCCIÓN', 'DESPIERTO', 'SIN PIEDAD'], tints: [0xffffff, 0xe8d0ff, 0xd0a0ff],
+    moves: 'Hakai · Esferas de energía · Esfera de destrucción · Teletransporte',
+    pat: [['orbs', 'hakai'], ['orbs', 'hakai', 'blink'], ['orbs', 'hakai', 'sphere', 'blink']] },
+  zamasu: { name: 'ZAMASU FUSIONADO', sheet: 'bosses', row: 7, scale: 3.3, r: 1.9, col: 0xff6ac8,
+    forms: ['FUSIÓN', 'DIOS INMORTAL', 'CORRUPCIÓN'], tints: [0xffffff, 0xf0d8ff, 0xd8a0ff],
+    moves: 'Muro de luz · Rayos de la absolución · Hojas del juicio · Ira divina',
+    pat: [['wall', 'lightning'], ['wall', 'lightning', 'blades'], ['wall', 'lightning', 'blades', 'wrath', 'summon']] },
+  // Goku Black: 4 fases = sus 4 formas (filas de la hoja "black"). Cada fase cambia de forma, de aura y de ataques.
+  black: { name: 'GOKU BLACK', sheet: 'black', rows: [0, 1, 2, 3], scale: 3.9, r: 2.2, col: 0xb26bff,
+    forms: ['BASE', 'SUPER SAIYAN', 'SUPER SAIYAN ROSÉ', 'ROSÉ · PODER TOTAL'], tints: [0xb26bff, 0xffe36a, 0xff7ac8, 0xff4fb0], tintSprite: false,
+    moves: 'Grieta de Black · Rayos · Embestida',
+    pat: [['fan', 'ring', 'grieta'], ['fan', 'dash', 'grieta', 'ring'], ['fan', 'ring', 'grieta', 'rain', 'beam'], ['fan', 'dash', 'grieta', 'rain', 'beam', 'summon']] }
+};
+
+/* ---------- Mapas de la partida: Tierra -> Namekusei / Planeta Vegeta -> Cámara -> Dimensión fracturada ----------
+   `bosses`: jefes posibles del mapa (sale uno al azar en cada partida). `bossHp`: su vida en este mapa.
+   `basic`: personaje de la tropa básica del mapa (fila de la hoja de enemigos). */
 const STAGES = [
-  { id: 'earth', name: 'TIERRA · YERMO', theme: 0, R: 220, hp: 1, dmg: 1, spawn: 1, pois: true, night: true, tint0: 0xffffff, next: [1, 2],
-    desc: 'El yermo de siempre. Cae la noche cada pocos minutos.',
-    boss: { name: 'FREEZER', tint: 0xd8b8ff, scale: 3.1, hp: 4500, r: 1.9, pat: [['fan'], ['fan', 'dash'], ['fan', 'dash', 'ring', 'rain']] } },
-  { id: 'namek', name: 'NAMEKUSEI', theme: 1, R: 220, hp: 1.8, dmg: 1.35, spawn: 1.2, pois: true, fx: 'lake', tint0: 0xb8ffa0, next: [3],
-    desc: 'Tres soles: nunca anochece. El agua de los lagos te cura.',
-    boss: { name: 'CÉLULA PERFECTO', tint: 0x8aff70, scale: 3.5, hp: 20000, r: 2.1, pat: [['fan', 'ring'], ['fan', 'ring', 'summon'], ['fan', 'ring', 'beam', 'spiral']] } },
-  { id: 'vegeta', name: 'PLANETA VEGETA', theme: 3, R: 200, hp: 1.9, dmg: 1.4, spawn: 1.25, pois: true, fx: 'gravity', night: true, tint0: 0xffb0a0, next: [3],
-    desc: 'Gravedad x10: te mueves un 12% más lento, pero ganas un 30% más de experiencia.',
-    boss: { name: 'BROLY', tint: 0x9aff7a, scale: 3.8, hp: 22000, r: 2.2, pat: [['dash', 'ring'], ['dash', 'ring', 'rain'], ['dash', 'ring', 'rain', 'spiral']] } },
-  { id: 'room', name: 'CÁMARA DEL TIEMPO', theme: 4, R: 80, hp: 2.2, dmg: 1.5, spawn: 1.7, pois: false, fx: 'time', tint0: 0xe8e8ff, next: [4], bossAt: 75, caps: 10, swarmAt: 300,
-    desc: 'Un año en un día: experiencia x2 y la horda no da tregua. Majin Buu llega al minuto y cuarto.',
-    boss: { name: 'SUPER BUU', tint: 0xff9ad8, scale: 3.3, hp: 30000, r: 2.0, pat: [['fan', 'dash'], ['fan', 'dash', 'summon'], ['fan', 'dash', 'spiral', 'rain']] } },
-  { id: 'rift', name: 'DIMENSIÓN FRACTURADA', theme: 2, R: 62, hp: 2.6, dmg: 1.7, spawn: 0, pois: false, final: true, fx: 'lowgrav', tint0: 0xffa8d8, next: [],
-    desc: 'Gravedad baja: el dash llega más lejos. Solo queda el jefe final.',
-    // Goku Black: 4 fases = sus 4 formas (filas de la hoja "black"). Cada fase cambia de forma, de aura y de ataques.
-    boss: { name: 'GOKU BLACK', tint: 0xb26bff, scale: 3.9, hp: 70000, r: 2.2, sheet: 'black', rows: [0, 1, 2, 3],
-      forms: ['BASE', 'SUPER SAIYAN', 'SUPER SAIYAN ROSÉ', 'ROSÉ · PODER TOTAL'],
-      tints: [0xb26bff, 0xffe36a, 0xff7ac8, 0xff4fb0],
-      pat: [['fan', 'ring', 'grieta'], ['fan', 'dash', 'grieta', 'ring'], ['fan', 'ring', 'grieta', 'rain', 'beam'], ['fan', 'dash', 'grieta', 'rain', 'beam', 'summon']] } }
+  { id: 'earth', name: 'TIERRA · YERMO', theme: 0, R: 220, hp: 1, dmg: 1, spawn: 1, pois: true, night: true, basic: 'saibai', next: [1, 2],
+    desc: 'El yermo de siempre. Cae la noche cada pocos minutos.', bosses: ['cell', 'omega'], bossHp: 4500 },
+  { id: 'namek', name: 'NAMEKUSEI', theme: 1, R: 220, hp: 1.8, dmg: 1.35, spawn: 1.2, pois: true, fx: 'lake', basic: 'soldado', next: [3],
+    desc: 'Tres soles: nunca anochece. El agua de los lagos te cura.', bosses: ['freezer'], bossHp: 20000 },
+  { id: 'vegeta', name: 'PLANETA VEGETA', theme: 3, R: 200, hp: 1.9, dmg: 1.4, spawn: 1.25, pois: true, fx: 'gravity', night: true, basic: 'soldado', next: [3],
+    desc: 'Gravedad x10: te mueves un 12% más lento, pero ganas un 30% más de experiencia.', bosses: ['broly'], bossHp: 22000 },
+  { id: 'room', name: 'CÁMARA DEL TIEMPO', theme: 4, R: 80, hp: 2.2, dmg: 1.5, spawn: 1.7, pois: false, fx: 'time', basic: 'saibai', next: [4], bossAt: 75, caps: 10, swarmAt: 300,
+    desc: 'Un año en un día: experiencia x2 y la horda no da tregua. Kid Buu llega al minuto y cuarto.', bosses: ['buu'], bossHp: 30000 },
+  { id: 'rift', name: 'DIMENSIÓN FRACTURADA', theme: 2, R: 62, hp: 2.6, dmg: 1.7, spawn: 0, pois: false, final: true, fx: 'lowgrav', basic: 'soldado', next: [],
+    desc: 'Gravedad baja: el dash llega más lejos. Solo queda el jefe final.', bosses: ['black', 'zamasu', 'jiren', 'beerus'], bossHp: 70000 }
 ];
+/** Elige el jefe de un mapa para esta partida y le pone la vida del mapa */
+const pickBoss = (S) => Object.assign({ id: '' }, BOSSES[S.bosses[(Math.random() * S.bosses.length) | 0]], { hp: S.bossHp });
+for (const S of STAGES) S.boss = Object.assign({}, BOSSES[S.bosses[0]], { hp: S.bossHp });   // valor por defecto (menú, pruebas)
+for (const k in BOSSES) BOSSES[k].id = k;
 const ROUTE_LEN = 4;      // mapas por partida: Tierra -> (Namek o Planeta Vegeta) -> Cámara del Tiempo -> Dimensión
 const SWARM_TIME = 600;   // a los 10 minutos de cada mapa llega el enjambre final
 
