@@ -19,7 +19,7 @@ class WeaponSystem {
     // Minas y meteoros: pools
     this.minePool = []; for (let i = 0; i < 8; i++) this.minePool.push({ on: false, x: 0, z: 0, arm: 0 });
     this.mineB = new SpriteBatch(scene, { max: 8, texture: tex.gem, w: 1, h: 1, anchor: 0.5, renderOrder: 1 });
-    this.strikes = []; for (let i = 0; i < 14; i++) this.strikes.push({ on: false, x: 0, z: 0, t: 0, r: 3, dmg: 0, tint: 0xffffff });
+    this.strikes = []; for (let i = 0; i < 14; i++) this.strikes.push({ on: false, x: 0, z: 0, t: 0, T: 0.6, big: false, r: 3, dmg: 0, tint: 0xffffff });
   }
 
   reset(ch) {
@@ -169,18 +169,97 @@ class WeaponSystem {
     for (let k = 0; k < 30 && done < n; k++) {
       const i = (Math.random() * g.horde.n) | 0, dx = g.horde.x[i] - p.x, dz = g.horde.z[i] - p.z;
       if (dx * dx + dz * dz > 26 * 26) continue;
-      for (const s of this.strikes) if (!s.on) { s.on = true; s.x = g.horde.x[i]; s.z = g.horde.z[i]; s.t = 0.6; s.r = r; s.dmg = dm * p.damageMul(); s.tint = p.form.ki; done++; break; }
+      for (const s of this.strikes) if (!s.on) { s.on = true; s.x = g.horde.x[i]; s.z = g.horde.z[i]; s.t = 0.6; s.T = 0.6; s.big = false; s.r = r; s.dmg = dm * p.damageMul(); s.tint = p.form.ki; done++; break; }
     }
   }
   updateStrikes(dt, g) {
     for (const s of this.strikes) {
       if (!s.on) continue;
       s.t -= dt;
+      if (s.big) {                                         // Genkidama: la esfera crece sobre el campo de batalla
+        const k = 1 - s.t / s.T, R = 1 + k * 9;
+        for (let i = 0; i < 5; i++) { const a = rand(0, 6.28), u = rand(-1, 1), q = Math.sqrt(1 - u * u); g.fx.aura.emit(s.x + Math.cos(a) * q * R, 16 + u * R, s.z + Math.sin(a) * q * R, 0, 0, 0, 0.18, 0.7, 0, s.tint); }
+        g.fx.sparks.emit(s.x + rand(-14, 14), rand(2, 14), s.z + rand(-14, 14), 0, 4, 0, 0.5, 0.25, 0, 0xffffff);
+        if (s.t <= 0) g.shake(1.2);
+      }
       // Marca en el suelo + columna de luz que cae
       g.fx.trail.emit(s.x + Math.cos(g.time * 9) * s.r * 0.8, 0.2, s.z + Math.sin(g.time * 9) * s.r * 0.8, 0, 0.5, 0, 0.2, 0.28, 0, s.tint);
       g.fx.sparks.emit(s.x, 3 + s.t * 24, s.z, 0, -14, 0, 0.12, 0.45, 0, s.tint);
       if (s.t <= 0) { s.on = false; g.explode(s.x, s.z, s.r, s.dmg, s.tint); }
     }
+  }
+
+  /* ----- Genkidama: esfera gigante que cae tras reunir energía ----- */
+  genki(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const lv = w.lv, a = this.aim(g, p, 30); if (!a) return;
+    const hit = g.horde.n > 12;                              // solo se lanza cuando merece la pena
+    if (!hit) return;
+    for (const s of this.strikes) {
+      if (s.on) continue;
+      s.on = true; s.big = true; s.t = s.T = 2.6; s.x = p.x + a.dx * 7; s.z = p.z + a.dz * 7;
+      s.r = 15 * (lv >= 3 ? 1.25 : 1) * (lv >= 5 ? 1.2 : 1); s.dmg = 110 * (1 + 0.5 * (lv - 1)) * p.damageMul(); s.tint = 0x9fe8ff;
+      w.cd = lv >= 4 ? 22 : 28;
+      g.ui.toast('¡GENKIDAMA!');
+      return;
+    }
+  }
+
+  /* ----- Kaio-ken: potenciador temporal ----- */
+  kaioken(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    if (g.horde.nearest(p.x, p.z, 18) < 0) return;
+    const lv = w.lv;
+    p.buffT = 4 + lv * 1.2 + (lv >= 5 ? 3 : 0); p.buffDmg = 0.4 + (lv >= 3) * 0.1 + (lv >= 5) * 0.2;
+    w.cd = lv >= 4 ? 16 : 22;
+    g.ui.toast('¡KAIO-KEN!', true);
+    g.fx.ring(g.fx.aura, p.x, 0.5, p.z, 40, 14, 0.6, 0.4, 0xff3030);
+    g.shake(0.4);
+  }
+
+  /* ----- Rayos grandes configurables (Final Flash, Makankosappo, Kikoho, Juicio Divino) ----- */
+  bigbeam(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const D = WEAPONS[w.id], c = D.cfg, lv = w.lv, a = this.aim(g, p, 36); if (!a) return;
+    if (p.ki < c.cost) return;
+    if (c.hpCost && p.hp <= p.maxHp * (c.hpCost + 0.05)) return;
+    p.ki -= c.cost; if (c.hpCost) p.hp -= p.maxHp * c.hpCost;
+    w.cd = c.cd * (lv >= 4 ? 0.8 : 1) * (lv >= 5 ? 0.9 : 1);
+    const crit = Math.random() < p.crit, dm = c.dmg * (1 + 0.4 * (lv - 1)) * p.damageMul() * (crit ? 2 : 1);
+    this.beam(p.x, p.z, a.dx, a.dz, c.len * (lv >= 3 ? 1.2 : 1), c.hw * (lv >= 2 ? 1.1 : 1) * (lv >= 5 ? 1.2 : 1), dm, c.life, 0.1, D.color, true);
+    p.attack(a.dx, a.dz, true, g); p.beamT = c.life;
+    g.shake(0.9); g.ui.toast(D.name.toUpperCase() + '!', true);
+    g.fx.burst(g.fx.aura, p.x, 1.4, p.z, 24, 7, 0.6, 0.4, 0, D.color);
+  }
+
+  /* ----- Explosión Final: gran área alrededor, a costa de vida ----- */
+  selfblast(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const lv = w.lv;
+    if (g.horde.nearest(p.x, p.z, 6) < 0 || p.hp < p.maxHp * 0.3) return;
+    w.cd = lv >= 4 ? 28 : 35;
+    p.hp = Math.max(1, p.hp - p.maxHp * 0.12);
+    const r = (13 + lv) * (lv >= 3 ? 1.2 : 1), dm = 90 * (1 + 0.5 * (lv - 1));
+    g.horde.damageRadius(p.x, p.z, r, dm * p.damageMul(), 20, g);
+    g.world.damageArea(p.x, p.z, r, dm);
+    g.horde.shockwave(p.x, p.z, r, 22);
+    g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 80, r * 3.2, 0.6, 0.45, 0xff8a3a);
+    g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 16, 0.9, 0.5, 4, 0xffd060);
+    g.shake(1.2); g.hitstop = 0.1; g.ui.toast('¡EXPLOSIÓN FINAL!', true);
+  }
+
+  /* ----- Kienzan: discos que atraviesan ----- */
+  discs(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const a = this.aim(g, p, 30); if (!a) return;
+    const lv = w.lv, n = 3 + (lv >= 3) + (lv >= 5) * 2, dm = 24 * (lv >= 2 ? 1.3 : 1);
+    w.cd = lv >= 4 ? 4 : 5.2;
+    const base = Math.atan2(a.dz, a.dx), col = this.col(w, p);
+    for (let i = 0; i < n; i++) {
+      const ang = base + (i / n) * Math.PI * 2;
+      g.ki.fire(p.x, p.z, Math.cos(ang), Math.sin(ang), 17, dm * p.damageMul(), 0.9, false, 1.7, 99, 0, col, 2.8);
+    }
+    p.attack(a.dx, a.dz, true, g);
   }
 
   /* ----- Pulso de Poder: onda circular ----- */

@@ -39,7 +39,7 @@ class Player {
     this.magnet = 5 * (1 + 0.1 * L('mag')); this.crit = 0.08 + 0.02 * L('crit');
     this.rateMul = 1; this.regen = 0; this.armor = 0; this.stacks = {};
     this.canRevive = L('revive') > 0;
-    this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.zeniMul = 1 + 0.1 * L('zeni'); this.luck = 0; this.items = {};
+    this.buffT = 0; this.buffDmg = 0; this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.zeniMul = 1 + 0.1 * L('zeni'); this.luck = 0; this.items = {};
     this.x = 0; this.z = 0; this.vx = 0; this.vz = 0; this.flip = 0;
     this.level = 1; this.xp = 0; this.xpNext = this.xpFor(1);
     this.dashT = 0; this.dashCd = 0; this.dashX = 1; this.dashZ = 0; this.iframes = 0; this.ghostT = 0;
@@ -59,7 +59,7 @@ class Player {
 
   /** Multiplicador de daño total: vitaminas x forma x pasiva del personaje */
   damageMul() {
-    let m = this.statDmg * this.form.dmg;
+    let m = this.statDmg * this.form.dmg * (this.buffT > 0 ? 1 + this.buffDmg : 1);
     if (this.ch.id === 'goku') m *= 1 + 0.015 * (this.level - 1);                     // Zenkai
     if (this.ch.id === 'vegeta' && this.ki >= this.maxKi * 0.8) m *= 1.25;           // Orgullo Saiyajin
     return m;
@@ -116,7 +116,8 @@ class Player {
     this.prevSpace = space;
 
     // --- Movimiento ---
-    const speed = 9 * this.speedMul * this.form.spd;
+    this.buffT = Math.max(0, this.buffT - dt);
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1);
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED; this.vz = this.dashZ * CFG.DASH_SPEED;
@@ -155,12 +156,12 @@ class Player {
       }
     } else { this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }
 
-    // --- Aura continua de la transformación ---
-    if (this.form.aura) {
+    // --- Aura continua de la transformación (el Kaio-ken la tiñe de rojo) ---
+    if (this.form.aura || this.buffT > 0) {
       this.auraAcc += dt * 45;
       while (this.auraAcc >= 1) {
         this.auraAcc -= 1;
-        game.fx.aura.emit(this.x + rand(-0.8, 0.8), rand(0, 0.5), this.z + rand(-0.4, 0.4), 0, rand(3, 6), 0, rand(0.35, 0.6), rand(0.16, 0.34), 0, this.form.aura);
+        game.fx.aura.emit(this.x + rand(-0.8, 0.8), rand(0, 0.5), this.z + rand(-0.4, 0.4), 0, rand(3, 6), 0, rand(0.35, 0.6), rand(0.16, 0.34), 0, this.buffT > 0 ? 0xff3030 : this.form.aura);
       }
     }
     this.pose();
@@ -512,7 +513,7 @@ class Pickups {
 /* ---------- CÁPSULAS (cofres 2D de Capsule Corp repartidos por el mapa) ---------- */
 class Capsules {
   constructor(scene, tex) {
-    this.max = 40; this.n = 0; this.t = 0; this.respT = 30;
+    this.max = 40; this.n = 0; this.t = 0; this.respT = 30; this.near = -1;
     this.x = new Float32Array(this.max); this.z = new Float32Array(this.max); this.gold = new Uint8Array(this.max);
     this.spr = new SpriteBatch(scene, { max: this.max, texture: tex.capsule, cols: 2, rows: 1, w: 1.5, h: 1.5, anchor: 0.04, renderOrder: 2 });
     this.glow = new SpriteBatch(scene, { max: this.max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, alpha: 0.22, cut: 0.02, renderOrder: 1 });
@@ -526,8 +527,9 @@ class Capsules {
     const i = this.n++;
     this.x[i] = x; this.z[i] = z; this.gold[i] = gold ? 1 : 0;
   }
+  removeAt(i) { const l = --this.n; this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.gold[i] = this.gold[l]; }
   reset(world) {
-    this.n = 0; this.respT = 30;
+    this.n = 0; this.respT = 30; this.near = -1;
     for (let i = 0; i < 28; i++) {
       let x, z;
       do { x = rand(-CFG.ARENA + 12, CFG.ARENA - 12); z = rand(-CFG.ARENA + 12, CFG.ARENA - 12); } while (Math.hypot(x, z) < 14);
@@ -542,14 +544,13 @@ class Capsules {
       const a = rand(0, 6.28), r = rand(35, 70);
       this.add(player.x + Math.cos(a) * r, player.z + Math.sin(a) * r, Math.random() < 0.15, game.world);
     }
-    for (let i = this.n - 1; i >= 0; i--) {
-      const dx = player.x - this.x[i], dz = player.z - this.z[i];
-      if (dx * dx + dz * dz < 5.5) {
-        const gold = this.gold[i], x = this.x[i], z = this.z[i], l = --this.n;
-        this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.gold[i] = this.gold[l];
-        game.openCapsule(gold, x, z);
-      }
+    // Cápsula abrible más cercana (se abre con E si tienes dinero)
+    let best = -1, bd = 12;
+    for (let i = 0; i < this.n; i++) {
+      const dx = player.x - this.x[i], dz = player.z - this.z[i], d2 = dx * dx + dz * dz;
+      if (d2 < bd) { bd = d2; best = i; }
     }
+    this.near = best;
     this.spr.begin(); this.glow.begin();
     for (let i = 0; i < this.n; i++) {
       const b = Math.sin(this.t * 3 + i) * 0.12, g = this.gold[i];

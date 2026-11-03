@@ -9,13 +9,13 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 
 class UIManager {
   constructor() {
-    const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls',
-      'biome', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait',
-      'itemPop', 'screen', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'menu', 'menuTabs', 'menuBody', 'btnPlay', 'zeniMenu', 'fatal', 'hud'];
+    const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
+      'biome', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.flash = 0; this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0; this.wKey = ''; this.mmT = 0; this.lastBiome = -1;
-    this.tab = 'chars'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
+    this.tab = 'upgrades'; this.screen = 'home'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
     this.cardHandlers = [];
     this.mmCtx = this.el.mm && this.el.mm.getContext ? this.el.mm.getContext('2d') : null;
   }
@@ -57,7 +57,9 @@ class UIManager {
     e.xpTxt.textContent = Math.floor(p.xp) + ' / ' + p.xpNext;
     e.lvl.textContent = p.level; e.formName.textContent = p.form.name; e.chName.textContent = p.ch.name;
     e.kills.textContent = game.kills; e.time.textContent = fmtTime(game.time); e.horde.textContent = game.horde.n;
-    e.zeniHud.textContent = Math.floor(game.zeniRun); e.balls.textContent = game.pickups.collected + ' / 7';
+    e.zeniHud.textContent = Math.floor(game.cash);
+    e.goal.textContent = fmtTime(Math.max(0, game.diff.goal - game.time)); e.diffName.textContent = game.diff.name; e.diffName.style.color = game.diff.color;
+    this.updatePrompt(game); e.balls.textContent = game.pickups.collected + ' / 7';
     this.flash = Math.max(0, this.flash - dt * 2.2);
     const lowHp = p.hp / p.maxHp < 0.3 ? 0.35 + Math.sin(game.time * 8) * 0.15 : 0;
     e.vignette.style.opacity = Math.max(this.flash * 0.9, lowHp).toFixed(2);
@@ -77,6 +79,16 @@ class UIManager {
     this.updateStrip(game);
     this.mmT -= dt;
     if (this.mmT <= 0) { this.mmT = 0.1; this.drawMinimap(game, bi); }
+  }
+
+  /** Aviso "[E] abrir cápsula" con su precio cuando estás cerca de una */
+  updatePrompt(game) {
+    const c = game.capsules, e = this.el.prompt;
+    if (c.near < 0 || game.state !== 'play') { e.style.display = 'none'; return; }
+    const cost = game.capsuleCost(c.gold[c.near]), ok = game.cash >= cost;
+    e.style.display = 'block'; e.className = ok ? '' : 'no';
+    const t = '[E] ABRIR CÁPSULA' + (c.gold[c.near] ? ' DORADA' : '') + ' · ' + cost + ' ZENI';
+    if (e.textContent !== t) e.textContent = t;
   }
 
   /** Iconos de armas y vitaminas equipadas (solo se reconstruye si cambian) */
@@ -120,9 +132,10 @@ class UIManager {
   }
 
   /* ---------- Pantallas de pausa / derrota ---------- */
-  showScreen(title, sub, stats, aText, bText) {
+  showScreen(title, sub, html, aText, bText, kind) {
     const e = this.el;
-    e.scrTitle.textContent = title; e.scrSub.textContent = sub; e.scrStats.textContent = stats;
+    e.scrBox.className = 'box ' + (kind || '');
+    e.scrTitle.textContent = title; e.scrSub.textContent = sub; e.scrStats.innerHTML = html;
     e.scrA.textContent = aText; e.scrB.textContent = bText || ''; e.scrB.style.display = bText ? 'inline-block' : 'none';
     e.screen.classList.add('show');
   }
@@ -146,7 +159,7 @@ class UIManager {
   hideCards() { this.el.cards.classList.remove('show'); this.cardHandlers = []; }
   cardsOpen() { return this.el.cards.classList.contains('show'); }
 
-  /* ---------- Menú principal ---------- */
+  /* ---------- Menú principal (pantallas: inicio, jugar, tienda, misiones) ---------- */
   showMenu(game) {
     this.game = game;
     this.view = Save.d.sel;
@@ -155,16 +168,47 @@ class UIManager {
     this.renderMenu();
   }
   hideMenu() { this.el.menu.classList.remove('show'); }
+  claimable() {
+    let n = 0;
+    for (const m of MISSIONS) {
+      if (m.daily && !Save.d.daily.ids.includes(m.id)) continue;
+      if (!Save.isClaimed(m) && Save.progress(m) >= m.goal) n++;
+    }
+    return n;
+  }
 
   renderMenu() {
-    const e = this.el, g = this.game;
+    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES' };
     e.zeniMenu.textContent = Save.d.zeni;
-    e.menuTabs.innerHTML = ['chars:PERSONAJES', 'shop:MEJORAS', 'items:OBJETOS'].map((t) => { const [k, n] = t.split(':'); return '<button class="tab ' + (this.tab === k ? 'on' : '') + '" data-tab="' + k + '">' + n + '</button>'; }).join('');
-    if (this.tab === 'chars') this.renderChars(); else if (this.tab === 'items') this.renderItems(); else this.renderShop();
-    const sel = charById(Save.d.sel);
-    e.btnPlay.textContent = 'JUGAR CON ' + sel.name + ' [ENTER]';
+    e.menu.classList.toggle('ishome', s === 'home');
+    e.menuNav.innerHTML = s === 'home' ? '' : '<button class="back" data-go="home">◂ VOLVER</button><h3>' + TITLES[s] + '</h3>';
+    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else this.renderMissions();
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame);
+  }
+
+  renderHome() {
+    const sel = charById(Save.d.sel), d = diffById(Save.d.diff), n = this.claimable();
+    const daily = Save.d.daily.ids.map((id) => missionById(id)).map((m) => {
+      const pr = Math.min(m.goal, Save.progress(m)), done = Save.isClaimed(m);
+      return '<div class="dm' + (done ? ' done' : '') + '"><span>' + m.desc + '</span><div class="mb"><i style="width:' + (pr / m.goal * 100) + '%"></i></div></div>';
+    }).join('');
+    this.el.menuBody.innerHTML = '<div class="home"><div class="hl">' +
+      '<div class="titlebox"><small>DRAGON BALL</small><h1>ULTIMATE<br>SURVIVOR</h1><p>SOBREVIVE · TRANSFÓRMATE · REÚNE LAS 7 ESFERAS</p></div>' +
+      '<div class="hbtns"><button class="big play" data-go="play">▶ JUGAR<small>' + sel.name + ' · ' + d.name + '</small></button>' +
+      '<button class="big" data-go="shop">TIENDA</button>' +
+      '<button class="big" data-go="missions">MISIONES' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +
+      '<button class="big ghost" data-exit>SALIR</button></div></div>' +
+      '<div class="hr"><div class="hcard"><h4>MISIONES DIARIAS</h4>' + daily + '<h4 style="margin-top:12px">RACHA</h4><p>' + Save.d.login.streak + ' día(s) seguidos</p></div></div></div>';
+  }
+
+  renderPlay() {
+    this.renderChars();
+    const d = Save.d.diff;
+    const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '"><b>' + x.name + '</b><small>' + fmtTime(x.goal) + ' · x' + x.coins + ' monedas · +' + x.reward + ' al ganar</small></button>').join('');
+    const sel = charById(Save.d.sel);
+    this.el.menuBody.innerHTML += '<div class="playbar"><div class="diffs">' + diffs + '</div><button class="start" data-start>JUGAR CON ' + sel.name + ' [ENTER]</button></div>';
+    for (const cv of this.el.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame);
   }
 
   renderChars() {
@@ -173,53 +217,94 @@ class UIManager {
     for (const c of CHARACTERS) {
       const own = Save.d.unlocked.includes(c.id), sel = Save.d.sel === c.id;
       const cls = 'ch' + (sel ? ' sel' : '') + (own ? '' : ' locked') + (c.soon ? ' soon' : '') + (this.view === c.id ? ' view' : '');
-      const tag = c.soon ? 'PRÓXIMAMENTE' : sel ? 'EQUIPADO' : own ? 'DESBLOQUEADO' : '🔒 ' + c.cost + ' ZENI';
+      const tag = c.soon ? 'PRÓXIMAMENTE' : sel ? 'EQUIPADO' : own ? 'DESBLOQUEADO' : '🔒 ' + c.cost + ' ●';
       grid += '<div class="' + cls + '" data-ch="' + c.id + '">' +
         (c.portrait ? '<canvas width="108" height="79" data-sheet="' + c.portrait.sheet + '" data-frame="' + c.portrait.frame + '"></canvas>' : '<div class="qm">?</div>') +
         '<b>' + c.name + '</b><small>' + c.role + '</small><span class="tag">' + tag + '</span></div>';
     }
     let det = '';
-    if (v.soon) det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p><p>Este guerrero llegará en una próxima actualización. Necesita sus sprites para unirse a la batalla.</p>';
+    if (v.soon) det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p><p>Este guerrero llegará en una próxima actualización.</p>';
     else {
       const bar = (n, val, max) => '<div class="sb"><span>' + n + '</span><div><i style="width:' + Math.min(100, (val / max) * 100) + '%"></i></div><b>' + val + '</b></div>';
       const best = Save.d.best[v.id];
+      const techs = v.unique.filter((id) => id !== v.start[0]).concat(Object.keys(WEAPONS).filter((id) => WEAPONS[id].shop && !WEAPONS[id].unique)).filter((id) => !WEAPONS[id].unique || WEAPONS[id].unique === v.id);
       det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p>' +
         bar('VIDA', v.hp, 160) + bar('KI', v.ki, 160) + bar('VEL', Math.round(v.spd * 100), 150) + bar('DAÑO', Math.round(v.dmg * 100), 150) +
         '<h4>PASIVA · ' + v.passive.name + '</h4><p>' + v.passive.desc + '</p>' +
         '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +
-        '<h4>TÉCNICAS (al subir de nivel)</h4>' + v.unique.filter((id) => id !== v.start[0]).map((id) => '<p><i>' + WEAPONS[id].icon + '</i> <b>' + WEAPONS[id].name + '</b> · desde NV ' + (WEAPONS[id].minLv || 2) + '</p>').join('') +
+        '<h4>TÉCNICAS (al subir de nivel)</h4>' + techs.map((id) => { const W = WEAPONS[id], lock = W.shop && !Save.d.techs.includes(id); return '<p class="' + (lock ? 'lockt' : '') + '"><i>' + W.icon + '</i> <b>' + W.name + '</b> · NV ' + (W.minLv || 2) + (lock ? ' · 🔒 en la tienda' : '') + '</p>'; }).join('') +
         '<h4>TRANSFORMACIONES</h4><div class="forms">' + v.forms.map((f) => '<span>' + f.name + ' <em>NV ' + f.lvl + '</em></span>').join('') + '</div>' +
         (best ? '<h4>MEJOR PARTIDA</h4><p>' + fmtTime(best.time) + ' · ' + best.kills + ' enemigos · NV ' + best.level + '</p>' : '');
-      if (!owned) det += '<button class="buy" data-buy="' + v.id + '"' + (Save.d.zeni < v.cost ? ' disabled' : '') + '>DESBLOQUEAR · ' + v.cost + ' ZENI</button>';
-      else if (Save.d.sel !== v.id) det += '<button class="buy" data-equip="' + v.id + '">EQUIPAR</button>';
+      if (!owned) det += '<button class="buy" data-buy="' + v.id + '"' + (Save.d.zeni < v.cost ? ' disabled' : '') + '>DESBLOQUEAR · ' + v.cost + ' ●</button>';
     }
-    this.el.menuBody.innerHTML = '<div class="roster">' + grid + '</div><div class="detail">' + det + '</div>';
+    this.el.menuBody.innerHTML = '<div class="split"><div class="roster">' + grid + '</div><div class="detail">' + det + '</div></div>';
   }
 
-  renderShop() {
-    let h = '<div class="shop">';
+  /* ---------- Tienda: mejoras permanentes, objetos y técnicas ---------- */
+  renderShopScreen() {
+    const tabs = [['upgrades', 'MEJORAS'], ['items', 'OBJETOS'], ['techs', 'TÉCNICAS']];
+    const t = tabs.map((x) => '<button class="tab ' + (this.tab === x[0] ? 'on' : '') + '" data-tab="' + x[0] + '">' + x[1] + '</button>').join('');
+    const body = this.tab === 'items' ? this.htmlItems() : this.tab === 'techs' ? this.htmlTechs() : this.htmlUpgrades();
+    this.el.menuBody.innerHTML = '<div class="tabs">' + t + '</div>' + body;
+  }
+  htmlUpgrades() {
+    let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>MEJORAS PERMANENTES</b><p>Se aplican solas al personaje al empezar cada partida.</p></div></div>';
     for (const l of LAB) {
       const lvl = Save.lab(l.id), maxed = lvl >= l.max, cost = labCost(l, lvl);
       let pips = ''; for (let k = 0; k < l.max; k++) pips += '<u class="' + (k < lvl ? 'on' : '') + '"></u>';
       h += '<div class="item"><div><b>' + l.name + '</b><p>' + l.desc + '</p><div class="pips">' + pips + '</div></div>' +
-        '<button data-lab="' + l.id + '"' + (maxed || Save.d.zeni < cost ? ' disabled' : '') + '>' + (maxed ? 'MÁXIMO' : cost + ' Z') + '</button></div>';
+        '<button data-lab="' + l.id + '"' + (maxed || Save.d.zeni < cost ? ' disabled' : '') + '>' + (maxed ? 'MÁXIMO' : cost + ' ●') + '</button></div>';
     }
-    this.el.menuBody.innerHTML = h + '</div>';
+    return h + '</div>';
   }
-
-  /** Colección de objetos: comunes y raros ya vienen desbloqueados; el resto se compra con Zeni */
-  renderItems() {
-    let h = '<div class="shop">';
-    const info = '<div class="item" style="grid-column:1/-1"><div><b>CÁPSULAS DE CAPSULE CORP</b><p>Las cápsulas del mapa dan un objeto aleatorio. Aquí desbloqueas qué objetos pueden tocarte: los más raros solo aparecerán si los compras.</p></div></div>';
-    h += info;
+  htmlItems() {
+    let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>OBJETOS DE LAS CÁPSULAS</b><p>Las cápsulas del mapa dan un objeto aleatorio que dura solo esa partida. Aquí desbloqueas cuáles pueden tocarte: los más raros solo aparecen si los compras.</p></div></div>';
     for (let r = 0; r < 6; r++) {
       for (const it of ITEMS) {
         if (it.rarity !== r) continue;
         const rar = RARITIES[r], own = itemAvailable(it);
         h += '<div class="item" style="border-left:4px solid ' + rar.color + '"><div class="ic" style="color:' + rar.color + '">' + it.icon + '</div><div><small style="color:' + rar.color + '">' + rar.name + '</small><br><b>' + it.name + '</b><p>' + it.text + '</p></div>' +
-          (own ? '<button disabled>' + (rar.cost ? 'DESBLOQUEADO' : 'DISPONIBLE') + '</button>' : '<button data-item="' + it.id + '"' + (Save.d.zeni < rar.cost ? ' disabled' : '') + '>' + rar.cost + ' Z</button>') + '</div>';
+          (own ? '<button disabled>' + (rar.cost ? 'DESBLOQUEADO' : 'DISPONIBLE') + '</button>' : '<button data-item="' + it.id + '"' + (Save.d.zeni < rar.cost ? ' disabled' : '') + '>' + rar.cost + ' ●</button>') + '</div>';
       }
     }
-    this.el.menuBody.innerHTML = h + '</div>';
+    return h + '</div>';
   }
+  htmlTechs() {
+    let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>TÉCNICAS DE DRAGON BALL</b><p>Una vez compradas, pueden aparecer como carta al subir de nivel (a partir de su nivel mínimo). Las exclusivas solo salen con su personaje.</p></div></div>';
+    for (const id in WEAPONS) {
+      const W = WEAPONS[id];
+      if (!W.shop) continue;
+      const own = Save.d.techs.includes(id), who = W.unique ? charById(W.unique).name : 'TODOS';
+      h += '<div class="item"><div class="ic" style="color:#' + W.color.toString(16).padStart(6, '0') + '">' + W.icon + '</div><div><small style="color:var(--xp)">' + who + ' · NV ' + W.minLv + '</small><br><b>' + W.name + '</b><p>' + W.lv[0] + '</p></div>' +
+        (own ? '<button disabled>COMPRADA</button>' : '<button data-tech="' + id + '"' + (Save.d.zeni < W.shop ? ' disabled' : '') + '>' + W.shop + ' ●</button>') + '</div>';
+    }
+    return h + '</div>';
+  }
+
+  /* ---------- Misiones ---------- */
+  htmlMission(m) {
+    const pr = Math.min(m.goal, Save.progress(m)), done = Save.isClaimed(m), ok = pr >= m.goal;
+    return '<div class="item mi' + (done ? ' done' : '') + '"><div><b>' + m.name + '</b><p>' + m.desc + '</p><div class="mb"><i style="width:' + (pr / m.goal * 100) + '%"></i><em>' + Math.floor(pr) + ' / ' + m.goal + '</em></div></div>' +
+      (done ? '<button disabled>COBRADA</button>' : '<button data-claim="' + m.id + '"' + (ok ? '' : ' disabled') + '>' + (ok ? 'COBRAR ' : '') + '+' + m.reward + ' ●</button>') + '</div>';
+  }
+  renderMissions() {
+    const l = Save.d.login, next = Save.checkLogin();
+    let days = '';
+    for (let i = 1; i <= 7; i++) days += '<span class="' + (i <= l.streak ? 'on' : '') + '"><b>' + i + '</b>+' + (100 + 50 * (i - 1)) + '</span>';
+    this.el.menuBody.innerHTML = '<div class="msplit"><div><h4 class="sec">RACHA DE INICIO DE SESIÓN</h4><div class="streak">' + days + '</div>' + (next ? '' : '<p class="dim">Ya cobraste la recompensa de hoy. ¡Vuelve mañana!</p>') +
+      '<h4 class="sec">DIARIAS · se renuevan cada día</h4><div class="mlist">' + Save.d.daily.ids.map((id) => this.htmlMission(missionById(id))).join('') + '</div></div>' +
+      '<div><h4 class="sec">PERMANENTES</h4><div class="mlist">' + MISSIONS.filter((m) => !m.daily).map((m) => this.htmlMission(m)).join('') + '</div></div></div>';
+  }
+
+  /* ---------- Ventana de recompensa diaria y salida ---------- */
+  showLogin() {
+    const r = Save.checkLogin();
+    if (!r) return;
+    let days = '';
+    for (let i = 1; i <= 7; i++) days += '<span class="' + (i < r.streak ? 'on' : i === r.streak ? 'now' : '') + '"><b>' + i + '</b>+' + (100 + 50 * (i - 1)) + '</span>';
+    this.el.modal.innerHTML = '<div class="mbox"><small>RECOMPENSA DIARIA</small><h2>¡DÍA ' + r.streak + ' DE RACHA!</h2><div class="streak">' + days + '</div><div class="reward">+' + r.reward + ' MONEDAS</div><button data-login>COBRAR</button></div>';
+    this.el.modal.classList.add('show');
+  }
+  hideModal() { this.el.modal.classList.remove('show'); }
+  showExit(on) { this.el.exit.classList[on ? 'add' : 'remove']('show'); }
 }
