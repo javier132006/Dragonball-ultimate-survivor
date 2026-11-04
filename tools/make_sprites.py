@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 Convierte una hoja de sprites (JPG/PNG con fondo de ajedrez "falso") en:
-  - assets/<nombre>.png   spritesheet limpio, fondo transparente, celdas del mismo tamaño
-  - assets/sprites.js     datos en base64 (así funciona al abrir index.html con doble clic)
+  - la hoja dentro de assets/sprites.js (WebP sin pérdida en base64: funciona al abrir index.html con doble clic)
 
 Uso:
   python3 tools/make_sprites.py ENTRADA.jpg NOMBRE --xs 255,479,704,928,1152 --ys 80,248,416,585,752 [--scale 2]
@@ -72,20 +71,9 @@ for r in range(rows):
             cell = Image.fromarray(al, 'RGBA')
         sheet.paste(cell, (c * W // a.scale, r * H // a.scale))
 
-root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-os.makedirs(os.path.join(root, 'assets'), exist_ok=True)
-png = os.path.join(root, 'assets', a.name + '.png')
-sheet.save(png, optimize=True)
-
-# sprites.js: acumula todas las hojas existentes en assets/*.meta.json
-meta_path = os.path.join(root, 'assets', 'sprites.meta.json')
-meta = json.load(open(meta_path)) if os.path.exists(meta_path) else {}
-meta[a.name] = {'cols': cols, 'rows': rows, 'w': W // a.scale, 'h': H // a.scale}
-json.dump(meta, open(meta_path, 'w'), indent=1)
-lines = ['// Generado por tools/make_sprites.py — no editar a mano',
-         'window.SPRITE_DATA = window.SPRITE_DATA || {};']
-for n, m in meta.items():
-    b64 = base64.b64encode(open(os.path.join(root, 'assets', n + '.png'), 'rb').read()).decode()
-    lines.append('window.SPRITE_DATA[%s] = %s;' % (json.dumps(n), json.dumps(dict(m, src='data:image/png;base64,' + b64))))
-open(os.path.join(root, 'assets', 'sprites.js'), 'w').write('\n'.join(lines) + '\n')
-print('OK', png, sheet.size, 'celda', W // a.scale, 'x', H // a.scale)
+# sprites.js: se añade (o sustituye) esta hoja sin tocar las demás (tools/sprites_io.py)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sprites_io as S
+sheets, anims = S.load()
+S.put(sheets, a.name, sheet, {'cols': cols, 'rows': rows, 'w': W // a.scale, 'h': H // a.scale})
+print('OK', a.name, sheet.size, 'celda', W // a.scale, 'x', H // a.scale, 'sprites.js', S.save(sheets, anims))
