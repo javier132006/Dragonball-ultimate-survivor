@@ -93,8 +93,9 @@ const TRANSFORM_FX = {
   ],
   gogeta: [
     null,
-    { c1: '#ffd400', c2: '#fff6a0', quote: 'Soy Gogeta. Y voy a acabar contigo.', frames: 'WIBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#fff27a', shake: 1.0, kanji: 'ゴジータ' },
-    { c1: '#6fd8ff', c2: '#ffffff', quote: '¡Este es el poder de la fusión!', frames: 'BIWIBC', charge: 2.2, fx: ['bolts', 'sparks', 'ripple', 'quake'], bolt: '#bfe8ff', shake: 1.3, kanji: '限界' }
+    { c1: '#ffd400', c2: '#fff6a0', quote: 'Soy Gogeta. Y voy a acabar contigo.', frames: 'WIBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#fff27a', shake: 1.0, kanji: '超ゴジータ' },
+    { c1: '#ffe14a', c2: '#bfe8ff', quote: '¡Este es el poder de la fusión!', frames: 'IWIBIC', charge: 2.0, fx: ['bolts', 'sparks', 'rocks', 'quake'], bolt: '#9fe0ff', shake: 1.2, kanji: '超サイヤ人２' },
+    { c1: '#2ec8ff', c2: '#c8f4ff', quote: 'Ki divino... el guerrero definitivo.', frames: 'WCIBC', charge: 1.9, fx: ['ripple', 'sparks', 'bolts'], bolt: '#8ad8ff', shake: 0.9, kanji: 'ゴジータブルー' }
   ],
   broly: [
     null,

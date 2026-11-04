@@ -20,6 +20,24 @@ def F(folder, idle, walk, atk, beam, crit, hurt, dash, death):
 G = 'GOKU fases/'; V = 'VEGETA fases/'; GB = 'GOKU BLACK formas/'; GH = 'GOHAN fases/'; FZ = 'FREEZA formas/'
 TR = 'MIRAI TRUNKS fases/'; CE = 'CELL formas/'
 VG = 'VEGITO fases/'; BR = 'BROLY fases/'; BD = 'BARDOCK fases/'
+# Recoloreados (formas que el pack no trae): tono exacto del pelo/aura -> tono nuevo, tomados de otros sprites del pack
+_HL = [(249, 245, 199), (255, 255, 204), (242, 242, 200)]; _HM = [(242, 190, 48), (255, 200, 62), (234, 168, 68)]; _HD = [(178, 110, 21), (185, 114, 49), (191, 119, 19)]
+_AURA = [(250, 175, 37), (255, 226, 66), (255, 252, 210)]
+def _pal(light, mid, dark, eyes=None, aura=None):
+    m = {c: light for c in _HL}; m.update({c: mid for c in _HM}); m.update({c: dark for c in _HD})
+    if eyes: m[(1, 191, 150)] = eyes
+    if aura: m.update(dict(zip(_AURA, aura)))
+    return m
+RECOLOR = {
+ 'base': _pal((70, 62, 86), (38, 32, 48), (16, 12, 22), (40, 40, 48), [(190, 205, 240), (228, 236, 255), (255, 255, 255)]),   # pelo negro (Goku/Vegetto base) y aura blanca
+ 'ss2': _pal((255, 255, 232), (255, 228, 96), (222, 160, 44)),                                                                  # dorado más brillante
+ 'blue': _pal((170, 244, 250), (64, 205, 218), (0, 120, 146), (0, 160, 200), [(30, 140, 225), (80, 200, 250), (205, 245, 255)]),  # paleta de Vegetto Blue
+}
+def recolor(r, name):
+    if not name: return r
+    r = r.copy(); m = RECOLOR[name]
+    for src, dst in m.items(): r[(r[:, :, :3] == src).all(2), :3] = dst
+    return r
 SHEETS = {
  'goku': F(G + 'Goku', 11, (12, 13), 25, 70, 31, 41, 16, (42, 43, 47)),
  'goku_kk': F(G + 'Goku kaioken', 7, (8, 9), 33, 53, 24, 39, 11, (46, 48, 51)),
@@ -71,6 +89,9 @@ SHEETS = {
  'bardock_ss': F(BD + 'Bardock Ssj', 15, (16, 17), 43, 73, 38, 64, 18, (64, 65, 67)),
  'bardock_ss4': F(BD + 'Bardock SSJ4', 3, (4, 5), 12, 41, 23, 35, 6, (36, 38, 39)),
  'gogeta': F('Gogeta', 41, (49, 50), 64, 98, 77, 85, 68, (86, 87, 88)),
+ 'gogeta_base': dict(F('Gogeta', 41, (49, 50), 64, 98, 77, 85, 68, (86, 87, 88)), rc='base'),
+ 'gogeta_ss2': dict(F('Gogeta', 41, (49, 50), 64, 98, 77, 85, 68, (86, 87, 88)), rc='ss2'),
+ 'gogeta_blue': dict(F('Gogeta', 41, (49, 50), 64, 98, 77, 85, 68, (86, 87, 88)), rc='blue'),
 }
 # Poses de CARGAR KI con el aura (hoja <personaje>_chg, una tira por personaje): nombre -> [(carpeta, nº), ...]
 CHG = {
@@ -105,7 +126,7 @@ CHG = {
  'broly_chg': [(BR + 'Broly Segunda Forma', 57), (BR + 'Broly Segunda Forma', 60), (BR + 'Broly Segunda Forma', 61), (BR + 'Broly Terceira forma', 3),
                (BR + 'Broly Terceira forma', 60), (BR + 'Broly Full Power', 44), (BR + 'Broly Full Power', 45), (BR + 'Broly Full Power', 46),
                (BR + 'Broly Ssj4', 38), (BR + 'Broly Ssj4', 39), (BR + 'Broly Ssj4', 40)],
- 'gogeta_chg': [('Gogeta', 91), ('Gogeta', 92), ('Gogeta', 93)],
+ 'gogeta_chg': [('Gogeta', n, rc) for rc in ('base', None, 'ss2', 'blue') for n in (91, 92, 93)],
  'bardock_chg': [(BD + 'Bardock', 60), (BD + 'Bardock', 61), (BD + 'Bardock', 62), (BD + 'Bardock Ssj', 3), (BD + 'Bardock Ssj', 6),
                  (BD + 'Bardock SSJ4', 44), (BD + 'Bardock SSJ4', 45), (BD + 'Bardock SSJ4', 46)],
 }
@@ -114,7 +135,7 @@ CHG = {
 # gogeta_intro: 0-10 baile de Goku · 11-21 baile de Vegeta · 22 silueta · 23 Gogeta · 24-26 aura · 27 los dedos se tocan
 INTRO = {
  'vegito_intro': [(VG + 'Vegito Ssj2', n) for n in range(1, 9)] + [(VG + 'Vegito', n) for n in (105, 106, 107)],
- 'gogeta_intro': [('Gogeta', n) for n in (3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 40, 41, 91, 92, 93, 44)],
+ 'gogeta_intro': [('Gogeta', n, 'base') for n in (3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 40, 41, 91, 92, 93, 44)],
 }
 # Jefes (hoja 'bosses', 8 columnas de 128 px: 0-3 caminar · 4 golpe recibido · 5 ataque · 6 técnica · 7 pose/aturdido)
 BOSS_ROWS = {
@@ -197,19 +218,19 @@ if __name__ == '__main__':
     keep = lambda n: solo is None or n.split('_')[0] in solo
     SHEETS = {n: v for n, v in SHEETS.items() if keep(n)}; CHG = {n: v for n, v in CHG.items() if keep(n)}; INTRO = {n: v for n, v in INTRO.items() if keep(n)}
     for name, S in SHEETS.items():
-        fr = {i: load(S['folder'], n) for i, n in S['f'].items()}; used.add(S['folder'])
+        fr = {i: recolor(load(S['folder'], n), S.get('rc')) for i, n in S['f'].items()}; used.add(S['folder'])
         sh, CW, CH, rows = build(fr)
         sh.save(os.path.join(out, name + '.png'))
         meta[name] = {'cols': 4, 'rows': rows, 'w': CW, 'h': CH, 'hs': round(CH / REF, 4), 'anc': round(2 / CH, 4), 'px': 1}
         print(name, CW, 'x', CH)
     for name, L in CHG.items():
-        fr = {i: load(fo, n) for i, (fo, n) in enumerate(L)}; used |= {fo for fo, n in L}
+        fr = {i: recolor(load(e[0], e[1]), e[2] if len(e) > 2 else None) for i, e in enumerate(L)}; used |= {e[0] for e in L}
         cols = min(8, len(L)); sh, CW, CH, rows = build(fr, cols=cols, center='box')
         sh.save(os.path.join(out, name + '.png'))
         meta[name] = {'cols': cols, 'rows': rows, 'w': CW, 'h': CH, 'hs': round(CH / REF, 4), 'anc': round(2 / CH, 4), 'px': 1}
         print(name, len(L), CW, 'x', CH)
     for name, L in INTRO.items():
-        fr = {i: load(fo, n) for i, (fo, n) in enumerate(L)}; used |= {fo for fo, n in L}
+        fr = {i: recolor(load(e[0], e[1]), e[2] if len(e) > 2 else None) for i, e in enumerate(L)}; used |= {e[0] for e in L}
         sh, CW, CH, rows = build(fr, cols=8)
         sh.save(os.path.join(out, name + '.png'))
         meta[name] = {'cols': 8, 'rows': rows, 'w': CW, 'h': CH}

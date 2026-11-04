@@ -37,7 +37,7 @@ class Player {
     this.stacks = {}; this.stackMul = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
     this.absorbed = 0; this.barT = 0; this.barHits = 0; this.barBoom = 0; this.barCol = 0x8ae0ff;   // Absorción de Célula y Barrera de Ki
-    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.wade = 1; this.slowT = 0; this.confT = 0; this.poisonT = 0; this.weakT = 0; this.noDashT = 0;
+    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.wade = 1; this.slowT = 0; this.confT = 0; this.poisonT = 0; this.weakT = 0; this.noDashT = 0; this.ud = null; this.udT = 0;
     // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
     this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
     this.egoStk = 0; this.auraT = 0; this.boltT = 0; this.tfCd = 0; this.formSeen = {}; this.trait = null; this.tr = {};
@@ -122,6 +122,7 @@ class Player {
     if (this.tr.lowHp && this.hp < this.maxHp * 0.5) m *= 1 + this.tr.lowHp;          // rasgo: más daño con poca vida
     if (this.egoStk) m *= 1 + this.egoStk;                                            // rasgo: Ego destructor
     if (this.weakT > 0) m *= 0.7;                                                     // debilitado (Kyabe)
+    if (this.udT > 0 && this.ud.dmg) m *= 1 - this.ud.dmg;                             // desventaja de la Ultimate
     return m * this.comboMul;                                                         // bonus de la racha de combos
   }
 
@@ -140,6 +141,7 @@ class Player {
       game.fx.burst(game.fx.trail, this.x, 1, this.z, 8, 4, 0.4, 0.3, 0);
       return false;
     }
+    if (this.udT > 0 && this.ud.take) amount *= 1 + this.ud.take;   // desventaja de la Ultimate: recibes más daño
     // Bloqueo con Ki: perfecto (justo al empezar) = sin daño; normal = 70% menos gastando Ki; sin Ki = guardia rota
     let blocked = false;
     if (this.blocking) {
@@ -183,6 +185,7 @@ class Player {
     // Efectos de los enemigos: «Cambio de cuerpo» de Ginyu (controles invertidos) y caramelo/hielo (ralentizado)
     this.slowT = Math.max(0, this.slowT - dt); this.confT = Math.max(0, this.confT - dt);
     this.weakT = Math.max(0, this.weakT - dt); this.noDashT = Math.max(0, this.noDashT - dt);
+    if (this.udT > 0) { this.udT -= dt; if (this.ud.bleed && this.hp > 1) this.hp = Math.max(1, this.hp - this.maxHp * this.ud.bleed * dt); }   // desventaja de la Ultimate
     if (this.poisonT > 0) { this.poisonT -= dt; if (this.hp > 1) this.hp = Math.max(1, this.hp - this.maxHp * 0.025 * dt); }   // veneno de Frost
     if (this.confT > 0) { ix = -ix; iz = -iz; }
     const wx = ix * game.camCos + iz * game.camSin, wz = -ix * game.camSin + iz * game.camCos;
@@ -230,7 +233,7 @@ class Player {
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1);
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1) * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1);
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
@@ -271,7 +274,7 @@ class Player {
         game.fx.ring(game.fx.aura, this.x, 0.5, this.z, 40, 15, 0.45, 0.3, ac);
         game.shake(0.14);
       }
-    } else { if (!this.blocking && !this.tr.kiDrain) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
+    } else { if (!this.blocking && !this.tr.kiDrain && !(this.udT > 0 && this.ud.noki)) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
 
     // --- Aura continua de la transformación (el Kaio-ken la tiñe de rojo) ---
     if (this.form.aura || this.buffT > 0) {
@@ -358,6 +361,7 @@ class Player {
       else if (this.moving) y = Math.abs(Math.sin(this.animT * 9)) * 0.12;
       flash = this.hurtT > 0.22 ? 1 : 0;
       if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;
+      if (this.introHide) alpha = 0;                               // intro de la fusión: aún no ha aparecido
     }
     // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
     const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.form.tint;
@@ -366,7 +370,7 @@ class Player {
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
     // Aura de fuego (sprites): forma transformada, carga de ki o Kaio-ken. En las formas altas, rayos sueltos alrededor
     const V = this.vfx, useFx = !!(V && V.ok);
-    if (useFx && !this.dying) {
+    if (useFx && !this.dying && !this.introHide) {
       const ka = this.buffT > 0, au = this.form.aura || 0, F = formFx(this.ch, this.formIdx);
       if ((au || this.charging || ka) && !this.chgPose) {
         const big = this.charging ? 1.3 : 1, name = ka || !F || !F.a ? 'auraSS1' : F.a, own = name === 'auraSS2' || name === 'auraSS3';

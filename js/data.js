@@ -11,7 +11,7 @@ const SHEET_NAMES = ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku
   'vegeta', 'vegeta_ss', 'vegeta_grade', 'vegeta_majin', 'vegeta_ss4', 'vegeta_god', 'vegeta_blue', 'vegeta_bfp',
   'black', 'black_ss', 'black_rose', 'black_boss', 'gohan', 'gohan_ss', 'gohan_ss2', 'gohan_ul',
   'freezer1', 'freezer3', 'freezer', 'freezer_fp', 'freezer_gold', 'trunks', 'trunks_ss', 'cell_imp', 'cell_semi', 'cell', 'piccolo', 'krilin',
-  'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4', 'gogeta',
+  'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4', 'gogeta_base', 'gogeta', 'gogeta_ss2', 'gogeta_blue',
   'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg', 'gogeta_chg', 'vegito_intro', 'gogeta_intro',
   'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles'];
 
@@ -28,7 +28,7 @@ const CHARACTERS = [
     id: 'goku', name: 'SON GOKU', role: 'Versátil · Cuerpo a cuerpo', cost: 0,
     hp: 110, ki: 100, spd: 1.0, dmg: 1.0, start: ['ki'], unique: ['ki', 'kamehameha', 'meteor', 'dragonfist'],
     passive: { name: 'Zenkai', desc: 'Cada nivel que subes aumenta un 1,5% tu daño.' },
-    ult: { name: 'SUPER GENKIDAMA', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'genki', col: 0x9fe8ff, fx: ['#000', '#fff', '#5ab8ff', '#ffffff', '#5ab8ff'] },
+    ult: { name: 'SUPER GENKIDAMA', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'genki', col: 0x9fe8ff, fx: ['#000', '#fff', '#5ab8ff', '#ffffff', '#5ab8ff'], debuff: { name: 'AGOTADO', text: '-25% de velocidad durante 8 s', t: 8, spd: 0.25 } },
     portrait: { sheet: 'goku', frame: 0 },
     forms: [
       form('BASE', 1, 'goku', A_HD, 1.0, 1.0, 0xfff0a0, 0, 0xffffff),
@@ -48,7 +48,7 @@ const CHARACTERS = [
     id: 'vegeta', name: 'VEGETA', role: 'Artillería · Daño explosivo', cost: 2500,
     hp: 100, ki: 130, spd: 1.0, dmg: 1.12, start: ['vblast'], unique: ['vblast', 'galick', 'bigbang', 'kakusan'],
     passive: { name: 'Orgullo Saiyajin', desc: '+25% de daño mientras tu Ki esté por encima del 80%.' },
-    ult: { name: 'FINAL FLASH MÁXIMO', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 66, hw: 3.4, life: 1.8, col: 0xffe14a, end: 'ffBoom', fx: ['#000', '#fff', '#ffe14a', '#6fb8ff', '#ffe14a'] },
+    ult: { name: 'FINAL FLASH MÁXIMO', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 66, hw: 3.4, life: 1.8, col: 0xffe14a, end: 'ffBoom', fx: ['#000', '#fff', '#ffe14a', '#6fb8ff', '#ffe14a'], debuff: { name: 'ORGULLO HERIDO', text: 'recibes un 25% más de daño durante 8 s', t: 8, take: 0.25 } },
     portrait: { sheet: 'vegeta', frame: 0 },
     forms: [
       form('BASE', 1, 'vegeta', A_HD, 1.0, 1.0, 0x9ad0ff, 0, 0xffffff),
@@ -66,7 +66,7 @@ const CHARACTERS = [
     hp: 90, ki: 100, spd: 1.1, dmg: 1.1, start: ['scythe'], unique: ['scythe', 'darkorbs', 'sorrow', 'blackkame'],
     passive: { name: 'Justicia Divina', desc: 'Recuperas 0,6 de vida por cada enemigo derrotado.' },
     // Ultimate: se carga matando enemigos y al derrotar élites o jefes. Abre una grieta en el espacio que corta el mapa.
-    ult: { name: 'GRIETA DE BLACK', key: 'Q', cost: 100, type: 'rift', dmg: 9, len: 46, hw: 1.7 },
+    ult: { name: 'GRIETA DE BLACK', key: 'Q', cost: 100, type: 'rift', dmg: 9, len: 46, hw: 1.7, debuff: { name: 'CUERPO IMPERFECTO', text: 'pierdes un 2% de vida por segundo durante 6 s', t: 6, bleed: 0.02 } },
     portrait: { sheet: 'black', frame: 0 },
     forms: [
       form('BASE', 1, 'black', A_HD, 1.0, 1.0, 0xb26bff, 0, 0xffffff),
@@ -79,7 +79,7 @@ const CHARACTERS = [
     id: 'piccolo', name: 'PICCOLO', role: 'Control de masas · Regeneración', cost: 3500,
     hp: 120, ki: 110, spd: 0.95, dmg: 1.0, start: ['eyebeam'], unique: ['eyebeam', 'hellzone', 'lightgrenade', 'arms'],
     passive: { name: 'Regeneración namekiana', desc: 'Recuperas 1,5 de vida por segundo.' },
-    ult: { name: 'HELLZONE GRENADE DEFINITIVO', key: 'Q', cost: 100, type: 'storm', dmg: 34, n: 22, r: 30, fx: ['#000', '#fff', '#ffd040', '#7aff6a', '#ffd040'] },
+    ult: { name: 'HELLZONE GRENADE DEFINITIVO', key: 'Q', cost: 100, type: 'storm', dmg: 34, n: 22, r: 30, fx: ['#000', '#fff', '#ffd040', '#7aff6a', '#ffd040'], debuff: { name: 'SIN KI', text: 'el Ki no se regenera durante 8 s', t: 8, noki: true } },
     portrait: { sheet: 'piccolo', frame: 0 },
     forms: [
       form('BASE', 1, 'piccolo', A_HD, 1.0, 1.0, 0x9cff8a, 0, 0xffffff),
@@ -92,7 +92,7 @@ const CHARACTERS = [
     id: 'gohan', name: 'GOHAN', role: 'Potencial oculto · Rayos', cost: 5000,
     hp: 100, ki: 120, spd: 1.0, dmg: 1.05, start: ['gblast'], unique: ['gblast', 'fsk', 'rage', 'zsword', 'gthunder'],
     passive: { name: 'Potencial oculto', desc: '+40% de daño mientras tu vida esté por debajo del 50%.' },
-    ult: { name: 'KAMEHAMEHA PADRE-HIJO', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x8fe0ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'] },
+    ult: { name: 'KAMEHAMEHA PADRE-HIJO', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x8fe0ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'], debuff: { name: 'AGOTADO', text: '-25% de daño durante 8 s', t: 8, dmg: 0.25 } },
     portrait: { sheet: 'gohan', frame: 0 },
     forms: [
       form('BASE', 1, 'gohan', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
@@ -105,7 +105,7 @@ const CHARACTERS = [
     id: 'freezer', name: 'FREEZER', role: 'Tirano · Rayos mortales', cost: 8000,
     hp: 95, ki: 120, spd: 1.05, dmg: 1.15, start: ['deathbeam'], unique: ['deathbeam', 'deathsaucer', 'deathball', 'chaser'],
     passive: { name: 'Emperador del Universo', desc: '+25% de Zeni y monedas en cada partida.' },
-    ult: { name: 'DEATH BALL', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'db', col: 0xff5ad0, fx: ['#000', '#fff', '#8a2aff', '#ff3fa0', '#2a0040'] },
+    ult: { name: 'DEATH BALL', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'db', col: 0xff5ad0, fx: ['#000', '#fff', '#8a2aff', '#ff3fa0', '#2a0040'], debuff: { name: 'CANSANCIO', text: '-20% de velocidad y daño durante 7 s', t: 7, spd: 0.2, dmg: 0.2 } },
     portrait: { sheet: 'freezer1', frame: 0 },
     forms: [
       form('PRIMERA FORMA', 1, 'freezer1', A_HD, 1.0, 1.0, 0xd88aff, 0, 0xffffff),
@@ -119,7 +119,7 @@ const CHARACTERS = [
     id: 'krilin', name: 'KRILIN', role: 'Agilidad · Discos cortantes', cost: 3000,
     hp: 90, ki: 120, spd: 1.15, dmg: 0.95, start: ['kdisc'], unique: ['kdisc', 'kscatter', 'taiyoken', 'kbarrage'],
     passive: { name: 'Pequeño pero matón', desc: '+12% de esquiva y el dash se recarga un 25% más rápido.' },
-    ult: { name: 'KIENZAN MÚLTIPLE', key: 'Q', cost: 100, type: 'discs', dmg: 60, n: 16, fx: ['#000', '#fff', '#ffe86a', '#fff', '#ffb040'] },
+    ult: { name: 'KIENZAN MÚLTIPLE', key: 'Q', cost: 100, type: 'discs', dmg: 60, n: 16, fx: ['#000', '#fff', '#ffe86a', '#fff', '#ffb040'], debuff: { name: 'SIN ALIENTO', text: 'sin dash durante 6 s', t: 6, nodash: true } },
     portrait: { sheet: 'krilin', frame: 0 },
     forms: [
       form('BASE', 1, 'krilin', A_KRL, 1.0, 1.0, 0xffe86a, 0, 0xffffff),
@@ -132,7 +132,7 @@ const CHARACTERS = [
     id: 'trunks', name: 'TRUNKS', role: 'Espadachín del futuro', cost: 4500,
     hp: 105, ki: 110, spd: 1.05, dmg: 1.08, start: ['sword'], unique: ['sword', 'burning', 'shining', 'buster', 'futureblast'],
     passive: { name: 'Guerrero del futuro', desc: '+6% de crítico y +30% de daño crítico.' },
-    ult: { name: 'BURNING SLASH', key: 'Q', cost: 100, type: 'slash', dmg: 40, r: 13, fx: ['#000', '#fff', '#9fe0ff', '#ff9a2a', '#ffd040'] },
+    ult: { name: 'BURNING SLASH', key: 'Q', cost: 100, type: 'slash', dmg: 40, r: 13, fx: ['#000', '#fff', '#9fe0ff', '#ff9a2a', '#ffd040'], debuff: { name: 'BRAZOS CANSADOS', text: '-25% de daño durante 8 s', t: 8, dmg: 0.25 } },
     portrait: { sheet: 'trunks', frame: 0 },
     forms: [
       form('BASE', 1, 'trunks', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
@@ -144,7 +144,7 @@ const CHARACTERS = [
     id: 'cell', name: 'CÉLULA', role: 'Absorción · Copia técnicas', cost: 7000,
     hp: 115, ki: 120, spd: 1.0, dmg: 1.08, start: ['cellbeam'], unique: ['cellbeam', 'cellkame', 'celljr', 'cellbarrier', 'cellself', 'perfectstorm'],
     passive: { name: 'Absorción', desc: 'Curas 0,3 de vida por enemigo y cada 100 enemigos ganas +2% de daño (hasta +30%).' },
-    ult: { name: 'KAMEHAMEHA SOLAR', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x6aff9a, end: 'kameBoomG', fx: ['#000', '#fff', '#3aff7a', '#ffe14a', '#3aff7a'] },
+    ult: { name: 'KAMEHAMEHA SOLAR', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x6aff9a, end: 'kameBoomG', fx: ['#000', '#fff', '#3aff7a', '#ffe14a', '#3aff7a'], debuff: { name: 'CUERPO INESTABLE', text: 'recibes un 25% más de daño durante 8 s', t: 8, take: 0.25 } },
     portrait: { sheet: 'cell_imp', frame: 0 },
     forms: [
       form('IMPERFECTO', 1, 'cell_imp', A_HD, 1.0, 1.0, 0x8af0a0, 0, 0xffffff),
@@ -157,7 +157,7 @@ const CHARACTERS = [
     id: 'bardock', name: 'BARDOCK', role: 'Clase baja · Ataques a distancia', cost: 5500,
     hp: 110, ki: 110, spd: 1.05, dmg: 1.05, start: ['riot'], unique: ['riot', 'spiritcannon', 'rebellion', 'saiyanrage'],
     passive: { name: 'Rebeldía', desc: '+10% de esquiva y +8% de probabilidad de crítico.' },
-    ult: { name: 'SPIRIT CANNON FINAL', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'genki', col: 0x8ad0ff, fx: ['#000', '#fff', '#5ab8ff', '#ff3a3a', '#5ab8ff'] },
+    ult: { name: 'SPIRIT CANNON FINAL', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'genki', col: 0x8ad0ff, fx: ['#000', '#fff', '#5ab8ff', '#ff3a3a', '#5ab8ff'], debuff: { name: 'HERIDAS DE GUERRA', text: 'pierdes un 10% de vida al lanzarla', t: 0.1, hp: 0.1 } },
     portrait: { sheet: 'bardock', frame: 0 },
     forms: [
       form('BASE', 1, 'bardock', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
@@ -169,7 +169,7 @@ const CHARACTERS = [
     id: 'vegito', name: 'VEGETTO', role: 'Fusión Potara · Espada y rayos', cost: 9000,
     hp: 115, ki: 130, spd: 1.05, dmg: 1.15, start: ['vblade'], unique: ['vblade', 'vkame', 'excalibur', 'vhoming'],
     passive: { name: 'Fusión Potara', desc: '+10% de daño y +10% de cadencia de ataque.' },
-    ult: { name: 'FINAL KAMEHAMEHA', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 66, hw: 3.4, life: 1.8, col: 0x8ad8ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'] },
+    ult: { name: 'FINAL KAMEHAMEHA', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 66, hw: 3.4, life: 1.8, col: 0x8ad8ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'], debuff: { name: 'LÍMITE DE LA FUSIÓN', text: '-20% de daño y -15% de velocidad durante 8 s', t: 8, dmg: 0.2, spd: 0.15 } },
     portrait: { sheet: 'vegito', frame: 0 },
     forms: [
       form('BASE', 1, 'vegito', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
@@ -182,19 +182,21 @@ const CHARACTERS = [
     id: 'gogeta', name: 'GOGETA', role: 'Danza de la fusión · Kamehameha', cost: 10000,
     hp: 115, ki: 130, spd: 1.08, dmg: 1.15, start: ['gblast2'], unique: ['gblast2', 'bbkame', 'meteorexp', 'soulpunisher'],
     passive: { name: 'Danza de la fusión', desc: '+12% de daño y la Ultimate se carga un 25% más rápido.' },
-    ult: { name: 'BIG BANG KAMEHAMEHA', key: 'Q', cost: 100, type: 'beam', dmg: 11, len: 68, hw: 3.6, life: 1.8, col: 0x9fe0ff, end: 'bbBurst', fx: ['#000', '#fff', '#ffe14a', '#6fd8ff', '#ffe14a'] },
-    portrait: { sheet: 'gogeta', frame: 0 },
+    ult: { name: 'BIG BANG KAMEHAMEHA', key: 'Q', cost: 100, type: 'beam', dmg: 11, len: 68, hw: 3.6, life: 1.8, col: 0x9fe0ff, end: 'bbBurst', fx: ['#000', '#fff', '#ffe14a', '#6fd8ff', '#ffe14a'], debuff: { name: 'FUSIÓN INESTABLE', text: 'el Ki no se regenera durante 10 s', t: 10, noki: true } },
+    portrait: { sheet: 'gogeta_base', frame: 0 },
+    // Base, SSJ2 y Blue son recoloreados del Super Gogeta del pack (pelo y aura con la paleta de Goku base y Vegetto Blue)
     forms: [
-      form('SUPER GOGETA', 1, 'gogeta', A_HD, 1.0, 1.0, 0xffe14a, 0xffd84a, 0xffffff),
-      form('PODER DE LA FUSIÓN', 14, 'gogeta', A_HD, 1.7, 1.16, 0xfff08a, 0xffe070, 0xfff8e8),
-      form('GOGETA AL LÍMITE', 28, 'gogeta', A_HD, 2.8, 1.3, 0xbfe8ff, 0x8ad8ff, 0xf4f8ff)
+      form('BASE', 1, 'gogeta_base', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
+      form('SUPER SAIYAN', 10, 'gogeta', A_HD, 1.6, 1.15, 0xffe14a, 0xffd84a, 0xffffff),
+      form('SUPER SAIYAN 2', 20, 'gogeta_ss2', A_HD, 2.3, 1.22, 0xfff08a, 0xfff07a, 0xffffff),
+      form('SUPER SAIYAN BLUE', 32, 'gogeta_blue', A_HD, 3.3, 1.32, 0x6fd8ff, 0x4fc8ff, 0xffffff)
     ]
   },
   {
     id: 'broly', name: 'BROLY', role: 'Berserker · Tanque', cost: 9500,
     hp: 150, ki: 110, spd: 0.92, dmg: 1.2, start: ['eraser'], unique: ['eraser', 'gigameteor', 'gigaroar', 'blaster'],
     passive: { name: 'Saiyajin Legendario', desc: 'Recibes un 12% menos de daño y haces un 30% más con menos de la mitad de vida.' },
-    ult: { name: 'GIGANTIC METEOR', key: 'Q', cost: 100, type: 'bomb', dmg: 160, r: 24, sty: 'sun', col: 0x7dff5a, fx: ['#000', '#fff', '#3aff3a', '#ffe14a', '#1a4a1a'] },
+    ult: { name: 'GIGANTIC METEOR', key: 'Q', cost: 100, type: 'bomb', dmg: 160, r: 24, sty: 'sun', col: 0x7dff5a, fx: ['#000', '#fff', '#3aff3a', '#ffe14a', '#1a4a1a'], debuff: { name: 'DESCONTROL', text: 'recibes un 30% más de daño durante 8 s', t: 8, take: 0.3 } },
     portrait: { sheet: 'broly', frame: 0 },
     forms: [
       form('BROLY CONTENIDO', 1, 'broly', A_HD, 1.0, 1.0, 0x9fe8c0, 0, 0xffffff),
@@ -204,6 +206,7 @@ const CHARACTERS = [
     ]
   }
 ];
+const ULT_KI = 0.25;   // la Ultimate cuesta un 25% del Ki máximo, además de tener la barra llena
 const charById = (id) => CHARACTERS.find((c) => c.id === id);
 
 /* ---------- Armas (hasta nivel 5). `unique`: solo aparecen para ese personaje ---------- */
@@ -830,7 +833,8 @@ const TRAITS = {
   ],
   gogeta: [null,
     { name: 'Fusión perfecta', good: '+20% de daño y +10% de velocidad', bad: '-15% de regeneración de Ki', m: { dmg: 0.2, spd: 0.1, kiRegen: -0.15 } },
-    { name: 'Al límite', good: '+30% de daño crítico y rayos a tu alrededor', bad: 'Pierdes un 0,6% de vida por segundo', m: { critDmg: 0.3 }, t: { bolt: 34, hpDrain: 0.006 } }
+    { name: 'Al límite', good: '+30% de daño crítico y rayos a tu alrededor', bad: 'Pierdes un 0,6% de vida por segundo', m: { critDmg: 0.3 }, t: { bolt: 34, hpDrain: 0.006 } },
+    { name: 'Ki divino fusionado', good: '+20% de cadencia y +2 de vida/s', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { rate: 0.2, regen: 2 }, t: { kiDrain: 3 } }
   ],
   broly: [null,
     { name: 'Furia creciente', good: 'Cada golpe recibido sube tu daño (hasta +30%)', bad: '-10% de velocidad', m: { spd: -0.1 }, t: { ego: 0.3 } },
@@ -880,7 +884,7 @@ const FORM_FX = {
   cell: [null, { spark: 'sparkG', burst: 'tfGold2' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xbfeeff, spark: 'lightB' }],
   bardock: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xff6a4a, burst: 'tfRose' }],
   vegito: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { spark: 'lightB', bolt: 0x8ad8ff, burst: 'tfStar' }],
-  gogeta: [{ a: 'auraGold', spark: 'sparkY' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'lightB', burst: 'tfStar' }],
+  gogeta: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { spark: 'lightB', bolt: 0x8ad8ff, burst: 'tfStar' }],
   broly: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraGold', bolt: 0x9aff6a, spark: 'sparkG', burst: 'tfGold' }, { bolt: 0xff6a4a, burst: 'tfRose' }]
 };
 const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;
@@ -900,7 +904,7 @@ const FORM_CHG = {
   vegito: [[0, 3], [3, 3], [6, 3], [9, 3]],
   broly: [[0, 3], [3, 2], [5, 3], [8, 3]],
   bardock: [[0, 3], [3, 2], [5, 3]],
-  gogeta: [[0, 3], [0, 3], [0, 3]]
+  gogeta: [[0, 3], [3, 3], [6, 3], [9, 3]]
 };
 const formChg = (ch, idx) => (FORM_CHG[ch.id] || [])[idx] || null;
 

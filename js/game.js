@@ -1486,7 +1486,12 @@ class Game {
   ultimate() {
     const p = this.player, U = p.ch.ult;
     if (!U || this.state !== 'play' || this.ultT >= 0 || p.ult < U.cost || p.dying) return;
-    p.ult = 0; p.iframes = Math.max(p.iframes, 1.2);
+    const kc = Math.round(p.maxKi * ULT_KI);
+    if (p.ki < kc) { this.ui.toast('NECESITAS ' + kc + ' DE KI PARA LA ULTIMATE · CARGA CON [C]', true); SFX.play('warn'); return; }
+    p.ki -= kc; p.ult = 0; p.iframes = Math.max(p.iframes, 1.2);
+    // Desventaja de la Ultimate: empieza al lanzarla (después del destello)
+    const D = U.debuff;
+    if (D) this.after(0.6, () => { p.ud = D; p.udT = D.t; if (D.hp) p.hp = Math.max(1, p.hp - p.maxHp * D.hp); if (D.nodash) p.noDashT = Math.max(p.noDashT, D.t); this.ui.toast('✖ ' + D.name + ': ' + D.text, true); });
     this.ultT = 0; this.ultCut = false;
     this.hitstop = Math.max(this.hitstop, 0.5);                  // el mundo se congela mientras dura el destello
     this.shake(0.6); SFX.play('boom');
@@ -1968,7 +1973,7 @@ class Game {
     requestAnimationFrame(this.loop);
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     const s = this.state;
-    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu';
+    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro';
     if (vf) this.vfx.begin(this.camera);
     if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }
     if (s === 'play' && IS_TOUCH && window.innerHeight > window.innerWidth) this.togglePause();   // móvil en vertical: pausa
@@ -2009,9 +2014,14 @@ class Game {
       this.fx.update(rawDt); this.updateCamera(rawDt, rawDt, false);
       if (this.transT > 0.7 && !this.transDone) { this.transDone = true; this.nextStage(this.riftTo); this.ui.el.fade.style.opacity = 0; }
       if (this.transT > 1.4) { this.state = 'play'; this.clock.getDelta(); }
-    } else if (s === 'intro') {                                       // intro de la fusión (Vegetto, Gogeta)
+    } else if (s === 'intro') {                                       // intro de la fusión (Vegetto, Gogeta) dentro del mapa
       this.intro.update(rawDt);
-      this.updateCamera(0.0001, 0, false);
+      const p = this.player;
+      p.animT += rawDt; p.pose();
+      this.fx.update(rawDt);
+      this.syncSprites();
+      this.updateCamera(rawDt, rawDt, false);
+      this.ui.update(this, rawDt);
     } else if (s === 'menu') {
       this.player.animT += rawDt;
       this.player.pose();

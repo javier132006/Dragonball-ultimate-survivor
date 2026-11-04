@@ -155,7 +155,7 @@ class UIManager {
     if (p.ch.ult) {
       if (e.abUlt.style.display !== '') e.abUlt.style.display = '';
       sc(e.ultFill, p.ult / p.ch.ult.cost);
-      this.setC(e.abUlt, 'ab' + (p.ult >= p.ch.ult.cost ? ' on' : ''));
+      this.setC(e.abUlt, 'ab' + (p.ult >= p.ch.ult.cost && p.ki >= p.maxKi * ULT_KI ? ' on' : ''));
     } else if (e.abUlt.style.display !== 'none') e.abUlt.style.display = 'none';
     // FPS suavizado
     this.fpsAcc += dt; this.fpsN++;
@@ -453,7 +453,7 @@ class UIManager {
       det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p>' +
         bar('VIDA', v.hp, 160) + bar('KI', v.ki, 160) + bar('VEL', Math.round(v.spd * 100), 150) + bar('DAÑO', Math.round(v.dmg * 100), 150) +
         '<h4>PASIVA · ' + v.passive.name + '</h4><p>' + v.passive.desc + '</p>' +
-        (v.ult ? '<h4>ULTIMATE [Q] · ' + v.ult.name + '</h4><p>Se carga derrotando enemigos. ' + ULT_DESC[v.ult.type || 'rift'] + '</p>' : '') +
+        (v.ult ? '<h4>ULTIMATE [Q] · ' + v.ult.name + '</h4><p>Se carga derrotando enemigos. ' + ULT_DESC[v.ult.type || 'rift'] + ' Cuesta un ' + Math.round(ULT_KI * 100) + '% del Ki máximo.' + (v.ult.debuff ? '<br><span class="trb">✖ Después: ' + v.ult.debuff.name.toLowerCase() + ', ' + v.ult.debuff.text + '.</span>' : '') + '</p>' : '') +
         '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +
         '<h4>TÉCNICAS (al subir de nivel)</h4>' + techs.map((id) => { const W = WEAPONS[id], lock = W.shop && !Save.d.techs.includes(id); return '<p class="' + (lock ? 'lockt' : '') + '"><i>' + W.icon + '</i> <b>' + W.name + '</b> · NV ' + (W.minLv || 2) + (lock ? ' · 🔒 en la tienda' : '') + '</p>'; }).join('') +
         '<h4>FUSIONES (las dos técnicas al nivel 5)</h4>' + fusionsFor(v.id).map((f) => { const F = WEAPONS[f], lock = F.fusion.some((x) => !techOwned(x)); return '<p class="' + (lock ? 'lockt' : '') + '"><i>⚭</i> <b>' + F.name + '</b> · ' + F.fusion.map((x) => WEAPONS[x].name).join(' + ') + (lock ? ' · 🔒 requiere técnica de la tienda' : '') + (F.down ? ' · <span class="trb">✖ ' + F.down.text + '</span>' : '') + '</p>'; }).join('') +
