@@ -26,7 +26,7 @@ const form = (name, lvl, sheet, anim, dmg, spd, ki, aura, tint) => ({ name, lvl,
 const CHARACTERS = [
   {
     id: 'goku', name: 'SON GOKU', role: 'Versátil · Cuerpo a cuerpo', cost: 0,
-    hp: 110, ki: 100, spd: 1.0, dmg: 1.0, start: ['ki'], unique: ['ki', 'kamehameha', 'meteor'],
+    hp: 110, ki: 100, spd: 1.0, dmg: 1.0, start: ['ki'], unique: ['ki', 'kamehameha', 'meteor', 'dragonfist'],
     passive: { name: 'Zenkai', desc: 'Cada nivel que subes aumenta un 1,5% tu daño.' },
     ult: { name: 'SUPER GENKIDAMA', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'genki', col: 0x9fe8ff, fx: ['#000', '#fff', '#5ab8ff', '#ffffff', '#5ab8ff'] },
     portrait: { sheet: 'goku', frame: 0 },
@@ -46,7 +46,7 @@ const CHARACTERS = [
   },
   {
     id: 'vegeta', name: 'VEGETA', role: 'Artillería · Daño explosivo', cost: 2500,
-    hp: 100, ki: 130, spd: 1.0, dmg: 1.12, start: ['vblast'], unique: ['vblast', 'galick', 'bigbang'],
+    hp: 100, ki: 130, spd: 1.0, dmg: 1.12, start: ['vblast'], unique: ['vblast', 'galick', 'bigbang', 'kakusan'],
     passive: { name: 'Orgullo Saiyajin', desc: '+25% de daño mientras tu Ki esté por encima del 80%.' },
     ult: { name: 'FINAL FLASH MÁXIMO', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 66, hw: 3.4, life: 1.8, col: 0xffe14a, end: 'ffBoom', fx: ['#000', '#fff', '#ffe14a', '#6fb8ff', '#ffe14a'] },
     portrait: { sheet: 'vegeta', frame: 0 },
@@ -63,7 +63,7 @@ const CHARACTERS = [
   },
   {
     id: 'black', name: 'GOKU BLACK', role: 'Asesino · Guadaña de ki', cost: 6000,
-    hp: 90, ki: 100, spd: 1.1, dmg: 1.1, start: ['scythe'], unique: ['scythe', 'darkorbs', 'sorrow'],
+    hp: 90, ki: 100, spd: 1.1, dmg: 1.1, start: ['scythe'], unique: ['scythe', 'darkorbs', 'sorrow', 'blackkame'],
     passive: { name: 'Justicia Divina', desc: 'Recuperas 0,6 de vida por cada enemigo derrotado.' },
     // Ultimate: se carga matando enemigos y al derrotar élites o jefes. Abre una grieta en el espacio que corta el mapa.
     ult: { name: 'GRIETA DE BLACK', key: 'Q', cost: 100, type: 'rift', dmg: 9, len: 46, hw: 1.7 },
@@ -77,7 +77,7 @@ const CHARACTERS = [
   },
   {
     id: 'piccolo', name: 'PICCOLO', role: 'Control de masas · Regeneración', cost: 3500,
-    hp: 120, ki: 110, spd: 0.95, dmg: 1.0, start: ['eyebeam'], unique: ['eyebeam', 'hellzone', 'lightgrenade'],
+    hp: 120, ki: 110, spd: 0.95, dmg: 1.0, start: ['eyebeam'], unique: ['eyebeam', 'hellzone', 'lightgrenade', 'arms'],
     passive: { name: 'Regeneración namekiana', desc: 'Recuperas 1,5 de vida por segundo.' },
     ult: { name: 'HELLZONE GRENADE DEFINITIVO', key: 'Q', cost: 100, type: 'storm', dmg: 34, n: 22, r: 30, fx: ['#000', '#fff', '#ffd040', '#7aff6a', '#ffd040'] },
     portrait: { sheet: 'piccolo', frame: 0 },
@@ -90,7 +90,7 @@ const CHARACTERS = [
   },
   {
     id: 'gohan', name: 'GOHAN', role: 'Potencial oculto · Rayos', cost: 5000,
-    hp: 100, ki: 120, spd: 1.0, dmg: 1.05, start: ['gblast'], unique: ['gblast', 'fsk', 'rage', 'zsword'],
+    hp: 100, ki: 120, spd: 1.0, dmg: 1.05, start: ['gblast'], unique: ['gblast', 'fsk', 'rage', 'zsword', 'gthunder'],
     passive: { name: 'Potencial oculto', desc: '+40% de daño mientras tu vida esté por debajo del 50%.' },
     ult: { name: 'KAMEHAMEHA PADRE-HIJO', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x8fe0ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'] },
     portrait: { sheet: 'gohan', frame: 0 },
@@ -103,7 +103,7 @@ const CHARACTERS = [
   },
   {
     id: 'freezer', name: 'FREEZER', role: 'Tirano · Rayos mortales', cost: 8000,
-    hp: 95, ki: 120, spd: 1.05, dmg: 1.15, start: ['deathbeam'], unique: ['deathbeam', 'deathsaucer', 'deathball'],
+    hp: 95, ki: 120, spd: 1.05, dmg: 1.15, start: ['deathbeam'], unique: ['deathbeam', 'deathsaucer', 'deathball', 'chaser'],
     passive: { name: 'Emperador del Universo', desc: '+25% de Zeni y monedas en cada partida.' },
     ult: { name: 'DEATH BALL', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'db', col: 0xff5ad0, fx: ['#000', '#fff', '#8a2aff', '#ff3fa0', '#2a0040'] },
     portrait: { sheet: 'freezer1', frame: 0 },
@@ -117,7 +117,7 @@ const CHARACTERS = [
   },
   {
     id: 'krilin', name: 'KRILIN', role: 'Agilidad · Discos cortantes', cost: 3000,
-    hp: 90, ki: 120, spd: 1.15, dmg: 0.95, start: ['kdisc'], unique: ['kdisc', 'kscatter', 'taiyoken'],
+    hp: 90, ki: 120, spd: 1.15, dmg: 0.95, start: ['kdisc'], unique: ['kdisc', 'kscatter', 'taiyoken', 'kbarrage'],
     passive: { name: 'Pequeño pero matón', desc: '+12% de esquiva y el dash se recarga un 25% más rápido.' },
     ult: { name: 'KIENZAN MÚLTIPLE', key: 'Q', cost: 100, type: 'discs', dmg: 60, n: 16, fx: ['#000', '#fff', '#ffe86a', '#fff', '#ffb040'] },
     portrait: { sheet: 'krilin', frame: 0 },
@@ -130,7 +130,7 @@ const CHARACTERS = [
   },
   {
     id: 'trunks', name: 'TRUNKS', role: 'Espadachín del futuro', cost: 4500,
-    hp: 105, ki: 110, spd: 1.05, dmg: 1.08, start: ['sword'], unique: ['sword', 'burning', 'shining', 'buster'],
+    hp: 105, ki: 110, spd: 1.05, dmg: 1.08, start: ['sword'], unique: ['sword', 'burning', 'shining', 'buster', 'futureblast'],
     passive: { name: 'Guerrero del futuro', desc: '+6% de crítico y +30% de daño crítico.' },
     ult: { name: 'BURNING SLASH', key: 'Q', cost: 100, type: 'slash', dmg: 40, r: 13, fx: ['#000', '#fff', '#9fe0ff', '#ff9a2a', '#ffd040'] },
     portrait: { sheet: 'trunks', frame: 0 },
@@ -142,7 +142,7 @@ const CHARACTERS = [
   },
   {
     id: 'cell', name: 'CÉLULA', role: 'Absorción · Copia técnicas', cost: 7000,
-    hp: 115, ki: 120, spd: 1.0, dmg: 1.08, start: ['cellbeam'], unique: ['cellbeam', 'cellkame', 'celljr', 'cellbarrier', 'cellself'],
+    hp: 115, ki: 120, spd: 1.0, dmg: 1.08, start: ['cellbeam'], unique: ['cellbeam', 'cellkame', 'celljr', 'cellbarrier', 'cellself', 'perfectstorm'],
     passive: { name: 'Absorción', desc: 'Curas 0,3 de vida por enemigo y cada 100 enemigos ganas +2% de daño (hasta +30%).' },
     ult: { name: 'KAMEHAMEHA SOLAR', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x6aff9a, end: 'kameBoomG', fx: ['#000', '#fff', '#3aff7a', '#ffe14a', '#3aff7a'] },
     portrait: { sheet: 'cell_imp', frame: 0 },
@@ -155,7 +155,7 @@ const CHARACTERS = [
   },
   {
     id: 'bardock', name: 'BARDOCK', role: 'Clase baja · Ataques a distancia', cost: 5500,
-    hp: 110, ki: 110, spd: 1.05, dmg: 1.05, start: ['riot'], unique: ['riot', 'spiritcannon', 'rebellion'],
+    hp: 110, ki: 110, spd: 1.05, dmg: 1.05, start: ['riot'], unique: ['riot', 'spiritcannon', 'rebellion', 'saiyanrage'],
     passive: { name: 'Rebeldía', desc: '+10% de esquiva y +8% de probabilidad de crítico.' },
     ult: { name: 'SPIRIT CANNON FINAL', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'genki', col: 0x8ad0ff, fx: ['#000', '#fff', '#5ab8ff', '#ff3a3a', '#5ab8ff'] },
     portrait: { sheet: 'bardock', frame: 0 },
@@ -167,7 +167,7 @@ const CHARACTERS = [
   },
   {
     id: 'vegito', name: 'VEGETTO', role: 'Fusión Potara · Espada y rayos', cost: 9000,
-    hp: 115, ki: 130, spd: 1.05, dmg: 1.15, start: ['vblade'], unique: ['vblade', 'vkame', 'excalibur'],
+    hp: 115, ki: 130, spd: 1.05, dmg: 1.15, start: ['vblade'], unique: ['vblade', 'vkame', 'excalibur', 'vhoming'],
     passive: { name: 'Fusión Potara', desc: '+10% de daño y +10% de cadencia de ataque.' },
     ult: { name: 'FINAL KAMEHAMEHA', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 66, hw: 3.4, life: 1.8, col: 0x8ad8ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'] },
     portrait: { sheet: 'vegito', frame: 0 },
@@ -180,7 +180,7 @@ const CHARACTERS = [
   },
   {
     id: 'broly', name: 'BROLY', role: 'Berserker · Tanque', cost: 9500,
-    hp: 150, ki: 110, spd: 0.92, dmg: 1.2, start: ['eraser'], unique: ['eraser', 'gigameteor', 'gigaroar'],
+    hp: 150, ki: 110, spd: 0.92, dmg: 1.2, start: ['eraser'], unique: ['eraser', 'gigameteor', 'gigaroar', 'blaster'],
     passive: { name: 'Saiyajin Legendario', desc: 'Recibes un 12% menos de daño y haces un 30% más con menos de la mitad de vida.' },
     ult: { name: 'GIGANTIC METEOR', key: 'Q', cost: 100, type: 'bomb', dmg: 160, r: 24, sty: 'sun', col: 0x7dff5a, fx: ['#000', '#fff', '#3aff3a', '#ffe14a', '#1a4a1a'] },
     portrait: { sheet: 'broly', frame: 0 },
@@ -266,6 +266,19 @@ const WEAPONS = {
   eraser: { name: 'Eraser Blow', icon: '✦', kind: 'blast', unique: 'broly', color: 0x7dff5a, lv: ['Broly lanza esferas de ki verde que explotan al impactar.', '+20% de daño.', '+1 esfera.', 'Explosión más grande.', '+1 esfera y +30% de cadencia.'] },
   gigameteor: { name: 'Gigantic Meteor', icon: '●', ico: 'genki', kind: 'bigbang', unique: 'broly', minLv: 3, color: 0x9aff6a, boomFx: 'kameBoomG', lv: ['Una esfera verde enorme que arrasa una gran zona.', '+35% de daño.', 'Explosión mayor.', 'Recarga reducida.', '+35% de daño y doble esfera.'] },
   gigaroar: { name: 'Rugido Legendario', icon: '✸', ico: 'explode', kind: 'nova', unique: 'broly', minLv: 5, color: 0x7dff5a, lv: ['Broly ruge y una onda de ki verde empuja y daña a la horda.', '+40% de daño.', 'Mayor radio.', 'Estalla dos veces seguidas.', '+40% de daño y recarga menor.'] },
+  /* --- Técnicas nuevas de cada personaje (desde el nivel 7) --- */
+  dragonfist: { name: 'Puño del Dragón', icon: '✊', kind: 'bigbeam', unique: 'goku', minLv: 7, color: 0xffd040, cfg: { cd: 5, dmg: 40, len: 20, hw: 4, life: 0.45, cost: 12 }, lv: ['Goku concentra el ki en el puño y atraviesa a la horda.', '+30% de daño.', 'Puño más largo y ancho.', 'Recarga reducida.', 'Puño del Dragón definitivo.'] },
+  kakusan: { name: 'Kakusan Ha', icon: '✦', ico: 'homing', kind: 'homing', unique: 'vegeta', minLv: 7, color: 0xb06bff, cfg: { n: 5, dmg: 22, cd: 2.2 }, lv: ['Una esfera que se divide en rayos que persiguen a la horda.', '+1 rayo.', '+30% de daño.', '+1 rayo y giran más rápido.', '+2 rayos y recarga menor.'] },
+  blackkame: { name: 'Kamehameha Negro', icon: '≋', ico: 'kame', kind: 'beam', unique: 'black', minLv: 7, color: 0x7a3aff, lv: ['El Kamehameha robado de Goku, teñido de ki oscuro.', '+55% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Kamehameha Negro definitivo.'] },
+  arms: { name: 'Brazos Elásticos', icon: '〜', kind: 'scythe', unique: 'piccolo', minLv: 7, color: 0x9cff8a, cfg: { cd: 1.0, r: 7.5, dmg: 20 }, lv: ['Piccolo estira los brazos y barre a los enemigos lejanos.', '+40% de daño.', 'Doble barrido.', 'Mayor alcance.', 'Barrido circular completo.'] },
+  gthunder: { name: 'Ira Eléctrica', icon: '⚡', kind: 'thunder', unique: 'gohan', minLv: 7, color: 0xbfe8ff, cfg: { n: 4, dmg: 34, cd: 2.6, r: 2.6 }, lv: ['La furia de Gohan descarga rayos sobre 4 enemigos.', '+1 rayo.', '+35% de daño.', '+2 rayos y área mayor.', 'Recarga reducida y +2 rayos.'] },
+  chaser: { name: 'Esferas Perseguidoras', icon: '◉', ico: 'homing', kind: 'homing', unique: 'freezer', minLv: 7, color: 0xff6ad8, cfg: { n: 4, dmg: 26, cd: 2.4 }, lv: ['Esferas de ki rosa que persiguen al enemigo más cercano.', '+1 esfera.', '+30% de daño.', '+1 esfera y giran más rápido.', '+2 esferas y recarga menor.'] },
+  kbarrage: { name: 'Ráfaga de Krilin', icon: '✺', kind: 'barrage', unique: 'krilin', minLv: 7, color: 0xffe86a, cfg: { n: 8, dmg: 12, cd: 2.4 }, lv: ['Krilin dispara una ráfaga continua de bolas de ki.', '+1 disparo.', '+30% de daño.', '+2 disparos.', 'Recarga reducida.'] },
+  futureblast: { name: 'Ráfaga del Futuro', icon: '✦', kind: 'barrage', unique: 'trunks', minLv: 7, color: 0xffd060, cfg: { n: 10, dmg: 16, cd: 2.4, aoe: 1.6 }, lv: ['Una ráfaga de esferas que explotan al impactar.', '+1 esfera.', '+30% de daño.', '+2 esferas.', 'Recarga reducida.'] },
+  perfectstorm: { name: 'Rayos Perfectos', icon: '⚡', kind: 'thunder', unique: 'cell', minLv: 7, color: 0x8aff9a, cfg: { n: 4, dmg: 32, cd: 2.6, r: 2.6 }, lv: ['Célula descarga rayos verdes sobre la horda.', '+1 rayo.', '+35% de daño.', '+2 rayos y área mayor.', 'Recarga reducida y +2 rayos.'] },
+  saiyanrage: { name: 'Combo de Clase Baja', icon: '✸', ico: 'tp', kind: 'meteor', unique: 'bardock', minLv: 7, color: 0xff8a5a, cfg: { n: 4, dmg: 34, cd: 4 }, lv: ['Bardock golpea en un instante a varios enemigos cercanos.', '+1 golpe.', '+35% de daño.', 'Recarga reducida.', '+2 golpes.'] },
+  vhoming: { name: 'Ráfaga Fusionada', icon: '✦', ico: 'homing', kind: 'homing', unique: 'vegito', minLv: 7, color: 0x9fe0ff, cfg: { n: 6, dmg: 26, cd: 2 }, lv: ['Esferas fusionadas que persiguen a la horda.', '+1 esfera.', '+30% de daño.', '+1 esfera y giran más rápido.', '+2 esferas y recarga menor.'] },
+  blaster: { name: 'Blaster Shell', icon: '◉', kind: 'kiplanet', unique: 'broly', minLv: 7, color: 0x7dff5a, lv: ['6 esferas verdes giran alrededor de Broly y estallan en ondas.', '+30% de daño.', 'Mayor radio.', 'Estallan más a menudo.', 'Blaster Shell definitivo.'] },
   /* --- FUSIONES: aparecen como carta cuando tienes las dos técnicas al nivel máximo --- */
   bbflash: { name: 'Destello Big Bang', icon: '✷', ico: 'flash', kind: 'bigbeam', unique: 'vegeta', fusion: ['finalflash', 'bigbang'], color: 0x9fe0ff, end: 'bbBurst', stamp: 'bbTxt', cfg: { cd: 3.6, dmg: 52, len: 50, hw: 3.4, life: 1.2, cost: 10 }, down: { text: '-8% de vida máxima', m: { maxHp: -0.08 } }, lv: ['Fusión: un Final Flash que estalla al final como un Big Bang.'] },
   meteorkai: { name: 'Meteoro Kaio-ken', icon: '✸', ico: 'kaioken', kind: 'meteor', unique: 'goku', fusion: ['meteor', 'kaioken'], color: 0xff4a4a, cfg: { n: 9, dmg: 60, cd: 3.2 }, down: { text: 'Pierdes 2 de vida por combinación', m: {} }, lv: ['Fusión: una lluvia de golpes al rojo vivo sobre toda la horda.'] },
@@ -302,6 +315,19 @@ const WEAPONS = {
   vspirit: { name: 'Espada Espiritual Infinita', icon: '⚔', kind: 'godslash', unique: 'vegito', fusion: ['vblade', 'excalibur'], color: 0x9fe0ff, cfg: { cd: 0.8, r: 10, dmg: 40 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: la espada de Vegetto corta en círculos sin descanso.'] },
   omegablaster: { name: 'Omega Blaster', icon: '☀', ico: 'genki', kind: 'genki', unique: 'broly', fusion: ['eraser', 'gigameteor'], color: 0x7dff5a, sty: 'sun', cfg: { r: 18, dmg: 230, cd: 10 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: un sol verde que lo destruye todo.'] },
   eraserstorm: { name: 'Lluvia de Eraser', icon: '✦', kind: 'barrage', unique: 'broly', fusion: ['eraser', 'gigaroar'], color: 0x7dff5a, cfg: { n: 14, dmg: 24, cd: 2.2, aoe: 2.4 }, down: { text: '-10% de experiencia', m: { xp: -0.1 } }, lv: ['Fusión: una lluvia de esferas verdes que explotan en cadena.'] },
+  /* Fusiones nuevas: la técnica nueva de cada personaje con otra suya */
+  dragonmeteor: { name: 'Puño del Dragón Meteoro', icon: '✊', ico: 'tp', kind: 'meteor', unique: 'goku', fusion: ['dragonfist', 'meteor'], color: 0xffd040, cfg: { n: 10, dmg: 75, cd: 3 }, down: { text: '-5% de armadura', m: { armor: -0.05 } }, lv: ['Fusión: un dragón dorado golpea a toda la horda en un instante.'] },
+  kakusanstorm: { name: 'Tormenta Kakusan', icon: '✦', kind: 'barrage', unique: 'vegeta', fusion: ['kakusan', 'galick'], color: 0xc08aff, cfg: { n: 14, dmg: 24, cd: 2, aoe: 2 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: el Galick se divide en una lluvia de rayos que explotan.'] },
+  rosekame: { name: 'Kamehameha Rosé', icon: '≋', ico: 'kame', kind: 'bigbeam', unique: 'black', fusion: ['blackkame', 'darkorbs'], color: 0xff5ac0, cfg: { cd: 3.2, dmg: 50, len: 48, hw: 3, life: 1, cost: 8 }, down: { text: '-5% de vida máxima', m: { maxHp: -0.05 } }, lv: ['Fusión: un Kamehameha rosa colosal con todo el ki divino de Black.'] },
+  namekfury: { name: 'Furia de Namek', icon: '〜', kind: 'godslash', unique: 'piccolo', fusion: ['arms', 'hellzone'], color: 0x7aff6a, cfg: { cd: 1.2, r: 11, dmg: 44 }, down: { text: '-0,5 de vida/s de regeneración', m: { regen: -0.5 } }, lv: ['Fusión: los brazos de Piccolo barren todo a su alrededor sin descanso.'] },
+  gstorm: { name: 'Tormenta de Gohan', icon: '⚡', kind: 'thunder', unique: 'gohan', fusion: ['gthunder', 'rage'], color: 0xbfe8ff, cfg: { n: 14, dmg: 62, cd: 1.6, r: 3.4 }, down: { text: '-5% de armadura', m: { armor: -0.05 } }, lv: ['Fusión: la ira del Super Saiyan 2 hecha tormenta.'] },
+  saucerstorm: { name: 'Tormenta de Discos Mortales', icon: '◌', kind: 'discs', unique: 'freezer', fusion: ['chaser', 'deathsaucer'], color: 0xff8ad8, cfg: { cd: 1.6, n: 8, dmg: 44, spd: 22, life: 1.8 }, down: { text: '-10% de experiencia', m: { xp: -0.1 } }, lv: ['Fusión: una corona de discos rosas que lo corta todo.'] },
+  kfinal: { name: 'Destello Final de Krilin', icon: '☼', kind: 'flare', unique: 'krilin', fusion: ['kbarrage', 'taiyoken'], color: 0xfff0a0, cfg: { r: 20, stun: 3, dmg: 90, cd: 5 }, down: { text: '-4% de esquiva', m: { dodge: -0.04 } }, lv: ['Fusión: un destello enorme que ciega y quema a la horda.'] },
+  finalbuster: { name: 'Final Buster Definitivo', icon: '≋', ico: 'kame', kind: 'bigbeam', unique: 'trunks', fusion: ['futureblast', 'buster'], color: 0x8ae8ff, cfg: { cd: 3, dmg: 48, len: 48, hw: 3, life: 1, cost: 8 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: un cañón azul que arrasa una línea entera.'] },
+  stormbarrier: { name: 'Barrera de Rayos', icon: '◎', ico: 'barrier', kind: 'barrier', unique: 'cell', fusion: ['perfectstorm', 'cellbarrier'], color: 0x8aff9a, cfg: { hits: 4, cd: 5, boom: 30 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: la barrera para 4 golpes y estalla en rayos cada vez que la tocan.'] },
+  rebelfinal: { name: 'Rebelión Final', icon: '✸', ico: 'tp', kind: 'meteor', unique: 'bardock', fusion: ['saiyanrage', 'rebellion'], color: 0xff6a3a, cfg: { n: 10, dmg: 70, cd: 3 }, down: { text: '-5% de vida máxima', m: { maxHp: -0.05 } }, lv: ['Fusión: el último ataque de Bardock contra todo el ejército de Freezer.'] },
+  vrain: { name: 'Lluvia Final', icon: '✦', kind: 'barrage', unique: 'vegito', fusion: ['vhoming', 'vkame'], color: 0x9fe0ff, cfg: { n: 16, dmg: 26, cd: 2, aoe: 2.2 }, down: { text: '-5% de armadura', m: { armor: -0.05 } }, lv: ['Fusión: una lluvia de esferas fusionadas que explotan en cadena.'] },
+  legendwrath: { name: 'Cólera Legendaria', icon: '⚡', kind: 'thunder', unique: 'broly', fusion: ['blaster', 'gigaroar'], color: 0x7dff5a, cfg: { n: 12, dmg: 66, cd: 1.8, r: 3.4 }, down: { text: '-10% de experiencia', m: { xp: -0.1 } }, lv: ['Fusión: el rugido de Broly hace caer rayos verdes sobre la horda.'] },
   meteorstorm: { down: { text: '-3% de crítico', m: { crit: -0.03 } },  name: 'Tormenta de Meteoros', icon: '☄', kind: 'rain', fusion: ['rain', 'mines'], color: 0xff9a3a, mul: { n: 2, dmg: 1.8, cd: 0.7 }, lv: ['Fusión: el cielo entero cae sobre tus enemigos.'] }
 };
 const MAX_WEAPON_LEVEL = 5, MAX_WEAPONS = 6;
@@ -424,7 +450,18 @@ const ITEMS = [
 
   { id: 'zenkai', icon: '⚔', name: 'Zenkai Infinito', rarity: 5, text: '+60% de daño y +30% de cadencia.', apply: (p) => { p.statDmg += 0.6; p.rateMul += 0.3; } },
   { id: 'arbol', icon: '✿', name: 'Fruto del Árbol del Poder', rarity: 5, text: '+50% de daño, +30% de experiencia, +100 de vida y +3 de vida/s.', apply: (p) => { p.statDmg += 0.5; p.xpMul += 0.3; hp(p, 100); p.regen += 3; } },
-  { id: 'shenron', icon: '☯', name: 'Escama de Shenron', rarity: 5, text: '+15% de esquiva, curas 0,8 por enemigo, +25% de daño y velocidad.', apply: (p) => { p.dodge = Math.min(0.5, p.dodge + 0.15); p.killHeal += 0.8; p.statDmg += 0.25; p.speedMul += 0.25; } }
+  { id: 'shenron', icon: '☯', name: 'Escama de Shenron', rarity: 5, text: '+15% de esquiva, curas 0,8 por enemigo, +25% de daño y velocidad.', apply: (p) => { p.dodge = Math.min(0.5, p.dodge + 0.15); p.killHeal += 0.8; p.statDmg += 0.25; p.speedMul += 0.25; } },
+  /* ---- Objetos nuevos ---- */
+  { id: 'muñequeras', icon: '⚑', name: 'Muñequeras de Peso', rarity: 0, text: '+4% de daño y +3% de velocidad.', apply: (p) => { p.statDmg += 0.04; p.speedMul += 0.03; } },
+  { id: 'bollo', icon: '♥', name: 'Bollo de Capsule Corp.', rarity: 0, text: '+15 de vida máxima y +0,3 de vida/s.', apply: (p) => { hp(p, 15); p.regen += 0.3; } },
+  { id: 'gafas', icon: '◎', name: 'Gafas de Bulma', rarity: 1, text: '+6% de probabilidad de crítico.', apply: (p) => { p.crit += 0.06; } },
+  { id: 'caparazon', icon: '▣', name: 'Caparazón de Tortuga', rarity: 1, text: 'Recibes un 5% menos de daño y +20 de vida máxima.', apply: (p) => { p.armor = Math.min(0.6, p.armor + 0.05); hp(p, 20); } },
+  { id: 'espada_z', icon: '⚔', name: 'Espada Z', rarity: 2, text: '+5% de crítico y +25% de daño crítico.', apply: (p) => { p.crit += 0.05; p.critDmg += 0.25; } },
+  { id: 'bola_baba', icon: '◉', name: 'Bola de Cristal de Uranai Baba', rarity: 2, text: '+3 de suerte y +15% de experiencia.', apply: (p) => { p.luck += 3; p.xpMul += 0.15; } },
+  { id: 'potara', icon: '◈', name: 'Pendientes Pothala', rarity: 3, text: '+15% de daño, +10% de cadencia y +5% de velocidad.', apply: (p) => { p.statDmg += 0.15; p.rateMul += 0.1; p.speedMul += 0.05; } },
+  { id: 'traje_bardock', icon: '▼', name: 'Armadura de Bardock', rarity: 3, text: 'Recibes un 10% menos de daño y +1,5 de vida/s.', apply: (p) => { p.armor = Math.min(0.6, p.armor + 0.1); p.regen += 1.5; } },
+  { id: 'reloj_whis', icon: '⌚', name: 'Báculo de Whis', rarity: 4, text: '+25% de cadencia, +3 Ki/s y dash un 15% más rápido.', apply: (p) => { p.rateMul += 0.25; p.kiRegen += 3; p.dashMul *= 0.85; } },
+  { id: 'agua_ultra', icon: '≈', name: 'Agua Ultra Divina', rarity: 5, text: '+40% de daño, +60 de vida máxima, +15% de velocidad y +3 de suerte.', apply: (p) => { p.statDmg += 0.4; hp(p, 60); p.speedMul += 0.15; p.luck += 3; } }
 ];
 /* ---------- Mejoras temporales de la partida: santuarios, deseos y maldiciones ---------- */
 const BUFFS = {
