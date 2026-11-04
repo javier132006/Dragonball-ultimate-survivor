@@ -195,3 +195,22 @@ def body_rows(rgba):
     dk = (al > 240) & (A.mean(2) < 45)
     rows = np.nonzero(dk.sum(1) >= 2)[0]
     return (rows.min(), rows.max()) if len(rows) else (0, rgba.shape[0] - 1)
+
+def wcut(i, box):
+    """Recorte sobre fondo BLANCO (hojas f40 en adelante): relleno desde el borde por píxeles casi blancos y sin color"""
+    a = img(i); x0, y0, x1, y1 = box; A = a[y0:y1, x0:x1]
+    bg = (A.min(2) > 222) & (A.max(2) - A.min(2) < 26)
+    lab, n = nd.label(bg)
+    border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    rem = np.isin(lab, list(border))
+    rem |= nd.binary_dilation(rem) & (A.min(2) > 200) & (A.max(2) - A.min(2) < 30)     # halo claro del JPG
+    # huecos cerrados grandes de blanco puro (entre brazos y cuerpo): también fondo
+    lh, nh = nd.label(bg & ~rem)
+    if nh:
+        sz = nd.sum(bg, lh, range(1, nh + 1)); rem |= np.isin(lh, np.nonzero(sz >= 40)[0] + 1)
+    fg = ~rem
+    lab2, n2 = nd.label(fg, structure=np.ones((3, 3)))
+    if n2:
+        sz = nd.sum(fg, lab2, range(1, n2 + 1)); keep = np.zeros(n2 + 1, bool); keep[1:] = sz >= max(40, sz.max() * 0.12)
+        fg = keep[lab2]
+    return np.dstack([A, fg * 255]).astype(np.uint8)

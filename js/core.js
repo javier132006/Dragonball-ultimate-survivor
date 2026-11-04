@@ -134,7 +134,7 @@ function loadSheet(name) {
       tex.magFilter = tex.minFilter = THREE.NearestFilter;
       tex.generateMipmaps = false;
       tex.needsUpdate = true;
-      resolve({ tex, cols: d.cols, rows: d.rows, w: d.w, h: d.h });
+      resolve({ tex, cols: d.cols, rows: d.rows, w: d.w, h: d.h, hs: d.hs, anc: d.anc });   // hs/anc: hojas de carga (celda más alta)
     };
     img.onerror = () => resolve(null);
     img.src = d.src;

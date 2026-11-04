@@ -24,6 +24,8 @@ const TRANSFORM_FX = {
     { c1: '#ff2a1a', c2: '#ffb090', quote: '¡¡GRAAAAAAAHHH!!', frames: 'BIWIBC', charge: 2.2, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#ff8a6a', shake: 1.3, kanji: '超サイヤ人４' },
     { c1: '#ff3a1a', c2: '#ffb070', quote: 'El poder de un dios...', frames: 'CWC', charge: 2.0, fx: ['flame'], shake: 0.15, kanji: '超サイヤ人ゴッド' },
     { c1: '#2ec8ff', c2: '#c8f4ff', quote: 'Ki divino... ¡a otro nivel!', frames: 'WCIC', charge: 1.7, fx: ['ripple', 'sparks'], shake: 0.6, kanji: '超サイヤ人ブルー' },
+    { c1: '#ff2a3a', c2: '#6fd8ff', quote: '¡¡KAIO-KEN... POR DIEZ!!', frames: 'CWBIC', charge: 2.0, fx: ['pulse', 'ripple', 'bolts'], bolt: '#ff8a8a', shake: 1.1, kanji: '界王拳ブルー' },
+    { c1: '#b8c8ff', c2: '#eef2ff', quote: 'Mi cuerpo... se mueve solo.', frames: 'IWIC', charge: 2.0, fx: ['silence', 'stars'], shake: 0.3, kanji: '身勝手の極意・兆' },
     { c1: '#dfe8ff', c2: '#9fb4ff', quote: '...', frames: 'IBWBI', charge: 2.4, fx: ['silence', 'stars', 'ripple'], shake: 0, kanji: '身勝手の極意' }
   ],
   vegeta: [

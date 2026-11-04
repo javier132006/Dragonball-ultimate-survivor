@@ -6,7 +6,7 @@
    ===================================================================== */
 
 /* Hojas que se cargan al arrancar. Goku, Vegeta, Krilin, Trunks, Gohan y Célula usan hojas en alta resolución (tools/make_chars2.py) */
-const SHEET_NAMES = ['goku', 'goku_ss', 'goku_ss3', 'goku_ss4', 'goku_god', 'goku_blue', 'goku_ui', 'vegeta', 'vegeta_ss', 'vegeta_god', 'vegeta_blue', 'vegeta_ue', 'black', 'black_ss', 'black_old', 'shade', 'trunks', 'trunks_ss', 'freezer', 'freezer1', 'freezer2', 'freezer3', 'piccolo', 'gohan', 'gohan_ss', 'gohan_ul', 'gohan_b', 'cell',
+const SHEET_NAMES = ['goku', 'goku_ss', 'goku_ss3', 'goku_ss4', 'goku_sign', 'goku_god', 'goku_blue', 'goku_ui', 'vegeta', 'vegeta_ss', 'vegeta_god', 'vegeta_blue', 'vegeta_ue', 'black', 'black_ss', 'black_old', 'shade', 'trunks', 'trunks_ss', 'freezer', 'freezer1', 'freezer2', 'freezer3', 'piccolo', 'gohan', 'gohan_ss', 'gohan_ul', 'gohan_b', 'cell',
   'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles', 'krilin',
   'goku_chg', 'vegeta_chg', 'krilin_chg', 'trunks_chg', 'gohan_chg', 'cell_chg', 'black_chg', 'freezer_chg'];
 
@@ -49,9 +49,11 @@ const CHARACTERS = [
       form('SUPER SAIYAN 2', 16, 'goku_ss', A_HD, 1.9, 1.2, 0xfff08a, 0xfff07a, 0xffffff),
       form('SUPER SAIYAN 3', 22, 'goku_ss3', A_HD, 2.3, 1.22, 0xffd24a, 0xffc83a, 0xffffff),
       form('SUPER SAIYAN 4', 26, 'goku_ss4', A_HD, 2.55, 1.25, 0xff6a5a, 0xff3a2a, 0xffffff),
-      form('SUPER SAIYAN GOD', 30, 'goku_god', A_HD, 2.9, 1.28, 0xff6a4a, 0xff4a2a, 0xffffff),
-      form('SUPER SAIYAN BLUE', 35, 'goku_blue', A_HD, 3.45, 1.34, 0x6fd8ff, 0x4fc8ff, 0xffffff),
-      form('ULTRA INSTINTO', 40, 'goku_ui', A_HD, 4.2, 1.45, 0xdff4ff, 0xcfeaff, 0xffffff)
+      form('SUPER SAIYAN GOD', 29, 'goku_god', A_HD, 2.9, 1.28, 0xff6a4a, 0xff4a2a, 0xffffff),
+      form('SUPER SAIYAN BLUE', 32, 'goku_blue', A_HD, 3.3, 1.32, 0x6fd8ff, 0x4fc8ff, 0xffffff),
+      form('BLUE KAIO-KEN', 35, 'goku_blue', A_HD, 3.65, 1.38, 0x6fd8ff, 0xff3a3a, 0xffc8c8),
+      form('ULTRA INSTINTO SEÑAL', 38, 'goku_sign', A_HD, 3.9, 1.42, 0xdfe8ff, 0xb8c8ff, 0xffffff),
+      form('ULTRA INSTINTO', 41, 'goku_ui', A_HD, 4.3, 1.46, 0xdff4ff, 0xcfeaff, 0xffffff)
     ]
   },
   {
@@ -592,6 +594,8 @@ const TRAITS = {
     { name: 'Instinto primitivo', good: '+15% de daño y +10% de velocidad', bad: '-20% de regeneración de Ki', m: { dmg: 0.15, spd: 0.1, kiRegen: -0.2 } },
     { name: 'Ki divino', good: '+2,5 de vida/s y +8% de armadura', bad: '-30% de alcance del imán', m: { regen: 2.5, armor: 0.08, magnet: -0.3 } },
     { name: 'Control perfecto', good: '+30% de daño crítico y el dash cuesta la mitad', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { critDmg: 0.3, dashCost: -0.5 }, t: { kiDrain: 3 } },
+    { name: 'Kaio-ken al límite', good: '+25% de daño y +15% de cadencia', bad: 'Pierdes un 1,5% de vida por segundo', m: { dmg: 0.25, rate: 0.15 }, t: { hpDrain: 0.015 } },
+    { name: 'Instinto despertando', good: '+20% de esquiva y +15% de velocidad', bad: '-20% de regeneración de Ki', m: { dodge: 0.2, spd: 0.15, kiRegen: -0.2 } },
     { name: 'Esquiva automática', good: 'Esquivas TODOS los ataques y contraatacas', bad: 'Cada esquiva cuesta 12 de Ki · -30% de regeneración de Ki', m: { kiRegen: -0.3 }, t: { dodgeKi: 12 } }
   ],
   vegeta: [null,
@@ -655,7 +659,7 @@ const traitOf = (ch, idx) => (TRAITS[ch.id] || [])[idx] || null;
 const FORM_FX = {
   goku: [null, { spark: 'sparkY', burst: 'tfRose' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' },
     { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { a: 'auraSS3', bolt: 0xfff27a, spark: 'sparkY', burst: 'tfGold' },
-    { bolt: 0xff6a4a, burst: 'tfRose' }, { spark: 'sparkY', burst: 'tfRose' }, { spark: 'lightB' }, { spark: 'lightB', bolt: 0xdff4ff }],
+    { bolt: 0xff6a4a, burst: 'tfRose' }, { spark: 'sparkY', burst: 'tfRose' }, { spark: 'lightB' }, { bolt: 0xff6a6a, spark: 'lightB', burst: 'tfRose' }, { spark: 'lightB' }, { spark: 'lightB', bolt: 0xdff4ff }],
   vegeta: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' },
     { spark: 'sparkY', burst: 'tfRose' }, { spark: 'lightB' }, { bolt: 0x6a9aff, spark: 'lightB' }, { bolt: 0xc070ff, burst: 'tfDark' }],
   black: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { burst: 'tfPink' }, { bolt: 0xff8ad0, burst: 'tfBlades' }],
@@ -674,7 +678,7 @@ const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;
    Fotograma de la hoja de carga para cada forma (mismo índice que forms); -1 = sin pose propia (se usa la de quieto
    con el aura del juego). La pose ya trae el aura de la forma dibujada */
 const FORM_CHG = {
-  goku: [-1, -1, 0, 1, 2, 3, 4, 5, 6],
+  goku: [-1, -1, 0, 1, 2, 3, 4, 5, 8, 7, 6],
   vegeta: [-1, 0, 1, 2, 3, 4, 5],
   krilin: [0, 0, 0, 0],
   trunks: [0, 1, 1, 1],
