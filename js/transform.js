@@ -62,6 +62,12 @@ const TRANSFORM_FX = {
     { c1: '#ffc400', c2: '#ffe8a0', quote: '¡¡HAAAAAAAA!!', frames: 'IWBIBC', charge: 2.1, fx: ['rocks', 'cracks', 'quake'], shake: 1.4, kanji: '超トランクス' },
     { c1: '#9fe0ff', c2: '#ffffff', quote: '¡No os perdonaré jamás!', frames: 'BIWBIC', charge: 2.2, fx: ['bolts', 'slash', 'sparks', 'shatter'], bolt: '#bfeaff', shake: 1.3, kanji: '怒り' }
   ],
+  cell: [
+    null,
+    { c1: '#6aff8a', c2: '#e0ffe8', quote: 'Ahora verás mi verdadero poder.', frames: 'WIC', charge: 1.6, fx: ['bolts', 'sparks'], bolt: '#b0ffc0', shake: 0.8, kanji: '完全体' },
+    { c1: '#6fd8ff', c2: '#e8fbff', quote: 'He vuelto... más perfecto que nunca.', frames: 'IWBIC', charge: 2.0, fx: ['bolts', 'ripple', 'rocks'], bolt: '#bfeeff', shake: 1.1, kanji: '超完全体' },
+    { c1: '#ffd84a', c2: '#fff4c0', quote: '¡¡SOY EL GUERRERO PERFECTO!!', frames: 'BIWIBC', charge: 2.3, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.4, kanji: '究極' }
+  ],
   black: [
     null,
     { c1: '#ffd84a', c2: '#3a1a4a', quote: 'Contempla la belleza de un dios.', frames: 'IBC', charge: 1.6, fx: ['bolts', 'stars'], bolt: '#ffe890', shake: 0.6, kanji: '超サイヤ人' },

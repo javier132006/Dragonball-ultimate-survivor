@@ -12,6 +12,7 @@ const BEAM_K = [2.6, 1.5, 0.7], BEAM_A = [0.10, 0.16, 0.22];
 
 class WeaponSystem {
   constructor(scene, tex) {
+    this.scene = scene;
     this.list = [];                                   // armas equipadas: {id, kind, lv, cd, ...}
     this._a = { dx: 1, dz: 0, d: 0, i: -1 };          // resultado reutilizable de aim()
     // Rayos (Kamehameha, Galick, Dodonpa): pool de 8
@@ -22,7 +23,11 @@ class WeaponSystem {
     // Minas y meteoros: pools
     this.minePool = []; for (let i = 0; i < 8; i++) this.minePool.push({ on: false, x: 0, z: 0, arm: 0 });
     this.mineB = new SpriteBatch(scene, { max: 8, texture: tex.gem, w: 1, h: 1, anchor: 0.5, renderOrder: 1 });
-    this.strikes = []; for (let i = 0; i < 24; i++) this.strikes.push({ on: false, x: 0, z: 0, t: 0, T: 0.6, big: false, r: 3, dmg: 0, tint: 0xffffff, src: '' });
+    this.strikes = []; for (let i = 0; i < 40; i++) this.strikes.push({ on: false, x: 0, z: 0, t: 0, T: 0.6, big: false, r: 3, dmg: 0, tint: 0xffffff, src: '', sty: '' });
+    // Agujeros negros (Guadaña del Dolor) y Célula Jr. (pools fijos)
+    this.holes = []; for (let i = 0; i < 4; i++) this.holes.push({ on: false, x: 0, z: 0, t: 0, T: 2, R: 9, dmg: 0, tick: 0, col: 0xc070ff, bolt: false, src: '' });
+    this.jrs = []; for (let i = 0; i < 10; i++) this.jrs.push({ on: false, x: 0, z: 0, t: 0, hit: 0, shot: 0, dmg: 0, beam: false, flip: 0, ph: 0, src: '' });
+    this.jrB = null;                                  // lote de sprites de Célula Jr. (se crea al primer uso con la hoja de Célula)
   }
 
   reset(ch) {
@@ -30,6 +35,9 @@ class WeaponSystem {
     for (const b of this.beams) b.on = false;
     for (const m of this.minePool) m.on = false;
     for (const s of this.strikes) s.on = false;
+    for (const o of this.holes) o.on = false;
+    for (const j of this.jrs) j.on = false;
+    if (this.jrB) this.jrB.reset();
     this.beamB.reset(); this.orbB.reset(); this.mineB.reset();
     for (const id of ch.start) this.add(id);
   }
@@ -73,6 +81,8 @@ class WeaponSystem {
     this.orbB.end();
     DMG_SRC = 'mines'; this.updateMines(dt, g);
     this.updateStrikes(dt, g);
+    this.updateHoles(dt, g);
+    this.updateJrs(dt, g);
     this.updateBeams(dt, g);
     DMG_SRC = 'otros';
   }
@@ -183,7 +193,7 @@ class WeaponSystem {
     for (let k = 0; k < 30 && done < n; k++) {
       const i = (Math.random() * g.horde.n) | 0, dx = g.horde.x[i] - p.x, dz = g.horde.z[i] - p.z;
       if (dx * dx + dz * dz > 26 * 26) continue;
-      for (const s of this.strikes) if (!s.on) { s.on = true; s.x = g.horde.x[i]; s.z = g.horde.z[i]; s.t = 0.6; s.T = 0.6; s.big = false; s.r = r; s.dmg = dm * p.damageMul(); s.tint = col; s.src = w.id; done++; break; }
+      if (this.strikeAt(g.horde.x[i], g.horde.z[i], 0.6, r, dm * p.damageMul(), col, '', w.id)) done++;
     }
   }
   updateStrikes(dt, g) {
@@ -197,16 +207,56 @@ class WeaponSystem {
         if (s.t <= 0) g.shake(1.2);
         const V = g.vfx, fall = s.t < 0.5 ? s.t / 0.5 : 1;                 // los últimos 0,5 s cae sobre el objetivo
         if (V && V.ok) {
-          const blue = orbIndex(s.tint) >= 4 && orbIndex(s.tint) <= 5;
-          V.now(6, blue ? fxf('genki', 2 + (((g.time * 10) | 0) % 4)) : orbFrame(s.tint, 0), s.x, 1 + (R * 0.6 + 4) * fall, s.z, R * 2.1, 0.95, 0xffffff);
-          V.now(0, fxf('kameStar', ((g.time * 14) | 0) % 4), s.x, 1 + (R * 0.6 + 4) * fall, s.z, R * 1.4, 0.4, 0xffffff);
+          const blue = orbIndex(s.tint) >= 4 && orbIndex(s.tint) <= 5, y = 1 + (R * 0.6 + 4) * fall, k = (g.time * 10) | 0;
+          if (s.sty === 'db') {                                          // Death Ball: esfera oscura con remolino morado
+            V.now(6, fxf('deathBall', 0), s.x, y, s.z, R * 1.3, 1, 0xffffff, g.time * 0.6);
+            V.now(0, fxf('dbSwirl', k % 3), s.x, y, s.z, R * 1.7, 0.4, 0xffffff, -g.time * 1.4);
+          } else if (s.sty === 'sun') {                                  // Supernova / Heat Dome / Finish Buster: un sol
+            V.now(6, orbFrame(s.tint, 0), s.x, y, s.z, R * 2.1, 0.95, 0xffffff);
+            V.now(0, fxf('burnSwirl', k % 2), s.x, y, s.z, R * 2.5, 0.6, 0xffffff, g.time * 2);
+          } else {
+            V.now(6, blue ? fxf('genki', 2 + (k % 4)) : orbFrame(s.tint, 0), s.x, y, s.z, R * 2.1, 0.95, 0xffffff);
+            V.now(0, fxf('kameStar', ((g.time * 14) | 0) % 4), s.x, y, s.z, R * 1.4, 0.4, 0xffffff);
+          }
         }
       }
       // Marca en el suelo + columna de luz que cae
       g.fx.trail.emit(s.x + Math.cos(g.time * 9) * s.r * 0.8, 0.2, s.z + Math.sin(g.time * 9) * s.r * 0.8, 0, 0.5, 0, 0.2, 0.28, 0, s.tint);
       g.fx.sparks.emit(s.x, 3 + s.t * 24, s.z, 0, -14, 0, 0.12, 0.45, 0, s.tint);
-      if (s.t <= 0) { s.on = false; DMG_SRC = s.src || 'otros'; g.explode(s.x, s.z, s.r, s.dmg, s.tint); if (s.big) SFX.play('bigboom'); }
+      if (s.sty === 'hz' && g.vfx && Math.random() < dt * 20) g.vfx.now(0, fxf('hzCluster', 0), s.x + rand(-1, 1), 1.2 + s.t * 3, s.z + rand(-1, 1), 1.3, 0.8, 0xffffff);
+      if (s.t <= 0) {
+        s.on = false; DMG_SRC = s.src || 'otros'; g.explode(s.x, s.z, s.r, s.dmg, s.tint); if (s.big) SFX.play('bigboom');
+        this.strikeFx(g, s);
+      }
     }
+  }
+
+  /** Detonación con sprites propios según el estilo del impacto */
+  strikeFx(g, s) {
+    const V = g.vfx; if (!V || !V.ok) return;
+    const R = s.r;
+    if (s.sty === 'hz') V.play('hzBoom', s.x, 1.4, s.z, { size: R * 2.2, fps: 14 });
+    else if (s.sty === 'db') { V.play('dbBoom', s.x, R * 0.25, s.z, { size: R * 0.7, fps: 12, pri: 1 }); V.play('dbSwirl', s.x, 1.5, s.z, { size: R * 0.9, fps: 9, grow: 1.3, alpha: 0.7, pri: 1 }); }
+    else if (s.sty === 'genki') V.play('genkiBoom', s.x, R * 0.3, s.z, { size: R * 0.85, dur: 0.9, grow: 1.2, pri: 1 });
+    else if (s.sty === 'sun') { V.play('burnBig', s.x, R * 0.3, s.z, { size: R * 0.8, dur: 0.9, pri: 1 }); V.play('fireBoom', s.x, 2, s.z, { size: R * 0.55, fps: 10, pri: 1 }); }
+  }
+  /** Esfera gigante (Genkidama, Death Ball...) que cae sobre (x,z) tras T segundos */
+  bigStrike(x, z, r, dmg, tint, T, sty, src) {
+    for (const s of this.strikes) {
+      if (s.on) continue;
+      s.on = true; s.big = true; s.t = s.T = T; s.x = x; s.z = z; s.r = r; s.dmg = dmg; s.tint = tint; s.sty = sty || ''; s.src = src || DMG_SRC;
+      return s;
+    }
+    return null;
+  }
+  /** Impacto marcado en el suelo (lluvia, Hellzone) que estalla tras t segundos */
+  strikeAt(x, z, t, r, dmg, tint, sty, src) {
+    for (const s of this.strikes) {
+      if (s.on) continue;
+      s.on = true; s.big = false; s.t = s.T = t; s.x = x; s.z = z; s.r = r; s.dmg = dmg; s.tint = tint; s.sty = sty || ''; s.src = src || DMG_SRC;
+      return s;
+    }
+    return null;
   }
 
   /* ----- Genkidama: esfera gigante que cae tras reunir energía ----- */
@@ -218,7 +268,7 @@ class WeaponSystem {
     for (const s of this.strikes) {
       if (s.on) continue;
       const D = WEAPONS[w.id], C = D.cfg || {};
-      s.on = true; s.big = true; s.t = s.T = 2.6; s.x = p.x + a.dx * 7; s.z = p.z + a.dz * 7; s.src = w.id;
+      s.on = true; s.big = true; s.t = s.T = 2.6; s.x = p.x + a.dx * 7; s.z = p.z + a.dz * 7; s.src = w.id; s.sty = WEAPONS[w.id].sty || '';
       s.r = (C.r || 15) * (lv >= 3 ? 1.25 : 1) * (lv >= 5 ? 1.2 : 1); s.dmg = (C.dmg || 110) * (1 + 0.5 * (lv - 1)) * p.damageMul(); s.tint = D.color || 0x9fe8ff;
       w.cd = C.cd || (lv >= 4 ? 22 : 28);
       g.ui.toast('¡' + D.name.toUpperCase() + '!'); SFX.play('charge');
@@ -255,6 +305,19 @@ class WeaponSystem {
     if (lv >= 5 || w.fused) g.impact(0.1, 4);
     if (g.vfx) g.vfx.play('gather', p.x, 1.6, p.z, { size: 5, fps: 30, frames: FXA.gather ? FXA.gather.f.slice(12, 18) : null });
     g.fx.burst(g.fx.aura, p.x, 1.4, p.z, 24, 7, 0.6, 0.4, 0, D.color);
+    this.beamEnd(g, D, p.x + a.dx * c.len * (lv >= 3 ? 1.2 : 1), p.z + a.dz * c.len * (lv >= 3 ? 1.2 : 1), c.hw);
+  }
+  /** Detonación al final de un rayo grande (y el sello de cómic del Big Bang) */
+  beamEnd(g, D, x, z, hw) {
+    const V = g.vfx; if (!V || !V.ok) return;
+    if (D.end) g.after(0.15, () => V.play(D.end, x, 2, z, { size: hw * 4.5, dur: 0.7, pri: 1 }));
+    if (D.stamp) this.stamp(g, D.stamp, x, z, hw * 3.2);
+  }
+  /** Sello de cómic («BIG BANG!») sobre una explosión; como mucho uno cada 3 s para no saturar */
+  stamp(g, name, x, z, size) {
+    if (g.time < (this.stampT || 0)) return;
+    this.stampT = g.time + 3;
+    g.vfx.play(name, x, 4.5, z, { size, grow: 1.25, dur: 0.75, pri: 1 });
   }
 
   /* ----- Explosión Final: gran área alrededor, a costa de vida ----- */
@@ -270,8 +333,10 @@ class WeaponSystem {
     g.horde.shockwave(p.x, p.z, r, 22);
     g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 80, r * 3.2, 0.6, 0.45, 0xff8a3a);
     g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 16, 0.9, 0.5, 4, 0xffd060);
-    g.shake(1.2); g.hitstop = 0.1; g.ui.toast('¡EXPLOSIÓN FINAL!', true); SFX.play('bigboom');
-    if (g.vfx) { g.vfx.boom(p.x, p.z, r * 0.55, 0xff8a3a, true); g.vfx.play('dome', p.x, 2, p.z, { size: r, grow: 1.6, dur: 0.6, pri: 1 }); }
+    g.shake(1.2); g.hitstop = 0.1; g.ui.toast('¡' + WEAPONS[w.id].name.toUpperCase() + '!', true); SFX.play('bigboom');
+    const sty = WEAPONS[w.id].sty;
+    if (g.vfx && sty === 'self') { g.vfx.play('selfBall', p.x, 2, p.z, { size: r * 0.6, grow: 2.2, dur: 0.55, pri: 1 }); g.vfx.play('cellBoom', p.x, 3, p.z, { size: r * 1.2, dur: 0.8, pri: 1 }); }
+    else if (g.vfx) { g.vfx.boom(p.x, p.z, r * 0.55, 0xff8a3a, true); g.vfx.play('dome', p.x, 2, p.z, { size: r, grow: 1.6, dur: 0.6, pri: 1 }); g.vfx.play('fireBoom', p.x, 3, p.z, { size: r * 0.9, fps: 9, pri: 1 }); }
     g.impact(0.14, 2);
   }
 
@@ -286,7 +351,7 @@ class WeaponSystem {
     for (let i = 0; i < n; i++) {
       const ang = ring ? base + (i / n) * Math.PI * 2 : base + (i - (n - 1) / 2) * 0.22;
       const crit = Math.random() < p.crit;
-      g.ki.fire(p.x, p.z, Math.cos(ang), Math.sin(ang), C.spd || 17, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.9, crit, C.life || 1.7, 99, 0, col, 2.8, 1);
+      g.ki.fire(p.x, p.z, Math.cos(ang), Math.sin(ang), C.spd || 17, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.9, crit, C.life || 1.7, 99, 0, col, 2.8, WEAPONS[w.id].look || 1);
     }
     p.attack(a.dx, a.dz, true, g);
   }
@@ -352,7 +417,7 @@ class WeaponSystem {
     w.cd = lv >= 4 ? 3.6 : 4.5;
     for (let i = 0; i < n; i++) {
       const ang = n === 1 ? 0 : (i ? 0.25 : -0.25), c = Math.cos(ang), s = Math.sin(ang);
-      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 11, dm * p.damageMul(), 1.0, false, 2.6, 0, rad, this.col(w, p), 4);
+      g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 11, dm * p.damageMul(), 1.0, false, 2.6, 0, rad, this.col(w, p), 4, WEAPONS[w.id].look || 0);
     }
     p.attack(a.dx, a.dz, true, g);
   }
@@ -413,10 +478,11 @@ class WeaponSystem {
     const cx = g.horde.x[a.i], cz = g.horde.z[a.i], col = this.col(w, p);
     for (let k = 0; k < n; k++) {
       const ang = (k / n) * 6.2832;
-      for (const s of this.strikes) if (!s.on) { s.on = true; s.big = false; s.x = cx + Math.cos(ang) * R * 0.35; s.z = cz + Math.sin(ang) * R * 0.35; s.t = s.T = 0.9 + k * 0.04; s.r = R * 0.55; s.dmg = dm * p.damageMul(); s.tint = col; s.src = w.id; break; }
+      this.strikeAt(cx + Math.cos(ang) * R * 0.35, cz + Math.sin(ang) * R * 0.35, 0.9 + k * 0.04, R * 0.55, dm * p.damageMul(), col, WEAPONS[w.id].sty || '', w.id);
       g.fx.burst(g.fx.aura, cx + Math.cos(ang) * R, 1.4, cz + Math.sin(ang) * R, 6, 3, 0.6, 0.4, 0, col);
     }
     p.attack(a.dx, a.dz, true, g);
+    if (g.vfx) g.vfx.play('hzCluster', cx, 2.2, cz, { size: R * 1.2, dur: 0.9, alpha: 0.9 });
     g.ui.toast('¡HELLZONE GRENADE!', true);
   }
 
@@ -464,6 +530,180 @@ class WeaponSystem {
     if (this.ready(w, dt, p) && g.horde.nearest(p.x, p.z, 14) >= 0) { w.cd = 2.2; this.pulse(g, p, 12, 40); }
   }
 
+  /* ----- Ráfagas Teledirigidas: esferas que persiguen al enemigo más cercano ----- */
+  homing(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const a = this.aim(g, p, 26); if (!a) return;
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
+    const n = C.n || 3 + (lv >= 2) + (lv >= 4) + (lv >= 5) * 2, dm = (C.dmg || 12) * (lv >= 3 ? 1.3 : 1);
+    w.cd = C.cd || (lv >= 5 ? 1.6 : 2.2);
+    const base = Math.atan2(a.dz, a.dx);
+    for (let i = 0; i < n; i++) {
+      const ang = base + Math.PI + (i - (n - 1) / 2) * (2.6 / Math.max(1, n - 1)), crit = Math.random() < p.crit;   // salen hacia atrás y giran
+      const b = g.ki.fire(p.x, p.z, Math.cos(ang), Math.sin(ang), 16, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.55, crit, 2.4, 0, 0, col, 1.9);
+      if (b) b.home = lv >= 4 ? 9 : 6;
+    }
+    p.attack(a.dx, a.dz, false, g);
+  }
+
+  /* ----- Barrera de Ki (y Barrera Perfecta de Célula): para golpes y empuja a la horda ----- */
+  barrier(w, dt, g, p) {
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
+    if (p.barT > 0) {                                           // activa: burbuja alrededor del jugador
+      p.barT -= dt;
+      if (g.vfx && g.vfx.ok) {
+        const k = ((g.time * 12) | 0) % 6, green = w.id === 'cellbarrier';
+        g.vfx.now(0, green ? fxf('cellRing', 0) : fxf('barrier', k), p.x, 1.6, p.z, 4.6 * (1 + Math.sin(g.time * 9) * 0.04), 0.75, green ? 0xffffff : col, green ? g.time * 2 : 0);
+      }
+      if (p.barT <= 0) p.barHits = 0;
+      return;
+    }
+    if (!this.ready(w, dt, p)) return;
+    if (g.horde.nearest(p.x, p.z, 5.5) < 0) return;            // solo cuando te rodean
+    w.cd = C.cd || (lv >= 4 ? 7 : 10);
+    p.barT = 6; p.barHits = C.hits || 2 + (lv >= 3) + (lv >= 5); p.barBoom = C.boom || 0; p.barCol = col;
+    g.horde.shockwave(p.x, p.z, lv >= 5 ? 9 : 7, 18);
+    if (lv >= 2) g.horde.damageRadius(p.x, p.z, lv >= 5 ? 7 : 5.5, 16 * (1 + 0.3 * (lv >= 5)) * p.damageMul(), 14, g);
+    if (g.vfx) { g.vfx.play('pulse', p.x, 1.4, p.z, { size: 8, fps: 18, tint: col }); g.vfx.flash(p.x, 1.6, p.z, 5, col); }
+    g.fx.ring(g.fx.aura, p.x, 0.6, p.z, 40, 14, 0.5, 0.4, col);
+    SFX.play('pulse');
+  }
+
+  /* ----- Rayos del Juicio: rayos que caen sobre enemigos cercanos ----- */
+  thunder(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    if (g.horde.n === 0) return;
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
+    const n = C.n || 3 + (lv >= 2) + (lv >= 4) * 2 + (lv >= 5) * 2, r = C.r || (lv >= 4 ? 2.6 : 2), dm = (C.dmg || 30) * (lv >= 3 ? 1.35 : 1);
+    w.cd = C.cd || (lv >= 5 ? 2.2 : 3.2);
+    let hits = 0;
+    for (let k = 0; k < 40 && hits < n; k++) {
+      const i = (Math.random() * g.horde.n) | 0, ex = g.horde.x[i], ez = g.horde.z[i], dx = ex - p.x, dz = ez - p.z;
+      if (g.horde.hp[i] <= 0 || dx * dx + dz * dz > 24 * 24) continue;
+      hits++;
+      g.after(hits * 0.05, () => {
+        DMG_SRC = w.id; g.horde.damageRadius(ex, ez, r, dm * p.damageMul(), 4, g); g.world.damageArea(ex, ez, r, dm); DMG_SRC = 'otros';
+        if (g.vfx) { g.vfx.play('lightning', ex, 3.2, ez, { size: 7, fps: 20, tint: 0xffffff }); g.vfx.flash(ex, 0.8, ez, 3, col); }
+        g.fx.burst(g.fx.sparks, ex, 0.6, ez, 6, 5, 0.3, 0.3, 4, col);
+      });
+    }
+    if (hits) SFX.play('zap');
+  }
+
+  /* ----- Combinación Meteoro (Goku): golpes instantáneos en cadena con imágenes residuales ----- */
+  meteor(w, dt, g, p) {
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
+    if (w.pend > 0) {
+      w.tick -= dt;
+      if (w.tick > 0) return;
+      w.tick = 0.07; w.pend--;
+      const i = g.horde.nearest(p.x + rand(-6, 6), p.z + rand(-6, 6), 16);
+      if (i < 0) { w.pend = 0; return; }
+      const ex = g.horde.x[i], ez = g.horde.z[i], dm = (C.dmg || 34) * (lv >= 3 ? 1.35 : 1);
+      DMG_SRC = w.id; g.horde.damageRadius(ex, ez, 2.6, dm * p.damageMul(), 10, g); g.horde.stunRadius(ex, ez, 2.6, 0.7); DMG_SRC = 'otros';
+      for (const gh of p.ghosts) if (gh.t <= 0) { gh.t = 0.3; gh.x = ex - 0.8; gh.z = ez; gh.frame = p.anim.atk; gh.flip = ex < p.x ? 1 : 0; gh.sheet = p.drawSheet; break; }
+      if (g.vfx) { g.vfx.play('meteorHit', ex, 1.4, ez, { size: 4.2, dur: 0.3, tint: col === 0xff4a4a ? 0xff8a8a : 0xffffff }); g.vfx.play('hitRing', ex, 1.4, ez, { size: 3.5, fps: 24, tint: col }); }
+      SFX.play('hit');
+      if (w.pend === 0) { g.shake(0.4); if (lv >= 5 || w.fused) g.impact(0.07, 3); }
+      return;
+    }
+    if (!this.ready(w, dt, p)) return;
+    if (g.horde.nearest(p.x, p.z, 14) < 0) return;
+    w.cd = C.cd || (lv >= 4 ? 4.5 : 6);
+    w.pend = C.n || 3 + (lv >= 2) + (lv >= 5) * 2; w.tick = 0;
+    if (w.id === 'meteorkai') p.hp = Math.max(1, p.hp - 2);
+    p.attack(1, 0, true, g); SFX.play('dash');
+  }
+
+  /* ----- Guadaña del Dolor (Black): agujero negro que atrae a la horda y estalla ----- */
+  vortex(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const a = this.aim(g, p, 24); if (!a) return;
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv;
+    w.cd = C.cd || (lv >= 4 ? 6 : 8);
+    for (const o of this.holes) {
+      if (o.on) continue;
+      o.on = true; o.x = g.horde.x[a.i]; o.z = g.horde.z[a.i]; o.t = 0; o.T = lv >= 5 ? 2.4 : 1.9; o.tick = 0;
+      o.R = C.R || (lv >= 3 ? 10 : 8); o.dmg = (C.dmg || 34) * (lv >= 2 ? 1.35 : 1) * p.damageMul(); o.col = this.col(w, p); o.bolt = !!C.bolt; o.src = w.id;
+      break;
+    }
+    p.attack(a.dx, a.dz, true, g);
+    if (g.vfx) g.vfx.play('godSlicer', p.x + a.dx * 2, 1.6, p.z + a.dz * 2, { size: 5, dur: 0.35, rot: Math.atan2(-a.dz, a.dx) });
+    SFX.play('slash');
+  }
+  updateHoles(dt, g) {
+    const V = g.vfx;
+    for (const o of this.holes) {
+      if (!o.on) continue;
+      o.t += dt; o.tick -= dt;
+      if (o.tick <= 0) {
+        o.tick = 0.2; DMG_SRC = o.src;
+        g.horde.shockwave(o.x, o.z, o.R, -9);                       // fuerza negativa: atrae
+        g.horde.damageRadius(o.x, o.z, o.R * 0.4, o.dmg * 0.12, 0, g);
+        if (o.bolt) {                                               // Absolución: rayos dentro del agujero
+          const i = g.horde.nearest(o.x + rand(-o.R, o.R) * 0.5, o.z + rand(-o.R, o.R) * 0.5, o.R);
+          if (i >= 0) { g.horde.hurt(i, o.dmg * 0.4, 0, 0, g); if (V) V.play('lightning', g.horde.x[i], 3, g.horde.z[i], { size: 6, fps: 22, tint: 0xffd0f0 }); }
+        }
+        DMG_SRC = 'otros';
+      }
+      const u = Math.min(1, o.t / 0.3), sz = o.R * 1.1 * u;
+      if (V && V.ok) {
+        V.now(1, fxf('blackHole', ((g.time * 6) | 0) & 1), o.x, 0.2, o.z, sz * 1.6, 0.9, 0xffffff, g.time * 3);
+        V.now(6, fxf('deathBall', 0), o.x, 1.6, o.z, sz * 0.55, 0.95, 0xffffff, -g.time * 4);
+        V.now(0, fxf('dbSwirl', ((g.time * 9) | 0) % 3), o.x, 1.6, o.z, sz * 1.2, 0.5, o.col === 0xff6ac8 ? 0xffb0e0 : 0xffffff, g.time * 2);
+      }
+      if (o.t >= o.T) {                                             // estalla
+        o.on = false; DMG_SRC = o.src;
+        g.horde.damageRadius(o.x, o.z, o.R * 0.8, o.dmg, 16, g); g.world.damageArea(o.x, o.z, o.R * 0.8, o.dmg);
+        DMG_SRC = 'otros';
+        if (V) { V.play('dbSwirl', o.x, 2, o.z, { size: o.R * 1.8, fps: 10, grow: 1.3, pri: 1 }); V.play('divineBoom', o.x, 2, o.z, { size: o.R * 1.3, fps: 8, tint: 0xffb0ff }); V.crater(o.x, o.z, o.R * 0.6, o.col); }
+        g.fx.ring(g.fx.aura, o.x, 0.5, o.z, 40, o.R * 2.4, 0.5, 0.4, o.col);
+        g.shake(0.5); SFX.play('boom');
+      }
+    }
+  }
+
+  /* ----- Célula Jr.: pequeños aliados que corren hacia la horda y golpean ----- */
+  minions(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    if (g.horde.nearest(p.x, p.z, 26) < 0) return;
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv;
+    const n = C.n || 2 + (lv >= 3) + (lv >= 5), dm = (C.dmg || 16) * (lv >= 2 ? 1.35 : 1) * (lv >= 5 ? 1.25 : 1);
+    w.cd = C.cd || (lv >= 4 ? 9 : 12);
+    let made = 0;
+    for (const j of this.jrs) {
+      if (j.on || made >= n) continue;
+      const a = (made / n) * 6.2832;
+      j.on = true; j.x = p.x + Math.cos(a) * 2; j.z = p.z + Math.sin(a) * 2; j.t = C.life || (lv >= 4 ? 10 : 8); j.hit = 0.3; j.shot = rand(0.5, 1.5);
+      j.dmg = dm * p.damageMul(); j.beam = !!C.beam; j.ph = rand(0, 6); j.src = w.id; made++;
+      g.fx.burst(g.fx.aura, j.x, 1, j.z, 10, 4, 0.4, 0.35, 0, 0x8ab8ff);
+    }
+    if (made) { g.ui.toast('¡CÉLULA JR.!', true); SFX.play('pulse'); }
+  }
+  updateJrs(dt, g) {
+    const sh = g.player.sheets && g.player.sheets.cell;
+    if (!this.jrB) { if (!sh || !this.jrs.some((j) => j.on)) return; this.jrB = new SpriteBatch(this.scene, { max: this.jrs.length, texture: sh.tex, cols: sh.cols, rows: sh.rows, w: 3.6 * (sh.w / sh.h), h: 3.6, anchor: 0.04, renderOrder: 3 }); }
+    const B = this.jrB, h = g.horde;
+    B.begin();
+    for (const j of this.jrs) {
+      if (!j.on) continue;
+      j.t -= dt; j.hit -= dt; j.shot -= dt; j.ph += dt;
+      if (j.t <= 0) { j.on = false; g.fx.burst(g.fx.aura, j.x, 1, j.z, 8, 3, 0.3, 0.3, 0, 0x8ab8ff); continue; }
+      const i = h.nearest(j.x, j.z, 30);
+      let moving = false;
+      if (i >= 0) {
+        const dx = h.x[i] - j.x, dz = h.z[i] - j.z, d = Math.hypot(dx, dz) || 1;
+        j.flip = dx < 0 ? 1 : 0;
+        if (d > 1.4) { j.x += dx / d * 10 * dt; j.z += dz / d * 10 * dt; moving = true; }
+        if (d < 2 && j.hit <= 0) { j.hit = 0.45; DMG_SRC = j.src; h.damageRadius(j.x, j.z, 1.8, j.dmg, 8, g); DMG_SRC = 'otros'; if (g.vfx) g.vfx.play('hitRing', h.x[i], 1.2, h.z[i], { size: 2.4, fps: 26, tint: 0x8ab8ff }); }
+        if (j.beam && j.shot <= 0 && d < 16) { j.shot = 1.2; DMG_SRC = j.src; this.beam(j.x, j.z, dx / d, dz / d, 16, 0.35, j.dmg * 0.6, 0.16, 99, 0x8aff9a, false); DMG_SRC = 'otros'; }
+      } else { const p = g.player, dx = p.x - j.x, dz = p.z - j.z, d = Math.hypot(dx, dz) || 1; if (d > 3) { j.x += dx / d * 9 * dt; j.z += dz / d * 9 * dt; moving = true; } }
+      const fr = 16 + (moving ? ((j.ph * 10) | 0) % 4 : 0);
+      B.push(j.x, moving ? Math.abs(Math.sin(j.ph * 10)) * 0.1 : 0, j.z, fr, j.flip, j.hit > 0.35 ? 0.6 : 0, 0.62, 1, 0xffffff);
+    }
+    B.end();
+  }
+
   /* ----- Pool de rayos ----- */
   beam(x, z, dx, dz, len, hw, dmg, life, tickDt, color, follow) {
     for (const b of this.beams) {
@@ -497,7 +737,11 @@ class WeaponSystem {
         for (let t = 0.8; t <= cur; t += step) B.push(b.x + b.dx * t, 1.5, b.z + b.dz * t, 0, 0, 0, size, al, col);
       }
       B.push(b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 0, 0, 0, b.hw * 3.6, 0.7 * fade, b.color);
-      const V = g.vfx;
+      const V = g.vfx, D = WEAPONS[b.src];
+      if (V && V.ok && D && D.sty === 'sbc') {                     // Makankosappo: espiral alrededor del rayo
+        const k = ((g.time * 16) | 0) & 1, rot = Math.atan2(-b.dz, b.dx), st = b.hw * 3;
+        for (let t = st * 0.5; t < cur; t += st) V.now(1, fxf('sbcSpiral', k), b.x + b.dx * t, 1.5, b.z + b.dz * t, st * 1.15, 0.9 * fade, 0xffffff, rot);
+      }
       if (V && V.ok && b.hw > 0.9) {
         const k = (g.time * 20) | 0;
         V.now(0, orbFrame(b.color, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.6, fade, 0xffffff);

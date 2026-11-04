@@ -9,7 +9,7 @@
 /** Estadísticas de la partida en curso (se muestran en la pausa y al terminar) */
 const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0, bosses: 0, perfects: 0, tps: 0, blocked: 0, route: [] });
 /** Nombre legible del origen del daño (gráfica de daño por técnica) */
-const SRC_NAMES = { otros: 'Otros (ondas, explosiones)', ally: 'Compañeros', mines: 'Minas de Energía', transform: 'Transformación', aura: 'Aura de transformación', bolt: 'Rayos de la forma', counter: 'Contraataques', tp: 'Transmisión Instantánea', chain: 'Saibaimen en cadena' };
+const SRC_NAMES = { ult: 'Ultimate', otros: 'Otros (ondas, explosiones)', ally: 'Compañeros', mines: 'Minas de Energía', transform: 'Transformación', aura: 'Aura de transformación', bolt: 'Rayos de la forma', counter: 'Contraataques', tp: 'Transmisión Instantánea', chain: 'Saibaimen en cadena' };
 /** Color del brillo de cada grieta según el mapa al que lleva */
 const RIFT_COL = { namek: 0x6aff8a, vegeta: 0xff6a3a, room: 0xffffff, rift: 0xc050ff };
 /** Calidad gráfica: resolución máxima, sombras y cantidad de partículas */
@@ -127,7 +127,10 @@ class Game {
     this.onSprBreak = (o) => {
       this.vfx.play('debris', o.x, 0, o.z, { size: o.size * 1.1, fps: 14, frames: FXA.debris ? FXA.debris.f.slice(0, 6) : null });
       this.vfx.flash(o.x, 1.4, o.z, 3.5, 0xffd060);
-      if (o.size > 3.3 && !o.tall) { this.gainZeni(25); this.orbs.spawn(o.x, o.z, 10); this.ui.toast('+ZENI · ESTATUA ROTA', true); }
+      if (o.rw === 'chest') { this.gainZeni(40); for (let i = 0; i < 3; i++) this.orbs.spawn(o.x, o.z, 6); if (Math.random() < 0.25) this.pickups.drop(o.x, o.z); this.ui.toast('+ZENI · COFRE', true); }
+      else if (o.rw === 'house') { this.gainZeni(30); this.orbs.spawn(o.x, o.z, 14); this.ui.toast('+ZENI · CASA CÁPSULA', true); }
+      else if (o.rw === 'vase') this.orbs.spawn(o.x, o.z, 6);
+      else if (o.size > 3.3 && !o.tall) { this.gainZeni(25); this.orbs.spawn(o.x, o.z, 10); this.ui.toast('+ZENI · ESTATUA ROTA', true); }
       SFX.play('boom');
     };
     this.world.onSprBreak = this.onSprBreak;
@@ -442,7 +445,7 @@ class Game {
     WORLD_SEED_XOR = this.daily ? dailySeed() % 100000 : 0;
     // Relieve: cada partida tiene colinas distintas; el desafío diario usa siempre el relieve del día
     RELIEF_SEED = this.daily ? (dailySeed() % 1000003) + 17 : Math.floor(Math.random() * 1000003);
-    this.ultT = -1; const uf = this.ultFx || (this.ultFx = document.getElementById('ultFx')); if (uf) uf.style.opacity = 0;
+    this.timers = []; this.ultT = -1; const uf = this.ultFx || (this.ultFx = document.getElementById('ultFx')); if (uf) uf.style.opacity = 0;
     this.player.reset(ch); this.weapons.reset(ch);
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
@@ -1127,7 +1130,7 @@ class Game {
   /** Explosión de área reutilizable (minas, meteoros, Big Bang) */
   explode(x, z, r, dmg, tint) {
     SFX.play('boom');
-    if (r >= 9) { this.vfx.boom(x, z, r * 0.6, tint, true); this.impact(0.14, 2.5); }   // Genkidama, Death Ball...: impact frame
+    if (r >= 9) { this.vfx.boom(x, z, Math.min(r * 0.6, 7), tint, true); this.impact(0.14, 2.5); }   // Genkidama, Death Ball...: impact frame (tamaño acotado: no tapa la pantalla)
     else if (r >= 1.6) this.vfx.boom(x, z, r * 0.75, tint, false);
     this.horde.damageRadius(x, z, r, dmg, 10, this);
     this.world.damageArea(x, z, r, dmg);
@@ -1225,6 +1228,12 @@ class Game {
   /** Posición actual del jefe (para las acciones programadas: el jefe se mueve entre medias) */
   bossAt() { const i = this.horde.indexOfUid(this.bossUid); return i < 0 ? null : { i, x: this.horde.x[i], z: this.horde.z[i] }; }
   /** Programa una acción del jefe dentro de `t` segundos (solo si sigue vivo) */
+  /** Acción diferida de la partida (no depende del jefe): la ejecuta updateTimers */
+  after(t, f) { (this.timers || (this.timers = [])).push({ t, f }); }
+  updateTimers(dt) {
+    const L = this.timers; if (!L || !L.length) return;
+    for (let i = L.length - 1; i >= 0; i--) { L[i].t -= dt; if (L[i].t <= 0) { const f = L[i].f; L.splice(i, 1); f(); } }
+  }
   later(t, f) { this.boss.q.push({ t, f: () => { const o = this.bossAt(); if (o) f(o); } }); }
   /** Dirección del jefe hacia el jugador, con un desvío opcional */
   aim(o, off) { const a = Math.atan2(this.player.z - o.z, this.player.x - o.x) + (off || 0); return [Math.cos(a), Math.sin(a)]; }
@@ -1440,7 +1449,19 @@ class Game {
     if (ph === 2) this.track('phase3', 1);
   }
 
-  /** Ultimate del personaje (Grieta de Black). Solo con la carga completa y jugando */
+  /** Barrera de Ki: un golpe parado. Destello, empujón y, con la fusión, estallido */
+  onBarrierHit(p) {
+    const c = p.barCol;
+    this.horde.shockwave(p.x, p.z, 7, 14);
+    if (p.barBoom) { DMG_SRC = 'boombarrier'; this.horde.damageRadius(p.x, p.z, 6, p.barBoom * p.damageMul(), 12, this); DMG_SRC = 'otros'; this.vfx.boom(p.x, p.z, 3.2, c, false); }
+    this.vfx.play('shBreak', p.x, 1.6, p.z, { size: 5, fps: 30, tint: c, pri: 1 });
+    this.vfx.flash(p.x, 1.6, p.z, 4, c);
+    this.fx.ring(this.fx.aura, p.x, 0.6, p.z, 26, 10, 0.35, 0.35, c);
+    SFX.play('block');
+    if (p.barHits <= 0) this.ui.toast('BARRERA ROTA', true);
+  }
+
+  /** Ultimate del personaje. Solo con la carga completa y jugando */
   ultimate() {
     const p = this.player, U = p.ch.ult;
     if (!U || this.state !== 'play' || this.ultT >= 0 || p.ult < U.cost || p.dying) return;
@@ -1454,12 +1475,73 @@ class Game {
     if (this.ultT < 0) return;
     this.ultT += dt;
     const t = this.ultT, el = this.ultFx || (this.ultFx = document.getElementById('ultFx'));
-    // Fotogramas [tiempo, color, opacidad]: negro, blanco, morado y rosa, y una caída suave
-    const F = [[0, '#000', 1], [0.09, '#fff', 0.9], [0.18, '#b050ff', 0.75], [0.27, '#ff3fa0', 0.5], [0.4, '#b050ff', 0.25]];
+    // Fotogramas [tiempo, color, opacidad]: negro, blanco, los colores de cada personaje y una caída suave
+    const C = (this.player.ch.ult && this.player.ch.ult.fx) || ['#000', '#fff', '#b050ff', '#ff3fa0', '#b050ff'];
+    const F = [[0, C[0], 1], [0.09, C[1], 0.9], [0.18, C[2], 0.75], [0.27, C[3], 0.5], [0.4, C[4], 0.25]];
     if (t >= 0.5) { this.ultT = -1; if (el) el.style.opacity = 0; return; }
-    if (t >= 0.27 && !this.ultCut) { this.ultCut = true; this.ultSlash(); }
+    if (t >= 0.27 && !this.ultCut) { this.ultCut = true; this.ultFire(); }
     let f = F[0]; for (const k of F) if (t >= k[0]) f = k;
     if (el) { el.style.background = f[1]; el.style.opacity = f[2]; }
+  }
+  /** Lanza la Ultimate según su tipo (rift, bomb, beam, storm, discs, slash) */
+  ultFire() {
+    const p = this.player, U = p.ch.ult, W = this.weapons, V = this.vfx, dm = p.damageMul();
+    if (U.type === 'rift' || !U.type) return this.ultSlash();
+    const a = W.aim(this, p, 40) || W.facing(this, p), ax = a.dx, az = a.dz;
+    DMG_SRC = 'ult';
+    this.ui.toast('¡' + U.name + '!');
+    if (U.type === 'bomb') {                                 // Super Genkidama / Death Ball: esfera gigante sobre la horda
+      const d = a.d ? Math.min(a.d, 14) : 10;
+      W.bigStrike(p.x + ax * d, p.z + az * d, U.r, U.dmg * dm, U.col, 2.2, U.sty, 'ult');
+      this.bossChunk(p.x + ax * d, p.z + az * d, U.r, 0.06);
+      SFX.play('charge');
+    } else if (U.type === 'beam') {                          // Final Flash, Kamehameha Padre-Hijo, Kamehameha Solar
+      W.beam(p.x, p.z, ax, az, U.len, U.hw, U.dmg * dm, U.life, 0.1, U.col, true);
+      p.beamT = U.life; p.attack(ax, az, true, this);
+      if (U.end) this.after(0.3, () => V.play(U.end, p.x + ax * U.len * 0.55, 2.4, p.z + az * U.len * 0.55, { size: 12, dur: 0.8, pri: 1 }));
+      V.play('gather', p.x, 1.6, p.z, { size: 7, fps: 30, frames: FXA.gather ? FXA.gather.f.slice(12, 18) : null, pri: 1 });
+      this.bossChunkLine(p.x, p.z, ax, az, U.len, U.hw, 0.06);
+      this.shake(1.4); SFX.play('bigbeam');
+    } else if (U.type === 'storm') {                         // Hellzone Grenade definitivo: esferas sobre cada enemigo cercano
+      let n = 0;
+      for (let i = 0; i < this.horde.n && n < U.n; i++) {
+        const ex = this.horde.x[i] - p.x, ez = this.horde.z[i] - p.z;
+        if (ex * ex + ez * ez > U.r * U.r || Math.random() < 0.3) continue;
+        W.strikeAt(this.horde.x[i], this.horde.z[i], 0.8 + n * 0.035, 3.2, U.dmg * dm, 0xffd040, 'hz', 'ult'); n++;
+      }
+      for (let k = 0; k < 18; k++) { const r = rand(4, 12), t = rand(0, 6.28); V.play('hzCluster', p.x + Math.cos(t) * r, 2 + rand(0, 3), p.z + Math.sin(t) * r, { size: 2.6, dur: 0.9, alpha: 0.85 }); }
+      this.bossChunk(p.x, p.z, U.r, 0.05);
+      SFX.play('charge');
+    } else if (U.type === 'discs') {                         // Kienzan múltiple: corona de discos gigantes
+      for (let k = 0; k < U.n; k++) { const t = (k / U.n) * 6.2832; this.ki.fire(p.x, p.z, Math.cos(t), Math.sin(t), 20, U.dmg * dm, 1.4, false, 2.2, 99, 0, 0xffe86a, 3.3, 1); }
+      this.bossChunk(p.x, p.z, 30, 0.04);
+      SFX.play('slash');
+    } else if (U.type === 'slash') {                         // Burning Slash: tajos en todas direcciones y la explosión del Burning Attack
+      for (let k = 0; k < 3; k++) this.after(k * 0.12, () => { W.slash(this, p, Math.cos(k * 2.1), Math.sin(k * 2.1), U.r, U.dmg * dm, true, 0x9fe0ff); });
+      const bx = p.x + ax * 8, bz = p.z + az * 8;
+      this.after(0.45, () => {
+        DMG_SRC = 'ult'; this.horde.damageRadius(bx, bz, 9, U.dmg * 2 * dm, 18, this); this.world.damageArea(bx, bz, 9, U.dmg * 2);
+        V.play('burnBig', bx, 3, bz, { size: 12, dur: 0.8, pri: 1 }); V.play('burnSwirl', bx, 2, bz, { size: 8, fps: 12, pri: 1 });
+        V.crater(bx, bz, 6, 0xff9a2a); this.shake(1.2); SFX.play('bigboom'); this.impact(0.12, 2); DMG_SRC = 'otros';
+      });
+      this.bossChunk(bx, bz, 10, 0.05);
+    }
+    this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 70, 26, 0.8, 0.5, U.col || 0xffffff);
+    p.iframes = Math.max(p.iframes, 1);
+    DMG_SRC = 'otros';
+  }
+  /** La Ultimate hiere también al jefe si lo alcanza: un trozo de su vida máxima */
+  bossChunk(x, z, r, frac) {
+    const bi = this.horde.indexOfUid(this.bossUid);
+    if (bi < 0) return;
+    const ex = this.horde.x[bi] - x, ez = this.horde.z[bi] - z;
+    if (ex * ex + ez * ez < (r + 2) * (r + 2)) this.horde.hurt(bi, this.horde.maxHp[bi] * frac, 0, 0, this);
+  }
+  bossChunkLine(x, z, dx, dz, len, hw, frac) {
+    const bi = this.horde.indexOfUid(this.bossUid);
+    if (bi < 0) return;
+    const ex = this.horde.x[bi] - x, ez = this.horde.z[bi] - z, t = ex * dx + ez * dz;
+    if (t > -1 && t < len && Math.abs(ex * dz - ez * dx) < hw + ENEMY_TYPES[T_BOSS].r) this.horde.hurt(bi, this.horde.maxHp[bi] * frac, 0, 0, this);
   }
   /** El tajo: dos cortes que cruzan el mapa a través del jugador. Daña a todo lo que toca */
   ultSlash() {
@@ -1497,6 +1579,7 @@ class Game {
     const p = this.player;
     if (p.killHeal) p.hp = Math.min(p.maxHp, p.hp + p.killHeal);
     if (p.ch.id === 'black') p.hp = Math.min(p.maxHp, p.hp + 0.6);          // pasiva: Justicia Divina
+    if (p.ch.id === 'cell') { p.hp = Math.min(p.maxHp, p.hp + 0.3); p.absorbed++; }   // pasiva: Absorción
     p.addUlt(type === T_BOSS ? 25 : type === 4 ? 4 : 0.8);                   // la Ultimate se carga con cada enemigo
     if (type === 4) {
       this.track('elites', 1);
@@ -1559,17 +1642,17 @@ class Game {
     }
     for (const s of STATS) if ((p.stacks[s.id] || 0) < s.max) pool.push({ t: 'stat', id: s.id });
     const out = [], seen = {};
-    // Técnicas propias del personaje (p. ej. el Kamehameha de Goku): la primera vez que llegas a su nivel salen seguro;
-    // después, si no la cogiste, sale bastante más a menudo que el resto
-    if (W.list.length < MAX_WEAPONS) for (const id of this.signatures()) {
-      if (!this.sigOffered[id] && out.length < 1) { out.push({ t: 'weapon', id }); seen['weapon' + id] = 1; this.sigOffered[id] = true; }
-      else for (let k = 0; k < 3; k++) pool.push({ t: 'weapon', id });
-    }
     // Fusiones disponibles: las dos técnicas de origen al nivel máximo -> siempre sale como primera carta
     for (const id in WEAPONS) {
       const F = WEAPONS[id];
       if (!F.fusion || W.get(id) || (F.unique && F.unique !== p.ch.id)) continue;
       if (F.fusion.every((f) => W.levelOf(f) >= MAX_WEAPON_LEVEL) && out.length < 1) { out.push({ t: 'fusion', id }); seen['fusion' + id] = 1; }
+    }
+    // Técnicas propias del personaje (p. ej. el Kamehameha de Goku): la primera vez que llegas a su nivel salen seguro;
+    // después, si no la cogiste, sale bastante más a menudo que el resto
+    if (W.list.length < MAX_WEAPONS) for (const id of this.signatures()) {
+      if (!this.sigOffered[id] && out.length < 1) { out.push({ t: 'weapon', id }); seen['weapon' + id] = 1; this.sigOffered[id] = true; }
+      else for (let k = 0; k < 3; k++) pool.push({ t: 'weapon', id });
     }
     for (let k = 0; k < 80 && out.length < 3 && pool.length; k++) {
       const c = pick(pool), key = c.t + c.id;
@@ -1719,6 +1802,7 @@ class Game {
     this.time += dt; this.stageTime += dt;
     p.update(dt, this);
     this.weapons.update(dt, this);
+    this.updateTimers(dt);
 
     const S = this.stage, t0 = this.pressure();
     if (S.final) {                                                  // mapa final: solo el jefe (y sus refuerzos)
@@ -1898,6 +1982,9 @@ class Game {
   let sheets = null;
   try {
     Save.load(); Save.checkDaily(); Save.write();
+    // Iconos de técnicas y objetos (sprites): una variable CSS con la hoja «icons»
+    const ic = window.SPRITE_DATA && window.SPRITE_DATA.icons;
+    if (ic) document.documentElement.style.setProperty('--icons', 'url(' + ic.src + ')');
     L.step('sheets', 0, 'Preparando sprites…');
     if (typeof THREE !== 'undefined') sheets = await loadSheets(SHEET_NAMES, (n, t) => L.step('sheets', n / t, 'Preparando sprites · ' + n + ' / ' + t));
   } catch (e) { console.error(e); }

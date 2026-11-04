@@ -417,6 +417,7 @@ class UIManager {
       det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p>' +
         bar('VIDA', v.hp, 160) + bar('KI', v.ki, 160) + bar('VEL', Math.round(v.spd * 100), 150) + bar('DAÑO', Math.round(v.dmg * 100), 150) +
         '<h4>PASIVA · ' + v.passive.name + '</h4><p>' + v.passive.desc + '</p>' +
+        (v.ult ? '<h4>ULTIMATE [Q] · ' + v.ult.name + '</h4><p>Se carga derrotando enemigos. ' + ULT_DESC[v.ult.type || 'rift'] + '</p>' : '') +
         '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +
         '<h4>TÉCNICAS (al subir de nivel)</h4>' + techs.map((id) => { const W = WEAPONS[id], lock = W.shop && !Save.d.techs.includes(id); return '<p class="' + (lock ? 'lockt' : '') + '"><i>' + W.icon + '</i> <b>' + W.name + '</b> · NV ' + (W.minLv || 2) + (lock ? ' · 🔒 en la tienda' : '') + '</p>'; }).join('') +
         '<h4>FUSIONES (las dos técnicas al nivel 5)</h4>' + fusionsFor(v.id).map((f) => { const F = WEAPONS[f], lock = F.fusion.some((x) => !techOwned(x)); return '<p class="' + (lock ? 'lockt' : '') + '"><i>⚭</i> <b>' + F.name + '</b> · ' + F.fusion.map((x) => WEAPONS[x].name).join(' + ') + (lock ? ' · 🔒 requiere técnica de la tienda' : '') + (F.down ? ' · <span class="trb">✖ ' + F.down.text + '</span>' : '') + '</p>'; }).join('') +
@@ -608,3 +609,13 @@ class UIManager {
   hideModal() { this.el.modal.classList.remove('show'); }
   showExit(on) { this.el.exit.classList[on ? 'add' : 'remove']('show'); }
 }
+
+/* Descripción de cada tipo de Ultimate (ficha del personaje) */
+const ULT_DESC = {
+  rift: 'Abre dos grietas en el espacio que cruzan el mapa.',
+  bomb: 'Una esfera gigante cae sobre la horda y arrasa una zona enorme.',
+  beam: 'Un rayo colosal que atraviesa todo lo que tienes delante.',
+  storm: 'Rodea de granadas de ki a todos los enemigos cercanos y las hace estallar.',
+  discs: 'Lanza una corona de discos gigantes que cortan todo a su paso.',
+  slash: 'Tajos en todas direcciones y la explosión del Burning Attack.'
+};

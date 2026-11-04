@@ -43,26 +43,74 @@
  },
  "fx": {
   "cols": 16,
-  "rows": 20,
+  "rows": 23,
   "w": 64,
   "h": 64
  },
  "fxbig": {
   "cols": 8,
-  "rows": 3,
+  "rows": 4,
   "w": 128,
   "h": 128
  },
  "props": {
   "cols": 16,
-  "rows": 6,
+  "rows": 9,
   "w": 96,
   "h": 96
  },
  "tall": {
   "cols": 8,
-  "rows": 1,
+  "rows": 2,
   "w": 192,
   "h": 192
+ },
+ "trunks": {
+  "cols": 4,
+  "rows": 4,
+  "w": 108,
+  "h": 79
+ },
+ "freezer": {
+  "cols": 4,
+  "rows": 4,
+  "w": 108,
+  "h": 79
+ },
+ "piccolo": {
+  "cols": 4,
+  "rows": 4,
+  "w": 108,
+  "h": 79
+ },
+ "gohan": {
+  "cols": 4,
+  "rows": 4,
+  "w": 108,
+  "h": 79
+ },
+ "gohan_u": {
+  "cols": 4,
+  "rows": 4,
+  "w": 108,
+  "h": 79
+ },
+ "cell": {
+  "cols": 4,
+  "rows": 5,
+  "w": 108,
+  "h": 79
+ },
+ "icons": {
+  "cols": 8,
+  "rows": 3,
+  "w": 64,
+  "h": 64
+ },
+ "tiles": {
+  "cols": 3,
+  "rows": 2,
+  "w": 128,
+  "h": 128
  }
 }

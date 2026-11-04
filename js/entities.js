@@ -34,6 +34,7 @@ class Player {
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
     this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
+    this.absorbed = 0; this.barT = 0; this.barHits = 0; this.barBoom = 0; this.barCol = 0x8ae0ff;   // Absorción de Célula y Barrera de Ki
     this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.slowT = 0; this.confT = 0;
     // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
     this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
@@ -107,6 +108,7 @@ class Player {
     if (this.ch.id === 'goku') m *= 1 + 0.015 * (this.level - 1);                     // Zenkai
     if (this.ch.id === 'vegeta' && this.ki >= this.maxKi * 0.8) m *= 1.25;           // Orgullo Saiyajin
     if (this.ch.id === 'gohan' && this.hp < this.maxHp * 0.5) m *= 1.4;               // Potencial oculto
+    if (this.ch.id === 'cell') m *= 1 + Math.min(0.3, 0.02 * Math.floor((this.absorbed || 0) / 100));   // Absorción
     if (this.tr.lowHp && this.hp < this.maxHp * 0.5) m *= 1 + this.tr.lowHp;          // rasgo: más daño con poca vida
     if (this.egoStk) m *= 1 + this.egoStk;                                            // rasgo: Ego destructor
     return m * this.comboMul;                                                         // bonus de la racha de combos
@@ -117,6 +119,11 @@ class Player {
     if (this.iframes > 0 || game.state !== 'play') return false;
     // Rasgo Ultra Instinto: esquiva todo mientras quede Ki
     if (this.tr.dodgeKi && this.ki >= this.tr.dodgeKi) { this.ki -= this.tr.dodgeKi; this.iframes = 0.35; game.onAutoDodge(); return false; }
+    if (this.barT > 0 && this.barHits > 0) {                        // Barrera de Ki: para el golpe entero
+      this.barHits--; this.iframes = 0.35; game.onBarrierHit(this);
+      if (this.barHits <= 0) this.barT = 0;
+      return false;
+    }
     if (this.dodge > 0 && Math.random() < this.dodge) {            // esquiva (objetos y rasgos)
       this.iframes = 0.3; game.ui.toast('ESQUIVA', true);
       game.fx.burst(game.fx.trail, this.x, 1, this.z, 8, 4, 0.4, 0.3, 0);
@@ -654,10 +661,10 @@ class KiPool {
       if (b.active) continue;
       b.active = true; b.x = x; b.z = z; b.y = 1.4; b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
       b.crit = crit; b.pierce = pierce; b.aoe = aoe; b.tint = tint; b.trail = 0; b.ni = 0; b.size = size || (crit ? 3.6 : 2.6) * r * 1.3; b.look = look || 0;
-      b.fr = this.fx ? (b.look === 1 ? -1 : orbFrame(tint, crit || b.size > 3.5 ? 0 : 1)) : 0;
+      b.fr = this.fx ? (b.look ? -1 : orbFrame(tint, crit || b.size > 3.5 ? 0 : 1)) : 0;
       for (let k = 0; k < 6; k++) b.ign[k] = 0;
-      b.src = DMG_SRC; SFX.play('ki');
-      return true;
+      b.src = DMG_SRC; b.home = 0; b.ht = 0; SFX.play('ki');
+      return b;
     }
     return false;
   }
@@ -667,16 +674,37 @@ class KiPool {
     for (let i = 0; i < this.max; i++) {
       const b = this.b[i];
       if (!b.active) continue;
-      b.life -= dt; b.x += b.vx * dt; b.z += b.vz * dt;
+      b.life -= dt;
+      if (b.home) {                                             // teledirigida: gira hacia el enemigo más cercano
+        b.ht -= dt;
+        if (b.ht <= 0) { b.ht = 0.1; b.ti = game.horde.nearest(b.x, b.z, 20); }
+        const h = game.horde, j = b.ti;
+        if (j >= 0 && j < h.n) {
+          const sp = Math.hypot(b.vx, b.vz), tx = h.x[j] - b.x, tz = h.z[j] - b.z, td = Math.hypot(tx, tz) || 1;
+          const k = Math.min(1, b.home * dt);
+          b.vx += (tx / td * sp - b.vx) * k; b.vz += (tz / td * sp - b.vz) * k;
+          const n = Math.hypot(b.vx, b.vz) || 1; b.vx = b.vx / n * sp * 1.01; b.vz = b.vz / n * sp * 1.01;
+        }
+      }
+      b.x += b.vx * dt; b.z += b.vz * dt;
       const out = b.life <= 0 || Math.abs(b.x) > CFG.ARENA + 10 || Math.abs(b.z) > CFG.ARENA + 10;
       let done = out;
       DMG_SRC = b.src;
       if (!done && game.horde.hitTest(b, game)) done = true;
       if (!done && game.world.damageArea(b.x, b.z, b.r * 0.4, b.dmg)) done = b.pierce <= 0;
-      if (done) { b.active = false; if (b.aoe > 0 && !(out && b.life > 0)) game.explode(b.x, b.z, b.aoe, b.dmg * 1.2, b.tint); continue; }
+      if (done) {
+        b.active = false;
+        if (b.aoe > 0 && !(out && b.life > 0)) {
+          game.explode(b.x, b.z, b.aoe, b.dmg * 1.2, b.tint);
+          const D = WEAPONS[b.src];                               // detonación propia (Big Bang, Burning Attack...)
+          if (D && D.boomFx && game.vfx) { game.vfx.play(D.boomFx, b.x, 1.6, b.z, { size: b.aoe * 2.2, dur: 0.5 }); if (D.stamp) game.weapons.stamp(game, D.stamp, b.x, b.z, b.aoe * 2.4); }
+        }
+        continue;
+      }
       b.trail -= dt;
       if (b.trail <= 0) { b.trail = 0.03; game.fx.sparks.emit(b.x, b.y, b.z, rand(-1, 1), rand(0, 1.5), rand(-1, 1), 0.25, b.r * 0.5, 0, b.tint); }
       if (!this.fx) sb.push(b.x, b.y, b.z, 0, 0, 0, b.size, 1, b.tint);
+      else if (b.fr < 0 && b.look !== 1) sb.push(b.x, b.y, b.z, fxf(b.look, ((b.life * 14) | 0) % fxn(b.look)), 0, 0, b.size * 1.2, 1, 0xffffff, b.life * 9);
       else if (b.fr < 0) sb.push(b.x, b.y, b.z, fxf('disc', 3 + (((b.life * 18) | 0) & 1)), 0, 0, b.size * 1.15, 1, 0xffffff, b.life * 9);
       else sb.push(b.x, b.y, b.z, b.fr, 0, 0, b.size * 0.75, 1, 0xffffff);
     }

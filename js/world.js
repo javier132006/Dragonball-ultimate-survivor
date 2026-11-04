@@ -75,6 +75,7 @@ function biomeAt(x, z) {
 class World {
   constructor(scene, themeIdx) {
     const th = this.th = THEMES[themeIdx || 0], before = scene.children.length;
+    this.themeIdx = themeIdx || 0;
     this.scene = scene;
     BIOME_COL = th.cols; BIOME_NAMES = th.names; BIOME_SEED = (themeIdx || 0) * 5 + (WORLD_SEED_XOR % 97);
     this.R = CFG.ARENA; this.seedX = WORLD_SEED_XOR;
@@ -167,7 +168,34 @@ class World {
     scene.add(ground);
   }
 
+  /** Suelo con la baldosa pixel art del mapa (hoja «tiles»): se pasa a relieve en gris y se tiñe con el color del tema,
+      así los biomas siguen marcando el color y la baldosa solo pone el detalle */
+  makeTileTexture(theme) {
+    const sh = FX_SHEETS && FX_SHEETS.tiles, img = sh && sh.tex && sh.tex.image;
+    if (!img || !img.width) return null;
+    const k = [0, 2, 3, 0, 4][theme] === undefined ? 0 : [0, 2, 3, 0, 4][theme];      // tierra, hierba, piedra, tierra, ladrillo blanco
+    const C = 128, c = document.createElement('canvas'); c.width = c.height = C;
+    const g = c.getContext && c.getContext('2d'); if (!g) return null;
+    g.drawImage(img, (k % 3) * C, ((k / 3) | 0) * C, C, C, 0, 0, C, C);
+    let d; try { d = g.getImageData(0, 0, C, C); } catch (e) { return null; }    // con file:// algunos navegadores lo bloquean
+    const D = d.data, tc = new THREE.Color(this.th.tex);
+    let mean = 0; for (let i = 0; i < D.length; i += 4) mean += D[i] * 0.3 + D[i + 1] * 0.59 + D[i + 2] * 0.11;
+    mean /= D.length / 4;
+    for (let i = 0; i < D.length; i += 4) {
+      const v = (D[i] * 0.3 + D[i + 1] * 0.59 + D[i + 2] * 0.11) / mean, f = clamp(0.62 + 0.38 * v, 0.35, 1.25);
+      D[i] = clamp(tc.r * 255 * f, 0, 255); D[i + 1] = clamp(tc.g * 255 * f, 0, 255); D[i + 2] = clamp(tc.b * 255 * f, 0, 255);
+    }
+    g.putImageData(d, 0, 0);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping;
+    const S = (this.R + 90) * 2; t.repeat.set(S / 9, S / 9);              // una baldosa cada 9 unidades
+    t.magFilter = THREE.NearestFilter; t.anisotropy = 4;
+    return t;
+  }
+
   makeGroundTexture() {
+    const tt = this.makeTileTexture(this.themeIdx);
+    if (tt) return tt;
     const S = 256, c = document.createElement('canvas');
     c.width = c.height = S;
     const g = c.getContext && c.getContext('2d');
@@ -273,8 +301,9 @@ class World {
     const rng = this.rng, R = this.R, rr = (a, b) => a + rng() * (b - a), N = (c) => Math.max(2, Math.round(c * this.dens)), sc = R < 100 ? 0.3 : 1;
     const spot = (minD) => { for (let k = 0; k < 30; k++) { const x = rr(-R, R), z = rr(-R, R); if (Math.hypot(x, z) > minD * sc && !this.lakes.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + 3)) return [x, z]; } return [R * 0.8, -R * 0.8]; };
     // name: animación · k: fotograma · size: alto en unidades · col: radio de choque · hp: vida si se rompe · brk: fotograma roto
-    const add = (name, k, x, z, size, col, hp, brk, tall) => {
-      const o = { f: fxf(name, k), x, z, size, tall: !!tall, brk: brk === undefined ? -1 : brk, dead: false, flat: false };
+    const add = (name, k, x, z, size, col, hp, brk, tall, rw) => {
+      if (!FXA[name]) return { f: 0 };
+      const o = { f: fxf(name, k), x, z, size, tall: !!tall, brk: brk === undefined ? -1 : brk, dead: false, flat: false, rw: rw || '' };
       if (col) {
         const di = hp ? this.destr.length : -1;
         if (hp) this.destr.push({ x, z, hp, max: hp, col: this.cx.length, idx: -1, s: col / 0.8, spr: this.sp.length });
@@ -287,22 +316,42 @@ class World {
       for (let i = 0; i < N(26); i++) { const [x, z] = spot(26); add('statue', i % 3, x, z, rr(3.4, 4.2), 1.1, 160); }
       for (let i = 0; i < N(60); i++) { const [x, z] = spot(18); add('crate', rng() < 0.5 ? 0 : 1, x, z, rr(2, 2.5), 0.9, 45, 3); }
       for (let i = 0; i < N(500); i++) { const [x, z] = spot(8); add('grass', 6 + (i & 1), x, z, rr(1.2, 1.8)); }
+      // Hojas nuevas: cactus, rocas, palmeras, casas cápsula (se rompen y dan Zeni), cofres, puestos y la Capsule Corp.
+      for (let i = 0; i < N(70); i++) { const [x, z] = spot(10); add('cactus', i % 3, x, z, rr(2.6, 3.6), 0.4); }
+      for (let i = 0; i < N(60); i++) { const [x, z] = spot(12); add('rockS', i % 5, x, z, rr(2.2, 3.2), 0.9, 70); }
+      for (let i = 0; i < N(34); i++) { const [x, z] = spot(18); add('palm', i % 4, x, z, rr(8.5, 11), 0.6, 0, -1, true); }
+      for (let i = 0; i < N(12); i++) { const [x, z] = spot(30); add('house', i % 5, x, z, rr(6, 7.2), 2.4, 260, -1, false, 'house'); }
+      for (let i = 0; i < N(14); i++) { const [x, z] = spot(20); add('chest', i & 1, x, z, 2.3, 0.8, 40, -1, false, 'chest'); }
+      for (let i = 0; i < N(10); i++) { const [x, z] = spot(24); add(['stall', 'vending', 'sign', 'bench', 'tomb'][i % 5], i % 2, x, z, rr(3, 4), 0.9, 90, -1, false, 'vase'); }
+      for (let i = 0; i < N(3); i++) { const [x, z] = spot(60); add('ccorp', 0, x, z, 14, 3.6, 0, -1, true); }
     } else if (theme === 1) {                                // Namek: árboles de copa azul y morada, arbustos y hierba
       for (let i = 0; i < N(110); i++) { const [x, z] = spot(20); add('treeN', i % 3, x, z, rr(8, 11), 1.2, 0, -1, true); }
       for (let i = 0; i < N(200); i++) { const [x, z] = spot(14); add('treeS', i % 12, x, z, rr(3.2, 4.6), 0.6); }
       for (let i = 0; i < N(900); i++) { const [x, z] = spot(6); add('grass', [1, 2, 3, 4][i % 4], x, z, rr(1.1, 1.7)); }
       for (let i = 0; i < N(12); i++) { const [x, z] = spot(18); add('crate', 0, x, z, 2.2, 0.9, 45, 3); }
+      // Casas namekianas, la nave de Freezer, árboles de bola y plantas
+      for (let i = 0; i < N(14); i++) { const [x, z] = spot(30); add('house', [1, 4, 3][i % 3], x, z, rr(6, 7), 2.3, 260, -1, false, 'house'); }
+      for (let i = 0; i < N(3); i++) { const [x, z] = spot(50); add('ship', 0, x, z, 8, 3.2, 0); }
+      for (let i = 0; i < N(50); i++) { const [x, z] = spot(16); add('ballTree', 0, x, z, rr(7, 9.5), 0.5, 0, -1, true); }
+      for (let i = 0; i < N(70); i++) { const [x, z] = spot(10); add('nPlant', i & 1, x, z, rr(2.2, 3)); }
     } else if (theme === 2) {                                // Dimensión fracturada: rocas moradas que se rompen
       for (let i = 0; i < N(110); i++) { const [x, z] = spot(10); add('rockP', rng() < 0.6 ? 0 : 5, x, z, rr(2.4, 3.6), 1.1, 90, 7); }
       for (let i = 0; i < N(50); i++) { const [x, z] = spot(6); add('grass', 0, x, z, rr(1, 1.6)); }
+      for (let i = 0; i < N(26); i++) { const [x, z] = spot(14); add('pillarS', i % 3, x, z, rr(3.4, 4.6), 0.9, 120, -1, false, 'vase'); }
+      for (let i = 0; i < N(14); i++) { const [x, z] = spot(18); add('column', 0, x, z, rr(9, 11), 1.1, 0, -1, true); }
     } else if (theme === 3) {                                // Planeta Vegeta: volcanes en las afueras, cajas y suelo agrietado
       for (let i = 0; i < N(16); i++) {                     // repartidos por el mapa (siempre hay alguno a la vista)
         const [x, z] = spot(34);
         this.collider(x, z, 4.5, -1); this.volcs.push({ x, z, size: rr(11, 15), ph: rng() * 6, f: rng() < 0.5 ? 0 : 1 });
       }
       for (let i = 0; i < N(26); i++) { const [x, z] = spot(18); add('crate', 1, x, z, 2.3, 0.9, 45, 3); }
-    } else {                                                 // Cámara del Tiempo: casi vacía (solo alguna caja)
+      for (let i = 0; i < N(22); i++) { const [x, z] = spot(24); add('rockT', i & 1, x, z, rr(8, 12), 2.2, 0, -1, true); }
+      for (let i = 0; i < N(60); i++) { const [x, z] = spot(12); add('rockS', i % 5, x, z, rr(2.2, 3.2), 0.9, 70); }
+      for (let i = 0; i < N(24); i++) { const [x, z] = spot(14); add('craterR', i % 3, x, z, rr(3, 4.2)); }
+    } else {                                                 // Cámara del Tiempo: casi vacía (cajas, bloques y columnas)
       for (let i = 0; i < N(18); i++) { const [x, z] = spot(10); add('crate', 0, x, z, 2.2, 0.9, 45, 3); }
+      for (let i = 0; i < N(10); i++) { const [x, z] = spot(12); add('arenaBlk', 0, x, z, rr(2.4, 3), 1.1, 120, -1, false, 'vase'); }
+      for (let i = 0; i < N(8); i++) { const [x, z] = spot(16); add('vase', i & 1, x, z, 2.4, 0.7, 30, -1, false, 'vase'); }
     }
     const B = (sh, n, o) => new SpriteBatch(scene, Object.assign({ max: Math.max(1, n), texture: sh.tex, cols: sh.cols, rows: sh.rows, w: 1, h: 1, anchor: 0.04, cut: 0.5, renderOrder: 1 }, o));
     const cnt = (f) => this.sp.filter(f).length;

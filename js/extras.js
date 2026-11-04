@@ -2,12 +2,14 @@
 /* =====================================================================
    extras.js · Compañeros temporales (Krilin, Piccolo, Vegeta...) que
    aparecen durante un evento, siguen al jugador y pelean 60 segundos.
-   Sprites PROVISIONALES: hojas existentes recoloreadas.
+   Krilin sigue con sprite PROVISIONAL (hoja recoloreada); el resto, con su hoja.
    ===================================================================== */
 
 const ALLIES = [
   { id: 'krilin', name: 'KRILIN', sheet: 'shade', anim: A_STD, tint: 0xffb070, ki: 0xffe86a, atk: 'disc', cd: 1.6 },
-  { id: 'piccolo', name: 'PICCOLO', sheet: 'vegeta', anim: A_VEG, tint: 0x7fe07a, ki: 0xffa040, atk: 'beam', cd: 2.4 },
+  { id: 'piccolo', name: 'PICCOLO', sheet: 'piccolo', anim: A_PIC, tint: 0xffffff, ki: 0xffa040, atk: 'beam', cd: 2.4 },
+  { id: 'trunks', name: 'TRUNKS', sheet: 'trunks', anim: A_TRK, tint: 0xffffff, ki: 0x8ae8ff, atk: 'beam', cd: 2.2 },
+  { id: 'gohan', name: 'GOHAN', sheet: 'gohan', anim: A_GOH, tint: 0xffffff, ki: 0x8fe0ff, atk: 'blast', cd: 0.9 },
   { id: 'vegeta', name: 'VEGETA', sheet: 'vegeta', anim: A_VEG, tint: 0xffffff, ki: 0xb06bff, atk: 'blast', cd: 0.9 },
   { id: 'goku', name: 'SON GOKU', sheet: 'goku_a', anim: rowAnim(0), tint: 0xffffff, ki: 0x6fd0ff, atk: 'beam', cd: 2.2 }
 ];
@@ -18,8 +20,8 @@ class Allies {
     this.list = [];                                         // aliados activos: {d, x, z, t, cd, flip, animT, atkT}
     this.spr = {};
     const H = 2.9;
-    for (const name of ['shade', 'vegeta', 'goku_a']) {
-      const sh = sheets[name];
+    for (const name of new Set(ALLIES.map((a) => a.sheet))) {
+      const sh = sheets[name]; if (!sh) continue;
       this.spr[name] = new SpriteBatch(scene, { max: 4, texture: sh.tex, cols: sh.cols, rows: sh.rows, w: H * (sh.w / sh.h), h: H, anchor: 0.04, renderOrder: 3 });
     }
   }
