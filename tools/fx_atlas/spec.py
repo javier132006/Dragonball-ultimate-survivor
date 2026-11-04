@@ -111,4 +111,10 @@ S = [
  ('bbOrb', 22, None, 0, 0, 'A2', 'fx', [(1176, 292, 1240, 352)]),
  ('bbBoom', 22, None, 0, 0, 'A2', 'big', [(1290, 260, 1408, 384)]),
  ('darkRing', 32, None, 0, 0, 'A2', 'fx', [(1024, 114, 1094, 182)]),
+ # ---------- Más ataques de las hojas nuevas: guadaña de Black, medias lunas del Final Flash, bola del Death Beam, bola de Gohan Bestia ----------
+ ('scytheArc', 33, None, 0, 0, 'A2', 'big', [(1198, 106, 1276, 216)]),
+ ('ffMoonY', 22, None, 0, 0, 'A2', 'big', [(1183, 414, 1254, 542)]),
+ ('ffMoonB', 23, None, 0, 0, 'A2', 'big', [(1183, 410, 1256, 548)]),
+ ('dbBall', 35, None, 0, 0, 'A2', 'fx', [(1036, 108, 1100, 166)]),
+ ('beastBall', 37, None, 0, 0, 'A2', 'fx', [(1163, 443, 1242, 522)]),
 ]

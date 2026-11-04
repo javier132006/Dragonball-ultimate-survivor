@@ -441,6 +441,10 @@ class WeaponSystem {
     g.horde.damageCone(p.x, p.z, dx, dz, r, full ? -2 : 0.35, dm * p.damageMul(), 9, g);
     g.world.damageArea(p.x + dx * r * 0.5, p.z + dz * r * 0.5, r * 0.6, dm);
     const base = Math.atan2(dz, dx), arc = full ? Math.PI * 2 : 2.4;
+    const SD = WEAPONS[DMG_SRC];
+    if (g.vfx && SD && SD.unique === 'black') {                  // guadaña rosa de la hoja de Black sobre el tajo
+      g.vfx.play('scytheArc', p.x + dx * r * 0.55, 1.6, p.z + dz * r * 0.55, { size: r * 1.15, grow: 1.15, rot: Math.atan2(-dz, dx), dur: 0.26, pri: 1 });
+    }
     if (g.vfx) for (let k = 0; k < (full ? 4 : 1); k++) {
       const a = base + k * Math.PI / 2, cx = Math.cos(a), cz = Math.sin(a);
       g.vfx.play('cresc', p.x + cx * r * 0.55, 0.4, p.z + cz * r * 0.55, { flat: true, size: r * 1.5, rot: Math.atan2(-cz, cx), fps: 28, tint: color });
@@ -745,10 +749,16 @@ class WeaponSystem {
         const k = ((g.time * 16) | 0) & 1, rot = Math.atan2(-b.dz, b.dx), st = b.hw * 3;
         for (let t = st * 0.5; t < cur; t += st) V.now(1, fxf('sbcSpiral', k), b.x + b.dx * t, 1.5, b.z + b.dz * t, st * 1.15, 0.9 * fade, 0xffffff, rot);
       }
+      if (V && V.ok && (b.src === 'finalflash' || b.src === 'bbflash' || (b.src === 'ult' && p.ch.id === 'vegeta'))) {
+        // Final Flash: media luna de la hoja de Vegeta en la punta (azul en las formas Blue)
+        V.now(2, fxf(bigOrb(b.color) === 'orbKame' ? 'ffMoonB' : 'ffMoonY', 0), b.x + b.dx * cur, 1.5, b.z + b.dz * cur, b.hw * 3.4, 0.9 * fade, 0xffffff, Math.atan2(-b.dz, b.dx));
+      } else if (V && V.ok && (b.src === 'deathbeam' || b.src === 'cellbeam')) {
+        V.now(0, fxf('dbBall', 0), b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 1.7, fade, 0xffffff, Math.atan2(-b.dz, b.dx));
+      }
       if (V && V.ok && b.hw > 0.9) {
         const k = (g.time * 20) | 0;
-        const oc = bigOrb(b.color);                                   // esfera de las hojas nuevas en el origen (azul o blanca)
-        if (oc) V.now(2, fxf(oc, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.1, 0.75 * fade, 0xffffff, g.time * 2);
+        const pl = g.player, oc = pl.ch.id === 'gohan' && pl.formIdx === 4 && b.follow ? 'beastBall' : bigOrb(b.color);   // esfera de las hojas nuevas en el origen
+        if (oc) V.now(FXA[oc].s === 'fxbig' ? 2 : 0, fxf(oc, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.1, 0.75 * fade, 0xffffff, g.time * 2);
         else V.now(0, orbFrame(b.color, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.6, fade, 0xffffff);
         V.now(0, fxf('kameStar', k % 4), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 3.4, 0.8 * fade, 0xffffff);
         V.now(0, fxf('kameImp', k & 1), b.x + b.dx * cur, 1.5, b.z + b.dz * cur, b.hw * 4.2, 0.85 * fade, 0xffffff);
