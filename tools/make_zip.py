@@ -139,6 +139,14 @@ def load(folder, n):
     border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     rem = np.isin(lab, list(border))
     return trim(np.dstack([a, np.where(rem, 0, 255)]).astype(np.uint8))
+def clean_lines(r):
+    """Quita rayas sueltas (1-3 píxeles de alto, separadas del cuerpo) que traen algunos fotogramas del pack"""
+    lab, k = nd.label(r[:, :, 3] > 0)
+    if k < 2: return r
+    sizes = nd.sum(np.ones(lab.shape), lab, range(1, k + 1)); big = sizes.max()
+    for c, sl in enumerate(nd.find_objects(lab), 1):
+        if sl[0].stop - sl[0].start <= 3 and sizes[c - 1] < big * 0.15: r[lab == c, 3] = 0
+    return trim(r)
 def trim(r):
     ys, xs = np.nonzero(r[:, :, 3])
     return r[ys.min():ys.max() + 1, xs.min():xs.max() + 1] if len(xs) else r
@@ -198,7 +206,10 @@ if __name__ == '__main__':
 # fila: (carpeta, [caminar x4, herido, ataque, técnica, pose]). Se amplían con un factor entero (píxel nítido)
 ROW_PATCH = {
  'enemies': (96, 86, {0: ('Saibaman', [1, 35, 1, 35, 18, 10, 21, 1]), 5: (CE + 'Cell Imperfeito', [1, 2, 1, 3, 15, 9, 31, 1]),
-                      6: ('ANDROIDES/Androide 17', [1, 2, 1, 2, 21, 7, 27, 1])}),
+                      6: ('ANDROIDES/Androide 17', [1, 2, 1, 2, 21, 7, 27, 1]),
+                      8: ('Frost/Frost Primeira Forma', [1, 2, 1, 3, 33, 13, 44, 1]), 9: ('MAJIN BUU formas/Majin Buu', [1, 2, 1, 3, 70, 13, 57, 1]),
+                      10: ('ANDROIDES/Androide 18', [3, 4, 3, 4, 33, 11, 39, 2]), 11: ('KALE fases/Kale Ssj', [19, 20, 19, 20, 23, 11, 43, 1]),
+                      12: ('KYABE fases/Kyabe', [3, 4, 3, 5, 42, 21, 60, 3]), 13: ('Caulifla', [9, 10, 9, 11, 30, 41, 65, 1])}),
  'bosses': (128, 116, {0: (FZ + 'Freeza Forma Final', [1, 2, 3, 2, 22, 11, 40, 1]), 1: (CE + 'cell Perfeito', [1, 2, 3, 2, 27, 10, 34, 1]),
                        8: ('Cooler', [15, 16, 15, 17, 65, 32, 84, 3]), 9: ('Janemba', [1, 2, 3, 2, 22, 10, 58, 1]),
                        10: ('MAJIN BUU formas/Super Buu', [1, 2, 1, 2, 33, 13, 48, 60]), 11: ('HITTO/Hitto', [3, 4, 3, 6, 60, 21, 125, 13]),
@@ -212,7 +223,7 @@ def patch_rows(sheet, cell, target, rows):
     """sheet: imagen PIL de la hoja (se modifica). Devuelve las carpetas usadas"""
     used = set()
     for r, (fo, idx) in rows.items():
-        used.add(fo); fr = [load(fo, n) for n in idx]
+        used.add(fo); fr = [clean_lines(load(fo, n)) for n in idx]
         k = max(1, round(target / fr[0].shape[0]))
         for c, a in enumerate(fr):
             im = Image.fromarray(a); im = im.resize((im.width * k, im.height * k), Image.NEAREST)

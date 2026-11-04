@@ -341,7 +341,7 @@ const scaleText = (s, k) => k === 1 ? s : s.replace(/\d+(?:,\d+)?/g, (n) => { co
 /* ---------- Enemigos: hoja "enemies" (8 columnas por fila) ----------
    Columnas de cada fila: 0-3 caminar · 4 herido · 5 ataque · 6 técnica · 7 pose.
    `row` = fila del personaje. Cada tipo tiene su habilidad (`ab`), sacada de la serie. */
-const ENEMY_ROWS = { saibai: 0, soldado: 1, appule: 2, nappa: 3, ginyu: 4, cellimp: 5, a17: 6, mcooler: 7 };
+const ENEMY_ROWS = { saibai: 0, soldado: 1, appule: 2, nappa: 3, ginyu: 4, cellimp: 5, a17: 6, mcooler: 7, frost: 8, buu: 9, a18: 10, kale: 11, kyabe: 12, caulifla: 13 };
 const ENEMY_TYPES = [
   // Soldado de Freezer (en la Tierra y la Cámara del Tiempo la tropa básica son Saibaimans)
   { name: 'Soldado de Freezer', row: 1, hp: 1, spd: 1, scale: 1, tint: 0xffffff, dmg: 1, xp: 1, r: 0.7, cash: 1 },
@@ -361,10 +361,24 @@ const ENEMY_TYPES = [
   // Célula imperfecto: «Absorción». Cada vez que te toca te roba vida, se cura y crece
   { name: 'Célula imperfecto', row: 5, hp: 2.6, spd: 0.9, scale: 1.2, tint: 0xffffff, dmg: 1.2, xp: 2.6, r: 0.9, cash: 3, absorb: true },
   // Célula Jr.: los hijos de Célula Perfecto. Pequeños, rápidos y azulados
-  { name: 'Célula Jr.', row: 5, hp: 0.9, spd: 1.6, scale: 0.7, tint: 0x9ac0ff, dmg: 1, xp: 1.5, r: 0.55, cash: 2 }
+  { name: 'Célula Jr.', row: 5, hp: 0.9, spd: 1.6, scale: 0.7, tint: 0x9ac0ff, dmg: 1, xp: 1.5, r: 0.55, cash: 2 },
+  /* ---- Tropa nueva del pack (filas 8-13): cada uno con su efecto sobre el jugador ---- */
+  // Frost: «Aguja venenosa». Te envenena: pierdes vida unos segundos
+  { name: 'Frost', row: 8, hp: 1.1, spd: 1, scale: 1.05, tint: 0xffffff, dmg: 0.9, xp: 1.8, r: 0.65, cash: 2.5, ab: 'needle' },
+  // Majin Buu: «Rayo de caramelo». Te ralentiza. Es grande y aguanta mucho
+  { name: 'Majin Buu', row: 9, hp: 3.6, spd: 0.7, scale: 1.35, tint: 0xffffff, dmg: 1.4, xp: 3, r: 1.05, cash: 4, knock: 10, smash: true, ab: 'candy' },
+  // Androide 18: rápida; cada golpe que te da te roba Ki
+  { name: 'Androide 18', row: 10, hp: 0.9, spd: 1.55, scale: 0.95, tint: 0xffffff, dmg: 0.8, xp: 1.8, r: 0.6, cash: 2.5, drain: 22 },
+  // Kale: «Furia berserker». Embiste de golpe contra ti
+  { name: 'Kale', row: 11, hp: 2.4, spd: 0.95, scale: 1.15, tint: 0xffffff, dmg: 1.5, xp: 2.6, r: 0.8, cash: 3, knock: 12, ab: 'rush' },
+  // Kyabe: «Ki de Sadala». Te debilita: haces menos daño unos segundos
+  { name: 'Kyabe', row: 12, hp: 1.2, spd: 1.05, scale: 1, tint: 0xffffff, dmg: 0.9, xp: 2, r: 0.65, cash: 2.5, ab: 'weakshot' },
+  // Caulifla: vuela y dispara; sus ráfagas te dejan sin dash
+  { name: 'Caulifla', row: 13, hp: 1, spd: 1.25, scale: 1, tint: 0xffffff, dmg: 0.85, xp: 2.2, r: 0.65, cash: 2.5, fly: true, flyEff: 'nodash', flyTint: 0xff6aa0 }
 ];
 /* Índices de tipo para que el código se lea mejor */
 const T_BASIC = 0, T_FAST = 1, T_BRUTE = 2, T_BOSS = 3, T_ELITE = 4, T_BOOM = 5, T_SHIELD = 6, T_FLY = 7, T_ABSORB = 8, T_CELLJR = 9;
+const T_FROST = 10, T_MBUU = 11, T_A18 = 12, T_KALE = 13, T_KYABE = 14, T_CAULI = 15;
 
 
 /* ---------- Rarezas y objetos (se encuentran en Cápsulas del mapa) ----------

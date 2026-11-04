@@ -1171,6 +1171,13 @@ class Game {
       else if (t0 > 150 && q < 0.3) t = T_FLY;
       else if (t0 > 180 && q < 0.36) t = T_ABSORB;
       else if (this.night > 0.5 && q < 0.5) t = T_FAST;
+      // Tropa nueva: entra poco a poco a partir del minuto y medio (y más a menudo cuanto más avanzas)
+      if (t === 0 && t0 > 90 && Math.random() < Math.min(0.6, 0.22 + t0 / 1800)) {
+        const L = [T_A18, T_KYABE, T_FROST];
+        if (t0 > 150) L.push(T_CAULI, T_KALE);
+        if (t0 > 240) L.push(T_MBUU);
+        t = pick(L);
+      }
     }
     this.spawnPos(32, 40);
     const hpMul = this.diff.hp * this.stage.hp * (1 + this.curseHp + this.chal * 0.25) * (1 + sw * 0.3) * (this.mods.rich ? 1.3 : 1) * this.timeMul();

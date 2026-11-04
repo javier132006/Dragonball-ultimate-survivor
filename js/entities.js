@@ -37,7 +37,7 @@ class Player {
     this.stacks = {}; this.stackMul = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
     this.absorbed = 0; this.barT = 0; this.barHits = 0; this.barBoom = 0; this.barCol = 0x8ae0ff;   // Absorción de Célula y Barrera de Ki
-    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.wade = 1; this.slowT = 0; this.confT = 0;
+    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.wade = 1; this.slowT = 0; this.confT = 0; this.poisonT = 0; this.weakT = 0; this.noDashT = 0;
     // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
     this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
     this.egoStk = 0; this.auraT = 0; this.boltT = 0; this.tfCd = 0; this.formSeen = {}; this.trait = null; this.tr = {};
@@ -120,6 +120,7 @@ class Player {
     if (this.ch.id === 'cell') m *= 1 + Math.min(0.3, 0.02 * Math.floor((this.absorbed || 0) / 100));   // Absorción
     if (this.tr.lowHp && this.hp < this.maxHp * 0.5) m *= 1 + this.tr.lowHp;          // rasgo: más daño con poca vida
     if (this.egoStk) m *= 1 + this.egoStk;                                            // rasgo: Ego destructor
+    if (this.weakT > 0) m *= 0.7;                                                     // debilitado (Kyabe)
     return m * this.comboMul;                                                         // bonus de la racha de combos
   }
 
@@ -180,6 +181,8 @@ class Player {
     else if (stick.on) { ix = stick.x; iz = stick.z; il = Math.hypot(ix, iz); if (il < 0.15) { ix = iz = il = 0; } }   // joystick táctil (analógico)
     // Efectos de los enemigos: «Cambio de cuerpo» de Ginyu (controles invertidos) y caramelo/hielo (ralentizado)
     this.slowT = Math.max(0, this.slowT - dt); this.confT = Math.max(0, this.confT - dt);
+    this.weakT = Math.max(0, this.weakT - dt); this.noDashT = Math.max(0, this.noDashT - dt);
+    if (this.poisonT > 0) { this.poisonT -= dt; if (this.hp > 1) this.hp = Math.max(1, this.hp - this.maxHp * 0.025 * dt); }   // veneno de Frost
     if (this.confT > 0) { ix = -ix; iz = -iz; }
     const wx = ix * game.camCos + iz * game.camSin, wz = -ix * game.camSin + iz * game.camCos;
 
@@ -211,7 +214,8 @@ class Player {
     // --- Dash / Shunkan Ido: solo en el flanco de bajada de ESPACIO ---
     const space = !!keys.Space;
     const dashCost = CFG.DASH_COST * this.dashCost;
-    if (space && !this.prevSpace && this.dashT <= 0 && this.dashCd <= 0 && this.ki >= dashCost && !this.charging) {
+    if (space && !this.prevSpace && this.noDashT > 0 && this.dashT <= 0) game.ui.toast('¡SIN DASH!', true);   // ráfaga de Caulifla
+    if (space && !this.prevSpace && this.dashT <= 0 && this.dashCd <= 0 && this.ki >= dashCost && !this.charging && this.noDashT <= 0) {
       this.dashX = il > 0 ? wx : (this.flip ? -game.camCos : game.camCos);
       this.dashZ = il > 0 ? wz : (this.flip ? this.dashZ * 0 + game.camSin : -game.camSin);
       this.dashT = CFG.DASH_TIME; this.dashCd = CFG.DASH_CD * this.dashMul; this.ghostT = 0;
@@ -355,7 +359,7 @@ class Player {
       if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;
     }
     // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
-    const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.form.tint;
+    const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.form.tint;
     this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint);
     for (const g of this.ghosts) if (g.t > 0) this.gho[g.sheet].push(g.x, 0.5, g.z, g.frame, g.flip, 0, 1, g.t / 0.3, this.form.tint);
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
@@ -481,7 +485,7 @@ class HordeManager {
         const side = (this.uid[i] & 1) ? 1 : -1;
         if (d < 8) { vx = -vx; vz = -vz; } else if (d < 12) { vx = -dz * sp * side; vz = dx * sp * side; }
         this.aux[i] -= dt;
-        if (this.aux[i] <= 0 && d < 24) { this.aux[i] = rand(2.6, 4); shots.fire(xi, zi, dx, dz, 12, dmg * 0.8, { tint: 0xff4a4a, size: 1.9 }); this.pose[i] = 0.35; this.poseC[i] = 5; }
+        if (this.aux[i] <= 0 && d < 24) { this.aux[i] = rand(2.6, 4); shots.fire(xi, zi, dx, dz, 12, dmg * 0.8, { tint: T.flyTint || 0xff4a4a, size: 1.9, eff: T.flyEff }); this.pose[i] = 0.35; this.poseC[i] = 5; }
       } else if (T.boom && d < CFG.PLAYER_R + T.r + 0.5 && this.hp[i] > 0) {   // kamikaze: explota al llegar
         this.aux[i] = -99; this.hp[i] = 0; continue;
       } else if (T.boom && d < 7) { this.pose[i] = 0.1; this.poseC[i] = 6; if (((t * 10) | 0) % 2) this.hitT[i] = 0.06; }   // brazos arriba y parpadeo antes de explotar
@@ -490,7 +494,10 @@ class HordeManager {
         if (T.ab === 'regen') {                                   // Metal Cooler: la Big Gete Star repara su blindaje
           if (this.shield[i] > 0) this.aux[i] = 7;
           else if (this.aux[i] <= 0) { this.shield[i] = T.shield; this.aux[i] = 7; this.pose[i] = 0.6; this.poseC[i] = 6; game.fx.burst(game.fx.sparks, xi, 1.6, zi, 10, 4, 0.4, 0.35, 0, 0x9ad8ff); }
-        } else if (this.aux[i] <= 0 && this.abCd <= 0 && d < (T.ab === 'bomber' ? 13 : 17) && d > 4) {
+        } else if (T.ab === 'rush' && this.aux[i] <= 0 && d < 18 && d > 4) {   // Kale: embestida berserker (aviso y salto)
+          this.aux[i] = rand(5, 7); kx[i] = dx * 40; kz[i] = dz * 40; this.pose[i] = 0.5; this.poseC[i] = 5;
+          game.fx.ring(game.fx.aura, xi, 0.4, zi, 18, 5, 0.4, 0.4, 0x9aff4a);
+        } else if (T.ab !== 'rush' && this.aux[i] <= 0 && this.abCd <= 0 && d < (T.ab === 'bomber' ? 13 : T.ab === 'candy' ? 17 : 20) && d > 4) {
           this.abCd = 1.1; this.pose[i] = 1; this.poseC[i] = 6;
           if (T.ab === 'bomber') {                                // Nappa: «Bomber DX», el suelo explota bajo tus pies
             this.aux[i] = rand(6, 8.5);
@@ -498,6 +505,15 @@ class HordeManager {
           } else if (T.ab === 'bodychange') {                     // Ginyu: rayo del «Cambio de cuerpo»
             this.aux[i] = rand(7, 9);
             shots.line(xi, zi, dx, dz, 24, 1, 0.85, dmg * 0.6, 0xc070ff, 'conf');
+          } else if (T.ab === 'needle') {                         // Frost: aguja venenosa
+            this.aux[i] = rand(3.5, 5); this.pose[i] = 0.4;
+            shots.fire(xi, zi, dx, dz, 17, dmg * 0.5, { tint: 0x9aff4a, size: 1.4, eff: 'poison' });
+          } else if (T.ab === 'candy') {                          // Majin Buu: rayo de caramelo
+            this.aux[i] = rand(6, 8);
+            shots.line(xi, zi, dx, dz, 20, 0.9, 0.8, dmg * 0.5, 0xff8ad8, 'slow');
+          } else if (T.ab === 'weakshot') {                       // Kyabe: ki que debilita
+            this.aux[i] = rand(4, 6); this.pose[i] = 0.4;
+            shots.fire(xi, zi, dx, dz, 13, dmg * 0.6, { tint: 0x9a7aff, size: 1.8, eff: 'weak' });
           }
           continue;                                               // se planta para lanzar la técnica
         }
@@ -524,6 +540,11 @@ class HordeManager {
       const R = T.r * (1 + this.grow[i]);
       if (!T.fly && d < CFG.PLAYER_R + R + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game)) {
         if (T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6); }
+        if (T.drain) {                                            // Androide 18: te roba Ki
+          player.ki = Math.max(0, player.ki - T.drain);
+          game.fx.burst(game.fx.aura, px, 1.2, pz, 10, 3, 0.4, 0.4, 1, 0x6ad8ff);
+          if (!(t - this.drainMsg < 4)) { this.drainMsg = t; game.ui.toast('¡TE ROBA EL KI!', true); }
+        }
         if (T.absorb) {                                           // Célula imperfecto: absorbe, se cura y crece
           this.hp[i] = Math.min(this.maxHp[i] * 1.6, this.hp[i] + this.maxHp[i] * 0.3); this.grow[i] = Math.min(0.6, this.grow[i] + 0.15);
           this.pose[i] = 0.5; this.poseC[i] = 5;
@@ -934,6 +955,9 @@ class EnemyShots {
   effect(eff, p, game) {
     if (eff === 'slow') { p.slowT = 2.6; game.ui.toast('¡RALENTIZADO!', true); }
     else if (eff === 'conf') { p.confT = 2.6; game.ui.toast('¡CAMBIO DE CUERPO! · CONTROLES INVERTIDOS', true); }
+    else if (eff === 'poison') { p.poisonT = 4; game.ui.toast('¡ENVENENADO!', true); }
+    else if (eff === 'weak') { p.weakT = 4; game.ui.toast('¡DEBILITADO! · -30% DE DAÑO', true); }
+    else if (eff === 'nodash') { p.noDashT = 3.5; game.ui.toast('¡SIN DASH!', true); }
   }
   update(dt, game) {
     const p = game.player;
