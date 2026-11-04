@@ -193,7 +193,7 @@ class TransformScene {
     SFX.play('impact');
     const first = !p.formSeen[this.to];
     p.setForm(this.to); p.recompute(); g.applyForm();
-    p.formSeen[this.to] = true; p.tfCd = 0;
+    p.formSeen[this.to] = true; p.tfCd = 30;        // 30 s hasta poder subir a la siguiente forma
     if (first) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);     // la curación solo la primera vez que alcanzas esa forma
     g.fx.ring(g.fx.aura, p.x, 0.4, p.z, 80, 30, 0.9, 0.5, col);
     const V = g.vfx;

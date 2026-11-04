@@ -272,7 +272,7 @@ class WeaponSystem {
       s.on = true; s.big = true; s.t = s.T = 2.6; s.x = p.x + a.dx * 7; s.z = p.z + a.dz * 7; s.src = w.id; s.sty = WEAPONS[w.id].sty || '';
       s.r = (C.r || 15) * (lv >= 3 ? 1.25 : 1) * (lv >= 5 ? 1.2 : 1); s.dmg = (C.dmg || 110) * (1 + 0.5 * (lv - 1)) * p.damageMul(); s.tint = D.color || 0x9fe8ff;
       w.cd = C.cd || (lv >= 4 ? 22 : 28);
-      g.ui.toast('¡' + D.name.toUpperCase() + '!'); SFX.play('charge');
+      g.ui.toast('¡' + D.name.toUpperCase() + '!', true); SFX.play('charge');
       return;
     }
   }

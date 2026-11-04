@@ -93,12 +93,15 @@ class Player {
     this.drawSheet = this.form.sheet; this.frame = this.anim.idle; this.atkFrame = this.anim.atk;
     this.trait = traitOf(this.ch, idx); this.tr = (this.trait && this.trait.t) || {}; this.egoStk = 0;
   }
-  /** Formas a las que puedes cambiar ahora (desbloqueadas por nivel y distintas de la actual) */
+  /** Formas a las que puedes cambiar ahora: solo la SIGUIENTE a la actual (hay que subirlas una a una) y si tienes nivel */
   formOptions() {
-    const out = [];
-    for (let i = 1; i < this.ch.forms.length; i++) if (i !== this.formIdx && this.level >= this.ch.forms[i].lvl) out.push(i);
-    return out;
+    const i = this.formIdx + 1;
+    return i < this.ch.forms.length && this.level >= this.ch.forms[i].lvl ? [i] : [];
   }
+  /** Ki que cuesta transformarse a la forma idx (se gasta al transformarte): de la mitad al 90% del Ki máximo */
+  tfCost(idx) { return Math.round(this.maxKi * Math.min(0.9, 0.5 + 0.045 * idx)); }
+  /** Ki por segundo que consume mantener la forma actual (sube con cada forma) */
+  formUpkeep() { return this.formIdx > 0 ? 0.6 + 0.3 * this.formIdx : 0; }
 
   xpFor(level) { return Math.floor(6 + level * 3 + level * level * 0.35); }
 
@@ -274,9 +277,9 @@ class Player {
 
   /** Efectos continuos del rasgo de la forma: gasto de Ki o vida, aura que quema y rayos */
   traitTick(dt, game) {
-    const T = this.tr;
-    if (T.kiDrain) {
-      this.ki = Math.max(0, this.ki - T.kiDrain * dt);
+    const T = this.tr, drain = (T.kiDrain || 0) + this.formUpkeep();      // mantener la forma gasta Ki
+    if (drain > 0) {
+      this.ki = Math.max(0, this.ki - drain * dt);
       if (this.ki <= 0 && this.formIdx > 0) { game.revertForm('¡SIN KI! PIERDES LA TRANSFORMACIÓN'); return; }
     }
     if (T.hpDrain && this.hp > this.maxHp * 0.15) this.hp = Math.max(this.maxHp * 0.15, this.hp - this.maxHp * T.hpDrain * dt);

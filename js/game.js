@@ -990,7 +990,7 @@ class Game {
     p.formReady = ready;
   }
   /** Se puede usar G: hay alguna forma a la que cambiar y no estás recuperando el aliento */
-  canTransform() { const p = this.player; return this.state === 'play' && !this.cine.on && p.tfCd <= 0 && p.formOptions().length > 0; }
+  canTransform() { const p = this.player, o = p.formOptions(); return this.state === 'play' && !this.cine.on && p.tfCd <= 0 && o.length > 0 && p.ki >= p.tfCost(o[0]); }
   /** G / botón: si solo hay una forma, cinemática directa; si hay varias, eliges con cartas (con sus rasgos) */
   transform() {
     const p = this.player;
@@ -998,6 +998,9 @@ class Game {
     if (p.tfCd > 0) { this.ui.toast('RECUPERANDO EL ALIENTO · ' + Math.ceil(p.tfCd) + ' s', true); return; }
     const opts = p.formOptions();
     if (!opts.length) return;
+    const cost = p.tfCost(opts[0]);
+    if (p.ki < cost) { this.ui.toast('NECESITAS ' + cost + ' DE KI · CARGA CON [C]', true); SFX.play('warn'); return; }
+    p.ki -= cost;                                                      // transformarse gasta Ki
     if (opts.length === 1) { this.startCine(opts[0]); return; }
     const list = opts.slice(-4);                                       // las 4 más poderosas
     this.state = 'wish'; this.releaseMouse(); this.cardT = 0;
@@ -1016,7 +1019,7 @@ class Game {
     const p = this.player;
     if (p.formIdx === 0 || (this.state !== 'play' && this.state !== 'transform')) return;
     p.setForm(0); p.recompute(); this.applyForm();
-    p.tfCd = 20;
+    p.tfCd = 25;
     this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 30, 10, 0.4, 0.35, 0xffffff);
     this.ui.toast(msg || 'VUELVES A TU FORMA BASE', true); SFX.play('revert');
     this.checkTransformation();
@@ -1710,7 +1713,7 @@ class Game {
       } else if (c.type === 'fusion') {
         this.weapons.fuse(c.id); this.run.fusions++; this.track('fusions', 1);
         p.fused.push(c.id); p.recompute();
-        this.ui.toast('¡FUSIÓN! ' + WEAPONS[c.id].name.toUpperCase()); SFX.play('stinger');
+        this.ui.toast('¡FUSIÓN! ' + WEAPONS[c.id].name.toUpperCase(), true); SFX.play('stinger');
         this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 70, 24, 0.8, 0.5, WEAPONS[c.id].color); this.impT = 0.14;
       }
       else if (c.type === 'stat') { p.stacks[c.id] = c.lv; STATS.find((s) => s.id === c.id).apply(p); }

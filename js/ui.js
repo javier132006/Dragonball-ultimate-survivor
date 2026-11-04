@@ -62,11 +62,18 @@ class UIManager {
 
   toast(text, small) {
     if (small) {
-      const f = this.el.feed;
-      if (f.children.length > 2) f.removeChild(f.firstChild);          // como mucho 3 avisos pequeños a la vez
+      // Avisos pequeños: lista discreta a un lado. Si se repite el último aviso, se suma (×2, ×3...) en vez de apilarlo
+      const f = this.el.feed, last = f.lastChild;
+      if (last && last._t === text) {
+        last._n = (last._n || 1) + 1; last.textContent = text + '  ×' + last._n;
+        last.style.animation = 'none'; void last.offsetWidth; last.style.animation = '';
+        clearTimeout(last._k); last._k = setTimeout(() => { if (last.parentNode) last.parentNode.removeChild(last); }, 2200);
+        return;
+      }
+      if (f.children.length > 3) f.removeChild(f.firstChild);          // como mucho 4 avisos a la vez
       const d = document.createElement('div');
-      d.textContent = text; f.appendChild(d);
-      setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 1300);
+      d._t = text; d.textContent = text; f.appendChild(d);
+      d._k = setTimeout(() => { if (d.parentNode) d.parentNode.removeChild(d); }, 2200);
       return;
     }
     const t = this.el.toast;
@@ -114,10 +121,13 @@ class UIManager {
     }
     // Aviso de transformación disponible (o de que puedes cambiar de forma)
     const nf = p.formReady >= 0 ? p.ch.forms[p.formReady] : null, can = game.canTransform();
-    if (game.state === 'play' && (nf || (can && p.formIdx === 0))) {
+    const nx = p.formOptions()[0];
+    if (game.state === 'play' && nx !== undefined) {
       D(e.tfBtn, 'flex');
-      T(e.tfSub, nf ? 'TRANSFORMACIÓN DISPONIBLE' : 'PUEDES TRANSFORMARTE');
-      const f = nf || p.ch.forms[p.formOptions().slice(-1)[0]];
+      const cost = p.tfCost(nx);
+      T(e.tfSub, p.tfCd > 0 ? 'RECUPERANDO EL ALIENTO · ' + Math.ceil(p.tfCd) + ' s' : p.ki < cost ? 'CARGA KI [C] · ' + Math.floor(p.ki) + ' / ' + cost : can ? 'PUEDES TRANSFORMARTE [G]' : 'TRANSFORMACIÓN DISPONIBLE');
+      e.tfBtn.classList.toggle('wait', !can);
+      const f = p.ch.forms[nx];
       T(e.tfName, f.name); this.setV(e.tfBtn, '--fc', '#' + (f.aura || 0xffe14a).toString(16).padStart(6, '0'));
     } else D(e.tfBtn, 'none');
     // Racha de combo
@@ -514,7 +524,7 @@ class UIManager {
       '<textarea id="saveTxt" spellcheck="false" placeholder="Aquí aparecerá el texto de la copia, o pega aquí una copia para importarla"></textarea>' +
       '<div class="qbs"><button class="qb" data-exp>EXPORTAR</button><button class="qb" data-imp>IMPORTAR' + (this.impArmed ? ' (CONFIRMAR)' : '') + '</button><button class="qb" data-impfile>ELEGIR ARCHIVO…</button><input type="file" id="impFile" accept=".json,.txt,application/json" style="display:none"></div>' +
       (this.optMsg ? '<p class="omsg">' + this.optMsg + '</p>' : '') + '</div></div>' +
-      '<div class="item info wide"><div><b>CONTROLES</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · SHIFT (o botón derecho) bloquear · F Transmisión Instantánea · G transformarse · H volver a la forma base · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
+      '<div class="item info wide"><div><b>CONTROLES</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · SHIFT (o botón derecho) bloquear · F Transmisión Instantánea · G transformarse (sube de una en una: cuesta Ki, y mantener la forma también) · H volver a la forma base · F11 o el botón de la esquina: pantalla completa · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
       'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · LB/LT bloquear · RB/RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir, A para confirmar y X para cambiar las cartas.</p></div></div>' +
       '<div class="item info"><div><b>SONIDO SINTETIZADO</b><p>Toda la música y los efectos se generan en el momento con Web Audio (sin archivos). En el móvil, el sonido se activa al tocar la pantalla por primera vez.</p></div></div></div>';
     this.optMsg = '';

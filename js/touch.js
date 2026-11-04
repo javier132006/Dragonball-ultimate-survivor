@@ -109,7 +109,7 @@ class TouchControls {
     const info = game.promptInfo();
     document.getElementById('tbE').classList.toggle('ready', !!info);
     document.getElementById('tbTf').style.display = game.canTransform() ? 'flex' : 'none';
-    document.getElementById('tbTf').classList.toggle('ready', game.player.formReady >= 0);
+    document.getElementById('tbTf').classList.toggle('ready', game.canTransform());
     document.getElementById('tbBase').style.display = game.player.formIdx > 0 ? 'flex' : 'none';
     document.getElementById('tbTp').classList.toggle('cd', game.player.tpCd > 0);
     document.getElementById('tbLv').style.display = game.practice ? 'flex' : 'none';
