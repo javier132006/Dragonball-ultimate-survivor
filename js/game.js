@@ -63,7 +63,7 @@ class Game {
     this.drag = false;
     try {
       if (typeof THREE === 'undefined') throw new Error('Three.js no se cargó desde el CDN. Revisa tu conexión a internet.');
-      if (!sheets || !sheets.goku || !sheets.shade) throw new Error('No se pudieron cargar los spritesheets (assets/sprites.js). Comprueba que la carpeta "assets" está junto a index.html.');
+      if (!sheets || !sheets.goku || !sheets.enemies) throw new Error('No se pudieron cargar los spritesheets (assets/sprites.js). Comprueba que la carpeta "assets" está junto a index.html.');
       this.initGL(sheets);
     } catch (err) {
       console.error(err);
@@ -106,7 +106,7 @@ class Game {
     this.shadows = new SpriteBatch(this.scene, { max: CFG.MAX_ENEMIES + 2, texture: tex.shadow, w: 1, h: 0.5, anchor: 0.5, flat: true, blend: true, tint: 0x000000, alpha: 0.38, cut: 0.02, renderOrder: 1 });
     this.fx = new FX(this.scene, tex);
     this.player = new Player(this.scene, sheets, tex);
-    this.horde = new HordeManager(this.scene, CFG.MAX_ENEMIES, sheets.enemies || sheets.shade);
+    this.horde = new HordeManager(this.scene, CFG.MAX_ENEMIES, sheets.enemies);
     this.ki = new KiPool(this.scene, CFG.MAX_BULLETS, tex);
     this.orbs = new XpOrbs(this.scene, CFG.MAX_ORBS, tex);
     this.pickups = new Pickups(this.scene, tex);
@@ -1246,7 +1246,7 @@ class Game {
       /* ---- genéricas ---- */
       case 'fan': {                                                  // abanico dirigido al jugador
         const n = Math.min(9, 3 + st * 2);
-        for (let q = 0; q < n; q++) { const o = a + (q - (n - 1) / 2) * 0.2; S.fire(bx, bz, Math.cos(o), Math.sin(o), 11 + st, dmg, B.sheet === 'black_old' ? null : { tint: col, size: 1.8 }); }
+        for (let q = 0; q < n; q++) { const o = a + (q - (n - 1) / 2) * 0.2; S.fire(bx, bz, Math.cos(o), Math.sin(o), 11 + st, dmg, B.sheet === 'black_boss' ? null : { tint: col, size: 1.8 }); }
         h.posBoss('atk', 0.4); break;
       }
       case 'ring':                                                   // anillo de energía

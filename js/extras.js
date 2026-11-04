@@ -7,7 +7,7 @@
 
 const ALLIES = [
   { id: 'krilin', name: 'KRILIN', sheet: 'krilin', anim: A_KRL, tint: 0xffffff, ki: 0xffe86a, atk: 'disc', cd: 1.6 },
-  { id: 'piccolo', name: 'PICCOLO', sheet: 'piccolo', anim: A_PIC, tint: 0xffffff, ki: 0xffa040, atk: 'beam', cd: 2.4 },
+  { id: 'piccolo', name: 'PICCOLO', sheet: 'piccolo', anim: A_HD, tint: 0xffffff, ki: 0xffa040, atk: 'beam', cd: 2.4 },
   { id: 'trunks', name: 'TRUNKS', sheet: 'trunks', anim: A_TRK, tint: 0xffffff, ki: 0x8ae8ff, atk: 'beam', cd: 2.2 },
   { id: 'gohan', name: 'GOHAN', sheet: 'gohan', anim: A_GOH, tint: 0xffffff, ki: 0x8fe0ff, atk: 'blast', cd: 0.9 },
   { id: 'vegeta', name: 'VEGETA', sheet: 'vegeta', anim: A_HD, tint: 0xffffff, ki: 0xb06bff, atk: 'blast', cd: 0.9 },
@@ -22,7 +22,8 @@ class Allies {
     const H = 2.9;
     for (const name of new Set(ALLIES.map((a) => a.sheet))) {
       const sh = sheets[name]; if (!sh) continue;
-      this.spr[name] = new SpriteBatch(scene, { max: 4, texture: sh.tex, cols: sh.cols, rows: sh.rows, w: H * (sh.w / sh.h), h: H, anchor: 0.04, renderOrder: 3 });
+      const h = H * (sh.hs || 1);                           // mismo tamaño de píxel que el jugador (un poco más pequeños)
+      this.spr[name] = new SpriteBatch(scene, { max: 4, texture: sh.tex, cols: sh.cols, rows: sh.rows, w: h * (sh.w / sh.h), h, anchor: sh.anc || 0.04, renderOrder: 3 });
     }
   }
   reset() { this.list.length = 0; for (const k in this.spr) this.spr[k].reset(); }

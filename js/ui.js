@@ -29,12 +29,29 @@ class UIManager {
     g.imageSmoothingEnabled = false;
     g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, W, H);
-    g.drawImage(img, c * s.w, r * s.h, s.w, s.h, 0, 0, W, H);
+    // pixel art: se recorta al sprite (sin el hueco de la celda), se escala sin deformar y los pies van abajo
+    const bb = this.frameBox(img, s, c, r), k = Math.min(W / bb.w, H / bb.h) * 0.94;
+    const sx = c * s.w + bb.x, sy = r * s.h + bb.y, dw = bb.w * k, dh = bb.h * k, dx = (W - dw) / 2, dy = H - dh;
+    g.drawImage(img, sx, sy, bb.w, bb.h, dx, dy, dw, dh);
     if (tint && tint !== 0xffffff) {                      // tinte (sprites provisionales recoloreados)
       g.globalCompositeOperation = 'multiply'; g.fillStyle = '#' + tint.toString(16).padStart(6, '0'); g.fillRect(0, 0, W, H);
-      g.globalCompositeOperation = 'destination-in'; g.drawImage(img, c * s.w, r * s.h, s.w, s.h, 0, 0, W, H);
+      g.globalCompositeOperation = 'destination-in'; g.drawImage(img, sx, sy, bb.w, bb.h, dx, dy, dw, dh);
       g.globalCompositeOperation = 'source-over';
     }
+  }
+  /** Caja ocupada por el sprite dentro de su celda (se calcula una vez por fotograma y se guarda) */
+  frameBox(img, s, c, r) {
+    const key = c + ',' + r, cache = (s.boxes = s.boxes || {});
+    if (cache[key]) return cache[key];
+    let box = { x: 0, y: 0, w: s.w, h: s.h };
+    try {
+      const cv = document.createElement('canvas'); cv.width = s.w; cv.height = s.h;
+      const x = cv.getContext('2d'); x.drawImage(img, c * s.w, r * s.h, s.w, s.h, 0, 0, s.w, s.h);
+      const d = x.getImageData(0, 0, s.w, s.h).data; let x0 = s.w, y0 = s.h, x1 = -1, y1 = -1;
+      for (let y = 0; y < s.h; y++) for (let i = 0; i < s.w; i++) if (d[(y * s.w + i) * 4 + 3] > 20) { if (i < x0) x0 = i; if (i > x1) x1 = i; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 >= 0) box = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+    } catch (e) { /* lienzo bloqueado: se usa la celda entera */ }
+    return (cache[key] = box);
   }
   /** Escribe texto/estilo solo si cambia (tocar el DOM en cada fotograma sin necesidad cuesta rendimiento) */
   setT(el, v) { if (el._t !== v) { el._t = v; el.textContent = v; } }
@@ -352,11 +369,11 @@ class UIManager {
   }
 
   renderMenu() {
-    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES', records: 'RÉCORDS', account: 'CUENTA' };
+    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES', records: 'RÉCORDS', account: 'CUENTA', credits: 'CRÉDITOS' };
     e.zeniMenu.textContent = Save.d.zeni;
     e.menu.classList.toggle('ishome', s === 'home');
     e.menuNav.innerHTML = s === 'home' ? '' : '<button class="back" data-go="home">◂ VOLVER</button><h3>' + TITLES[s] + '</h3>';
-    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else if (s === 'records') this.renderRecords(); else if (s === 'account') this.renderAccount(); else this.renderMissions();
+    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else if (s === 'records') this.renderRecords(); else if (s === 'account') this.renderAccount(); else if (s === 'credits') this.renderCredits(); else this.renderMissions();
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
   }
@@ -376,6 +393,7 @@ class UIManager {
       '<button class="big" data-go="account">CUENTA<small>' + this.accountLabel() + '</small></button>' +
       '<button class="big" data-go="stats">ESTADÍSTICAS</button>' +
       '<button class="big" data-go="options">OPCIONES</button>' +
+      '<button class="big" data-go="credits">CRÉDITOS</button>' +
       '<button class="big ghost" data-exit>SALIR</button></div></div>' +
       '<div class="hr">' + this.dailyCard() + '<div class="hcard"><h4>MISIONES DIARIAS</h4>' + daily + '<h4 style="margin-top:12px">RACHA</h4><p>' + Save.d.login.streak + ' día(s) seguidos</p></div></div></div>';
   }
@@ -386,6 +404,14 @@ class UIManager {
       mods.map((m) => '<div class="mod"><i>' + m.icon + '</i><div><b>' + m.name + '</b><small>' + m.text + '</small></div></div>').join('') +
       '<p class="dim">Mapa del día, dificultad NORMAL. ' + (D ? 'Tu mejor marca hoy: <b>' + D.best.toLocaleString('es-ES') + '</b> (' + D.tries + ' intento' + (D.tries > 1 ? 's' : '') + ')' : 'Termínalo hoy: +300 monedas') + '</p>' +
       '<button class="start" data-start="daily">JUGAR CON ' + sel.name + '</button></div>';
+  }
+
+  /** Créditos: autores de los sprites (pack «Dragon Ball Sagas») */
+  renderCredits() {
+    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    this.el.menuBody.innerHTML = '<div class="hcard"><h4>SPRITES DE PERSONAJES</h4><p class="dim">Sprites del pack «Dragon Ball Sagas», hechos por la comunidad. Gracias a sus autores:</p>' +
+      SPRITE_CREDITS.map((c) => '<div class="mod"><i>★</i><div><b>' + esc(c.author) + '</b><small>' + c.what.map(esc).join(' · ') + '</small></div></div>').join('') +
+      '<h4 style="margin-top:12px">DRAGON BALL</h4><p class="dim">Dragon Ball es una obra de Akira Toriyama. Juego de fans sin ánimo de lucro.</p></div>';
   }
 
   renderPlay() {

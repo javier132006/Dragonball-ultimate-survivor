@@ -1,6 +1,6 @@
 """Lectura y escritura de assets/sprites.js, el ÚNICO archivo de imágenes del juego.
 Cada hoja va dentro en base64 como WebP sin pérdida (un 25% menos que PNG, los mismos píxeles exactos), así no hace
-falta guardar los .png aparte. Las herramientas (make_sprites.py, make_chars*.py + install_chars.py, fx_atlas/install.py)
+falta guardar los .png aparte. Las herramientas (make_sprites.py, make_zip.py + install_chars.py, fx_atlas/install.py)
 usan este módulo para añadir o sustituir hojas sin tocar las demás.
 
   load()                 -> (sheets, anims): sheets = {nombre: {'cols','rows','w','h','src'}}, anims = texto de FX_ANIMS

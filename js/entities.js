@@ -313,9 +313,9 @@ class Player {
     const a = this.anim;
     this.drawSheet = this.form.sheet;
     let fr = a.idle;
-    const cf = this.chgSheet ? formChg(this.ch, this.formIdx) : -1;
-    this.chgPose = cf >= 0 && (this.charging || this.cineChg) && this.dashT <= 0;
-    if (this.chgPose) { this.drawSheet = this.chgSheet; this.frame = cf; return; }   // pose de cargar ki (con el aura de la forma)
+    const cf = this.chgSheet ? formChg(this.ch, this.formIdx) : null;
+    this.chgPose = !!cf && (this.charging || this.cineChg) && this.dashT <= 0;
+    if (this.chgPose) { this.drawSheet = this.chgSheet; this.frame = cf[0] + ((this.animT * 10) | 0) % cf[1]; return; }   // pose de cargar ki (aura animada)
     if (this.hurtT > 0 && a.hurt >= 0) fr = a.hurt;
     else if (this.hurtT > 0 && a.alt && a.alt.hurt >= 0) { fr = a.alt.hurt; this.drawSheet = a.alt.sheet; }
     else if (this.dashT > 0) fr = a.dash;
@@ -342,8 +342,7 @@ class Player {
       if (fr) { sheet = fr.s; frame = t < 0.35 ? fr.f[0] : t < 0.9 ? fr.f[1] : fr.f[2]; alpha = clamp(1 - (t - 1.1) / 0.75, 0, 1); }
       else { sheet = this.form.sheet; frame = a.idle; flash = t < 0.35 ? 1 : 0; alpha = clamp(1 - t / 1.5, 0, 1); y = t * 1.2; scale = 1 + t * 0.12; }
     } else {
-      if (this.chgPose) scale = 1 + Math.sin(this.animT * 16) * 0.025;        // el aura de la pose de carga late
-      else if (this.dashT > 0) y = 0.5;
+      if (this.dashT > 0) y = 0.5;
       else if (this.moving) y = Math.abs(Math.sin(this.animT * 9)) * 0.12;
       flash = this.hurtT > 0.22 ? 1 : 0;
       if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;

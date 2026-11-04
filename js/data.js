@@ -5,35 +5,22 @@
    enemigos, mejoras del laboratorio y guardado local.
    ===================================================================== */
 
-/* Hojas que se cargan al arrancar. Goku, Vegeta, Krilin, Trunks, Gohan y Célula usan hojas en alta resolución (tools/make_chars2.py) */
-const SHEET_NAMES = ['goku', 'goku_ss', 'goku_ss3', 'goku_ss4', 'goku_sign', 'goku_god', 'goku_blue', 'goku_ui', 'vegeta', 'vegeta_ss', 'vegeta_god', 'vegeta_blue', 'vegeta_ue', 'black', 'black_ss', 'black_old', 'shade', 'trunks', 'trunks_ss', 'freezer', 'freezer1', 'freezer2', 'freezer3', 'piccolo', 'gohan', 'gohan_ss', 'gohan_ul', 'gohan_b', 'cell',
-  'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles', 'krilin',
-  'goku_chg', 'vegeta_chg', 'krilin_chg', 'trunks_chg', 'gohan_chg', 'cell_chg', 'black_chg', 'freezer_chg'];
+/* Hojas que se cargan al arrancar. Personajes del pack «Dragon Ball Sagas» (tools/make_zip.py): pixel art a tamaño original,
+   todos con el mismo tamaño de píxel en pantalla (hs/anc de cada hoja) */
+const SHEET_NAMES = ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku_ss4', 'goku_god', 'goku_blue', 'goku_bkk', 'goku_sign', 'goku_ui',
+  'vegeta', 'vegeta_ss', 'vegeta_grade', 'vegeta_majin', 'vegeta_ss4', 'vegeta_god', 'vegeta_blue', 'vegeta_bfp',
+  'black', 'black_ss', 'black_rose', 'black_boss', 'gohan', 'gohan_ss', 'gohan_ss2', 'gohan_ul',
+  'freezer1', 'freezer3', 'freezer', 'freezer_fp', 'freezer_gold', 'trunks', 'trunks_ss', 'cell_imp', 'cell_semi', 'cell', 'piccolo', 'krilin',
+  'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg',
+  'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles'];
 
-/* ---------- Animaciones: índices de fotograma de cada hoja (4x4, fila*4+columna) ---------- */
-/* Hoja "estándar" (Vegeta y enemigos): caminar, golpear, herido, dash y muerte */
-const A_STD = { idle: 0, walk: [1, 2, 3, 2], atk: 5, atk2: 10, crit: 11, hurt: 8, dash: 9, death: [12, 13, 14] };
-/* Hojas por filas (transformaciones): col0 = pose/aura, col1 = movimiento, col2 = golpe, col3 = rayo.
-   Las poses con aura traen el ajedrez dentro: se evitan (el aura se genera con partículas). */
-/* Hojas propias de Trunks, Freezer, Piccolo, Gohan y Célula (tools/make_chars.py):
-   0 quieto · 1-4 y 6-7 caminar · 5 golpe · 8 herido · 9 dash · 10 rayo · 11 técnica · 12-14 muerte */
-const A_NEW = { idle: 0, walk: [1, 2, 3, 4, 6, 7], atk: 5, atk2: 10, crit: 11, hurt: 8, dash: 9, death: [12, 13, 14] };
-/* Hojas en alta resolución (celdas de 216x158, tools/make_chars2.py):
-   0 quieto · 1 caminar · 2 correr · 3 salto · 5 golpe · 8 herido · 9 dash · 10 rayo · 11 técnica · 12-14 muerte */
+/* ---------- Animaciones: índices de fotograma de cada hoja (4 columnas, fila*4+columna) ---------- */
+/* 0 quieto · 1-2 caminar · 5 golpe · 8 herido · 9 dash · 10 rayo · 11 técnica · 12-14 muerte */
 const A_HD = { idle: 0, walk: [1, 2, 1, 0], atk: 5, atk2: 10, crit: 11, hurt: 8, dash: 9, death: [12, 13, 14] };
-const A_TRK = A_HD;
-const A_FRZ = Object.assign({}, A_NEW, { walk: [1, 2, 3, 2] });
-const A_PIC = Object.assign({}, A_NEW, { walk: [0, 1, 0, 1], dash: 9 });
-const A_KRL = A_HD;
-const A_GOH = A_HD;
-const rowAnim = (r, aura, over) => Object.assign({
-  idle: r * 4 + (aura ? 1 : 0), walk: [r * 4 + 1], atk: r * 4 + 2, atk2: r * 4 + 3, crit: r * 4 + 3,
-  hurt: -1, dash: r * 4 + 1, death: null
-}, over || {});
+const A_TRK = A_HD, A_KRL = A_HD, A_GOH = A_HD;
 
 /* ---------- Personajes y transformaciones ---------- */
 const form = (name, lvl, sheet, anim, dmg, spd, ki, aura, tint) => ({ name, lvl, sheet, anim, dmg, spd, ki, aura, tint });
-const SHADE_ALT = { sheet: 'shade', hurt: 8, death: [12, 13, 14] };
 
 const CHARACTERS = [
   {
@@ -44,14 +31,14 @@ const CHARACTERS = [
     portrait: { sheet: 'goku', frame: 0 },
     forms: [
       form('BASE', 1, 'goku', A_HD, 1.0, 1.0, 0xfff0a0, 0, 0xffffff),
-      form('KAIOKEN', 5, 'goku', A_HD, 1.25, 1.12, 0xff8a8a, 0xff3030, 0xffb0b0),
+      form('KAIOKEN', 5, 'goku_kk', A_HD, 1.25, 1.12, 0xff8a8a, 0xff3030, 0xffffff),
       form('SUPER SAIYAN', 10, 'goku_ss', A_HD, 1.55, 1.15, 0xffe14a, 0xffd84a, 0xffffff),
-      form('SUPER SAIYAN 2', 16, 'goku_ss', A_HD, 1.9, 1.2, 0xfff08a, 0xfff07a, 0xffffff),
+      form('SUPER SAIYAN 2', 16, 'goku_ss2', A_HD, 1.9, 1.2, 0xfff08a, 0xfff07a, 0xffffff),
       form('SUPER SAIYAN 3', 22, 'goku_ss3', A_HD, 2.3, 1.22, 0xffd24a, 0xffc83a, 0xffffff),
       form('SUPER SAIYAN 4', 26, 'goku_ss4', A_HD, 2.55, 1.25, 0xff6a5a, 0xff3a2a, 0xffffff),
       form('SUPER SAIYAN GOD', 29, 'goku_god', A_HD, 2.9, 1.28, 0xff6a4a, 0xff4a2a, 0xffffff),
       form('SUPER SAIYAN BLUE', 32, 'goku_blue', A_HD, 3.3, 1.32, 0x6fd8ff, 0x4fc8ff, 0xffffff),
-      form('BLUE KAIO-KEN', 35, 'goku_blue', A_HD, 3.65, 1.38, 0x6fd8ff, 0xff3a3a, 0xffc8c8),
+      form('BLUE KAIO-KEN', 35, 'goku_bkk', A_HD, 3.65, 1.38, 0x6fd8ff, 0xff3a3a, 0xffffff),
       form('ULTRA INSTINTO SEÑAL', 38, 'goku_sign', A_HD, 3.9, 1.42, 0xdfe8ff, 0xb8c8ff, 0xffffff),
       form('ULTRA INSTINTO', 41, 'goku_ui', A_HD, 4.3, 1.46, 0xdff4ff, 0xcfeaff, 0xffffff)
     ]
@@ -65,11 +52,12 @@ const CHARACTERS = [
     forms: [
       form('BASE', 1, 'vegeta', A_HD, 1.0, 1.0, 0x9ad0ff, 0, 0xffffff),
       form('SUPER SAIYAN', 8, 'vegeta_ss', A_HD, 1.45, 1.1, 0xffe14a, 0xffd24a, 0xffffff),
-      form('SUPER SAIYAN 2', 15, 'vegeta_ss', A_HD, 1.8, 1.16, 0xfff08a, 0xfff07a, 0xffffff),
-      form('SUPER SAIYAN GOD', 22, 'vegeta_god', A_HD, 2.25, 1.22, 0xff6a5a, 0xff4a3a, 0xffffff),
-      form('SUPER SAIYAN BLUE', 28, 'vegeta_blue', A_HD, 2.7, 1.28, 0x6fd8ff, 0x4fc8ff, 0xffffff),
-      form('BLUE EVOLUCIÓN', 34, 'vegeta_blue', A_HD, 3.2, 1.32, 0x4a8aff, 0x3a6aff, 0xd8e4ff),
-      form('ULTRA EGO', 40, 'vegeta_ue', A_HD, 3.9, 1.4, 0xc070ff, 0xa040ff, 0xffffff)
+      form('SUPER VEGETA', 13, 'vegeta_grade', A_HD, 1.7, 1.02, 0xffe14a, 0xffc83a, 0xffffff),
+      form('MAJIN VEGETA', 18, 'vegeta_majin', A_HD, 2.0, 1.18, 0xfff08a, 0xfff07a, 0xffffff),
+      form('SUPER SAIYAN 4', 23, 'vegeta_ss4', A_HD, 2.35, 1.22, 0xff6a5a, 0xff3a2a, 0xffffff),
+      form('SUPER SAIYAN GOD', 28, 'vegeta_god', A_HD, 2.7, 1.26, 0xff6a5a, 0xff4a3a, 0xffffff),
+      form('SUPER SAIYAN BLUE', 33, 'vegeta_blue', A_HD, 3.1, 1.3, 0x6fd8ff, 0x4fc8ff, 0xffffff),
+      form('BLUE EVOLUCIÓN', 38, 'vegeta_bfp', A_HD, 3.7, 1.36, 0x4a8aff, 0x3a6aff, 0xffffff)
     ]
   },
   {
@@ -82,8 +70,8 @@ const CHARACTERS = [
     forms: [
       form('BASE', 1, 'black', A_HD, 1.0, 1.0, 0xb26bff, 0, 0xffffff),
       form('SUPER SAIYAN', 12, 'black_ss', A_HD, 1.6, 1.12, 0xffe36a, 0xfff07a, 0xffffff),
-      form('SUPER SAIYAN ROSÉ', 24, 'black_old', rowAnim(2, true, { alt: SHADE_ALT }), 2.3, 1.2, 0xff7ac8, 0xff7ac8, 0xffffff),
-      form('ROSÉ · PODER TOTAL', 36, 'black_old', rowAnim(3, true, { alt: SHADE_ALT }), 3.2, 1.3, 0xff4fb0, 0xff3fa0, 0xffffff)
+      form('SUPER SAIYAN ROSÉ', 24, 'black_rose', A_HD, 2.3, 1.2, 0xff7ac8, 0xff7ac8, 0xffffff),
+      form('ROSÉ · PODER TOTAL', 36, 'black_rose', A_HD, 3.2, 1.3, 0xff4fb0, 0xff3fa0, 0xffd8ec)
     ]
   },
   {
@@ -93,10 +81,10 @@ const CHARACTERS = [
     ult: { name: 'HELLZONE GRENADE DEFINITIVO', key: 'Q', cost: 100, type: 'storm', dmg: 34, n: 22, r: 30, fx: ['#000', '#fff', '#ffd040', '#7aff6a', '#ffd040'] },
     portrait: { sheet: 'piccolo', frame: 0 },
     forms: [
-      form('BASE', 1, 'piccolo', A_PIC, 1.0, 1.0, 0x9cff8a, 0, 0xffffff),
-      form('FUSIÓN CON NAIL', 10, 'piccolo', A_PIC, 1.45, 1.1, 0x9cff8a, 0x8aff70, 0xf0fff0),
-      form('FUSIÓN CON KAMI', 20, 'piccolo', A_PIC, 1.95, 1.18, 0xd8ff9a, 0xc8ff7a, 0xffffff),
-      form('PICCOLO NARANJA', 32, 'piccolo', A_PIC, 2.7, 1.3, 0xffb060, 0xff9a3a, 0xffb878)
+      form('BASE', 1, 'piccolo', A_HD, 1.0, 1.0, 0x9cff8a, 0, 0xffffff),
+      form('FUSIÓN CON NAIL', 10, 'piccolo', A_HD, 1.45, 1.1, 0x9cff8a, 0x8aff70, 0xf0fff0),
+      form('FUSIÓN CON KAMI', 20, 'piccolo', A_HD, 1.95, 1.18, 0xd8ff9a, 0xc8ff7a, 0xffffff),
+      form('PICCOLO NARANJA', 32, 'piccolo', A_HD, 2.7, 1.3, 0xffb060, 0xff9a3a, 0xffb878)
     ]
   },
   {
@@ -106,11 +94,10 @@ const CHARACTERS = [
     ult: { name: 'KAMEHAMEHA PADRE-HIJO', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x8fe0ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'] },
     portrait: { sheet: 'gohan', frame: 0 },
     forms: [
-      form('BASE', 1, 'gohan', A_GOH, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
-      form('SUPER SAIYAN', 10, 'gohan_ss', A_GOH, 1.5, 1.12, 0xffe14a, 0xffd84a, 0xffffff),
-      form('SUPER SAIYAN 2', 18, 'gohan_ss', A_GOH, 2.0, 1.2, 0xfff08a, 0xfff07a, 0xffffff),
-      form('DEFINITIVO', 28, 'gohan_ul', A_GOH, 2.6, 1.25, 0xffffff, 0xf0f4ff, 0xffffff),
-      form('GOHAN BESTIA', 38, 'gohan_b', A_GOH, 3.5, 1.35, 0xd8b8ff, 0xc89aff, 0xffffff)
+      form('BASE', 1, 'gohan', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
+      form('SUPER SAIYAN', 10, 'gohan_ss', A_HD, 1.5, 1.12, 0xffe14a, 0xffd84a, 0xffffff),
+      form('SUPER SAIYAN 2', 20, 'gohan_ss2', A_HD, 2.1, 1.2, 0xfff08a, 0xfff07a, 0xffffff),
+      form('DEFINITIVO', 32, 'gohan_ul', A_HD, 2.9, 1.28, 0xffffff, 0xf0f4ff, 0xffffff)
     ]
   },
   {
@@ -121,12 +108,10 @@ const CHARACTERS = [
     portrait: { sheet: 'freezer1', frame: 0 },
     forms: [
       form('PRIMERA FORMA', 1, 'freezer1', A_HD, 1.0, 1.0, 0xd88aff, 0, 0xffffff),
-      form('SEGUNDA FORMA', 6, 'freezer2', A_HD, 1.3, 1.06, 0xd88aff, 0xc87aff, 0xffffff),
-      form('TERCERA FORMA', 12, 'freezer3', A_HD, 1.65, 1.1, 0xc89aff, 0xb08aff, 0xffffff),
-      form('FORMA FINAL', 18, 'freezer', A_FRZ, 2.0, 1.16, 0xff8ad8, 0xff7ac8, 0xffffff),
-      form('100% DE PODER', 24, 'freezer', A_FRZ, 2.45, 1.2, 0xff8ad8, 0xff6ab8, 0xffe0f4),
-      form('GOLDEN FREEZER', 31, 'freezer', A_FRZ, 3.0, 1.26, 0xffd84a, 0xffd23a, 0xffe070),
-      form('BLACK FREEZER', 38, 'freezer', A_FRZ, 3.7, 1.34, 0xa080ff, 0x8a6aff, 0x9a90b0)
+      form('TERCERA FORMA', 9, 'freezer3', A_HD, 1.5, 1.08, 0xc89aff, 0xb08aff, 0xffffff),
+      form('FORMA FINAL', 17, 'freezer', A_HD, 2.0, 1.16, 0xff8ad8, 0xff7ac8, 0xffffff),
+      form('100% DE PODER', 25, 'freezer_fp', A_HD, 2.6, 1.22, 0xff8ad8, 0xff6ab8, 0xffffff),
+      form('GOLDEN FREEZER', 33, 'freezer_gold', A_HD, 3.4, 1.3, 0xffd84a, 0xffd23a, 0xffffff)
     ]
   },
   {
@@ -149,10 +134,9 @@ const CHARACTERS = [
     ult: { name: 'BURNING SLASH', key: 'Q', cost: 100, type: 'slash', dmg: 40, r: 13, fx: ['#000', '#fff', '#9fe0ff', '#ff9a2a', '#ffd040'] },
     portrait: { sheet: 'trunks', frame: 0 },
     forms: [
-      form('BASE', 1, 'trunks', A_TRK, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
-      form('SUPER SAIYAN', 10, 'trunks_ss', A_TRK, 1.5, 1.12, 0xffe14a, 0xffd84a, 0xffffff),
-      form('SUPER TRUNKS', 20, 'trunks_ss', A_TRK, 2.05, 1.05, 0xffd84a, 0xffc83a, 0xfff6e0),
-      form('SUPER SAIYAN FURIA', 32, 'trunks_ss', A_TRK, 2.8, 1.3, 0xbfe8ff, 0x9fe0ff, 0xf4f8ff)
+      form('BASE', 1, 'trunks', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
+      form('SUPER SAIYAN', 10, 'trunks_ss', A_HD, 1.6, 1.14, 0xffe14a, 0xffd84a, 0xffffff),
+      form('SUPER SAIYAN FURIA', 26, 'trunks_ss', A_HD, 2.6, 1.28, 0xbfe8ff, 0x6fd8ff, 0xf0f8ff)
     ]
   },
   {
@@ -160,12 +144,12 @@ const CHARACTERS = [
     hp: 115, ki: 120, spd: 1.0, dmg: 1.08, start: ['cellbeam'], unique: ['cellbeam', 'cellkame', 'celljr', 'cellbarrier', 'cellself'],
     passive: { name: 'Absorción', desc: 'Curas 0,3 de vida por enemigo y cada 100 enemigos ganas +2% de daño (hasta +30%).' },
     ult: { name: 'KAMEHAMEHA SOLAR', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x6aff9a, end: 'kameBoomG', fx: ['#000', '#fff', '#3aff7a', '#ffe14a', '#3aff7a'] },
-    portrait: { sheet: 'cell', frame: 0 },
+    portrait: { sheet: 'cell_imp', frame: 0 },
     forms: [
-      form('PERFECTO', 1, 'cell', A_GOH, 1.0, 1.0, 0x8af0a0, 0, 0xffffff),
-      form('PODER TOTAL', 12, 'cell', A_GOH, 1.55, 1.12, 0xaaffb0, 0x7aff8a, 0xffffff),
-      form('SÚPER PERFECTO', 24, 'cell', A_GOH, 2.3, 1.22, 0x9fe0ff, 0x6fd8ff, 0xf4fbff),
-      form('CÉLULA DEFINITIVO', 36, 'cell', A_GOH, 3.3, 1.32, 0xffe86a, 0xffd23a, 0xfff6dc)
+      form('IMPERFECTO', 1, 'cell_imp', A_HD, 1.0, 1.0, 0x8af0a0, 0, 0xffffff),
+      form('SEMIPERFECTO', 12, 'cell_semi', A_HD, 1.6, 1.12, 0xaaffb0, 0x7aff8a, 0xffffff),
+      form('PERFECTO', 24, 'cell', A_HD, 2.4, 1.22, 0xffe86a, 0xffd23a, 0xffffff),
+      form('SÚPER PERFECTO', 36, 'cell', A_HD, 3.3, 1.32, 0x9fe0ff, 0x6fd8ff, 0xf0f8ff)
     ]
   }
 ];
@@ -293,7 +277,7 @@ const ENEMY_TYPES = [
   // Capitán Ginyu: élite. «Cambio de cuerpo»: si su rayo te alcanza, tus controles se invierten unos segundos
   { name: 'Capitán Ginyu', row: 4, hp: 8, spd: 0.95, scale: 1.7, tint: 0xffffff, dmg: 2, xp: 14, r: 1.3, cash: 30, knock: 10, smash: true, ab: 'bodychange' },
   // Saibaiman: corre hacia ti y se autodestruye (si lo matas antes, su explosión daña a la horda)
-  { name: 'Saibaiman', row: 0, hp: 0.7, spd: 1.45, scale: 0.9, tint: 0xd8ff9a, dmg: 2.4, xp: 1.4, r: 0.65, cash: 2, boom: true },
+  { name: 'Saibaiman', row: 0, hp: 0.7, spd: 1.45, scale: 0.9, tint: 0xffffff, dmg: 2.4, xp: 1.4, r: 0.65, cash: 2, boom: true },
   // Metal Cooler: cuerpo de metal (sus 4 primeros golpes apenas le hacen daño) que la Big Gete Star vuelve a reparar
   { name: 'Metal Cooler', row: 7, hp: 2.2, spd: 0.85, scale: 1.2, tint: 0xffffff, dmg: 1.3, xp: 2.2, r: 0.85, cash: 3, shield: 4, ab: 'regen' },
   // Androide 17: vuela, mantiene la distancia y dispara ráfagas de energía
@@ -380,7 +364,7 @@ const CURSE_BUFFS = ['c_dmg', 'c_hp', 'c_spd', 'c_rate'];
    La vida no va aquí: la pone el mapa (`bossHp`), así cualquier jefe sirve en cualquier mapa. */
 const BOSS_ANIM = {
   bosses: { walk: [0, 1, 2, 3], hit: 4, atk: 5, cast: 6, stun: 7 },
-  black_old: { walk: [1], hit: 2, atk: 3, cast: 3, stun: 0 }          // hoja de 4 columnas: una fila por forma
+  black_boss: { walk: [1, 0], hit: 2, atk: 3, cast: 3, stun: 0 }          // hoja de 4 columnas: una fila por forma
 };
 const BOSSES = {
   freezer: { name: 'FREEZER', sheet: 'bosses', row: 0, scale: 3.2, r: 1.9, col: 0xff5ad0,
@@ -416,7 +400,7 @@ const BOSSES = {
     moves: 'Muro de luz · Rayos de la absolución · Hojas del juicio · Ira divina',
     pat: [['wall', 'lightning'], ['wall', 'lightning', 'blades'], ['wall', 'lightning', 'blades', 'wrath', 'summon']] },
   // Goku Black: 4 fases = sus 4 formas (filas de la hoja "black"). Cada fase cambia de forma, de aura y de ataques.
-  black: { name: 'GOKU BLACK', sheet: 'black_old', rows: [0, 1, 2, 3], scale: 3.9, r: 2.2, col: 0xb26bff,
+  black: { name: 'GOKU BLACK', sheet: 'black_boss', rows: [0, 1, 2, 3], scale: 3.9, r: 2.2, col: 0xb26bff,
     forms: ['BASE', 'SUPER SAIYAN', 'SUPER SAIYAN ROSÉ', 'ROSÉ · PODER TOTAL'], tints: [0xb26bff, 0xffe36a, 0xff7ac8, 0xff4fb0], tintSprite: false,
     moves: 'Grieta de Black · Rayos · Embestida',
     pat: [['fan', 'ring', 'grieta'], ['fan', 'dash', 'grieta', 'ring'], ['fan', 'ring', 'grieta', 'rain', 'beam'], ['fan', 'dash', 'grieta', 'rain', 'beam', 'summon']] }
@@ -600,11 +584,12 @@ const TRAITS = {
   ],
   vegeta: [null,
     { name: 'Orgullo herido', good: '+8% de armadura y +10% de crítico', bad: '-10% de experiencia', m: { armor: 0.08, crit: 0.1, xp: -0.1 } },
+    { name: 'Super Vegeta', good: '+30% de daño', bad: '-15% de velocidad', m: { dmg: 0.3, spd: -0.15 } },
     { name: 'Explosión de orgullo', good: '+20% de cadencia y +20% de daño crítico', bad: 'Recibes un 15% más de daño', m: { rate: 0.2, critDmg: 0.2, armor: -0.15 } },
+    { name: 'Bestia dorada', good: '+18% de daño y +12% de crítico', bad: '-15% de regeneración de Ki', m: { dmg: 0.18, crit: 0.12, kiRegen: -0.15 } },
     { name: 'Ki divino del príncipe', good: '+2 de vida/s y +8% de armadura', bad: '-25% de alcance del imán', m: { regen: 2, armor: 0.08, magnet: -0.25 } },
     { name: 'Ki controlado', good: '+25% de daño crítico y +10% de cadencia', bad: 'Gasta 2 de Ki/s sin regenerarlo (carga con C)', m: { critDmg: 0.25, rate: 0.1 }, t: { kiDrain: 2 } },
-    { name: 'Evolución', good: '+15% de daño y +10% de crítico', bad: '-10% de vida máxima', m: { dmg: 0.15, crit: 0.1, maxHp: -0.1 } },
-    { name: 'Ego destructor', good: 'Cada golpe recibido sube tu daño un 3% (hasta +60%)', bad: 'Recibes un 25% más de daño', m: { armor: -0.25 }, t: { ego: 0.6 } }
+    { name: 'Evolución', good: '+15% de daño y +10% de crítico', bad: '-10% de vida máxima', m: { dmg: 0.15, crit: 0.1, maxHp: -0.1 } }
   ],
   black: [null,
     { name: 'Justicia oscura', good: 'Curas 1 de vida por cada enemigo', bad: '-10% de vida máxima', m: { killHeal: 1, maxHp: -0.1 } },
@@ -619,16 +604,13 @@ const TRAITS = {
   gohan: [null,
     { name: 'Despertar', good: '+8% de crítico y +25% de daño con poca vida', bad: '-15% de regeneración de Ki', m: { crit: 0.08, kiRegen: -0.15 }, t: { lowHp: 0.25 } },
     { name: 'Furia contenida', good: '+25% de cadencia y rayos a tu alrededor', bad: 'Recibes un 10% más de daño', m: { rate: 0.25, armor: -0.1 }, t: { bolt: 26 } },
-    { name: 'Potencial liberado', good: '+10% de crítico y +30% de experiencia', bad: 'Sin desventajas: es su poder definitivo', m: { crit: 0.1, xp: 0.3 } },
-    { name: 'Furia bestial', good: '+20% de cadencia y un aura que arrasa', bad: 'Pierdes un 0,8% de vida/s y -10% de armadura', m: { rate: 0.2, armor: -0.1 }, t: { aura: 60, hpDrain: 0.008 } }
+    { name: 'Potencial liberado', good: '+10% de crítico y +30% de experiencia', bad: 'Sin desventajas: es su poder definitivo', m: { crit: 0.1, xp: 0.3 } }
   ],
   freezer: [null,
-    { name: 'Fuerza bruta', good: '+15% de daño y +10% de armadura', bad: '-10% de velocidad', m: { dmg: 0.15, armor: 0.1, spd: -0.1 } },
     { name: 'Forma monstruosa', good: '+15% de crítico', bad: '-15% de regeneración de Ki', m: { crit: 0.15, kiRegen: -0.15 } },
     { name: 'Cuerpo perfecto', good: '+20% de velocidad y +10% de esquiva', bad: '-10% de vida máxima', m: { spd: 0.2, dodge: 0.1, maxHp: -0.1 } },
     { name: 'Poder forzado', good: '+20% de daño', bad: 'Se agota: -40% de regeneración de Ki', m: { dmg: 0.2, kiRegen: -0.4 } },
-    { name: 'Oro puro', good: '+30% de Zeni y +15% de velocidad', bad: 'Gasta 5 de Ki/s sin regenerarlo: aguanta poco', m: { zeni: 0.3, spd: 0.15 }, t: { kiDrain: 5 } },
-    { name: 'Entrenamiento perfecto', good: '+15% de crítico, +40% de daño crítico y +10% de armadura', bad: 'El ego del emperador: -20% de experiencia', m: { crit: 0.15, critDmg: 0.4, armor: 0.1, xp: -0.2 } }
+    { name: 'Oro puro', good: '+30% de Zeni y +15% de velocidad', bad: 'Gasta 5 de Ki/s sin regenerarlo: aguanta poco', m: { zeni: 0.3, spd: 0.15 }, t: { kiDrain: 5 } }
   ],
   krilin: [null,
     { name: 'Potencial de Guru', good: '+10% de esquiva y +10% de crítico', bad: '-10% de vida máxima', m: { dodge: 0.1, crit: 0.1, maxHp: -0.1 } },
@@ -637,13 +619,12 @@ const TRAITS = {
   ],
   trunks: [null,
     { name: 'Sangre Saiyajin', good: '+8% de crítico', bad: '-10% de regeneración de Ki', m: { crit: 0.08, kiRegen: -0.1 } },
-    { name: 'Músculo puro', good: '+15% de armadura y +10% de daño', bad: '-15% de velocidad (demasiado pesado)', m: { armor: 0.15, dmg: 0.1, spd: -0.15 } },
     { name: 'Furia del futuro', good: '+20% de cadencia y rayos a tu alrededor', bad: 'Pierdes un 0,6% de vida por segundo', m: { rate: 0.2 }, t: { bolt: 34, hpDrain: 0.006 } }
   ],
   cell: [null,
     { name: 'Células de Saiyajin', good: '+10% de daño y +1 de vida/s', bad: '-10% de regeneración de Ki', m: { dmg: 0.1, regen: 1, kiRegen: -0.1 } },
-    { name: 'Regeneración Zenkai', good: '+20% de cadencia y +2 de vida/s', bad: 'Recibes un 10% más de daño', m: { rate: 0.2, regen: 2, armor: -0.1 } },
-    { name: 'Perfección absoluta', good: '+15% de crítico, +30% de daño crítico y rayos a tu alrededor', bad: 'Pierdes un 0,5% de vida por segundo', m: { crit: 0.15, critDmg: 0.3 }, t: { bolt: 36, hpDrain: 0.005 } }
+    { name: 'Perfección absoluta', good: '+15% de crítico, +30% de daño crítico y rayos a tu alrededor', bad: 'Pierdes un 0,5% de vida por segundo', m: { crit: 0.15, critDmg: 0.3 }, t: { bolt: 36, hpDrain: 0.005 } },
+    { name: 'Regeneración Zenkai', good: '+20% de cadencia y +2 de vida/s', bad: 'Recibes un 10% más de daño', m: { rate: 0.2, regen: 2, armor: -0.1 } }
   ]
 };
 /** Fusiones que puede hacer un personaje (las suyas y las de cualquiera) */
@@ -660,34 +641,50 @@ const FORM_FX = {
   goku: [null, { spark: 'sparkY', burst: 'tfRose' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' },
     { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { a: 'auraSS3', bolt: 0xfff27a, spark: 'sparkY', burst: 'tfGold' },
     { bolt: 0xff6a4a, burst: 'tfRose' }, { spark: 'sparkY', burst: 'tfRose' }, { spark: 'lightB' }, { bolt: 0xff6a6a, spark: 'lightB', burst: 'tfRose' }, { spark: 'lightB' }, { spark: 'lightB', bolt: 0xdff4ff }],
-  vegeta: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' },
-    { spark: 'sparkY', burst: 'tfRose' }, { spark: 'lightB' }, { bolt: 0x6a9aff, spark: 'lightB' }, { bolt: 0xc070ff, burst: 'tfDark' }],
+  vegeta: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraGold', bolt: 0xfff27a, spark: 'sparkY', burst: 'tfGold' },
+    { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xff6a4a, burst: 'tfRose' }, { spark: 'sparkY', burst: 'tfRose' },
+    { spark: 'lightB' }, { bolt: 0x6a9aff, spark: 'lightB' }],
   black: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { burst: 'tfPink' }, { bolt: 0xff8ad0, burst: 'tfBlades' }],
   piccolo: [null, { spark: 'sparkG' }, { spark: 'sparkG', bolt: 0xc8ff9a }, { bolt: 0xffb060, burst: 'tfGold2' }],
-  gohan: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, burst: 'tfGold' }, { spark: 'lightB' },
-    { bolt: 0xe0b0ff, burst: 'tfStar' }],
-  freezer: [null, { burst: 'tfStar' }, { bolt: 0xc89aff, burst: 'tfDark' }, { burst: 'tfPink' }, { bolt: 0xff9ae0, burst: 'tfPink' },
-    { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xa080ff, burst: 'tfDark' }],
+  gohan: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, burst: 'tfGold' }, { spark: 'lightB', burst: 'tfStar' }],
+  freezer: [null, { bolt: 0xc89aff, burst: 'tfDark' }, { burst: 'tfPink' }, { bolt: 0xff9ae0, burst: 'tfPink' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }],
   krilin: [null, { spark: 'sparkY' }, { spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xffffff, burst: 'tfGold' }],
-  trunks: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xbfeaff, spark: 'lightB' }],
-  cell: [null, { spark: 'sparkG' }, { spark: 'lightB', bolt: 0xbfeeff }, { a: 'auraSS2', bolt: 0xfff27a, burst: 'tfGold' }]
+  trunks: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xbfeaff, spark: 'lightB', burst: 'tfStar' }],
+  cell: [null, { spark: 'sparkG', burst: 'tfGold2' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xbfeeff, spark: 'lightB' }]
 };
 const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;
 
-/* ---------- Pose de CARGAR KI de cada forma (hojas <personaje>_chg, tools/make_charge.py) ----------
-   Fotograma de la hoja de carga para cada forma (mismo índice que forms); -1 = sin pose propia (se usa la de quieto
-   con el aura del juego). La pose ya trae el aura de la forma dibujada */
+/* ---------- Pose de CARGAR KI de cada forma (hojas <personaje>_chg, tools/make_zip.py) ----------
+   [primer fotograma, nº de fotogramas] de la hoja de carga (mismo índice que forms; la animación va en bucle);
+   null = sin pose propia (se usa la de quieto con el aura del juego). La pose ya trae el aura de la forma */
 const FORM_CHG = {
-  goku: [-1, -1, 0, 1, 2, 3, 4, 5, 8, 7, 6],
-  vegeta: [-1, 0, 1, 2, 3, 4, 5],
-  krilin: [0, 0, 0, 0],
-  trunks: [0, 1, 1, 1],
-  gohan: [-1, 0, 0, 1, 2],
-  cell: [0, 0, 0, 0],
-  black: [-1, 0, 1, 2],
-  freezer: [0, 1, 2, -1, -1, -1, -1]
+  goku: [[0, 3], [3, 3], [6, 3], [9, 3], [12, 3], [15, 3], [18, 2], [20, 3], [23, 2], [25, 2], [27, 2]],
+  vegeta: [[0, 3], [3, 3], [6, 3], [9, 3], [12, 3], [15, 2], [17, 3], [20, 2]],
+  black: [[0, 2], [2, 3], [5, 2], [7, 1]],
+  gohan: [[0, 3], [3, 3], [6, 3], [9, 2]],
+  freezer: [[0, 3], [3, 2], [5, 3], [8, 3], [11, 2]],
+  trunks: [[0, 2], [2, 2], [4, 1]],
+  cell: [[0, 3], [3, 3], [6, 3], [6, 3]],
+  piccolo: [[0, 2], [0, 2], [0, 2], [0, 2]]
 };
-const formChg = (ch, idx) => { const f = (FORM_CHG[ch.id] || [])[idx]; return f === undefined ? -1 : f; };
+const formChg = (ch, idx) => (FORM_CHG[ch.id] || [])[idx] || null;
+
+/* ---------- Créditos: autores de los sprites del pack «Dragon Ball Sagas» (archivo «Hecho por …» de cada carpeta) ---------- */
+const SPRITE_CREDITS = [
+  { author: "qsab101", what: ["Goku Black", "Goku Black Rose", "Goku Instinto Superior", "Goku Instinto Superior Completo", "Goku SSJ 2", "Goku kaioken", "Golden Freeza", "Kuririn", "Mirai Trunks", "Vegeta SSJ 4", "Vegeta Ssj Grade"] },
+  { author: "LukasAhl1", what: ["Freeza Forma Final", "Goku God", "Goku SSJ 1", "Goku SSJ 3", "Majin Vegeta", "Piccolo", "Super Mirai Trunks", "Teen Gohan SSJ", "Teen Gohan SSJ2", "cell Perfeito"] },
+  { author: "MV95", what: ["Cell Imperfeito", "Freeza Full Power", "Freeza Primeira Forma", "Goku Blue Kaioken Whis Gi", "Vegeta Blue"] },
+  { author: "thekrillmaster", what: ["Cell Semi Perfeito", "Goku Black SSJ", "Saibaman"] },
+  { author: "PeculiarDoc", what: ["Gohan Adulto", "Goku Blue"] },
+  { author: "gogeta68", what: ["Vegeta Saga Buu SSJ"] },
+  { author: "JuanGomezgg", what: ["Goku SSJ 4"] },
+  { author: "LICHT", what: ["Androide 17"] },
+  { author: "MajinVegeta95", what: ["Freeza Terceira Forma"] },
+  { author: "Manikdx2000", what: ["Vegeta Sayajin Saga"] },
+  { author: "papurotekikujimo", what: ["Gohan Mistico"] },
+  { author: "Vsouza", what: ["Vegeta Ssj God"] },
+  { author: "Woothrad", what: ["Vegeta Blue Full Power"] }
+];
 /** Aplica los cambios de estadísticas de un rasgo (lo llama Player.recompute) */
 function applyTraitStats(p, T) {
   const m = T.m || {};

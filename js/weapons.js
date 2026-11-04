@@ -688,8 +688,8 @@ class WeaponSystem {
     if (made) { g.ui.toast('¡CÉLULA JR.!', true); SFX.play('pulse'); }
   }
   updateJrs(dt, g) {
-    const sh = g.player.sheets && g.player.sheets.cell;
-    if (!this.jrB) { if (!sh || !this.jrs.some((j) => j.on)) return; this.jrB = new SpriteBatch(this.scene, { max: this.jrs.length, texture: sh.tex, cols: sh.cols, rows: sh.rows, w: 3.6 * (sh.w / sh.h), h: 3.6, anchor: 0.04, renderOrder: 3 }); }
+    const sh = g.player.sheets && g.player.sheets.cell;     // Célula Jr.: el sprite de Célula Perfecto en pequeño y azul
+    if (!this.jrB) { if (!sh || !this.jrs.some((j) => j.on)) return; const H = 3.6 * (sh.hs || 1); this.jrB = new SpriteBatch(this.scene, { max: this.jrs.length, texture: sh.tex, cols: sh.cols, rows: sh.rows, w: H * (sh.w / sh.h), h: H, anchor: sh.anc || 0.04, renderOrder: 3 }); }
     const B = this.jrB, h = g.horde;
     B.begin();
     for (const j of this.jrs) {
@@ -705,8 +705,8 @@ class WeaponSystem {
         if (d < 2 && j.hit <= 0) { j.hit = 0.45; DMG_SRC = j.src; h.damageRadius(j.x, j.z, 1.8, j.dmg, 8, g); DMG_SRC = 'otros'; if (g.vfx) g.vfx.play('hitRing', h.x[i], 1.2, h.z[i], { size: 2.4, fps: 26, tint: 0x8ab8ff }); }
         if (j.beam && j.shot <= 0 && d < 16) { j.shot = 1.2; DMG_SRC = j.src; this.beam(j.x, j.z, dx / d, dz / d, 16, 0.35, j.dmg * 0.6, 0.16, 99, 0x8aff9a, false); DMG_SRC = 'otros'; }
       } else { const p = g.player, dx = p.x - j.x, dz = p.z - j.z, d = Math.hypot(dx, dz) || 1; if (d > 3) { j.x += dx / d * 9 * dt; j.z += dz / d * 9 * dt; moving = true; } }
-      const fr = 16 + (moving ? ((j.ph * 10) | 0) % 4 : 0);
-      B.push(j.x, moving ? Math.abs(Math.sin(j.ph * 10)) * 0.1 : 0, j.z, fr, j.flip, j.hit > 0.35 ? 0.6 : 0, 0.62, 1, 0xffffff);
+      const fr = moving ? [1, 2, 1, 0][((j.ph * 8) | 0) % 4] : j.hit > 0.35 ? 5 : 0;
+      B.push(j.x, moving ? Math.abs(Math.sin(j.ph * 10)) * 0.1 : 0, j.z, fr, j.flip, j.hit > 0.35 ? 0.6 : 0, 0.62, 1, 0x8ab8ff);
     }
     B.end();
   }

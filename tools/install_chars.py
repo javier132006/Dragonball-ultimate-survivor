@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Instala hojas de personaje (de make_chars.py / make_chars2.py) en assets/sprites.js: las cuantiza a 256 colores
+"""Instala hojas de personaje (de make_zip.py) en assets/sprites.js: las cuantiza a 256 colores
 y las mete (o sustituye) sin tocar las demás hojas ni la lista de animaciones FX_ANIMS.
 Uso: python3 tools/install_chars.py CARPETA_CON_png_Y_chars.json [-quitar hoja1,hoja2]"""
 import json, os, sys

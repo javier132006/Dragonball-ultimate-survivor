@@ -31,11 +31,12 @@ const TRANSFORM_FX = {
   vegeta: [
     null,
     { c1: '#ffd400', c2: '#fff4a0', quote: '¡¡KAKAROTTO!!', frames: 'IWBIC', charge: 1.9, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.2, kanji: '超サイヤ人' },
+    { c1: '#ffd400', c2: '#fff4a0', quote: '¡¡SOY SUPER VEGETA!!', frames: 'IWBIBC', charge: 2.0, fx: ['rocks', 'cracks', 'quake', 'bolts'], bolt: '#fff27a', shake: 1.3, kanji: '超ベジータ' },
     { c1: '#ffe14a', c2: '#bfe8ff', quote: '¡SOY EL PRÍNCIPE DE LOS SAIYAJIN!', frames: 'IWIBIC', charge: 2.0, fx: ['bolts', 'sparks', 'rocks'], bolt: '#9fe0ff', shake: 1.2, kanji: '超サイヤ人２' },
+    { c1: '#ff2a3a', c2: '#ffb090', quote: '¡El poder de un Saiyajin de verdad!', frames: 'BIWIBC', charge: 2.2, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#ff8a6a', shake: 1.3, kanji: '超サイヤ人４' },
     { c1: '#ff3a2a', c2: '#ffb090', quote: 'Ahora tengo el poder de un dios.', frames: 'CWC', charge: 1.9, fx: ['flame'], shake: 0.2, kanji: '超サイヤ人ゴッド' },
     { c1: '#2ec8ff', c2: '#c8f4ff', quote: 'Ki divino... bajo mi control.', frames: 'WCIC', charge: 1.7, fx: ['ripple', 'sparks'], shake: 0.6, kanji: '超サイヤ人ブルー' },
-    { c1: '#2a6aff', c2: '#a8c8ff', quote: '¡He superado mis límites!', frames: 'BIWIBC', charge: 2.2, fx: ['bolts', 'shatter', 'sparks', 'quake'], bolt: '#8ab8ff', shake: 1.3, kanji: '進化' },
-    { c1: '#a03aff', c2: '#e0b8ff', quote: '¡NO TENGO LÍMITES!', frames: 'BIBWBIC', charge: 2.4, fx: ['silence', 'shatter', 'bolts'], bolt: '#d08aff', shake: 1.3, kanji: '我儘の極意' }
+    { c1: '#2a6aff', c2: '#a8c8ff', quote: '¡He superado mis límites!', frames: 'BIWIBC', charge: 2.2, fx: ['bolts', 'shatter', 'sparks', 'quake'], bolt: '#8ab8ff', shake: 1.3, kanji: '進化' }
   ],
   piccolo: [
     null,
@@ -47,17 +48,14 @@ const TRANSFORM_FX = {
     null,
     { c1: '#ffd400', c2: '#fff6a0', quote: '¡No os lo perdonaré!', frames: 'WIBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#fff27a', shake: 1.0, kanji: '超サイヤ人' },
     { c1: '#ffe14a', c2: '#bfe8ff', quote: '¡¡BASTA YA!!', frames: 'IWIBIC', charge: 2.0, fx: ['bolts', 'sparks', 'rocks', 'quake'], bolt: '#9fe0ff', shake: 1.3, kanji: '超サイヤ人２' },
-    { c1: '#ffffff', c2: '#c8d8ff', quote: 'Todo mi potencial... despierta.', frames: 'WCIC', charge: 1.9, fx: ['ripple', 'stars'], shake: 0.5, kanji: '究極' },
-    { c1: '#b07aff', c2: '#f0e0ff', quote: '¡¡AAAAAAAHHHHHH!!', frames: 'BIWBIWBC', charge: 2.6, fx: ['bolts', 'cracks', 'rocks', 'quake', 'shatter'], bolt: '#e0b0ff', shake: 1.5, kanji: '獣' }
+    { c1: '#ffffff', c2: '#c8d8ff', quote: 'Todo mi potencial... despierta.', frames: 'WCIC', charge: 1.9, fx: ['ripple', 'stars'], shake: 0.5, kanji: '究極' }
   ],
   freezer: [
     null,
-    { c1: '#c87aff', c2: '#f0d8ff', quote: 'Te enseñaré la desesperación.', frames: 'WIC', charge: 1.5, fx: ['rocks', 'bolts'], bolt: '#e0b0ff', shake: 0.9, kanji: '第二形態' },
     { c1: '#a06aff', c2: '#e8d8ff', quote: 'Mi tercera forma... contemplad el terror.', frames: 'IWBIC', charge: 1.8, fx: ['rocks', 'cracks', 'quake'], shake: 1.1, kanji: '第三形態' },
     { c1: '#ff6ad8', c2: '#ffd0f0', quote: 'Esta es mi forma final.', frames: 'BIWIC', charge: 2.0, fx: ['shatter', 'sparks', 'ripple'], bolt: '#ff9ae0', shake: 1.0, kanji: '最終形態' },
     { c1: '#ff6ad8', c2: '#ffd0f0', quote: 'Ahora verás el 100% de mi poder.', frames: 'IWC', charge: 1.7, fx: ['bolts', 'sparks'], bolt: '#ff9ae0', shake: 0.9, kanji: '百パーセント' },
-    { c1: '#ffd400', c2: '#fff6c0', quote: 'Contempla mi forma dorada.', frames: 'WIBIC', charge: 2.0, fx: ['stars', 'ripple', 'bolts'], bolt: '#fff27a', shake: 0.8, kanji: 'ゴールデン' },
-    { c1: '#6a4aff', c2: '#c8b8ff', quote: '...Inclinaos ante el emperador.', frames: 'BIBWBIC', charge: 2.4, fx: ['silence', 'shatter', 'bolts'], bolt: '#a080ff', shake: 1.1, kanji: '黒' }
+    { c1: '#ffd400', c2: '#fff6c0', quote: 'Contempla mi forma dorada.', frames: 'WIBIC', charge: 2.0, fx: ['stars', 'ripple', 'bolts'], bolt: '#fff27a', shake: 0.8, kanji: 'ゴールデン' }
   ],
   krilin: [
     null,
@@ -68,14 +66,13 @@ const TRANSFORM_FX = {
   trunks: [
     null,
     { c1: '#ffd400', c2: '#fff6a0', quote: '¡Por el futuro!', frames: 'WIBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#fff27a', shake: 1.0, kanji: '超サイヤ人' },
-    { c1: '#ffc400', c2: '#ffe8a0', quote: '¡¡HAAAAAAAA!!', frames: 'IWBIBC', charge: 2.1, fx: ['rocks', 'cracks', 'quake'], shake: 1.4, kanji: '超トランクス' },
     { c1: '#9fe0ff', c2: '#ffffff', quote: '¡No os perdonaré jamás!', frames: 'BIWBIC', charge: 2.2, fx: ['bolts', 'slash', 'sparks', 'shatter'], bolt: '#bfeaff', shake: 1.3, kanji: '怒り' }
   ],
   cell: [
     null,
     { c1: '#6aff8a', c2: '#e0ffe8', quote: 'Ahora verás mi verdadero poder.', frames: 'WIC', charge: 1.6, fx: ['bolts', 'sparks'], bolt: '#b0ffc0', shake: 0.8, kanji: '完全体' },
-    { c1: '#6fd8ff', c2: '#e8fbff', quote: 'He vuelto... más perfecto que nunca.', frames: 'IWBIC', charge: 2.0, fx: ['bolts', 'ripple', 'rocks'], bolt: '#bfeeff', shake: 1.1, kanji: '超完全体' },
-    { c1: '#ffd84a', c2: '#fff4c0', quote: '¡¡SOY EL GUERRERO PERFECTO!!', frames: 'BIWIBC', charge: 2.3, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.4, kanji: '究極' }
+    { c1: '#ffd84a', c2: '#fff4c0', quote: '¡¡SOY EL GUERRERO PERFECTO!!', frames: 'BIWIBC', charge: 2.3, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.4, kanji: '究極' },
+    { c1: '#6fd8ff', c2: '#e8fbff', quote: 'He vuelto... más perfecto que nunca.', frames: 'IWBIC', charge: 2.0, fx: ['bolts', 'ripple', 'rocks'], bolt: '#bfeeff', shake: 1.1, kanji: '超完全体' }
   ],
   black: [
     null,
