@@ -2,14 +2,8 @@
  "vegeta": {
   "cols": 4,
   "rows": 4,
-  "w": 108,
-  "h": 79
- },
- "goku_b": {
-  "cols": 4,
-  "rows": 4,
-  "w": 108,
-  "h": 79
+  "w": 216,
+  "h": 158
  },
  "shade": {
   "cols": 4,
@@ -18,12 +12,6 @@
   "h": 79
  },
  "black": {
-  "cols": 4,
-  "rows": 4,
-  "w": 108,
-  "h": 79
- },
- "goku_a": {
   "cols": 4,
   "rows": 4,
   "w": 108,
@@ -132,6 +120,72 @@
   "h": 158
  },
  "gohan_b": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "goku": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "goku_ss": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "goku_ss3": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "goku_ss4": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "goku_god": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "goku_blue": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "goku_ui": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "vegeta_ss": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "vegeta_god": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "vegeta_blue": {
+  "cols": 4,
+  "rows": 4,
+  "w": 216,
+  "h": 158
+ },
+ "vegeta_ue": {
   "cols": 4,
   "rows": 4,
   "w": 216,

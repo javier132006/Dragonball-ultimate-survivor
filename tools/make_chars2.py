@@ -39,7 +39,77 @@ CHARS = {
    # Célula Jr. (hoja antigua f16): escala propia
    16: B(16, 355, 445, 420, 500, abs=2.0), 17: B(16, 425, 445, 490, 500, abs=2.0), 18: B(16, 495, 445, 560, 500, abs=2.0), 19: B(16, 565, 445, 630, 500, abs=2.0)}),
 }
+
+# ---------- Goku y Vegeta (hojas f22..f30). hh = altura final del fotograma en píxeles (poses sacadas de recuadros
+# pequeños: golpe, rayo, herido, muerte) ----------
+def P(i, box, hh=None):
+    return B(i, *box, **({'hh': hh} if hh else {}))
+def std(i, st, wk, rn, jp, atk, beam, hurt, d1, d2, h=148, rows=4, hi=None):
+    a = 0.86 * h; j = hi or i                             # hi: hoja de la que salen herido/muerte (si la forma no los tiene)
+    ha = None if atk == rn else a; hb = None if beam == rn else a      # si el golpe es la pose de correr, misma escala
+    return dict(h=h, rows=rows, f={0: P(i, st), 1: P(i, wk), 2: P(i, rn), 3: P(i, jp), 5: P(i, atk, ha), 9: P(i, rn),
+        10: P(i, beam, hb), 11: P(i, atk, ha), 8: P(j, hurt, 0.62 * h), 12: P(j, hurt, 0.62 * h), 13: P(j, d1, 0.45 * h), 14: P(j, d2, 0.42 * h)})
+CHARS.update({
+ 'goku': std(29, (40, 58, 135, 196), (241, 59, 308, 192), (420, 76, 527, 187), (604, 42, 691, 194), (1249, 27, 1320, 138), (1249, 27, 1320, 138),
+             (745, 68, 839, 152), (819, 123, 905, 201), (819, 123, 905, 201)),
+ 'goku_ss': std(26, (40, 44, 135, 196), (224, 250, 300, 392), (422, 49, 528, 189), (604, 40, 692, 196), (1249, 9, 1312, 138), (1249, 9, 1312, 138),
+             (738, 49, 842, 154), (817, 118, 913, 196), (817, 118, 913, 196)),
+ 'goku_ss3': std(28, (15, 48, 165, 196), (409, 50, 527, 189), (409, 50, 527, 189), (560, 55, 690, 196), (409, 50, 527, 189), (560, 55, 690, 196),
+             (738, 49, 842, 154), (817, 118, 913, 196), (817, 118, 913, 196), hi=26),
+ 'goku_ss4': std(28, (1099, 55, 1205, 192), (1099, 55, 1205, 192), (1254, 62, 1363, 192), (1254, 62, 1363, 192), (1084, 268, 1170, 392), (1084, 268, 1170, 392),
+             (940, 53, 1046, 192), (740, 54, 844, 153), (740, 54, 844, 153)),
+ 'goku_god': std(30, (41, 502, 134, 714), (211, 504, 309, 715), (379, 515, 507, 685), (580, 500, 686, 704), (379, 515, 507, 685), (379, 515, 507, 685),
+             (727, 257, 842, 352), (794, 324, 915, 402), (735, 633, 901, 712), h=152),
+ 'goku_blue': std(27, (11, 46, 156, 200), (379, 512, 507, 684), (379, 512, 507, 684), (379, 512, 507, 684), (379, 512, 507, 684), (379, 512, 507, 684),
+             (737, 50, 843, 157), (767, 119, 923, 200), (767, 119, 923, 200)),
+ 'goku_ui': std(25, (41, 492, 136, 714), (207, 494, 307, 715), (371, 509, 507, 684), (579, 488, 687, 707), (371, 509, 507, 684), (371, 509, 507, 684),
+             (737, 253, 839, 345), (760, 470, 895, 560), (735, 625, 895, 712), h=152),
+ 'vegeta': std(22, (28, 42, 125, 196), (214, 46, 308, 192), (403, 53, 527, 192), (604, 42, 684, 200), (1249, 15, 1320, 136), (1249, 15, 1320, 136),
+             (741, 59, 842, 153), (786, 124, 913, 193), (786, 124, 913, 193), h=142),
+ 'vegeta_ss': std(22, (54, 244, 122, 400), (232, 236, 307, 396), (407, 246, 511, 390), (594, 236, 687, 397), (1100, 261, 1170, 393), (1242, 257, 1310, 392),
+             (733, 257, 841, 349), (794, 317, 909, 395), (794, 317, 909, 395), h=144),
+ 'vegeta_god': std(24, (50, 40, 125, 196), (241, 41, 307, 191), (423, 47, 527, 190), (604, 34, 690, 196), (1091, 11, 1160, 135), (1091, 11, 1160, 135),
+             (739, 55, 841, 136), (818, 125, 912, 196), (818, 125, 912, 196), h=142),
+ 'vegeta_blue': std(23, (55, 244, 125, 400), (230, 244, 306, 395), (406, 249, 510, 390), (600, 237, 687, 397), (1101, 259, 1170, 393), (1101, 259, 1170, 393),
+             (735, 257, 841, 351), (794, 323, 917, 394), (794, 323, 917, 394), h=144),
+ 'vegeta_ue': std(24, (381, 501, 506, 683), (381, 501, 506, 683), (381, 501, 506, 683), (381, 501, 506, 683), (1116, 420, 1190, 543), (1116, 420, 1190, 543),
+             (761, 471, 900, 561), (735, 620, 900, 720), (735, 620, 900, 720), h=148),
+})
+def unlabel(rgba):
+    """Quita los rótulos de texto que se cuelan en el recorte (letras blancas cerca del borde de arriba o de abajo)"""
+    from scipy import ndimage as nd
+    a = rgba[:, :, 3] > 0; H = a.shape[0]
+    lab, n = nd.label(a, structure=np.ones((3, 3)))
+    if n < 2: return rgba
+    sz = nd.sum(a, lab, range(1, n + 1)); big = int(np.argmax(sz)) + 1
+    wh = rgba[:, :, :3].min(2) > 190
+    out = rgba.copy()
+    for k, sl in enumerate(nd.find_objects(lab), 1):
+        if k == big: continue
+        h = sl[0].stop - sl[0].start; m = lab[sl] == k
+        if h < 34 and (sl[0].start > H * 0.72 or sl[0].stop < H * 0.2) and wh[sl][m].mean() > 0.15: out[sl][m] = 0
+    return out
+def unborder(rgba, n=16):
+    """Quita las líneas oscuras del marco del recuadro (y el ajedrez pegado a ellas) en los bordes del recorte"""
+    out = rgba.copy(); a = out[:, :, 3] > 0; dark = (out[:, :, :3].max(2) < 60) & a
+    H, W = a.shape
+    for xs in (range(min(n, W)), range(W - 1, max(W - 1 - n, -1), -1)):
+        cut_to = None
+        for x in xs:
+            if dark[:, x].sum() > 0.45 * H: cut_to = x
+        if cut_to is not None:
+            sl = slice(0, cut_to + 1) if xs.start == 0 else slice(cut_to, W)
+            out[:, sl, 3] = 0
+    for ys in (range(min(n, H)), range(H - 1, max(H - 1 - n, -1), -1)):
+        cut_to = None
+        for y in ys:
+            if dark[y].sum() > 0.45 * W: cut_to = y
+        if cut_to is not None:
+            sl = slice(0, cut_to + 1) if ys.start == 0 else slice(cut_to, H)
+            out[sl, :, 3] = 0
+    return out
 def place(rgba, k):
+    rgba = unlabel(unborder(rgba))
     a = rgba[:, :, 3] > 0
     ys, xs = np.nonzero(a)
     h = ys.max() - ys.min() + 1
@@ -69,7 +139,8 @@ if __name__ == '__main__':
         k = C['h'] / max(h.max() - h.min() + 1 for h in hs)
         sheet = Image.new('RGBA', (CW * 4, CH * rows), (0, 0, 0, 0))
         for idx, (fr, o) in frames.items():
-            c = place(fr, o.get('abs', k * o.get('rel', 1))); sheet.paste(c, ((idx % 4) * CW, (idx // 4) * CH))
+            kk = o['hh'] / (np.ptp(np.nonzero(fr[:, :, 3])[0]) + 1) if 'hh' in o else o.get('abs', k * o.get('rel', 1))
+            c = place(fr, kk); sheet.paste(c, ((idx % 4) * CW, (idx // 4) * CH))
         sheet.save(os.path.join(out, name + '.png')); meta[name] = {'cols': 4, 'rows': rows, 'w': CW, 'h': CH}
         print(name, round(k, 3))
     json.dump(meta, open(os.path.join(out, 'chars.json'), 'w'))

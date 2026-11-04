@@ -63,7 +63,7 @@ class Game {
     this.drag = false;
     try {
       if (typeof THREE === 'undefined') throw new Error('Three.js no se cargó desde el CDN. Revisa tu conexión a internet.');
-      if (!sheets || !sheets.goku_a || !sheets.shade) throw new Error('No se pudieron cargar los spritesheets (assets/sprites.js). Comprueba que la carpeta "assets" está junto a index.html.');
+      if (!sheets || !sheets.goku || !sheets.shade) throw new Error('No se pudieron cargar los spritesheets (assets/sprites.js). Comprueba que la carpeta "assets" está junto a index.html.');
       this.initGL(sheets);
     } catch (err) {
       console.error(err);

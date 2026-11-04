@@ -5,14 +5,13 @@
    enemigos, mejoras del laboratorio y guardado local.
    ===================================================================== */
 
-/* Hojas que se cargan al arrancar. Krilin, Trunks, Gohan y Célula usan hojas en alta resolución (tools/make_chars2.py) */
-const SHEET_NAMES = ['goku_a', 'goku_b', 'vegeta', 'black', 'shade', 'trunks', 'trunks_ss', 'freezer', 'piccolo', 'gohan', 'gohan_ss', 'gohan_ul', 'gohan_b', 'cell',
+/* Hojas que se cargan al arrancar. Goku, Vegeta, Krilin, Trunks, Gohan y Célula usan hojas en alta resolución (tools/make_chars2.py) */
+const SHEET_NAMES = ['goku', 'goku_ss', 'goku_ss3', 'goku_ss4', 'goku_god', 'goku_blue', 'goku_ui', 'vegeta', 'vegeta_ss', 'vegeta_god', 'vegeta_blue', 'vegeta_ue', 'black', 'shade', 'trunks', 'trunks_ss', 'freezer', 'piccolo', 'gohan', 'gohan_ss', 'gohan_ul', 'gohan_b', 'cell',
   'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles', 'krilin'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4x4, fila*4+columna) ---------- */
 /* Hoja "estándar" (Vegeta y enemigos): caminar, golpear, herido, dash y muerte */
 const A_STD = { idle: 0, walk: [1, 2, 3, 2], atk: 5, atk2: 10, crit: 11, hurt: 8, dash: 9, death: [12, 13, 14] };
-const A_VEG = { idle: 0, walk: [1, 2, 3, 2], atk: 4, atk2: 10, crit: 5, hurt: 8, dash: 9, death: [12, 13, 14] };
 /* Hojas por filas (transformaciones): col0 = pose/aura, col1 = movimiento, col2 = golpe, col3 = rayo.
    Las poses con aura traen el ajedrez dentro: se evitan (el aura se genera con partículas). */
 /* Hojas propias de Trunks, Freezer, Piccolo, Gohan y Célula (tools/make_chars.py):
@@ -33,7 +32,6 @@ const rowAnim = (r, aura, over) => Object.assign({
 
 /* ---------- Personajes y transformaciones ---------- */
 const form = (name, lvl, sheet, anim, dmg, spd, ki, aura, tint) => ({ name, lvl, sheet, anim, dmg, spd, ki, aura, tint });
-const UI_DEFEAT = { sheet: 'goku_b', hurt: -1, death: [12, 13, 14] };
 const SHADE_ALT = { sheet: 'shade', hurt: 8, death: [12, 13, 14] };
 
 const CHARACTERS = [
@@ -42,16 +40,17 @@ const CHARACTERS = [
     hp: 110, ki: 100, spd: 1.0, dmg: 1.0, start: ['ki'], unique: ['ki', 'kamehameha', 'meteor'],
     passive: { name: 'Zenkai', desc: 'Cada nivel que subes aumenta un 1,5% tu daño.' },
     ult: { name: 'SUPER GENKIDAMA', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'genki', col: 0x9fe8ff, fx: ['#000', '#fff', '#5ab8ff', '#ffffff', '#5ab8ff'] },
-    portrait: { sheet: 'goku_a', frame: 0 },
+    portrait: { sheet: 'goku', frame: 0 },
     forms: [
-      form('BASE', 1, 'goku_a', rowAnim(0), 1.0, 1.0, 0xfff0a0, 0, 0xffffff),
-      form('KAIOKEN', 5, 'goku_a', rowAnim(0), 1.25, 1.12, 0xff8a8a, 0xff3030, 0xffa0a0),
-      form('SUPER SAIYAN', 10, 'goku_a', rowAnim(1, true), 1.55, 1.15, 0xffe14a, 0xffd84a, 0xffffff),
-      form('SUPER SAIYAN 2', 16, 'goku_b', rowAnim(0, true), 1.9, 1.2, 0xfff08a, 0xfff07a, 0xffffff),
-      form('SUPER SAIYAN 3', 22, 'goku_b', rowAnim(1, true), 2.3, 1.22, 0xffd24a, 0xffc83a, 0xffffff),
-      form('SUPER SAIYAN GOD', 28, 'goku_a', rowAnim(2, true), 2.8, 1.28, 0xff6a4a, 0xff4a2a, 0xffffff),
-      form('SUPER SAIYAN BLUE', 34, 'goku_b', rowAnim(2, true), 3.4, 1.34, 0x6fd8ff, 0x4fc8ff, 0xffffff),
-      form('ULTRA INSTINTO', 40, 'goku_a', rowAnim(3, true, { alt: UI_DEFEAT }), 4.2, 1.45, 0xdff4ff, 0xcfeaff, 0xffffff)
+      form('BASE', 1, 'goku', A_HD, 1.0, 1.0, 0xfff0a0, 0, 0xffffff),
+      form('KAIOKEN', 5, 'goku', A_HD, 1.25, 1.12, 0xff8a8a, 0xff3030, 0xffb0b0),
+      form('SUPER SAIYAN', 10, 'goku_ss', A_HD, 1.55, 1.15, 0xffe14a, 0xffd84a, 0xffffff),
+      form('SUPER SAIYAN 2', 16, 'goku_ss', A_HD, 1.9, 1.2, 0xfff08a, 0xfff07a, 0xffffff),
+      form('SUPER SAIYAN 3', 22, 'goku_ss3', A_HD, 2.3, 1.22, 0xffd24a, 0xffc83a, 0xffffff),
+      form('SUPER SAIYAN 4', 26, 'goku_ss4', A_HD, 2.55, 1.25, 0xff6a5a, 0xff3a2a, 0xffffff),
+      form('SUPER SAIYAN GOD', 30, 'goku_god', A_HD, 2.9, 1.28, 0xff6a4a, 0xff4a2a, 0xffffff),
+      form('SUPER SAIYAN BLUE', 35, 'goku_blue', A_HD, 3.45, 1.34, 0x6fd8ff, 0x4fc8ff, 0xffffff),
+      form('ULTRA INSTINTO', 40, 'goku_ui', A_HD, 4.2, 1.45, 0xdff4ff, 0xcfeaff, 0xffffff)
     ]
   },
   {
@@ -61,10 +60,13 @@ const CHARACTERS = [
     ult: { name: 'FINAL FLASH MÁXIMO', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 66, hw: 3.4, life: 1.8, col: 0xffe14a, end: 'ffBoom', fx: ['#000', '#fff', '#ffe14a', '#6fb8ff', '#ffe14a'] },
     portrait: { sheet: 'vegeta', frame: 0 },
     forms: [
-      form('BASE', 1, 'vegeta', A_VEG, 1.0, 1.0, 0x9ad0ff, 0, 0xffffff),
-      form('PODER CRECIENTE', 10, 'vegeta', A_VEG, 1.45, 1.1, 0x9ad0ff, 0x8ac4ff, 0xffffff),
-      form('ORGULLO DEL PRÍNCIPE', 20, 'vegeta', A_VEG, 1.95, 1.18, 0xffe14a, 0xffd24a, 0xffffff),
-      form('LÍMITE ROTO', 32, 'vegeta', A_VEG, 2.6, 1.3, 0xff6a6a, 0xff4a4a, 0xffffff)
+      form('BASE', 1, 'vegeta', A_HD, 1.0, 1.0, 0x9ad0ff, 0, 0xffffff),
+      form('SUPER SAIYAN', 8, 'vegeta_ss', A_HD, 1.45, 1.1, 0xffe14a, 0xffd24a, 0xffffff),
+      form('SUPER SAIYAN 2', 15, 'vegeta_ss', A_HD, 1.8, 1.16, 0xfff08a, 0xfff07a, 0xffffff),
+      form('SUPER SAIYAN GOD', 22, 'vegeta_god', A_HD, 2.25, 1.22, 0xff6a5a, 0xff4a3a, 0xffffff),
+      form('SUPER SAIYAN BLUE', 28, 'vegeta_blue', A_HD, 2.7, 1.28, 0x6fd8ff, 0x4fc8ff, 0xffffff),
+      form('BLUE EVOLUCIÓN', 34, 'vegeta_blue', A_HD, 3.2, 1.32, 0x4a8aff, 0x3a6aff, 0xd8e4ff),
+      form('ULTRA EGO', 40, 'vegeta_ue', A_HD, 3.9, 1.4, 0xc070ff, 0xa040ff, 0xffffff)
     ]
   },
   {
@@ -583,6 +585,7 @@ const TRAITS = {
     { name: 'Ira Saiyajin', good: '+10% de crítico y +30% de daño con poca vida', bad: '-15% de regeneración de Ki', m: { crit: 0.1, kiRegen: -0.15 }, t: { lowHp: 0.3 } },
     { name: 'Electricidad', good: 'Rayos golpean a los enemigos cercanos', bad: 'Recibes un 10% más de daño', m: { armor: -0.1 }, t: { bolt: 30 } },
     { name: 'Poder descomunal', good: '+20% de daño y tu aura quema a los enemigos', bad: 'Gasta 4 de Ki/s sin regenerarlo (carga con C) y -10% de velocidad', m: { dmg: 0.2, spd: -0.1 }, t: { aura: 30, kiDrain: 4 } },
+    { name: 'Instinto primitivo', good: '+15% de daño y +10% de velocidad', bad: '-20% de regeneración de Ki', m: { dmg: 0.15, spd: 0.1, kiRegen: -0.2 } },
     { name: 'Ki divino', good: '+2,5 de vida/s y +8% de armadura', bad: '-30% de alcance del imán', m: { regen: 2.5, armor: 0.08, magnet: -0.3 } },
     { name: 'Control perfecto', good: '+30% de daño crítico y el dash cuesta la mitad', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { critDmg: 0.3, dashCost: -0.5 }, t: { kiDrain: 3 } },
     { name: 'Esquiva automática', good: 'Esquivas TODOS los ataques y contraatacas', bad: 'Cada esquiva cuesta 12 de Ki · -30% de regeneración de Ki', m: { kiRegen: -0.3 }, t: { dodgeKi: 12 } }
@@ -590,6 +593,9 @@ const TRAITS = {
   vegeta: [null,
     { name: 'Orgullo herido', good: '+8% de armadura y +10% de crítico', bad: '-10% de experiencia', m: { armor: 0.08, crit: 0.1, xp: -0.1 } },
     { name: 'Explosión de orgullo', good: '+20% de cadencia y +20% de daño crítico', bad: 'Recibes un 15% más de daño', m: { rate: 0.2, critDmg: 0.2, armor: -0.15 } },
+    { name: 'Ki divino del príncipe', good: '+2 de vida/s y +8% de armadura', bad: '-25% de alcance del imán', m: { regen: 2, armor: 0.08, magnet: -0.25 } },
+    { name: 'Ki controlado', good: '+25% de daño crítico y +10% de cadencia', bad: 'Gasta 2 de Ki/s sin regenerarlo (carga con C)', m: { critDmg: 0.25, rate: 0.1 }, t: { kiDrain: 2 } },
+    { name: 'Evolución', good: '+15% de daño y +10% de crítico', bad: '-10% de vida máxima', m: { dmg: 0.15, crit: 0.1, maxHp: -0.1 } },
     { name: 'Ego destructor', good: 'Cada golpe recibido sube tu daño un 3% (hasta +60%)', bad: 'Recibes un 25% más de daño', m: { armor: -0.25 }, t: { ego: 0.6 } }
   ],
   black: [null,

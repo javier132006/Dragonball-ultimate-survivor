@@ -10,8 +10,8 @@ const ALLIES = [
   { id: 'piccolo', name: 'PICCOLO', sheet: 'piccolo', anim: A_PIC, tint: 0xffffff, ki: 0xffa040, atk: 'beam', cd: 2.4 },
   { id: 'trunks', name: 'TRUNKS', sheet: 'trunks', anim: A_TRK, tint: 0xffffff, ki: 0x8ae8ff, atk: 'beam', cd: 2.2 },
   { id: 'gohan', name: 'GOHAN', sheet: 'gohan', anim: A_GOH, tint: 0xffffff, ki: 0x8fe0ff, atk: 'blast', cd: 0.9 },
-  { id: 'vegeta', name: 'VEGETA', sheet: 'vegeta', anim: A_VEG, tint: 0xffffff, ki: 0xb06bff, atk: 'blast', cd: 0.9 },
-  { id: 'goku', name: 'SON GOKU', sheet: 'goku_a', anim: rowAnim(0), tint: 0xffffff, ki: 0x6fd0ff, atk: 'beam', cd: 2.2 }
+  { id: 'vegeta', name: 'VEGETA', sheet: 'vegeta', anim: A_HD, tint: 0xffffff, ki: 0xb06bff, atk: 'blast', cd: 0.9 },
+  { id: 'goku', name: 'SON GOKU', sheet: 'goku', anim: A_HD, tint: 0xffffff, ki: 0x6fd0ff, atk: 'beam', cd: 2.2 }
 ];
 const ALLY_TIME = 60;
 

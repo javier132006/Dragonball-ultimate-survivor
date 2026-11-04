@@ -21,15 +21,19 @@ const TRANSFORM_FX = {
     { c1: '#ffd400', c2: '#fff6a0', quote: '¡¡AAAAAAAAHHH!!', frames: 'WIBIWC', charge: 1.9, fx: ['rocks', 'cracks', 'bolts'], bolt: '#fff27a', shake: 1.1, kanji: '超サイヤ人' },
     { c1: '#ffe14a', c2: '#bfe8ff', quote: '¡ESTE ES EL PODER QUE SUPERA AL SUPER SAIYAN!', frames: 'IWIBC', charge: 1.8, fx: ['bolts', 'sparks', 'rocks'], bolt: '#9fe0ff', shake: 1.0, kanji: '超サイヤ人２' },
     { c1: '#ffc400', c2: '#fff0a0', quote: '¡¡HAAAAAAAAAAAAAAAA!!', frames: 'BIWIBIWC', charge: 2.6, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#ffe14a', shake: 1.4, kanji: '超サイヤ人３' },
+    { c1: '#ff2a1a', c2: '#ffb090', quote: '¡¡GRAAAAAAAHHH!!', frames: 'BIWIBC', charge: 2.2, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#ff8a6a', shake: 1.3, kanji: '超サイヤ人４' },
     { c1: '#ff3a1a', c2: '#ffb070', quote: 'El poder de un dios...', frames: 'CWC', charge: 2.0, fx: ['flame'], shake: 0.15, kanji: '超サイヤ人ゴッド' },
     { c1: '#2ec8ff', c2: '#c8f4ff', quote: 'Ki divino... ¡a otro nivel!', frames: 'WCIC', charge: 1.7, fx: ['ripple', 'sparks'], shake: 0.6, kanji: '超サイヤ人ブルー' },
     { c1: '#dfe8ff', c2: '#9fb4ff', quote: '...', frames: 'IBWBI', charge: 2.4, fx: ['silence', 'stars', 'ripple'], shake: 0, kanji: '身勝手の極意' }
   ],
   vegeta: [
     null,
-    { c1: '#6fb8ff', c2: '#dff0ff', quote: '¡SOY EL PRÍNCIPE DE LOS SAIYAJIN!', frames: 'WIC', charge: 1.5, fx: ['bolts', 'rocks'], bolt: '#bfe4ff', shake: 0.8, kanji: '王子' },
-    { c1: '#ffd400', c2: '#fff4a0', quote: '¡¡KAKAROTTO!!', frames: 'IWBIC', charge: 1.9, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.2, kanji: '誇り' },
-    { c1: '#ff3a4a', c2: '#c070ff', quote: '¡NO TENGO LÍMITES!', frames: 'BIWIBC', charge: 2.2, fx: ['shatter', 'bolts', 'sparks'], bolt: '#ff9ad0', shake: 1.3, kanji: '限界突破' }
+    { c1: '#ffd400', c2: '#fff4a0', quote: '¡¡KAKAROTTO!!', frames: 'IWBIC', charge: 1.9, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.2, kanji: '超サイヤ人' },
+    { c1: '#ffe14a', c2: '#bfe8ff', quote: '¡SOY EL PRÍNCIPE DE LOS SAIYAJIN!', frames: 'IWIBIC', charge: 2.0, fx: ['bolts', 'sparks', 'rocks'], bolt: '#9fe0ff', shake: 1.2, kanji: '超サイヤ人２' },
+    { c1: '#ff3a2a', c2: '#ffb090', quote: 'Ahora tengo el poder de un dios.', frames: 'CWC', charge: 1.9, fx: ['flame'], shake: 0.2, kanji: '超サイヤ人ゴッド' },
+    { c1: '#2ec8ff', c2: '#c8f4ff', quote: 'Ki divino... bajo mi control.', frames: 'WCIC', charge: 1.7, fx: ['ripple', 'sparks'], shake: 0.6, kanji: '超サイヤ人ブルー' },
+    { c1: '#2a6aff', c2: '#a8c8ff', quote: '¡He superado mis límites!', frames: 'BIWIBC', charge: 2.2, fx: ['bolts', 'shatter', 'sparks', 'quake'], bolt: '#8ab8ff', shake: 1.3, kanji: '進化' },
+    { c1: '#a03aff', c2: '#e0b8ff', quote: '¡NO TENGO LÍMITES!', frames: 'BIBWBIC', charge: 2.4, fx: ['silence', 'shatter', 'bolts'], bolt: '#d08aff', shake: 1.3, kanji: '我儘の極意' }
   ],
   piccolo: [
     null,
