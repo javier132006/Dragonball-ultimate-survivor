@@ -6,7 +6,7 @@
    ===================================================================== */
 
 const ALLIES = [
-  { id: 'krilin', name: 'KRILIN', sheet: 'shade', anim: A_STD, tint: 0xffb070, ki: 0xffe86a, atk: 'disc', cd: 1.6 },
+  { id: 'krilin', name: 'KRILIN', sheet: 'krilin', anim: A_KRL, tint: 0xffffff, ki: 0xffe86a, atk: 'disc', cd: 1.6 },
   { id: 'piccolo', name: 'PICCOLO', sheet: 'piccolo', anim: A_PIC, tint: 0xffffff, ki: 0xffa040, atk: 'beam', cd: 2.4 },
   { id: 'trunks', name: 'TRUNKS', sheet: 'trunks', anim: A_TRK, tint: 0xffffff, ki: 0x8ae8ff, atk: 'beam', cd: 2.2 },
   { id: 'gohan', name: 'GOHAN', sheet: 'gohan', anim: A_GOH, tint: 0xffffff, ki: 0x8fe0ff, atk: 'blast', cd: 0.9 },

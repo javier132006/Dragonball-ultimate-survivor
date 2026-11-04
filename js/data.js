@@ -5,9 +5,9 @@
    enemigos, mejoras del laboratorio y guardado local.
    ===================================================================== */
 
-/* Hojas que se cargan al arrancar. Krilin sigue con sprite PROVISIONAL (hoja de otro personaje recoloreada) */
-const SHEET_NAMES = ['goku_a', 'goku_b', 'vegeta', 'black', 'shade', 'trunks', 'freezer', 'piccolo', 'gohan', 'gohan_u', 'cell',
-  'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles'];
+/* Hojas que se cargan al arrancar. Krilin, Trunks, Gohan y Célula usan hojas en alta resolución (tools/make_chars2.py) */
+const SHEET_NAMES = ['goku_a', 'goku_b', 'vegeta', 'black', 'shade', 'trunks', 'trunks_ss', 'freezer', 'piccolo', 'gohan', 'gohan_ss', 'gohan_ul', 'gohan_b', 'cell',
+  'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles', 'krilin'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4x4, fila*4+columna) ---------- */
 /* Hoja "estándar" (Vegeta y enemigos): caminar, golpear, herido, dash y muerte */
@@ -18,10 +18,14 @@ const A_VEG = { idle: 0, walk: [1, 2, 3, 2], atk: 4, atk2: 10, crit: 5, hurt: 8,
 /* Hojas propias de Trunks, Freezer, Piccolo, Gohan y Célula (tools/make_chars.py):
    0 quieto · 1-4 y 6-7 caminar · 5 golpe · 8 herido · 9 dash · 10 rayo · 11 técnica · 12-14 muerte */
 const A_NEW = { idle: 0, walk: [1, 2, 3, 4, 6, 7], atk: 5, atk2: 10, crit: 11, hurt: 8, dash: 9, death: [12, 13, 14] };
-const A_TRK = Object.assign({}, A_NEW, { walk: [1, 2, 3, 4, 6] });
+/* Hojas en alta resolución (celdas de 216x158, tools/make_chars2.py):
+   0 quieto · 1 caminar · 2 correr · 3 salto · 5 golpe · 8 herido · 9 dash · 10 rayo · 11 técnica · 12-14 muerte */
+const A_HD = { idle: 0, walk: [1, 2, 1, 0], atk: 5, atk2: 10, crit: 11, hurt: 8, dash: 9, death: [12, 13, 14] };
+const A_TRK = A_HD;
 const A_FRZ = Object.assign({}, A_NEW, { walk: [1, 2, 3, 2] });
 const A_PIC = Object.assign({}, A_NEW, { walk: [0, 1, 0, 1], dash: 9 });
-const A_GOH = Object.assign({}, A_NEW, { death: null });
+const A_KRL = A_HD;
+const A_GOH = A_HD;
 const rowAnim = (r, aura, over) => Object.assign({
   idle: r * 4 + (aura ? 1 : 0), walk: [r * 4 + 1], atk: r * 4 + 2, atk2: r * 4 + 3, crit: r * 4 + 3,
   hurt: -1, dash: r * 4 + 1, death: null
@@ -95,13 +99,13 @@ const CHARACTERS = [
     hp: 100, ki: 120, spd: 1.0, dmg: 1.05, start: ['gblast'], unique: ['gblast', 'fsk', 'rage', 'zsword'],
     passive: { name: 'Potencial oculto', desc: '+40% de daño mientras tu vida esté por debajo del 50%.' },
     ult: { name: 'KAMEHAMEHA PADRE-HIJO', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x8fe0ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'] },
-    portrait: { sheet: 'gohan_u', frame: 0 },
+    portrait: { sheet: 'gohan', frame: 0 },
     forms: [
-      form('BASE', 1, 'gohan_u', A_GOH, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
-      form('SUPER SAIYAN', 10, 'gohan', A_GOH, 1.5, 1.12, 0xffe14a, 0xffd84a, 0xfff4d8),
-      form('SUPER SAIYAN 2', 18, 'gohan', A_GOH, 2.0, 1.2, 0xfff08a, 0xfff07a, 0xffffff),
-      form('DEFINITIVO', 28, 'gohan_u', A_GOH, 2.6, 1.25, 0xffffff, 0xf0f4ff, 0xffffff),
-      form('GOHAN BESTIA', 38, 'gohan_u', A_GOH, 3.5, 1.35, 0xd8b8ff, 0xc89aff, 0xe8dcff)
+      form('BASE', 1, 'gohan', A_GOH, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
+      form('SUPER SAIYAN', 10, 'gohan_ss', A_GOH, 1.5, 1.12, 0xffe14a, 0xffd84a, 0xffffff),
+      form('SUPER SAIYAN 2', 18, 'gohan_ss', A_GOH, 2.0, 1.2, 0xfff08a, 0xfff07a, 0xffffff),
+      form('DEFINITIVO', 28, 'gohan_ul', A_GOH, 2.6, 1.25, 0xffffff, 0xf0f4ff, 0xffffff),
+      form('GOHAN BESTIA', 38, 'gohan_b', A_GOH, 3.5, 1.35, 0xd8b8ff, 0xc89aff, 0xffffff)
     ]
   },
   {
@@ -118,16 +122,16 @@ const CHARACTERS = [
     ]
   },
   {
-    id: 'krilin', name: 'KRILIN', role: 'Agilidad · Discos cortantes', cost: 3000, provisional: true,
+    id: 'krilin', name: 'KRILIN', role: 'Agilidad · Discos cortantes', cost: 3000,
     hp: 90, ki: 120, spd: 1.15, dmg: 0.95, start: ['kdisc'], unique: ['kdisc', 'kscatter', 'taiyoken'],
     passive: { name: 'Pequeño pero matón', desc: '+12% de esquiva y el dash se recarga un 25% más rápido.' },
     ult: { name: 'KIENZAN MÚLTIPLE', key: 'Q', cost: 100, type: 'discs', dmg: 60, n: 16, fx: ['#000', '#fff', '#ffe86a', '#fff', '#ffb040'] },
-    portrait: { sheet: 'shade', frame: 0, tint: 0xffb070 },
+    portrait: { sheet: 'krilin', frame: 0 },
     forms: [
-      form('BASE', 1, 'shade', A_STD, 1.0, 1.0, 0xffe86a, 0, 0xffb070),
-      form('POTENCIAL LIBERADO', 10, 'shade', A_STD, 1.45, 1.12, 0xfff0a0, 0xffe070, 0xffc080),
-      form('MODO GUERRERO', 22, 'shade', A_STD, 2.0, 1.22, 0xffd070, 0xffb040, 0xffa860),
-      form('PODER MÁXIMO', 34, 'shade', A_STD, 2.75, 1.3, 0xffffff, 0xfff4c0, 0xffd0a0)
+      form('BASE', 1, 'krilin', A_KRL, 1.0, 1.0, 0xffe86a, 0, 0xffffff),
+      form('POTENCIAL LIBERADO', 10, 'krilin', A_KRL, 1.45, 1.12, 0xfff0a0, 0xffe070, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'krilin', A_KRL, 2.0, 1.22, 0xffd070, 0xffb040, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'krilin', A_KRL, 2.75, 1.3, 0xffffff, 0xfff4c0, 0xffffff)
     ]
   },
   {
@@ -138,9 +142,9 @@ const CHARACTERS = [
     portrait: { sheet: 'trunks', frame: 0 },
     forms: [
       form('BASE', 1, 'trunks', A_TRK, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
-      form('SUPER SAIYAN', 10, 'trunks', A_TRK, 1.5, 1.12, 0xffe14a, 0xffd84a, 0xfff4d0),
-      form('SUPER TRUNKS', 20, 'trunks', A_TRK, 2.05, 1.05, 0xffd84a, 0xffc83a, 0xffeab8),
-      form('SUPER SAIYAN FURIA', 32, 'trunks', A_TRK, 2.8, 1.3, 0xbfe8ff, 0x9fe0ff, 0xf4f8ff)
+      form('SUPER SAIYAN', 10, 'trunks_ss', A_TRK, 1.5, 1.12, 0xffe14a, 0xffd84a, 0xffffff),
+      form('SUPER TRUNKS', 20, 'trunks_ss', A_TRK, 2.05, 1.05, 0xffd84a, 0xffc83a, 0xfff6e0),
+      form('SUPER SAIYAN FURIA', 32, 'trunks_ss', A_TRK, 2.8, 1.3, 0xbfe8ff, 0x9fe0ff, 0xf4f8ff)
     ]
   },
   {
