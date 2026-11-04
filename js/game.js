@@ -1246,7 +1246,7 @@ class Game {
       /* ---- genéricas ---- */
       case 'fan': {                                                  // abanico dirigido al jugador
         const n = Math.min(9, 3 + st * 2);
-        for (let q = 0; q < n; q++) { const o = a + (q - (n - 1) / 2) * 0.2; S.fire(bx, bz, Math.cos(o), Math.sin(o), 11 + st, dmg, B.sheet === 'black' ? null : { tint: col, size: 1.8 }); }
+        for (let q = 0; q < n; q++) { const o = a + (q - (n - 1) / 2) * 0.2; S.fire(bx, bz, Math.cos(o), Math.sin(o), 11 + st, dmg, B.sheet === 'black_old' ? null : { tint: col, size: 1.8 }); }
         h.posBoss('atk', 0.4); break;
       }
       case 'ring':                                                   // anillo de energía

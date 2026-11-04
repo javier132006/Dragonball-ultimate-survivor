@@ -350,10 +350,23 @@ class Player {
     // Aura de fuego (sprites): forma transformada, carga de ki o Kaio-ken. En las formas altas, rayos sueltos alrededor
     const V = this.vfx, useFx = !!(V && V.ok);
     if (useFx && !this.dying) {
-      const ka = this.buffT > 0, au = this.form.aura || 0;
+      const ka = this.buffT > 0, au = this.form.aura || 0, F = formFx(this.ch, this.formIdx);
       if (au || this.charging || ka) {
-        const big = this.charging ? 1.3 : 1;
-        V.aura('auraSS1', this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : (au || this.form.ki), this.charging ? 0.85 : 0.5, this.animT);
+        const big = this.charging ? 1.3 : 1, name = ka || !F || !F.a ? 'auraSS1' : F.a, own = name === 'auraSS2' || name === 'auraSS3';
+        V.aura(name, this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : own ? 0xffffff : (au || this.form.ki), this.charging ? 0.85 : own ? 0.62 : 0.5, this.animT);
+      }
+      if (F && !ka) {
+        // Rayitos de electricidad pegados al cuerpo (SSJ2, Evolución, Ultra Ego...): fotogramas de 'bolt' que saltan de sitio
+        if (F.bolt && ((this.animT * 9) | 0) % 2 === 0) {
+          const k = ((this.animT * 30) | 0) % 8, j = ((this.animT * 9) | 0) % 5;
+          V.now(0, fxf('bolt', k), this.x + (j - 2) * 0.35, 1.0 + (j % 3) * 0.6, this.z, 1.7, 0.9, F.bolt, j * 1.3);
+        }
+        // Chispas de ki que suben desde los pies (tiempo de partida, no de fotogramas: igual en cualquier ordenador)
+        const q = (this.animT * (this.charging ? 22 : 10)) | 0;
+        if (F.spark && q !== this.spQ) {
+          this.spQ = q; const a = (q * 2.39996) % 6.283, r = 0.5 + (q % 3) * 0.35;
+          V.play(F.spark, this.x + Math.cos(a) * r, 0.3 + (q % 4) * 0.35, this.z + Math.sin(a) * r, { size: 0.9, vy: 2.6, fps: 16 });
+        }
       }
       if ((this.formIdx >= 2 || (this.charging && this.formIdx >= 1)) && ((this.animT * 7) | 0) % 3 === 0) {
         const k = ((this.animT * 21) | 0) % 10, o = (((this.animT * 13) | 0) % 4) - 1.5;

@@ -6,7 +6,7 @@
    ===================================================================== */
 
 /* Hojas que se cargan al arrancar. Goku, Vegeta, Krilin, Trunks, Gohan y Célula usan hojas en alta resolución (tools/make_chars2.py) */
-const SHEET_NAMES = ['goku', 'goku_ss', 'goku_ss3', 'goku_ss4', 'goku_god', 'goku_blue', 'goku_ui', 'vegeta', 'vegeta_ss', 'vegeta_god', 'vegeta_blue', 'vegeta_ue', 'black', 'shade', 'trunks', 'trunks_ss', 'freezer', 'piccolo', 'gohan', 'gohan_ss', 'gohan_ul', 'gohan_b', 'cell',
+const SHEET_NAMES = ['goku', 'goku_ss', 'goku_ss3', 'goku_ss4', 'goku_god', 'goku_blue', 'goku_ui', 'vegeta', 'vegeta_ss', 'vegeta_god', 'vegeta_blue', 'vegeta_ue', 'black', 'black_ss', 'black_old', 'shade', 'trunks', 'trunks_ss', 'freezer', 'freezer1', 'freezer2', 'freezer3', 'piccolo', 'gohan', 'gohan_ss', 'gohan_ul', 'gohan_b', 'cell',
   'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles', 'krilin'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4x4, fila*4+columna) ---------- */
@@ -77,10 +77,10 @@ const CHARACTERS = [
     ult: { name: 'GRIETA DE BLACK', key: 'Q', cost: 100, type: 'rift', dmg: 9, len: 46, hw: 1.7 },
     portrait: { sheet: 'black', frame: 0 },
     forms: [
-      form('BASE', 1, 'black', rowAnim(0, false, { atk: 3, alt: SHADE_ALT }), 1.0, 1.0, 0xb26bff, 0, 0xffffff),
-      form('SUPER SAIYAN', 12, 'black', rowAnim(1, true, { alt: SHADE_ALT }), 1.6, 1.12, 0xffe36a, 0xfff07a, 0xffffff),
-      form('SUPER SAIYAN ROSÉ', 24, 'black', rowAnim(2, true, { alt: SHADE_ALT }), 2.3, 1.2, 0xff7ac8, 0xff7ac8, 0xffffff),
-      form('ROSÉ · PODER TOTAL', 36, 'black', rowAnim(3, true, { alt: SHADE_ALT }), 3.2, 1.3, 0xff4fb0, 0xff3fa0, 0xffffff)
+      form('BASE', 1, 'black', A_HD, 1.0, 1.0, 0xb26bff, 0, 0xffffff),
+      form('SUPER SAIYAN', 12, 'black_ss', A_HD, 1.6, 1.12, 0xffe36a, 0xfff07a, 0xffffff),
+      form('SUPER SAIYAN ROSÉ', 24, 'black_old', rowAnim(2, true, { alt: SHADE_ALT }), 2.3, 1.2, 0xff7ac8, 0xff7ac8, 0xffffff),
+      form('ROSÉ · PODER TOTAL', 36, 'black_old', rowAnim(3, true, { alt: SHADE_ALT }), 3.2, 1.3, 0xff4fb0, 0xff3fa0, 0xffffff)
     ]
   },
   {
@@ -115,12 +115,15 @@ const CHARACTERS = [
     hp: 95, ki: 120, spd: 1.05, dmg: 1.15, start: ['deathbeam'], unique: ['deathbeam', 'deathsaucer', 'deathball'],
     passive: { name: 'Emperador del Universo', desc: '+25% de Zeni y monedas en cada partida.' },
     ult: { name: 'DEATH BALL', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'db', col: 0xff5ad0, fx: ['#000', '#fff', '#8a2aff', '#ff3fa0', '#2a0040'] },
-    portrait: { sheet: 'freezer', frame: 0 },
+    portrait: { sheet: 'freezer1', frame: 0 },
     forms: [
-      form('FORMA FINAL', 1, 'freezer', A_FRZ, 1.0, 1.0, 0xd88aff, 0, 0xffffff),
-      form('100% DE PODER', 12, 'freezer', A_FRZ, 1.55, 1.12, 0xff8ad8, 0xff7ac8, 0xffe0f4),
-      form('GOLDEN FREEZER', 24, 'freezer', A_FRZ, 2.3, 1.22, 0xffd84a, 0xffd23a, 0xffe070),
-      form('BLACK FREEZER', 36, 'freezer', A_FRZ, 3.3, 1.32, 0xa080ff, 0x8a6aff, 0x9a90b0)
+      form('PRIMERA FORMA', 1, 'freezer1', A_HD, 1.0, 1.0, 0xd88aff, 0, 0xffffff),
+      form('SEGUNDA FORMA', 6, 'freezer2', A_HD, 1.3, 1.06, 0xd88aff, 0xc87aff, 0xffffff),
+      form('TERCERA FORMA', 12, 'freezer3', A_HD, 1.65, 1.1, 0xc89aff, 0xb08aff, 0xffffff),
+      form('FORMA FINAL', 18, 'freezer', A_FRZ, 2.0, 1.16, 0xff8ad8, 0xff7ac8, 0xffffff),
+      form('100% DE PODER', 24, 'freezer', A_FRZ, 2.45, 1.2, 0xff8ad8, 0xff6ab8, 0xffe0f4),
+      form('GOLDEN FREEZER', 31, 'freezer', A_FRZ, 3.0, 1.26, 0xffd84a, 0xffd23a, 0xffe070),
+      form('BLACK FREEZER', 38, 'freezer', A_FRZ, 3.7, 1.34, 0xa080ff, 0x8a6aff, 0x9a90b0)
     ]
   },
   {
@@ -374,7 +377,7 @@ const CURSE_BUFFS = ['c_dmg', 'c_hp', 'c_spd', 'c_rate'];
    La vida no va aquí: la pone el mapa (`bossHp`), así cualquier jefe sirve en cualquier mapa. */
 const BOSS_ANIM = {
   bosses: { walk: [0, 1, 2, 3], hit: 4, atk: 5, cast: 6, stun: 7 },
-  black: { walk: [1], hit: 2, atk: 3, cast: 3, stun: 0 }          // hoja de 4 columnas: una fila por forma
+  black_old: { walk: [1], hit: 2, atk: 3, cast: 3, stun: 0 }          // hoja de 4 columnas: una fila por forma
 };
 const BOSSES = {
   freezer: { name: 'FREEZER', sheet: 'bosses', row: 0, scale: 3.2, r: 1.9, col: 0xff5ad0,
@@ -410,7 +413,7 @@ const BOSSES = {
     moves: 'Muro de luz · Rayos de la absolución · Hojas del juicio · Ira divina',
     pat: [['wall', 'lightning'], ['wall', 'lightning', 'blades'], ['wall', 'lightning', 'blades', 'wrath', 'summon']] },
   // Goku Black: 4 fases = sus 4 formas (filas de la hoja "black"). Cada fase cambia de forma, de aura y de ataques.
-  black: { name: 'GOKU BLACK', sheet: 'black', rows: [0, 1, 2, 3], scale: 3.9, r: 2.2, col: 0xb26bff,
+  black: { name: 'GOKU BLACK', sheet: 'black_old', rows: [0, 1, 2, 3], scale: 3.9, r: 2.2, col: 0xb26bff,
     forms: ['BASE', 'SUPER SAIYAN', 'SUPER SAIYAN ROSÉ', 'ROSÉ · PODER TOTAL'], tints: [0xb26bff, 0xffe36a, 0xff7ac8, 0xff4fb0], tintSprite: false,
     moves: 'Grieta de Black · Rayos · Embestida',
     pat: [['fan', 'ring', 'grieta'], ['fan', 'dash', 'grieta', 'ring'], ['fan', 'ring', 'grieta', 'rain', 'beam'], ['fan', 'dash', 'grieta', 'rain', 'beam', 'summon']] }
@@ -615,6 +618,9 @@ const TRAITS = {
     { name: 'Furia bestial', good: '+20% de cadencia y un aura que arrasa', bad: 'Pierdes un 0,8% de vida/s y -10% de armadura', m: { rate: 0.2, armor: -0.1 }, t: { aura: 60, hpDrain: 0.008 } }
   ],
   freezer: [null,
+    { name: 'Fuerza bruta', good: '+15% de daño y +10% de armadura', bad: '-10% de velocidad', m: { dmg: 0.15, armor: 0.1, spd: -0.1 } },
+    { name: 'Forma monstruosa', good: '+15% de crítico', bad: '-15% de regeneración de Ki', m: { crit: 0.15, kiRegen: -0.15 } },
+    { name: 'Cuerpo perfecto', good: '+20% de velocidad y +10% de esquiva', bad: '-10% de vida máxima', m: { spd: 0.2, dodge: 0.1, maxHp: -0.1 } },
     { name: 'Poder forzado', good: '+20% de daño', bad: 'Se agota: -40% de regeneración de Ki', m: { dmg: 0.2, kiRegen: -0.4 } },
     { name: 'Oro puro', good: '+30% de Zeni y +15% de velocidad', bad: 'Gasta 5 de Ki/s sin regenerarlo: aguanta poco', m: { zeni: 0.3, spd: 0.15 }, t: { kiDrain: 5 } },
     { name: 'Entrenamiento perfecto', good: '+15% de crítico, +40% de daño crítico y +10% de armadura', bad: 'El ego del emperador: -20% de experiencia', m: { crit: 0.15, critDmg: 0.4, armor: 0.1, xp: -0.2 } }
@@ -640,6 +646,28 @@ const fusionsFor = (chId) => Object.keys(WEAPONS).filter((id) => WEAPONS[id].fus
 /** Una técnica de la tienda solo vale si la has comprado (en el entrenamiento, todas) */
 const techOwned = (id, practice) => !WEAPONS[id].shop || practice || (Save.d.techs || []).includes(id);
 const traitOf = (ch, idx) => (TRAITS[ch.id] || [])[idx] || null;
+
+/* ---------- Efectos visuales de cada forma (mismo índice que forms) ----------
+   a: aura (auraSS1/auraGold se tiñen del color de la forma; auraSS2/auraSS3 son doradas y llevan sus propios rayos)
+   bolt: color de los rayitos de electricidad alrededor del personaje · spark: chispas que suben (sparkY dorada,
+   sparkG verde, lightB azul/blanca) · burst: estallido al transformarse (sprites de las hojas nuevas) */
+const FORM_FX = {
+  goku: [null, { spark: 'sparkY', burst: 'tfRose' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' },
+    { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { a: 'auraSS3', bolt: 0xfff27a, spark: 'sparkY', burst: 'tfGold' },
+    { bolt: 0xff6a4a, burst: 'tfRose' }, { spark: 'sparkY', burst: 'tfRose' }, { spark: 'lightB' }, { spark: 'lightB', bolt: 0xdff4ff }],
+  vegeta: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' },
+    { spark: 'sparkY', burst: 'tfRose' }, { spark: 'lightB' }, { bolt: 0x6a9aff, spark: 'lightB' }, { bolt: 0xc070ff, burst: 'tfDark' }],
+  black: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { burst: 'tfPink' }, { bolt: 0xff8ad0, burst: 'tfBlades' }],
+  piccolo: [null, { spark: 'sparkG' }, { spark: 'sparkG', bolt: 0xc8ff9a }, { bolt: 0xffb060, burst: 'tfGold2' }],
+  gohan: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, burst: 'tfGold' }, { spark: 'lightB' },
+    { bolt: 0xe0b0ff, burst: 'tfStar' }],
+  freezer: [null, { burst: 'tfStar' }, { bolt: 0xc89aff, burst: 'tfDark' }, { burst: 'tfPink' }, { bolt: 0xff9ae0, burst: 'tfPink' },
+    { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xa080ff, burst: 'tfDark' }],
+  krilin: [null, { spark: 'sparkY' }, { spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xffffff, burst: 'tfGold' }],
+  trunks: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xbfeaff, spark: 'lightB' }],
+  cell: [null, { spark: 'sparkG' }, { spark: 'lightB', bolt: 0xbfeeff }, { a: 'auraSS2', bolt: 0xfff27a, burst: 'tfGold' }]
+};
+const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;
 /** Aplica los cambios de estadísticas de un rasgo (lo llama Player.recompute) */
 function applyTraitStats(p, T) {
   const m = T.m || {};

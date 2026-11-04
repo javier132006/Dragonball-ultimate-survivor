@@ -124,7 +124,11 @@ def addcut(i, box, tol=13, pad=18):
     X0, Y0, X1, Y1 = max(0, x0 - pad), max(0, y0 - pad), min(a.shape[1], x1 + pad), min(a.shape[0], y1 + pad)
     E = a[Y0:Y1, X0:X1]; LE = E.mean(2); satE = E.max(2) - E.min(2)
     cand = (satE < 16) & ((abs(LE - lo) < tol) | (abs(LE - hi) < tol))
-    sc, (s, ox, oy, pos) = fit(LE, cand, lo, hi)
+    sizes = None
+    if lo < 12:                                                   # hojas nuevas (ajedrez casi negro, casilla de otro tamaño)
+        c0 = fit(LE, cand, lo, hi, np.arange(4.5, 13.5, 0.25))[1][0]
+        sizes = np.arange(c0 - 0.3, c0 + 0.31, 0.05)
+    sc, (s, ox, oy, pos) = fit(LE, cand, lo, hi, sizes)
     H, W = LE.shape
     X, Y = np.meshgrid(np.arange(W), np.arange(H))
     par = ((np.floor((X - ox) / s).astype(int) + np.floor((Y - oy) / s).astype(int)) & 1) == 1

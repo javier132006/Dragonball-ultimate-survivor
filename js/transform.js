@@ -50,6 +50,9 @@ const TRANSFORM_FX = {
   ],
   freezer: [
     null,
+    { c1: '#c87aff', c2: '#f0d8ff', quote: 'Te enseñaré la desesperación.', frames: 'WIC', charge: 1.5, fx: ['rocks', 'bolts'], bolt: '#e0b0ff', shake: 0.9, kanji: '第二形態' },
+    { c1: '#a06aff', c2: '#e8d8ff', quote: 'Mi tercera forma... contemplad el terror.', frames: 'IWBIC', charge: 1.8, fx: ['rocks', 'cracks', 'quake'], shake: 1.1, kanji: '第三形態' },
+    { c1: '#ff6ad8', c2: '#ffd0f0', quote: 'Esta es mi forma final.', frames: 'BIWIC', charge: 2.0, fx: ['shatter', 'sparks', 'ripple'], bolt: '#ff9ae0', shake: 1.0, kanji: '最終形態' },
     { c1: '#ff6ad8', c2: '#ffd0f0', quote: 'Ahora verás el 100% de mi poder.', frames: 'IWC', charge: 1.7, fx: ['bolts', 'sparks'], bolt: '#ff9ae0', shake: 0.9, kanji: '百パーセント' },
     { c1: '#ffd400', c2: '#fff6c0', quote: 'Contempla mi forma dorada.', frames: 'WIBIC', charge: 2.0, fx: ['stars', 'ripple', 'bolts'], bolt: '#fff27a', shake: 0.8, kanji: 'ゴールデン' },
     { c1: '#6a4aff', c2: '#c8b8ff', quote: '...Inclinaos ante el emperador.', frames: 'BIBWBIC', charge: 2.4, fx: ['silence', 'shatter', 'bolts'], bolt: '#a080ff', shake: 1.1, kanji: '黒' }
@@ -151,6 +154,13 @@ class TransformScene {
           if (k > 0.4) V.play('lightA', p.x + rand(-1.5, 1.5), rand(0.8, 2.6), p.z + rand(-1.5, 1.5), { size: 2.6, fps: 30, pri: 1 });
         }
         if (k > 0.25 && !this.fiss) { this.fiss = true; V.crater(p.x, p.z, 4, parseInt(c.c1.slice(1), 16)); }
+        // El aura de la forma nueva va apareciendo durante la carga, con sus rayitos
+        const F = formFx(p.ch, this.to);
+        if (F && k > 0.3) {
+          const nm = F.a || 'auraSS1', own = nm === 'auraSS2' || nm === 'auraSS3';
+          V.aura(nm, p.x, p.z, 4 + k * 3.5, own ? 0xffffff : (this.form.aura || col1), 0.25 + k * 0.6, t);
+          if (F.bolt && Math.random() < dt * 14) V.now(0, fxf('bolt', (t * 30) | 0), p.x + rand(-0.8, 0.8), rand(0.8, 2.6), p.z, 2, 1, F.bolt, rand(0, 6.28));
+        }
         if (Math.random() < dt * (1.5 + k * 3)) { const a = rand(0, 6.28), r = rand(3.5, 6); V.dust(p.x + Math.cos(a) * r, p.z + Math.sin(a) * r, rand(1.4, 2.4)); }
       }
       this.ringT -= dt;
@@ -190,6 +200,11 @@ class TransformScene {
     const V = g.vfx;
     if (V && V.ok) {                                                 // estallido: columna de energía, cúpula de ki, rayos y cráter
       V.play('flare', p.x, 5.5, p.z, { size: 11, dur: 1.4, fps: 8, alpha: 0.85, pri: 1 });
+      const F = formFx(p.ch, this.to);
+      if (F && F.burst) {                                              // estallido propio de la forma (sprites de las hojas nuevas)
+        V.play(F.burst, p.x, 2.6, p.z, { size: 9, grow: 1.9, dur: 0.75, alpha: 0.95, pri: 1 });
+        V.play(F.burst, p.x, 2.2, p.z, { size: 5, grow: 3, dur: 0.9, alpha: 0.6, rot: 0.6, spin: 1.5, pri: 1 });
+      }
       V.play('dome', p.x, 2.4, p.z, { size: 5, grow: 2.4, dur: 0.7, alpha: 0.75, pri: 1 });
       V.flash(p.x, 2, p.z, 7, col, { pri: 1 });
       for (let i = 0; i < 6; i++) { const a = i * 1.047; V.bolt(p.x + Math.cos(a) * 7, p.z + Math.sin(a) * 7, 14, 0xffffff); }
