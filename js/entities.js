@@ -37,7 +37,7 @@ class Player {
     this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
     this.absorbed = 0; this.barT = 0; this.barHits = 0; this.barBoom = 0; this.barCol = 0x8ae0ff;   // Absorción de Célula y Barrera de Ki
-    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.slowT = 0; this.confT = 0;
+    this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.wade = 1; this.slowT = 0; this.confT = 0;
     // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
     this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
     this.egoStk = 0; this.auraT = 0; this.boltT = 0; this.tfCd = 0; this.formSeen = {}; this.trait = null; this.tr = {};
@@ -225,7 +225,7 @@ class Player {
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1);
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1);
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
@@ -783,15 +783,15 @@ class Pickups {
   reset(world) {
     const R = CFG.ARENA - 12;
     this.sn = 0; this.collected = 0; this.got.fill(0);
-    for (let i = 0; i < 70; i++) this.drop(rand(-R, R), rand(-R, R));
+    for (let i = 0; i < 70; i++) { const [x, z] = fitPlay(rand(-R, R), rand(-R, R)); this.drop(x, z); }
     this.scatterBalls();
   }
   scatterBalls() {
     const R = CFG.ARENA - 15;
     for (let i = 0; i < 7; i++) {
       for (let k = 0; k < 40; k++) {
-        const x = rand(-R, R), z = rand(-R, R);
-        let ok = Math.hypot(x, z) > 50;
+        const [x, z] = fitPlay(rand(-R, R), rand(-R, R));
+        let ok = Math.hypot(x, z) > Math.min(50, (PLAY_R || 1e9) * 0.4);
         for (let j = 0; j < i && ok; j++) if (Math.hypot(x - this.bx[j], z - this.bz[j]) < 70) ok = false;
         if (ok || k === 39) { this.bx[i] = x; this.bz[i] = z; break; }
       }
@@ -840,7 +840,7 @@ class Capsules {
   add(x, z, gold, world) {
     if (this.n >= this.max) return;
     const R = CFG.ARENA - 6;
-    x = clamp(x, -R, R); z = clamp(z, -R, R);
+    x = clamp(x, -R, R); z = clamp(z, -R, R); [x, z] = fitPlay(x, z);
     if (world) { world.push(x, z, 1.4); x = world.px; z = world.pz; }
     const i = this.n++;
     this.x[i] = x; this.z[i] = z; this.gold[i] = gold === 2 ? 2 : gold ? 1 : 0;       // 0 normal · 1 dorada · 2 maldita

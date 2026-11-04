@@ -35,8 +35,33 @@ const THEMES = [
   // 4 · Cámara del Espíritu y el Tiempo: vacío blanco infinito
   { seed: 1031, names: ['VACÍO BLANCO', 'VACÍO BLANCO', 'VACÍO BLANCO', 'VACÍO BLANCO'], cols: [[0.95, 0.95, 0.97], [0.9, 0.91, 0.96], [0.97, 0.95, 0.92], [0.88, 0.9, 0.96]],
     bg: 0xf8f8ff, fog: 0xffffff, fogRange: [30, 125], hemi: [0xffffff, 0xc8c8d8, 0.7], sun: 0.45, tex: '#f2f2f8',
-    mesas: [0xe6e6ee, 0xdcdce6, 0xd2d2de], rim: 0xf4f4fa, rock: 0xd4d4de, pebble: 0xdadae2, trunk: 0xc8c8d0, crown: 0xe8e8f0, dead: 0xc0c0cc, pillar: 0xe0e0ea, crater: 0xc8c8d8, lake: 0xa8ccff, crystal: 0x9fe0ff }
+    mesas: [0xe6e6ee, 0xdcdce6, 0xd2d2de], rim: 0xf4f4fa, rock: 0xd4d4de, pebble: 0xdadae2, trunk: 0xc8c8d0, crown: 0xe8e8f0, dead: 0xc0c0cc, pillar: 0xe0e0ea, crater: 0xc8c8d8, lake: 0xa8ccff, crystal: 0x9fe0ff },
+  // 5 · Torneo del Poder: ring de piedra flotando en el vacío del Mundo del Vacío. `arena`: radio del ring (fracción de R)
+  { seed: 5150, names: ['RING DEL TORNEO', 'RING DEL TORNEO', 'RING DEL TORNEO', 'RING DEL TORNEO'], cols: [[0.8, 0.8, 0.86], [0.74, 0.76, 0.84], [0.82, 0.78, 0.76], [0.72, 0.74, 0.8]],
+    bg: 0x1c1440, fog: 0x241a50, fogRange: [70, 230], hemi: [0xeae4ff, 0x3a2a6a, 0.62], sun: 0.6, tex: '#dcdce8',
+    mesas: [0x8a88a0, 0x7a7890, 0x6a6880], rim: 0x241a50, rock: 0x9a98aa, pebble: 0xaeacbe, trunk: 0x6a6880, crown: 0x9a98aa, dead: 0x5a586a, pillar: 0xd0d0de, crater: 0x5a5872, lake: 0x6a9aff, crystal: 0x9fe0ff,
+    arena: 0.84, voidCol: [0.1, 0.07, 0.22], noLakes: true, noMesas: true, noRim: true, noTrees: true },
+  // 6 · Infierno de Janemba: roca negra y roja, ríos de lava (lagos que queman) y volcanes
+  { seed: 6660, names: ['INFIERNO', 'CAMPO DE LAVA', 'DIMENSIÓN DE JANEMBA', 'BOSQUE DE PÚAS'], cols: [[0.44, 0.17, 0.14], [0.3, 0.12, 0.12], [0.56, 0.22, 0.12], [0.33, 0.2, 0.27]],
+    bg: 0x2a0808, fog: 0x3a0c0a, fogRange: [55, 210], hemi: [0xffa080, 0x3a0808, 0.52], sun: 0.48, tex: '#c89a80',
+    mesas: [0x5a1a16, 0x3a1210, 0x4a2a30], rim: 0x2a0a08, rock: 0x5a2a22, pebble: 0x6a3020, trunk: 0x3a1a14, crown: 0x7a1a1a, dead: 0x2a1410, pillar: 0x7a5a5a, crater: 0x1a0404, lake: 0xff4a10, crystal: 0xff6a3a,
+    lakesMax: 14 },
+  // 7 · Isla Kame: isla de arena con palmeras rodeada de mar. `island`: radio de la isla (fracción de R)
+  { seed: 7171, names: ['ISLA KAME', 'PLAYA', 'PALMERAL', 'ROCAS DE LA COSTA'], cols: [[0.93, 0.84, 0.6], [0.86, 0.8, 0.56], [0.58, 0.78, 0.42], [0.74, 0.7, 0.62]],
+    bg: 0x8fd8ff, fog: 0xa4e0ff, fogRange: [90, 330], hemi: [0xffffff, 0x4a8ab0, 0.55], sun: 0.66, tex: '#f2dfae',
+    mesas: [0xc8a878, 0xb89868, 0x9a9088], rim: 0x3a8ad0, rock: 0xa89880, pebble: 0xc8b090, trunk: 0x8a6a42, crown: 0x4ab05a, dead: 0x6a5a42, pillar: 0xd8d0c0, crater: 0xb89a6a, lake: 0x3ab0ff, crystal: 0x9fe0ff,
+    island: 0.7, sea: [0.22, 0.58, 0.86], noLakes: true, noRim: true }
 ];
+/* Zona jugable circular (mapas con mar o con ring): 0 = todo el cuadrado. La fija World al crearse */
+let PLAY_R = 0;
+/** Mete un punto al azar dentro de la zona jugable (para colocar cápsulas, esferas, puntos de interés...) */
+function fitPlay(x, z) {
+  if (!PLAY_R) return [x, z];
+  const d = Math.hypot(x, z);
+  if (d <= PLAY_R) return [x, z];
+  const k = PLAY_R * (0.45 + Math.random() * 0.55) / d;
+  return [x * k, z * k];
+}
 /* Semilla extra del mapa (el desafío diario la cambia para que el mapa sea el del día) */
 let WORLD_SEED_XOR = 0;
 /* Semilla del relieve: aleatoria en cada partida (en el diario la fija Game.start con la del día) */
@@ -79,6 +104,8 @@ class World {
     this.scene = scene;
     BIOME_COL = th.cols; BIOME_NAMES = th.names; BIOME_SEED = (themeIdx || 0) * 5 + (WORLD_SEED_XOR % 97);
     this.R = CFG.ARENA; this.seedX = WORLD_SEED_XOR;
+    this.edge = th.island ? th.island * this.R : th.arena ? th.arena * this.R : 0;   // borde de la isla o del ring
+    PLAY_R = this.edge ? this.edge - (th.island ? 8 : 4) : 0;
     this.dens = clamp((this.R / 220) * (this.R / 220), 0.1, 1);       // en mapas pequeños hay menos props
     this.rng = seeded(th.seed ^ WORLD_SEED_XOR);
     scene.background = new THREE.Color(th.bg);
@@ -122,9 +149,9 @@ class World {
 
   /** Lagos (solo visuales): posiciones fijas en la semilla del mapa; más tarde el relieve se aplana bajo ellos */
   planLakes() {
-    const R = this.R, out = [], rng = this.rng;
-    if (R < 100) return out;
-    for (let k = 0; k < 60 && out.length < 9; k++) {
+    const R = this.R, out = [], rng = this.rng, max = this.th.lakesMax || 9;
+    if (R < 100 || this.th.noLakes) return out;
+    for (let k = 0; k < 90 && out.length < max; k++) {
       const x = (rng() * 2 - 1) * R * 0.9, z = (rng() * 2 - 1) * R * 0.9, r = 10 + rng() * 14;
       if (Math.hypot(x, z) < 45) continue;
       if (out.some((l) => Math.hypot(l.x - x, l.z - z) < r + l.r + 25)) continue;
@@ -143,6 +170,8 @@ class World {
         const d = Math.hypot(x - l.x, z - l.z), t = clamp((d - l.r) / 5, 0, 1);
         h = -0.4 + (h + 0.4) * sm(0, 1, t);                        // dentro del lago: nivel -0.4; se suaviza en 5 unidades
       }
+      if (this.th.island) { const d = Math.hypot(x, z); h = h * (1 - sm(this.edge - 20, this.edge - 6, d)) - 0.7 * sm(this.edge - 8, this.edge + 4, d); }   // la isla baja hasta el mar
+      if (this.th.arena) { const d = Math.hypot(x, z); h = d < this.edge ? 0 : -3; }                          // ring plano; fuera, el vacío
       const b = clamp(Math.round((h - HM.MIN) / HM.RANGE * 255), 0, 255), o = (j * N + i) * 4;
       D[o] = D[o + 1] = D[o + 2] = b; D[o + 3] = 255;
     }
@@ -157,7 +186,8 @@ class World {
       const x = p.getX(i), z = p.getZ(i), h = groundH(x, z), w = biomeWeights(x, z);
       p.setY(i, h);
       const shade = 0.9 + clamp(h / 7, -0.12, 0.14);               // las zonas altas se ven un poco más claras
-      for (let c = 0; c < 3; c++) col[i * 3 + c] = (w[0] * BIOME_COL[0][c] + w[1] * BIOME_COL[1][c] + w[2] * BIOME_COL[2][c] + w[3] * BIOME_COL[3][c]) * shade;
+      const C = this.colorAt(x, z, w);
+      for (let c = 0; c < 3; c++) col[i * 3 + c] = C[c] * shade;
     }
     p.needsUpdate = true;
     geo.computeVertexNormals();                                     // la luz marca las laderas
@@ -166,6 +196,30 @@ class World {
     const ground = new THREE.Mesh(geo, toonMat(0xffffff, Object.assign({ vertexColors: true }, tex ? { map: tex } : {})));
     ground.receiveShadow = true;
     scene.add(ground);
+    const th = this.th, E = this.edge;
+    if (th.island) {                                                // el mar alrededor de la isla (plano de agua semitransparente)
+      const sea = new THREE.Mesh(new THREE.RingGeometry(E - 3, this.R + 200, 64), new THREE.MeshBasicMaterial({ color: 0x3aa8f0, transparent: true, opacity: 0.72 }));
+      sea.rotation.x = -Math.PI / 2; sea.position.y = -0.25; scene.add(sea);
+      const foam = new THREE.Mesh(new THREE.RingGeometry(E - 3.6, E - 2.4, 96), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }));
+      foam.rotation.x = -Math.PI / 2; foam.position.y = -0.2; scene.add(foam);
+    }
+    if (th.arena) {                                                 // borde del ring: línea brillante
+      const rim = new THREE.Mesh(new THREE.RingGeometry(E - 0.5, E + 0.3, 96), new THREE.MeshBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0.85 }));
+      rim.rotation.x = -Math.PI / 2; rim.position.y = 0.05; scene.add(rim);
+    }
+  }
+  /** Color del suelo en (x,z): mezcla de biomas, más la arena y el mar de la isla o el vacío fuera del ring */
+  colorAt(x, z, w) {
+    const th = this.th, o = this._col || (this._col = [0, 0, 0]);
+    for (let c = 0; c < 3; c++) o[c] = w[0] * BIOME_COL[0][c] + w[1] * BIOME_COL[1][c] + w[2] * BIOME_COL[2][c] + w[3] * BIOME_COL[3][c];
+    if (th.island || th.arena) {
+      const d = Math.hypot(x, z), E = this.edge;
+      if (th.island) {
+        const sand = sm(E - 22, E - 10, d), sea = sm(E - 6, E, d);
+        for (let c = 0; c < 3; c++) o[c] = (o[c] * (1 - sand) + [0.96, 0.88, 0.64][c] * sand) * (1 - sea) + th.sea[c] * sea;
+      } else if (d > E) for (let c = 0; c < 3; c++) o[c] = th.voidCol[c];
+    }
+    return o;
   }
 
   /** Suelo con la baldosa pixel art del mapa (hoja «tiles»): se pasa a relieve en gris y se tiñe con el color del tema,
@@ -173,7 +227,7 @@ class World {
   makeTileTexture(theme) {
     const sh = FX_SHEETS && FX_SHEETS.tiles, img = sh && sh.tex && sh.tex.image;
     if (!img || !img.width) return null;
-    const k = [0, 2, 3, 0, 4][theme] === undefined ? 0 : [0, 2, 3, 0, 4][theme];      // tierra, hierba, piedra, tierra, ladrillo blanco
+    const T = [0, 2, 3, 0, 4, 4, 5, 1], k = T[theme] === undefined ? 0 : T[theme];      // tierra, hierba, piedra, tierra, ladrillo, ladrillo, tierra agrietada, arena
     const C = 128, c = document.createElement('canvas'); c.width = c.height = C;
     const g = c.getContext && c.getContext('2d'); if (!g) return null;
     g.drawImage(img, (k % 3) * C, ((k / 3) | 0) * C, C, C, 0, 0, C, C);
@@ -239,11 +293,12 @@ class World {
 
   buildProps(scene) {
     const rng = this.rng, R = this.R, th = this.th, rr = (a, b) => a + rng() * (b - a), N = (c) => Math.max(3, Math.round(c * this.dens)), sc = R < 100 ? 0.3 : 1;
-    const spot = (minD0) => { const minD = minD0 * sc; for (let k = 0; k < 20; k++) { const x = rr(-R, R), z = rr(-R, R); if (Math.hypot(x, z) > minD) return [x, z]; } return [R * 0.9, R * 0.9]; };
+    const PR = PLAY_R || 1e9;                                       // en la isla y el ring, el decorado va dentro
+    const spot = (minD0) => { const minD = minD0 * sc; for (let k = 0; k < 30; k++) { const x = rr(-R, R), z = rr(-R, R), d = Math.hypot(x, z); if (d > minD && d < PR) return [x, z]; } return fitPlay(R * 0.9, R * 0.9); };
     const cyl = new THREE.CylinderGeometry(0.62, 1, 1, 7), ico = new THREE.IcosahedronGeometry(1, 0);
     // Mesetas por bioma (rojas en el cañón, grises en la tierra ceniza, ocres en el resto)
     const mesas = [[], [], []], MC = th.mesas;
-    for (let i = 0; i < N(90); i++) {
+    for (let i = 0; i < (th.noMesas ? 0 : N(90)); i++) {
       const [x, z] = spot(30), b = biomeAt(x, z), k = b === 2 ? 1 : b === 3 ? 2 : 0, w = rr(3, 6.5), h = rr(9, 26);
       mesas[k].push([x, h / 2 - 0.5, z, w, h, w, rr(0, 6.28)]);
       this.collider(x, z, w * 0.82);
@@ -251,8 +306,8 @@ class World {
     mesas.forEach((l, k) => { if (l.length) this.inst(scene, cyl, toonMat(MC[k]), l, true); });
     // Muralla de mesetas gigantes fuera del mapa (oculta el borde)
     const rim = [];
-    for (let i = 0; i < 130; i++) { const a = rr(0, 6.28), d = R + rr(8, 80), w = rr(8, 18), h = rr(24, 70); rim.push([Math.cos(a) * d, h / 2 - 0.5, Math.sin(a) * d, w, h, w, rr(0, 6.28)]); }
-    this.inst(scene, cyl, toonMat(th.rim), rim, false);
+    for (let i = 0; i < (th.noRim ? 0 : 130); i++) { const a = rr(0, 6.28), d = R + rr(8, 80), w = rr(8, 18), h = rr(24, 70); rim.push([Math.cos(a) * d, h / 2 - 0.5, Math.sin(a) * d, w, h, w, rr(0, 6.28)]); }
+    if (rim.length) this.inst(scene, cyl, toonMat(th.rim), rim, false);
     // Rocas grandes (con colisión) y guijarros decorativos
     const rocks = [], pebbles = [];
     for (let i = 0; i < N(150); i++) { const [x, z] = spot(14), s = rr(1.1, 2.6); rocks.push([x, s * 0.45, z, s, s * 0.8, s * rr(0.8, 1.2), rr(0, 6.28)]); this.collider(x, z, s * 0.85); }
@@ -261,7 +316,7 @@ class World {
     this.inst(scene, ico, toonMat(th.pebble), pebbles, false);
     // Árboles (llanuras y tierra ceniza) y ruinas
     const trunks = [], crowns = [], dead = [], pillars = [];
-    for (let i = 0; i < 700 && trunks.length + dead.length < N(230); i++) {
+    for (let i = 0; i < (th.noTrees ? 0 : 700) && trunks.length + dead.length < N(230); i++) {
       const [x, z] = spot(20), b = biomeAt(x, z);
       if (b === 1) { const h = rr(3.5, 6); trunks.push([x, h / 2, z, 0.35, h, 0.35, 0]); crowns.push([x, h + 1.1, z, rr(1.8, 2.8), rr(1.6, 2.4), rr(1.8, 2.8), rr(0, 6)]); this.collider(x, z, 0.5); }
       else if (b === 3 && rng() < 0.6) { const h = rr(3, 5); dead.push([x, h / 2, z, 0.3, h, 0.3, rr(0, 6)]); this.collider(x, z, 0.45); }
@@ -299,7 +354,8 @@ class World {
     const SH = FX_SHEETS;
     if (!SH || !SH.props || !SH.tall || !FXA.grass) return;
     const rng = this.rng, R = this.R, rr = (a, b) => a + rng() * (b - a), N = (c) => Math.max(2, Math.round(c * this.dens)), sc = R < 100 ? 0.3 : 1;
-    const spot = (minD) => { for (let k = 0; k < 30; k++) { const x = rr(-R, R), z = rr(-R, R); if (Math.hypot(x, z) > minD * sc && !this.lakes.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + 3)) return [x, z]; } return [R * 0.8, -R * 0.8]; };
+    const PR = PLAY_R || 1e9;
+    const spot = (minD) => { for (let k = 0; k < 40; k++) { const x = rr(-R, R), z = rr(-R, R), d = Math.hypot(x, z); if (d > minD * sc && d < PR && !this.lakes.some((l) => Math.hypot(x - l.x, z - l.z) < l.r + 3)) return [x, z]; } return fitPlay(R * 0.8, -R * 0.8); };
     // name: animación · k: fotograma · size: alto en unidades · col: radio de choque · hp: vida si se rompe · brk: fotograma roto
     const add = (name, k, x, z, size, col, hp, brk, tall, rw) => {
       if (!FXA[name]) return { f: 0 };
@@ -348,6 +404,26 @@ class World {
       for (let i = 0; i < N(22); i++) { const [x, z] = spot(24); add('rockT', i & 1, x, z, rr(8, 12), 2.2, 0, -1, true); }
       for (let i = 0; i < N(60); i++) { const [x, z] = spot(12); add('rockS', i % 5, x, z, rr(2.2, 3.2), 0.9, 70); }
       for (let i = 0; i < N(24); i++) { const [x, z] = spot(14); add('craterR', i % 3, x, z, rr(3, 4.2)); }
+    } else if (theme === 5) {                                // Torneo del Poder: bloques del ring, columnas y pilares rotos
+      for (let i = 0; i < N(60); i++) { const [x, z] = spot(10); add('arenaBlk', 0, x, z, rr(2.4, 3.2), 1.1, 120, -1, false, 'vase'); }
+      for (let i = 0; i < N(40); i++) { const [x, z] = spot(14); add('pillarS', i % 3, x, z, rr(3.4, 4.6), 0.9, 120, -1, false, 'vase'); }
+      for (let i = 0; i < N(30); i++) { const [x, z] = spot(16); add('column', 0, x, z, rr(9, 12), 1.1, 0, -1, true); }
+      for (let i = 0; i < N(40); i++) { const [x, z] = spot(8); add('craterR', i % 3, x, z, rr(3, 4.2)); }
+    } else if (theme === 6) {                                // Infierno: volcanes, rocas, lápidas y grietas
+      for (let i = 0; i < N(14); i++) { const [x, z] = spot(34); this.collider(x, z, 4.5, -1); this.volcs.push({ x, z, size: rr(11, 15), ph: rng() * 6, f: rng() < 0.5 ? 0 : 1 }); }
+      for (let i = 0; i < N(26); i++) { const [x, z] = spot(24); add('rockT', i & 1, x, z, rr(8, 12), 2.2, 0, -1, true); }
+      for (let i = 0; i < N(70); i++) { const [x, z] = spot(12); add('rockP', rng() < 0.6 ? 0 : 5, x, z, rr(2.4, 3.6), 1.1, 90, 7); }
+      for (let i = 0; i < N(40); i++) { const [x, z] = spot(16); add('tomb', i % 2, x, z, rr(2.6, 3.4), 0.8, 60, -1, false, 'vase'); }
+      for (let i = 0; i < N(40); i++) { const [x, z] = spot(12); add('craterR', i % 3, x, z, rr(3, 4.2)); }
+      for (let i = 0; i < N(24); i++) { const [x, z] = spot(18); add('crate', 1, x, z, 2.3, 0.9, 45, 3); }
+    } else if (theme === 7) {                                // Isla Kame: palmeras, casas, rocas, cofres y hierba
+      for (let i = 0; i < N(70); i++) { const [x, z] = spot(16); add('palm', i % 4, x, z, rr(8.5, 11), 0.6, 0, -1, true); }
+      for (let i = 0; i < N(10); i++) { const [x, z] = spot(26); add('house', i % 5, x, z, rr(6, 7.2), 2.4, 260, -1, false, 'house'); }
+      for (let i = 0; i < N(60); i++) { const [x, z] = spot(12); add('rockS', i % 5, x, z, rr(2.2, 3.2), 0.9, 70); }
+      for (let i = 0; i < N(16); i++) { const [x, z] = spot(18); add('chest', i & 1, x, z, 2.3, 0.8, 40, -1, false, 'chest'); }
+      for (let i = 0; i < N(30); i++) { const [x, z] = spot(18); add('crate', rng() < 0.5 ? 0 : 1, x, z, rr(2, 2.5), 0.9, 45, 3); }
+      for (let i = 0; i < N(400); i++) { const [x, z] = spot(8); add('grass', [1, 6, 7][i % 3], x, z, rr(1.1, 1.7)); }
+      for (let i = 0; i < N(8); i++) { const [x, z] = spot(24); add(['sign', 'bench', 'stall', 'vending'][i % 4], i % 2, x, z, rr(3, 4), 0.9, 90, -1, false, 'vase'); }
     } else {                                                 // Cámara del Tiempo: casi vacía (cajas, bloques y columnas)
       for (let i = 0; i < N(18); i++) { const [x, z] = spot(10); add('crate', 0, x, z, 2.2, 0.9, 45, 3); }
       for (let i = 0; i < N(10); i++) { const [x, z] = spot(12); add('arenaBlk', 0, x, z, rr(2.4, 3), 1.1, 120, -1, false, 'vase'); }
@@ -487,7 +563,7 @@ class World {
     if (!g) return;
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       const x = ((i + 0.5) / N * 2 - 1) * this.R, z = ((j + 0.5) / N * 2 - 1) * this.R, w = biomeWeights(x, z);
-      const v = [0, 1, 2].map((k) => Math.round(255 * (w[0] * BIOME_COL[0][k] + w[1] * BIOME_COL[1][k] + w[2] * BIOME_COL[2][k] + w[3] * BIOME_COL[3][k]) * 0.85));
+      const C = this.colorAt(x, z, w), v = [0, 1, 2].map((k) => Math.round(255 * C[k] * 0.85));
       g.fillStyle = 'rgb(' + v[0] + ',' + v[1] + ',' + v[2] + ')';
       g.fillRect(i, j, 1, 1);
     }

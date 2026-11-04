@@ -507,22 +507,29 @@ const BOSSES = {
    `bosses`: jefes posibles del mapa (sale uno al azar en cada partida). `bossHp`: su vida en este mapa.
    `basic`: personaje de la tropa básica del mapa (fila de la hoja de enemigos). */
 const STAGES = [
-  { id: 'earth', name: 'TIERRA · YERMO', theme: 0, R: 220, hp: 1, dmg: 1, spawn: 1, pois: true, night: true, basic: 'saibai', next: [1, 2],
+  { id: 'earth', name: 'TIERRA · YERMO', theme: 0, R: 220, hp: 1, dmg: 1, spawn: 1, pois: true, night: true, basic: 'saibai', next: [1, 2, 6],
     desc: 'El yermo de siempre. Cae la noche cada pocos minutos.', bosses: ['cell', 'omega', 'raditz', 'turles', 'a16'], bossHp: 4500 },
-  { id: 'namek', name: 'NAMEKUSEI', theme: 1, R: 220, hp: 1.8, dmg: 1.35, spawn: 1.2, pois: true, fx: 'lake', basic: 'soldado', next: [3],
+  { id: 'namek', name: 'NAMEKUSEI', theme: 1, R: 220, hp: 1.8, dmg: 1.35, spawn: 1.2, pois: true, fx: 'lake', basic: 'soldado', next: [3, 5],
     desc: 'Tres soles: nunca anochece. El agua de los lagos te cura.', bosses: ['freezer', 'cooler'], bossHp: 20000 },
-  { id: 'vegeta', name: 'PLANETA VEGETA', theme: 3, R: 200, hp: 1.9, dmg: 1.4, spawn: 1.25, pois: true, fx: 'gravity', night: true, basic: 'soldado', next: [3],
+  { id: 'vegeta', name: 'PLANETA VEGETA', theme: 3, R: 200, hp: 1.9, dmg: 1.4, spawn: 1.25, pois: true, fx: 'gravity', lava: true, night: true, basic: 'soldado', next: [3, 5],
     desc: 'Gravedad x10: te mueves un 12% más lento, pero ganas un 30% más de experiencia.', bosses: ['broly', 'turles'], bossHp: 22000 },
   { id: 'room', name: 'CÁMARA DEL TIEMPO', theme: 4, R: 80, hp: 2.2, dmg: 1.5, spawn: 1.7, pois: false, fx: 'time', basic: 'saibai', next: [4], bossAt: 75, caps: 10, swarmAt: 300,
     desc: 'Un año en un día: experiencia x2 y la horda no da tregua. El jefe llega al minuto y cuarto.', bosses: ['buu', 'superbuu'], bossHp: 30000 },
   { id: 'rift', name: 'DIMENSIÓN FRACTURADA', theme: 2, R: 62, hp: 2.6, dmg: 1.7, spawn: 0, pois: false, final: true, fx: 'lowgrav', basic: 'soldado', next: [],
-    desc: 'Gravedad baja: el dash llega más lejos. Solo queda el jefe final.', bosses: ['black', 'zamasu', 'jiren', 'beerus', 'hit', 'toppo', 'janemba'], bossHp: 70000 }
+    desc: 'Gravedad baja: el dash llega más lejos. Solo queda el jefe final.', bosses: ['black', 'zamasu', 'jiren', 'beerus', 'hit', 'toppo', 'janemba'], bossHp: 70000 },
+  // Mapas nuevos (5-7): el Torneo es la alternativa a la Cámara, el Infierno a Namek / Planeta Vegeta y la Isla Kame a la Tierra
+  { id: 'torneo', name: 'TORNEO DEL PODER', theme: 5, R: 90, hp: 2.3, dmg: 1.55, spawn: 1.5, pois: false, fx: 'ring', basic: 'soldado', next: [4], bossAt: 90, caps: 12, swarmAt: 330,
+    desc: 'Ring flotante en el vacío: fuera del borde pierdes vida. El jefe llega al minuto y medio.', bosses: ['toppo', 'jiren', 'hit'], bossHp: 32000 },
+  { id: 'hell', name: 'INFIERNO', theme: 6, R: 200, hp: 1.9, dmg: 1.4, spawn: 1.25, pois: true, fx: 'hell', lava: true, basic: 'soldado', next: [3, 5],
+    desc: 'Ríos de lava que queman y volcanes en erupción: +20% de experiencia.', bosses: ['janemba', 'cooler', 'turles'], bossHp: 22000 },
+  { id: 'kame', name: 'ISLA KAME', theme: 7, R: 180, hp: 1, dmg: 1, spawn: 1, pois: true, night: true, fx: 'sea', basic: 'saibai', next: [1, 2, 6],
+    desc: 'La isla del Maestro Roshi. En el mar te mueves mucho más lento.', bosses: ['raditz', 'turles', 'a16', 'cell'], bossHp: 4500 }
 ];
 /** Elige el jefe de un mapa para esta partida y le pone la vida del mapa */
 const pickBoss = (S) => Object.assign({ id: '' }, BOSSES[S.bosses[(Math.random() * S.bosses.length) | 0]], { hp: S.bossHp });
 for (const S of STAGES) S.boss = Object.assign({}, BOSSES[S.bosses[0]], { hp: S.bossHp });   // valor por defecto (menú, pruebas)
 for (const k in BOSSES) BOSSES[k].id = k;
-const ROUTE_LEN = 4;      // mapas por partida: Tierra -> (Namek o Planeta Vegeta) -> Cámara del Tiempo -> Dimensión
+const ROUTE_LEN = 4;      // mapas por partida: Tierra o Isla Kame -> Namek, Planeta Vegeta o Infierno -> Cámara del Tiempo o Torneo -> Dimensión
 const SWARM_TIME = 600;   // a los 10 minutos de cada mapa llega el enjambre final
 
 const itemById = (id) => ITEMS.find((i) => i.id === id);

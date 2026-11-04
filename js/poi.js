@@ -89,14 +89,14 @@ class Points {
     const R = CFG.ARENA - 18, spots = [];
     const spot = () => {
       for (let k = 0; k < 60; k++) {
-        const x = rand(-R, R), z = rand(-R, R);
+        const [x, z] = fitPlay(rand(-R, R), rand(-R, R));
         if (Math.hypot(x, z) < 30) continue;
         if (spots.some((s) => Math.hypot(s[0] - x, s[1] - z) < 36)) continue;
         world.push(x, z, 3); const px = world.px, pz = world.pz;
         spots.push([px, pz]);
         return [px, pz];
       }
-      const x = rand(-R, R), z = rand(-R, R); spots.push([x, z]); return [x, z];
+      const [x, z] = fitPlay(rand(-R, R), rand(-R, R)); spots.push([x, z]); return [x, z];
     };
     const plan = [['boss', 1], ['time', 2], ['temple', 2], ['merchant', 2], ['swapper', 1]];
     for (const [type, n] of plan) for (let i = 0; i < n; i++) { const [x, z] = spot(); this.add(type, x, z); }

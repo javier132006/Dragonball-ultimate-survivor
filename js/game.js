@@ -11,7 +11,7 @@ const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temp
 /** Nombre legible del origen del daño (gráfica de daño por técnica) */
 const SRC_NAMES = { ult: 'Ultimate', otros: 'Otros (ondas, explosiones)', ally: 'Compañeros', mines: 'Minas de Energía', transform: 'Transformación', aura: 'Aura de transformación', bolt: 'Rayos de la forma', counter: 'Contraataques', tp: 'Transmisión Instantánea', chain: 'Saibaimen en cadena' };
 /** Color del brillo de cada grieta según el mapa al que lleva */
-const RIFT_COL = { namek: 0x6aff8a, vegeta: 0xff6a3a, room: 0xffffff, rift: 0xc050ff };
+const RIFT_COL = { namek: 0x6aff8a, vegeta: 0xff6a3a, room: 0xffffff, rift: 0xc050ff, torneo: 0xffd060, hell: 0xff2a1a, kame: 0x5ad8ff };
 /** Calidad gráfica: resolución máxima, sombras y cantidad de partículas */
 const QUALITY = {
   high: { pr: 2, shadow: 2048, every: 1, fx: 1 },
@@ -456,7 +456,7 @@ class Game {
     this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
     if (IS_TOUCH) { goFullscreen(); this.camDistT = 22; }
     this.step = 0; this.booms.length = 0; this.rerolls = 2; this.sigOffered = {};
-    this.loadStage(0);
+    this.loadStage((this.daily ? dailySeed() % 2 === 1 : Math.random() < 0.5) ? 7 : 0);   // se empieza en la Tierra o en la Isla Kame
     this.applyForm();
     for (let i = 0; i < 14; i++) this.spawnEnemy();
     this.horde.buildGrid();
@@ -506,7 +506,7 @@ class Game {
     p.x = 0; p.z = 0; p.vx = 0; p.vz = 0; p.kbx = 0; p.kbz = 0; this.camLook.set(0, 1.4, 0);
     // Efecto de cada mapa: agua que cura (Namek), gravedad x10 (Planeta Vegeta), gravedad baja (dimensión), tiempo (Cámara)
     p.dashBoost = S.fx === 'lowgrav' ? 1.4 : 1;
-    p.grav = S.fx === 'gravity' ? 0.88 : 1;
+    p.grav = S.fx === 'gravity' ? 0.88 : 1; p.wade = 1; this.edgeMsg = false;
     this.lakeMsg = false;
     if (S.desc && this.state !== 'menu') this.ui.toast(S.desc, true);
     this.horde.buildGrid();
@@ -585,7 +585,7 @@ class Game {
   openRifts(x, z) {
     const nx = this.stage.next, ui = this.ui;
     nx.forEach((to, k) => {
-      const off = nx.length > 1 ? (k ? 7 : -7) : 0, a = this.camYaw;
+      const off = (k - (nx.length - 1) / 2) * 14 / Math.max(1, nx.length - 1) * (nx.length > 1 ? 1 : 0), a = this.camYaw;
       this.points.openRift(clamp(x + Math.cos(a) * off, -CFG.ARENA + 4, CFG.ARENA - 4), clamp(z - Math.sin(a) * off, -CFG.ARENA + 4, CFG.ARENA - 4), to, RIFT_COL[STAGES[to].id]);
     });
     if (nx.length > 1) { ui.toast('ELIGE TU CAMINO'); ui.toast(nx.map((i) => STAGES[i].name).join(' · O · '), true); }
@@ -1613,7 +1613,7 @@ class Game {
 
   /* ---------- Experiencia y mejoras ---------- */
   /** Multiplicador de experiencia del mapa: Cámara del Tiempo x2, gravedad x10 +30%, noche +20% */
-  stageXp() { const f = this.stage.fx; return (f === 'time' ? 2 : f === 'gravity' ? 1.3 : 1) * (this.night > 0.5 ? 1.2 : 1); }
+  stageXp() { const f = this.stage.fx; return (f === 'time' ? 2 : f === 'gravity' ? 1.3 : f === 'hell' ? 1.2 : 1) * (this.night > 0.5 ? 1.2 : 1); }
   addXp(v) {
     const p = this.player;
     p.xp += v * p.xpMul * this.stageXp();
@@ -1848,7 +1848,22 @@ class Game {
       }
     }
     // Namek: el agua de los lagos cura · Planeta Vegeta: los lagos son de lava y queman
-    if (S.fx === 'lake' || S.fx === 'gravity') {
+    // Torneo del Poder: fuera del ring pierdes vida · Isla Kame: en el mar te mueves más lento
+    if (S.fx === 'ring' || S.fx === 'sea') {
+      const out = Math.hypot(p.x, p.z) > this.world.edge;
+      if (S.fx === 'ring' && out) {
+        if (!this.practice || p.hp > p.maxHp * 0.2) p.hp -= p.maxHp * 0.07 * dt;
+        if (Math.random() < dt * 16) this.fx.sparks.emit(p.x + rand(-1, 1), 0.3, p.z + rand(-1, 1), 0, rand(3, 6), 0, 0.5, 0.3, 0, 0xb08aff);
+        if (!this.edgeMsg) { this.edgeMsg = true; this.ui.toast('¡FUERA DEL RING! VUELVE DENTRO', true); SFX.play('warn'); }
+      }
+      if (S.fx === 'sea') {
+        p.wade = out ? 0.6 : 1;
+        if (out && Math.random() < dt * 10) this.fx.aura.emit(p.x + rand(-1, 1), 0.1, p.z + rand(-1, 1), 0, rand(1, 3), 0, 0.5, 0.2, 0, 0xcff0ff);
+        if (out && !this.edgeMsg) { this.edgeMsg = true; this.ui.toast('EL MAR TE FRENA', true); }
+      }
+      if (!out) this.edgeMsg = false;
+    }
+    if (S.fx === 'lake' || S.lava) {
       let wet = false;
       for (const l of this.world.lakes) { const dx = p.x - l.x, dz = p.z - l.z; if (dx * dx + dz * dz < (l.r + (S.fx === 'lake' ? 2.5 : -1)) ** 2) { wet = true; break; } }
       if (wet && S.fx === 'lake') {
