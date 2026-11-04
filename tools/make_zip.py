@@ -19,6 +19,7 @@ def F(folder, idle, walk, atk, beam, crit, hurt, dash, death):
                                    12: death[0], 13: death[1], 14: death[2]})
 G = 'GOKU fases/'; V = 'VEGETA fases/'; GB = 'GOKU BLACK formas/'; GH = 'GOHAN fases/'; FZ = 'FREEZA formas/'
 TR = 'MIRAI TRUNKS fases/'; CE = 'CELL formas/'
+VG = 'VEGITO fases/'; BR = 'BROLY fases/'; BD = 'BARDOCK fases/'
 SHEETS = {
  'goku': F(G + 'Goku', 11, (12, 13), 25, 70, 31, 41, 16, (42, 43, 47)),
  'goku_kk': F(G + 'Goku kaioken', 7, (8, 9), 33, 53, 24, 39, 11, (46, 48, 51)),
@@ -58,6 +59,17 @@ SHEETS = {
  'cell': F(CE + 'cell Perfeito', 1, (2, 3), 10, 34, 16, 27, 7, (27, 29, 31)),
  'piccolo': F('Piccolo', 3, (4, 5), 21, 117, 30, 44, 15, (44, 45, 51)),
  'krilin': F('Kuririn', 15, (16, 17), 29, 69, 31, 47, 19, (48, 49, 50)),
+ 'vegito': F(VG + 'Vegito', 20, (21, 35), 66, 137, 78, 96, 40, (97, 99, 100)),
+ 'vegito_ss': F(VG + 'Vegito Ssj1', 1, (2, 3), 24, 72, 34, 38, 17, (43, 45, 47)),
+ 'vegito_ss2': F(VG + 'Vegito Ssj2', 21, (22, 25), 41, 120, 70, 82, 26, (83, 84, 85)),
+ 'vegito_blue': F(VG + 'Vegito SSJ Blue', 37, (38, 42), 68, 175, 102, 117, 44, (117, 118, 119)),
+ 'broly': F(BR + 'Broly Segunda Forma', 25, (42, 43), 29, 88, 35, 49, 7, (46, 52, 53)),
+ 'broly_ss': F(BR + 'Broly Terceira forma', 14, (16, 19), 21, 90, 29, 33, 6, (64, 65, 67)),
+ 'broly_lss': F(BR + 'Broly Full Power', 10, (11, 12), 22, 64, 29, 39, 14, (40, 41, 42)),
+ 'broly_ss4': F(BR + 'Broly Ssj4', 1, (2, 3), 11, 44, 16, 29, 8, (29, 30, 31)),
+ 'bardock': F(BD + 'Bardock', 5, (6, 7), 17, 52, 28, 42, 8, (44, 46, 48)),
+ 'bardock_ss': F(BD + 'Bardock Ssj', 15, (16, 17), 43, 73, 38, 64, 18, (64, 65, 67)),
+ 'bardock_ss4': F(BD + 'Bardock SSJ4', 3, (4, 5), 12, 41, 23, 35, 6, (36, 38, 39)),
 }
 # Poses de CARGAR KI con el aura (hoja <personaje>_chg, una tira por personaje): nombre -> [(carpeta, nº), ...]
 CHG = {
@@ -86,6 +98,14 @@ CHG = {
  'cell_chg': [(CE + 'Cell Imperfeito', 28), (CE + 'Cell Imperfeito', 29), (CE + 'Cell Imperfeito', 30), (CE + 'Cell Semi Perfeito', 36),
               (CE + 'Cell Semi Perfeito', 37), (CE + 'Cell Semi Perfeito', 38), (CE + 'cell Perfeito', 37), (CE + 'cell Perfeito', 38), (CE + 'cell Perfeito', 39)],
  'piccolo_chg': [('Piccolo', 90), ('Piccolo', 91)],
+ 'vegito_chg': [(VG + 'Vegito', 105), (VG + 'Vegito', 106), (VG + 'Vegito', 107), (VG + 'Vegito Ssj1', 49), (VG + 'Vegito Ssj1', 50),
+                (VG + 'Vegito Ssj1', 51), (VG + 'Vegito Ssj2', 91), (VG + 'Vegito Ssj2', 92), (VG + 'Vegito Ssj2', 93),
+                (VG + 'Vegito SSJ Blue', 132), (VG + 'Vegito SSJ Blue', 134), (VG + 'Vegito SSJ Blue', 135)],
+ 'broly_chg': [(BR + 'Broly Segunda Forma', 57), (BR + 'Broly Segunda Forma', 60), (BR + 'Broly Segunda Forma', 61), (BR + 'Broly Terceira forma', 3),
+               (BR + 'Broly Terceira forma', 60), (BR + 'Broly Full Power', 44), (BR + 'Broly Full Power', 45), (BR + 'Broly Full Power', 46),
+               (BR + 'Broly Ssj4', 38), (BR + 'Broly Ssj4', 39), (BR + 'Broly Ssj4', 40)],
+ 'bardock_chg': [(BD + 'Bardock', 60), (BD + 'Bardock', 61), (BD + 'Bardock', 62), (BD + 'Bardock Ssj', 3), (BD + 'Bardock Ssj', 6),
+                 (BD + 'Bardock SSJ4', 44), (BD + 'Bardock SSJ4', 45), (BD + 'Bardock SSJ4', 46)],
 }
 # Jefes (hoja 'bosses', 8 columnas de 128 px: 0-3 caminar · 4 golpe recibido · 5 ataque · 6 técnica · 7 pose/aturdido)
 BOSS_ROWS = {
@@ -150,12 +170,15 @@ def credits_of(folders):
     out = {}
     for fo in folders:
         for t in glob.glob(os.path.join(ROOT, fo, '*.txt')):
-            m = re.match(r'Hecho por (.+)\.txt$', os.path.basename(t), re.I)
+            m = re.search(r'Hecho por (.+)\.txt$', os.path.basename(t), re.I)
             if m: out[fo] = m.group(1).strip()
     return out
 
 if __name__ == '__main__':
     out = sys.argv[2]; os.makedirs(out, exist_ok=True); meta = {}; used = set()
+    solo = sys.argv[sys.argv.index('-solo') + 1].split(',') if '-solo' in sys.argv else None   # solo las hojas de estos personajes
+    keep = lambda n: solo is None or n.split('_')[0] in solo
+    SHEETS = {n: v for n, v in SHEETS.items() if keep(n)}; CHG = {n: v for n, v in CHG.items() if keep(n)}
     for name, S in SHEETS.items():
         fr = {i: load(S['folder'], n) for i, n in S['f'].items()}; used.add(S['folder'])
         sh, CW, CH, rows = build(fr)

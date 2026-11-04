@@ -11,7 +11,8 @@ const SHEET_NAMES = ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku
   'vegeta', 'vegeta_ss', 'vegeta_grade', 'vegeta_majin', 'vegeta_ss4', 'vegeta_god', 'vegeta_blue', 'vegeta_bfp',
   'black', 'black_ss', 'black_rose', 'black_boss', 'gohan', 'gohan_ss', 'gohan_ss2', 'gohan_ul',
   'freezer1', 'freezer3', 'freezer', 'freezer_fp', 'freezer_gold', 'trunks', 'trunks_ss', 'cell_imp', 'cell_semi', 'cell', 'piccolo', 'krilin',
-  'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg',
+  'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4',
+  'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg',
   'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4 columnas, fila*4+columna) ---------- */
@@ -151,6 +152,44 @@ const CHARACTERS = [
       form('PERFECTO', 24, 'cell', A_HD, 2.4, 1.22, 0xffe86a, 0xffd23a, 0xffffff),
       form('SÚPER PERFECTO', 36, 'cell', A_HD, 3.3, 1.32, 0x9fe0ff, 0x6fd8ff, 0xf0f8ff)
     ]
+  },
+  {
+    id: 'bardock', name: 'BARDOCK', role: 'Clase baja · Ataques a distancia', cost: 5500,
+    hp: 110, ki: 110, spd: 1.05, dmg: 1.05, start: ['riot'], unique: ['riot', 'spiritcannon', 'rebellion'],
+    passive: { name: 'Rebeldía', desc: '+10% de esquiva y +8% de probabilidad de crítico.' },
+    ult: { name: 'SPIRIT CANNON FINAL', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'genki', col: 0x8ad0ff, fx: ['#000', '#fff', '#5ab8ff', '#ff3a3a', '#5ab8ff'] },
+    portrait: { sheet: 'bardock', frame: 0 },
+    forms: [
+      form('BASE', 1, 'bardock', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
+      form('SUPER SAIYAN', 13, 'bardock_ss', A_HD, 1.6, 1.14, 0xffe14a, 0xffd84a, 0xffffff),
+      form('SUPER SAIYAN 4', 28, 'bardock_ss4', A_HD, 2.7, 1.26, 0xff6a5a, 0xff3a2a, 0xffffff)
+    ]
+  },
+  {
+    id: 'vegito', name: 'VEGETTO', role: 'Fusión Potara · Espada y rayos', cost: 9000,
+    hp: 115, ki: 130, spd: 1.05, dmg: 1.15, start: ['vblade'], unique: ['vblade', 'vkame', 'excalibur'],
+    passive: { name: 'Fusión Potara', desc: '+10% de daño y +10% de cadencia de ataque.' },
+    ult: { name: 'FINAL KAMEHAMEHA', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 66, hw: 3.4, life: 1.8, col: 0x8ad8ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'] },
+    portrait: { sheet: 'vegito', frame: 0 },
+    forms: [
+      form('BASE', 1, 'vegito', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
+      form('SUPER VEGETTO', 12, 'vegito_ss', A_HD, 1.6, 1.15, 0xffe14a, 0xffd84a, 0xffffff),
+      form('SUPER VEGETTO 2', 22, 'vegito_ss2', A_HD, 2.3, 1.22, 0xfff08a, 0xfff07a, 0xffffff),
+      form('VEGETTO BLUE', 32, 'vegito_blue', A_HD, 3.3, 1.32, 0x6fd8ff, 0x4fc8ff, 0xffffff)
+    ]
+  },
+  {
+    id: 'broly', name: 'BROLY', role: 'Berserker · Tanque', cost: 9500,
+    hp: 150, ki: 110, spd: 0.92, dmg: 1.2, start: ['eraser'], unique: ['eraser', 'gigameteor', 'gigaroar'],
+    passive: { name: 'Saiyajin Legendario', desc: 'Recibes un 12% menos de daño y haces un 30% más con menos de la mitad de vida.' },
+    ult: { name: 'GIGANTIC METEOR', key: 'Q', cost: 100, type: 'bomb', dmg: 160, r: 24, sty: 'sun', col: 0x7dff5a, fx: ['#000', '#fff', '#3aff3a', '#ffe14a', '#1a4a1a'] },
+    portrait: { sheet: 'broly', frame: 0 },
+    forms: [
+      form('BROLY CONTENIDO', 1, 'broly', A_HD, 1.0, 1.0, 0x9fe8c0, 0, 0xffffff),
+      form('SUPER SAIYAN', 11, 'broly_ss', A_HD, 1.55, 1.08, 0xffe14a, 0xffd84a, 0xffffff),
+      form('SUPER SAIYAN LEGENDARIO', 22, 'broly_lss', A_HD, 2.4, 1.12, 0x9aff6a, 0x7dff5a, 0xffffff),
+      form('SUPER SAIYAN 4', 34, 'broly_ss4', A_HD, 3.4, 1.2, 0xff6a5a, 0xff3a2a, 0xffffff)
+    ]
   }
 ];
 const charById = (id) => CHARACTERS.find((c) => c.id === id);
@@ -215,6 +254,18 @@ const WEAPONS = {
   celljr: { name: 'Célula Jr.', icon: '☻', ico: 'absorb', kind: 'minions', unique: 'cell', minLv: 4, color: 0x8ab8ff, lv: ['Engendras 2 Célula Jr. que pelean por ti unos segundos.', '+35% de daño.', '+1 Célula Jr.', 'Duran más y salen antes.', '+1 Célula Jr. y más fuertes.'] },
   cellbarrier: { name: 'Barrera Perfecta', icon: '◎', ico: 'barrier', kind: 'barrier', unique: 'cell', minLv: 5, color: 0x7aff9a, lv: ['Barrera verde que para 2 golpes y empuja a la horda.', 'La onda de la barrera hace daño.', 'Para 1 golpe más.', 'Recarga reducida.', 'Para 1 golpe más y onda mayor.'] },
   cellself: { name: 'Autodestrucción', icon: '☢', ico: 'explode', kind: 'selfblast', unique: 'cell', minLv: 8, color: 0xffffff, sty: 'self', lv: ['Célula se hincha y explota con enorme área (pierde un 12% de vida).', '+50% de daño.', 'Área mayor.', 'Recarga reducida.', 'Explosión devastadora.'] },
+  /* --- Bardock --- */
+  riot: { name: 'Riot Javelin', icon: '✦', kind: 'bullet', unique: 'bardock', color: 0x8ad0ff, lv: ['Bardock lanza ráfagas de ki azul al enemigo más cercano.', '+18% de daño.', '+1 proyectil.', 'Las ráfagas atraviesan a 1 enemigo.', '+1 proyectil y +30% de cadencia.'] },
+  spiritcannon: { name: 'Final Spirit Cannon', icon: '●', ico: 'genki', kind: 'bigbang', unique: 'bardock', minLv: 3, color: 0x8ad0ff, look: 'bbOrb', boomFx: 'bbBoom', lv: ['Esfera azul que explota en gran área.', '+35% de daño.', 'Explosión mayor.', 'Recarga reducida.', '+35% de daño y doble esfera.'] },
+  rebellion: { name: 'Rebellion Spear', icon: '➹', ico: 'sbc', kind: 'pbolt', unique: 'bardock', minLv: 5, color: 0xbfe8ff, cfg: { cd: 0.9, dmg: 16, len: 24, hw: 0.45 }, lv: ['Lanzas de ki que atraviesan a todos.', '+20% de daño.', '+1 lanza.', 'Mayor alcance.', '+1 lanza y +30% de cadencia.'] },
+  /* --- Vegetto --- */
+  vblade: { name: 'Espada de Ki', icon: '⚔', ico: 'pole', kind: 'scythe', unique: 'vegito', color: 0x8ad8ff, cfg: { cd: 0.8, r: 5.5, dmg: 15 }, lv: ['Vegetto corta con una espada de ki frente a él.', '+40% de daño.', 'Doble tajo.', 'Mayor alcance.', 'Tajo circular completo.'] },
+  vkame: { name: 'Final Kamehameha', icon: '≋', ico: 'kame', kind: 'beam', unique: 'vegito', minLv: 3, color: 0x8ad8ff, lv: ['El Galick Ho y el Kamehameha en un solo rayo.', '+55% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Final Kamehameha definitivo.'] },
+  excalibur: { name: 'Spirit Excalibur', icon: '✧', kind: 'godslash', unique: 'vegito', minLv: 6, color: 0xbfe8ff, cfg: { cd: 2.4, r: 8.5, dmg: 32 }, lv: ['Una espada de luz gigante gira alrededor de Vegetto.', '+30% de daño.', 'Mayor alcance.', 'Recarga reducida.', 'Spirit Excalibur definitiva.'] },
+  /* --- Broly --- */
+  eraser: { name: 'Eraser Blow', icon: '✦', kind: 'blast', unique: 'broly', color: 0x7dff5a, lv: ['Broly lanza esferas de ki verde que explotan al impactar.', '+20% de daño.', '+1 esfera.', 'Explosión más grande.', '+1 esfera y +30% de cadencia.'] },
+  gigameteor: { name: 'Gigantic Meteor', icon: '●', ico: 'genki', kind: 'bigbang', unique: 'broly', minLv: 3, color: 0x9aff6a, boomFx: 'kameBoomG', lv: ['Una esfera verde enorme que arrasa una gran zona.', '+35% de daño.', 'Explosión mayor.', 'Recarga reducida.', '+35% de daño y doble esfera.'] },
+  gigaroar: { name: 'Rugido Legendario', icon: '✸', ico: 'explode', kind: 'nova', unique: 'broly', minLv: 5, color: 0x7dff5a, lv: ['Broly ruge y una onda de ki verde empuja y daña a la horda.', '+40% de daño.', 'Mayor radio.', 'Estalla dos veces seguidas.', '+40% de daño y recarga menor.'] },
   /* --- FUSIONES: aparecen como carta cuando tienes las dos técnicas al nivel máximo --- */
   bbflash: { name: 'Destello Big Bang', icon: '✷', ico: 'flash', kind: 'bigbeam', unique: 'vegeta', fusion: ['finalflash', 'bigbang'], color: 0x9fe0ff, end: 'bbBurst', stamp: 'bbTxt', cfg: { cd: 3.6, dmg: 52, len: 50, hw: 3.4, life: 1.2, cost: 10 }, down: { text: '-8% de vida máxima', m: { maxHp: -0.08 } }, lv: ['Fusión: un Final Flash que estalla al final como un Big Bang.'] },
   meteorkai: { name: 'Meteoro Kaio-ken', icon: '✸', ico: 'kaioken', kind: 'meteor', unique: 'goku', fusion: ['meteor', 'kaioken'], color: 0xff4a4a, cfg: { n: 9, dmg: 60, cd: 3.2 }, down: { text: 'Pierdes 2 de vida por combinación', m: {} }, lv: ['Fusión: una lluvia de golpes al rojo vivo sobre toda la horda.'] },
@@ -245,6 +296,12 @@ const WEAPONS = {
   rosescythe: { name: 'Guadaña Rosa', icon: '☾', kind: 'godslash', unique: 'black', fusion: ['scythe', 'judgement'], color: 0xff7ac8, cfg: { cd: 0.8, r: 10, dmg: 40 }, down: { text: '-5% de vida máxima', m: { maxHp: -0.05 } }, lv: ['Fusión: tajos rosas de justicia en todas direcciones.'] },
   swordrain: { name: 'Espada Celestial', icon: '⚔', kind: 'godslash', unique: 'trunks', fusion: ['sword', 'shining'], color: 0xcfe8ff, cfg: { cd: 0.9, r: 9, dmg: 36 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: la espada de Trunks corta en círculos sin descanso.'] },
   renzoku: { name: 'Renzoku Energy Dan', icon: '✺', kind: 'barrage', fusion: ['masenko', 'dodonpa'], color: 0xffd060, cfg: { n: 14, dmg: 14, cd: 2.2 }, down: { text: '-10% de daño crítico', m: { critDmg: -0.1 } }, lv: ['Fusión: una ráfaga continua de bolas de ki (cualquier personaje).'] },
+  saiyanspirit: { name: 'Último Ataque', icon: '☀', ico: 'genki', kind: 'genki', unique: 'bardock', fusion: ['riot', 'spiritcannon'], color: 0x8ad0ff, sty: 'genki', cfg: { r: 16, dmg: 210, cd: 9 }, down: { text: '-5% de vida máxima', m: { maxHp: -0.05 } }, lv: ['Fusión: la esfera con la que Bardock desafió a Freezer cae sobre la horda.'] },
+  rebelstorm: { name: 'Lluvia Rebelde', icon: '➹', kind: 'barrage', unique: 'bardock', fusion: ['rebellion', 'riot'], color: 0xbfe8ff, cfg: { n: 14, dmg: 18, cd: 2 }, down: { text: '-5% de armadura', m: { armor: -0.05 } }, lv: ['Fusión: una ráfaga sin fin de lanzas de ki azul.'] },
+  vfinal: { name: 'Final Kamehameha Definitivo', icon: '≋', ico: 'kame', kind: 'bigbeam', unique: 'vegito', fusion: ['vkame', 'excalibur'], color: 0x6fd8ff, end: 'genkiBoom', cfg: { cd: 3.2, dmg: 52, len: 50, hw: 3.2, life: 1.1, cost: 8 }, down: { text: '-5% de armadura', m: { armor: -0.05 } }, lv: ['Fusión: el rayo definitivo de la fusión más poderosa.'] },
+  vspirit: { name: 'Espada Espiritual Infinita', icon: '⚔', kind: 'godslash', unique: 'vegito', fusion: ['vblade', 'excalibur'], color: 0x9fe0ff, cfg: { cd: 0.8, r: 10, dmg: 40 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: la espada de Vegetto corta en círculos sin descanso.'] },
+  omegablaster: { name: 'Omega Blaster', icon: '☀', ico: 'genki', kind: 'genki', unique: 'broly', fusion: ['eraser', 'gigameteor'], color: 0x7dff5a, sty: 'sun', cfg: { r: 18, dmg: 230, cd: 10 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: un sol verde que lo destruye todo.'] },
+  eraserstorm: { name: 'Lluvia de Eraser', icon: '✦', kind: 'barrage', unique: 'broly', fusion: ['eraser', 'gigaroar'], color: 0x7dff5a, cfg: { n: 14, dmg: 24, cd: 2.2, aoe: 2.4 }, down: { text: '-10% de experiencia', m: { xp: -0.1 } }, lv: ['Fusión: una lluvia de esferas verdes que explotan en cadena.'] },
   meteorstorm: { down: { text: '-3% de crítico', m: { crit: -0.03 } },  name: 'Tormenta de Meteoros', icon: '☄', kind: 'rain', fusion: ['rain', 'mines'], color: 0xff9a3a, mul: { n: 2, dmg: 1.8, cd: 0.7 }, lv: ['Fusión: el cielo entero cae sobre tus enemigos.'] }
 };
 const MAX_WEAPON_LEVEL = 5, MAX_WEAPONS = 6;
@@ -625,6 +682,20 @@ const TRAITS = {
     { name: 'Células de Saiyajin', good: '+10% de daño y +1 de vida/s', bad: '-10% de regeneración de Ki', m: { dmg: 0.1, regen: 1, kiRegen: -0.1 } },
     { name: 'Perfección absoluta', good: '+15% de crítico, +30% de daño crítico y rayos a tu alrededor', bad: 'Pierdes un 0,5% de vida por segundo', m: { crit: 0.15, critDmg: 0.3 }, t: { bolt: 36, hpDrain: 0.005 } },
     { name: 'Regeneración Zenkai', good: '+20% de cadencia y +2 de vida/s', bad: 'Recibes un 10% más de daño', m: { rate: 0.2, regen: 2, armor: -0.1 } }
+  ],
+  bardock: [null,
+    { name: 'Ira de clase baja', good: '+12% de crítico y +25% de daño con poca vida', bad: '-15% de regeneración de Ki', m: { crit: 0.12, kiRegen: -0.15 }, t: { lowHp: 0.25 } },
+    { name: 'Visión del futuro', good: '+20% de esquiva y rayos a tu alrededor', bad: 'Pierdes un 0,6% de vida por segundo', m: { dodge: 0.2 }, t: { bolt: 30, hpDrain: 0.006 } }
+  ],
+  vegito: [null,
+    { name: 'Super Vegetto', good: '+15% de daño y +10% de velocidad', bad: '-15% de regeneración de Ki', m: { dmg: 0.15, spd: 0.1, kiRegen: -0.15 } },
+    { name: 'Electricidad fusionada', good: '+15% de cadencia y rayos a tu alrededor', bad: 'Recibes un 10% más de daño', m: { rate: 0.15, armor: -0.1 }, t: { bolt: 32 } },
+    { name: 'Fusión divina', good: '+30% de daño crítico y +2 de vida/s', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { critDmg: 0.3, regen: 2 }, t: { kiDrain: 3 } }
+  ],
+  broly: [null,
+    { name: 'Furia creciente', good: 'Cada golpe recibido sube tu daño (hasta +30%)', bad: '-10% de velocidad', m: { spd: -0.1 }, t: { ego: 0.3 } },
+    { name: 'Poder sin control', good: '+30% de daño y tu aura quema a los enemigos', bad: 'Gasta 4 de Ki/s sin regenerarlo y recibes un 10% más de daño', m: { dmg: 0.3, armor: -0.1 }, t: { aura: 36, kiDrain: 4 } },
+    { name: 'Bestia primigenia', good: '+40% de vida máxima y +15% de armadura', bad: '-15% de velocidad', m: { maxHp: 0.4, armor: 0.15, spd: -0.15 } }
   ]
 };
 /** Fusiones que puede hacer un personaje (las suyas y las de cualquiera) */
@@ -650,7 +721,10 @@ const FORM_FX = {
   freezer: [null, { bolt: 0xc89aff, burst: 'tfDark' }, { burst: 'tfPink' }, { bolt: 0xff9ae0, burst: 'tfPink' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }],
   krilin: [null, { spark: 'sparkY' }, { spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xffffff, burst: 'tfGold' }],
   trunks: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xbfeaff, spark: 'lightB', burst: 'tfStar' }],
-  cell: [null, { spark: 'sparkG', burst: 'tfGold2' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xbfeeff, spark: 'lightB' }]
+  cell: [null, { spark: 'sparkG', burst: 'tfGold2' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xbfeeff, spark: 'lightB' }],
+  bardock: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xff6a4a, burst: 'tfRose' }],
+  vegito: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { spark: 'lightB', bolt: 0x8ad8ff, burst: 'tfStar' }],
+  broly: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraGold', bolt: 0x9aff6a, spark: 'sparkG', burst: 'tfGold' }, { bolt: 0xff6a4a, burst: 'tfRose' }]
 };
 const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;
 
@@ -665,22 +739,29 @@ const FORM_CHG = {
   freezer: [[0, 3], [3, 2], [5, 3], [8, 3], [11, 2]],
   trunks: [[0, 2], [2, 2], [4, 1]],
   cell: [[0, 3], [3, 3], [6, 3], [6, 3]],
-  piccolo: [[0, 2], [0, 2], [0, 2], [0, 2]]
+  piccolo: [[0, 2], [0, 2], [0, 2], [0, 2]],
+  vegito: [[0, 3], [3, 3], [6, 3], [9, 3]],
+  broly: [[0, 3], [3, 2], [5, 3], [8, 3]],
+  bardock: [[0, 3], [3, 2], [5, 3]]
 };
 const formChg = (ch, idx) => (FORM_CHG[ch.id] || [])[idx] || null;
 
 /* ---------- Créditos: autores de los sprites del pack «Dragon Ball Sagas» (archivo «Hecho por …» de cada carpeta) ---------- */
 const SPRITE_CREDITS = [
-  { author: "qsab101", what: ["Goku Black", "Goku Black Rose", "Goku Instinto Superior", "Goku Instinto Superior Completo", "Goku SSJ 2", "Goku kaioken", "Golden Freeza", "Kuririn", "Mirai Trunks", "Vegeta SSJ 4", "Vegeta Ssj Grade"] },
-  { author: "LukasAhl1", what: ["Freeza Forma Final", "Goku God", "Goku SSJ 1", "Goku SSJ 3", "Majin Vegeta", "Piccolo", "Super Mirai Trunks", "Teen Gohan SSJ", "Teen Gohan SSJ2", "cell Perfeito"] },
-  { author: "MV95", what: ["Cell Imperfeito", "Freeza Full Power", "Freeza Primeira Forma", "Goku Blue Kaioken Whis Gi", "Vegeta Blue"] },
-  { author: "thekrillmaster", what: ["Cell Semi Perfeito", "Goku Black SSJ", "Saibaman"] },
+  { author: "qsab101", what: ["Broly Segunda Forma", "Goku Black", "Goku Black Rose", "Goku Instinto Superior", "Goku Instinto Superior Completo", "Goku SSJ 2", "Goku kaioken", "Golden Freeza", "Kuririn", "Mirai Trunks", "Vegeta SSJ 4", "Vegeta Ssj Grade"] },
+  { author: "LukasAhl1", what: ["Bardock", "Bardock Ssj", "Freeza Forma Final", "Goku God", "Goku SSJ 1", "Goku SSJ 3", "Majin Vegeta", "Piccolo", "Super Mirai Trunks", "Teen Gohan SSJ", "Teen Gohan SSJ2", "cell Perfeito"] },
+  { author: "MV95", what: ["Vegito", "Vegito SSJ Blue", "Cell Imperfeito", "Freeza Full Power", "Freeza Primeira Forma", "Goku Blue Kaioken Whis Gi", "Vegeta Blue"] },
+  { author: "thekrillmaster", what: ["Broly Full Power", "Cell Semi Perfeito", "Goku Black SSJ", "Saibaman"] },
   { author: "PeculiarDoc", what: ["Gohan Adulto", "Goku Blue"] },
   { author: "gogeta68", what: ["Vegeta Saga Buu SSJ"] },
   { author: "JuanGomezgg", what: ["Goku SSJ 4"] },
   { author: "LICHT", what: ["Androide 17"] },
   { author: "MajinVegeta95", what: ["Freeza Terceira Forma"] },
-  { author: "Manikdx2000", what: ["Vegeta Sayajin Saga"] },
+  { author: "Manikdx2000", what: ["Vegeta Sayajin Saga", "Vegito Ssj1"] },
+  { author: "Mangal666", what: ["Vegito Ssj2"] },
+  { author: "agustin902", what: ["Broly Ssj4"] },
+  { author: "SonicGoku2", what: ["Broly Terceira forma (50%)"] },
+  { author: "vida_nostalgica", what: ["Bardock SSJ4"] },
   { author: "papurotekikujimo", what: ["Gohan Mistico"] },
   { author: "Vsouza", what: ["Vegeta Ssj God"] },
   { author: "Woothrad", what: ["Vegeta Blue Full Power"] }

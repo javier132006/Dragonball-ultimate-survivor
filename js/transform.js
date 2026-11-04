@@ -79,6 +79,23 @@ const TRANSFORM_FX = {
     { c1: '#ffd84a', c2: '#3a1a4a', quote: 'Contempla la belleza de un dios.', frames: 'IBC', charge: 1.6, fx: ['bolts', 'stars'], bolt: '#ffe890', shake: 0.6, kanji: '超サイヤ人' },
     { c1: '#ff6ac0', c2: '#ffd0ec', quote: 'Super Saiyan Rosé.', frames: 'CWIC', charge: 2.0, fx: ['petals', 'ripple'], shake: 0.4, kanji: 'ロゼ' },
     { c1: '#ff2a9a', c2: '#ffb0dc', quote: '¡YO SOY LA JUSTICIA!', frames: 'BIWBIC', charge: 2.1, fx: ['slash', 'petals', 'bolts'], bolt: '#ff8ad0', shake: 1.2, kanji: '正義' }
+  ],
+  bardock: [
+    null,
+    { c1: '#ffd400', c2: '#fff6a0', quote: '¡Esto es por todos los Saiyajin!', frames: 'WIBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#fff27a', shake: 1.0, kanji: '超サイヤ人' },
+    { c1: '#ff2a1a', c2: '#ffb090', quote: '¡¡FREEZER!! ¡ESTE ES MI ÚLTIMO ATAQUE!', frames: 'BIWIBC', charge: 2.2, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#ff8a6a', shake: 1.3, kanji: '超サイヤ人４' }
+  ],
+  vegito: [
+    null,
+    { c1: '#ffd400', c2: '#fff6a0', quote: 'Ni Goku ni Vegeta: soy Vegetto.', frames: 'WIBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#fff27a', shake: 1.0, kanji: '超ベジット' },
+    { c1: '#ffe14a', c2: '#bfe8ff', quote: '¡Es hora de acabar con esto!', frames: 'IWIBIC', charge: 2.0, fx: ['bolts', 'sparks', 'rocks', 'quake'], bolt: '#9fe0ff', shake: 1.2, kanji: '超サイヤ人２' },
+    { c1: '#2ec8ff', c2: '#c8f4ff', quote: 'El guerrero más fuerte... con ki divino.', frames: 'WCIBC', charge: 1.9, fx: ['ripple', 'sparks', 'bolts'], bolt: '#8ad8ff', shake: 0.8, kanji: 'ベジットブルー' }
+  ],
+  broly: [
+    null,
+    { c1: '#ffd400', c2: '#fff6a0', quote: '¡¡KAKAROTTO!!', frames: 'BIWIC', charge: 1.9, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.3, kanji: '超サイヤ人' },
+    { c1: '#7dff5a', c2: '#e8ffd0', quote: '¡¡GRAAAAAAAAAAAHHH!!', frames: 'BIWIBIWC', charge: 2.6, fx: ['rocks', 'cracks', 'bolts', 'quake', 'shatter'], bolt: '#b8ff8a', shake: 1.6, kanji: '伝説の超サイヤ人' },
+    { c1: '#ff2a1a', c2: '#ffb090', quote: 'Soy el demonio...', frames: 'BIWIBC', charge: 2.2, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#ff8a6a', shake: 1.4, kanji: '超サイヤ人４' }
   ]
 };
 const IMPACT_FRAME = 0.07;      // duración de cada fotograma de impacto (s)
@@ -117,7 +134,7 @@ class TransformScene {
     g.ui.el.hud.classList.add('cine');
     // Sonido: grito sintetizado + carga, música atenuada
     SFX.setDuck(0.3);
-    SFX.scream(this.cfg.charge, { goku: 175, vegeta: 160, black: 150, piccolo: 120, gohan: 200, freezer: 230, krilin: 210, trunks: 185 }[p.ch.id] || 170);
+    SFX.scream(this.cfg.charge, { goku: 175, vegeta: 160, black: 150, piccolo: 120, gohan: 200, freezer: 230, krilin: 210, trunks: 185, bardock: 150, vegito: 165, broly: 110 }[p.ch.id] || 170);
     SFX.play('charge');
   }
 

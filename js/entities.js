@@ -71,6 +71,9 @@ class Player {
     if (ch.id === 'freezer') this.zeniMul += 0.25;
     if (ch.id === 'krilin') { this.dodge += 0.12; this.dashMul *= 0.75; }
     if (ch.id === 'trunks') { this.crit += 0.06; this.critDmg += 0.3; }
+    if (ch.id === 'bardock') { this.dodge += 0.1; this.crit += 0.08; }
+    if (ch.id === 'vegito') { this.statDmg += 0.1; this.rateMul += 0.1; }
+    if (ch.id === 'broly') this.armor += 0.12;
     // Modificador del desafío diario «Cañón de cristal»
     if (typeof game !== 'undefined' && game && game.mods && game.mods.glass) { this.maxHp = Math.round(this.maxHp * 0.6); this.statDmg += 0.5; }
   }
@@ -113,6 +116,7 @@ class Player {
     if (this.ch.id === 'goku') m *= 1 + 0.015 * (this.level - 1);                     // Zenkai
     if (this.ch.id === 'vegeta' && this.ki >= this.maxKi * 0.8) m *= 1.25;           // Orgullo Saiyajin
     if (this.ch.id === 'gohan' && this.hp < this.maxHp * 0.5) m *= 1.4;               // Potencial oculto
+    if (this.ch.id === 'broly' && this.hp < this.maxHp * 0.5) m *= 1.3;               // Saiyajin Legendario
     if (this.ch.id === 'cell') m *= 1 + Math.min(0.3, 0.02 * Math.floor((this.absorbed || 0) / 100));   // Absorción
     if (this.tr.lowHp && this.hp < this.maxHp * 0.5) m *= 1 + this.tr.lowHp;          // rasgo: más daño con poca vida
     if (this.egoStk) m *= 1 + this.egoStk;                                            // rasgo: Ego destructor
