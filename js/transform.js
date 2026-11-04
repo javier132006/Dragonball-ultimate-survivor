@@ -111,7 +111,7 @@ class TransformScene {
     this.stars = [];
     for (let i = 0; i < 60; i++) this.stars.push({ x: Math.random(), y: Math.random(), p: Math.random() * 6 });
     for (let i = 0; i < 40; i++) this.petals.push({ a: Math.random() * 6.28, r: 40 + Math.random() * 160, s: 0.6 + Math.random() * 1.6, y: Math.random() });
-    p.vx = 0; p.vz = 0; p.charging = false; p.dashT = 0;
+    p.vx = 0; p.vz = 0; p.charging = false; p.dashT = 0; p.cineChg = true;          // durante la cinemática se ve la pose de cargar ki
     this.resize();
     this.cv.style.display = 'block';
     this.banner.className = ''; this.banner.innerHTML = '';
@@ -248,7 +248,7 @@ class TransformScene {
     this.banner.style.opacity = 0;
     g.ui.el.hud.classList.remove('cine');
     g.camDistT = this.cam0.dist; g.camPitch = this.cam0.pitch;
-    p.charging = false; p.iframes = 1.2;
+    p.charging = false; p.iframes = 1.2; p.cineChg = false;
     SFX.setDuck(1);
   }
 

@@ -8,6 +8,7 @@ import sys, os, json
 from PIL import Image; import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fx_atlas'))
 from cut import cut
+import cut as cutmod
 CW, CH = 216, 158
 def B(i, x0, y0, x1, y1, **o): return (i, (x0, y0, x1, y1), o)
 # h: altura del personaje en píxeles (el quieto/caminar/correr se escalan a esa altura; el resto con la misma escala)
@@ -54,10 +55,10 @@ CHARS.update({
              (745, 68, 839, 152), (819, 123, 905, 201), (819, 123, 905, 201)),
  'goku_ss': std(26, (40, 44, 135, 196), (224, 250, 300, 392), (422, 49, 528, 189), (604, 40, 692, 196), (1249, 9, 1312, 138), (1249, 9, 1312, 138),
              (738, 49, 842, 154), (817, 118, 913, 196), (817, 118, 913, 196)),
- 'goku_ss3': std(28, (15, 48, 165, 196), (409, 50, 527, 189), (409, 50, 527, 189), (560, 55, 690, 196), (409, 50, 527, 189), (560, 55, 690, 196),
+ 'goku_ss3': std(28, (15, 48, 165, 196), (409, 50, 527, 189), (409, 50, 527, 189), (409, 50, 527, 189), (409, 50, 527, 189), (409, 50, 527, 189),
              (738, 49, 842, 154), (817, 118, 913, 196), (817, 118, 913, 196), hi=26),
- 'goku_ss4': std(28, (1099, 55, 1205, 192), (1099, 55, 1205, 192), (1254, 62, 1363, 192), (1254, 62, 1363, 192), (1084, 268, 1170, 392), (1084, 268, 1170, 392),
-             (940, 53, 1046, 192), (740, 54, 844, 153), (740, 54, 844, 153)),
+ 'goku_ss4': std(28, (936, 50, 1046, 192), (936, 50, 1046, 192), (1250, 58, 1367, 192), (1250, 58, 1367, 192), (1099, 268, 1170, 392), (1099, 268, 1170, 392),
+             (740, 54, 844, 153), (740, 54, 844, 153), (740, 54, 844, 153)),
  'goku_god': std(30, (41, 502, 134, 714), (211, 504, 309, 715), (379, 515, 507, 685), (580, 500, 686, 704), (379, 515, 507, 685), (379, 515, 507, 685),
              (727, 257, 842, 352), (794, 324, 915, 402), (735, 633, 901, 712), h=152),
  'goku_blue': std(27, (11, 46, 156, 200), (379, 512, 507, 684), (379, 512, 507, 684), (379, 512, 507, 684), (379, 512, 507, 684), (379, 512, 507, 684),
@@ -90,6 +91,24 @@ CHARS.update({
  'freezer3': std(35, (35, 534, 141, 714), (218, 538, 323, 714), (406, 560, 528, 715), (406, 560, 528, 715), (406, 560, 528, 715), (406, 560, 528, 715),
               (433, 336, 540, 404), (433, 336, 540, 404), (433, 336, 540, 404), h=152),
 })
+GROWN = []
+def cut_grow(i, box, name='', k=0):
+    """Recorta y, si la figura toca el borde de ARRIBA del recuadro (pelo cortado), lo sube hasta que quede libre
+    (máx. 60 px). En la franja añadida solo se conserva lo que está pegado al cuerpo (fuera rótulos y vecinos)"""
+    from scipy import ndimage as nd
+    x0, y0, x1, y1 = box; top = y0
+    r = cut(i, (x0, y0, x1, y1), ol=2)[0]
+    white_hair = name in ('goku_ui', 'gohan_b')          # pelo blanco: no se confunde con un rótulo
+    while (r[0, :, 3] > 0).sum() > 1 and y0 > 0 and top - y0 < 60:
+        strip = cutmod.img(i)[max(0, y0 - 6):y0, x0:x1]
+        if not white_hair and (strip.min(2) > 205).sum() > 6: break      # se ha llegado a un rótulo de texto: se para
+        y0 = max(0, y0 - 6); r = cut(i, (x0, y0, x1, y1), ol=2)[0]
+    if y0 != top:
+        a = r[:, :, 3] > 0; lab, n = nd.label(a, structure=np.ones((3, 3)))
+        below = np.unique(lab[top - y0:][a[top - y0:]])          # trozos que llegan a la zona original
+        keep = np.isin(lab, below[below > 0]); r = r.copy(); r[~keep] = 0
+        GROWN.append((name, k, tuple(box), (x0, y0, x1, y1)))
+    return r
 def unlabel(rgba):
     """Quita los rótulos de texto que se cuelan en el recorte (letras blancas cerca del borde de arriba o de abajo)"""
     from scipy import ndimage as nd
@@ -149,7 +168,7 @@ if __name__ == '__main__':
     for name, C in CHARS.items():
         if only and name not in only: continue
         rows = C.get('rows', 4)
-        frames = {k: (cut(s[0], s[1], ol=2)[0], s[2]) for k, s in C['f'].items()}
+        frames = {k: (cut_grow(s[0], s[1], name, k), s[2]) for k, s in C['f'].items()}
         hs = [np.nonzero(frames[k][0][:, :, 3])[0] for k in (0, 1, 2) if k in frames]
         k = C['h'] / max(h.max() - h.min() + 1 for h in hs)
         sheet = Image.new('RGBA', (CW * 4, CH * rows), (0, 0, 0, 0))
@@ -159,3 +178,4 @@ if __name__ == '__main__':
         sheet.save(os.path.join(out, name + '.png')); meta[name] = {'cols': 4, 'rows': rows, 'w': CW, 'h': CH}
         print(name, round(k, 3))
     json.dump(meta, open(os.path.join(out, 'chars.json'), 'w'))
+    for g in GROWN: print('recuadro ampliado', *g)

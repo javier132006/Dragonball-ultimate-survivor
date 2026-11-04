@@ -7,7 +7,8 @@
 
 /* Hojas que se cargan al arrancar. Goku, Vegeta, Krilin, Trunks, Gohan y Célula usan hojas en alta resolución (tools/make_chars2.py) */
 const SHEET_NAMES = ['goku', 'goku_ss', 'goku_ss3', 'goku_ss4', 'goku_god', 'goku_blue', 'goku_ui', 'vegeta', 'vegeta_ss', 'vegeta_god', 'vegeta_blue', 'vegeta_ue', 'black', 'black_ss', 'black_old', 'shade', 'trunks', 'trunks_ss', 'freezer', 'freezer1', 'freezer2', 'freezer3', 'piccolo', 'gohan', 'gohan_ss', 'gohan_ul', 'gohan_b', 'cell',
-  'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles', 'krilin'];
+  'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles', 'krilin',
+  'goku_chg', 'vegeta_chg', 'krilin_chg', 'trunks_chg', 'gohan_chg', 'cell_chg', 'black_chg', 'freezer_chg'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4x4, fila*4+columna) ---------- */
 /* Hoja "estándar" (Vegeta y enemigos): caminar, golpear, herido, dash y muerte */
@@ -668,6 +669,21 @@ const FORM_FX = {
   cell: [null, { spark: 'sparkG' }, { spark: 'lightB', bolt: 0xbfeeff }, { a: 'auraSS2', bolt: 0xfff27a, burst: 'tfGold' }]
 };
 const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;
+
+/* ---------- Pose de CARGAR KI de cada forma (hojas <personaje>_chg, tools/make_charge.py) ----------
+   Fotograma de la hoja de carga para cada forma (mismo índice que forms); -1 = sin pose propia (se usa la de quieto
+   con el aura del juego). La pose ya trae el aura de la forma dibujada */
+const FORM_CHG = {
+  goku: [-1, -1, 0, 1, 2, 3, 4, 5, 6],
+  vegeta: [-1, 0, 1, 2, 3, 4, 5],
+  krilin: [0, 0, 0, 0],
+  trunks: [0, 1, 1, 1],
+  gohan: [-1, 0, 0, 1, 2],
+  cell: [0, 0, 0, 0],
+  black: [-1, 0, 1, 2],
+  freezer: [0, 1, 2, -1, -1, -1, -1]
+};
+const formChg = (ch, idx) => { const f = (FORM_CHG[ch.id] || [])[idx]; return f === undefined ? -1 : f; };
 /** Aplica los cambios de estadísticas de un rasgo (lo llama Player.recompute) */
 function applyTraitStats(p, T) {
   const m = T.m || {};

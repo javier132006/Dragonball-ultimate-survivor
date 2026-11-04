@@ -65,7 +65,8 @@ def cut(i, box, tol=13, minc=40, frac=0.12, ol=0):
     else:
         # solo se acepta la mezcla del borde de casilla si a los dos lados (±2 px) hay ajedrez de verdad:
         # así el fondo no se cuela por una zona gris del sprite que solo coincide con las casillas claras
-        m0 = (sat < 16) & (abs(L - model) < tol)
+        # en las casillas casi negras el margen es pequeño: el pelo negro (Goku, Vegeta, Black) es casi igual de oscuro
+        m0 = (sat < 16) & np.where(model == lo, L < lo + 7, abs(L - model) < tol)
         sh = lambda m, dx, dy: np.roll(np.roll(m, dy, 0), dx, 1)
         okx = sh(m0, 2, 0) & sh(m0, -2, 0); oky = sh(m0, 0, 2) & sh(m0, 0, -2)
         bgp = m0 | ((sat < 18) & (L > lo - tol) & (L < hi + tol) & ((ex & okx) | (ey & oky)))
@@ -148,3 +149,49 @@ def addcut(i, box, tol=13, pad=18):
     al = al * np.clip((1.12 - e) / 0.32, 0, 1)
     rgb = d / np.maximum(al[:, :, None], 1e-3)
     return np.dstack([np.clip(rgb, 0, 255), al * 255]).astype(np.uint8)
+
+def glowcut(i, box, pad=14):
+    """Pose con el aura translúcida dibujada encima del ajedrez casi negro (cargar ki): se quita el ajedrez que se ve
+    a través del aura. En las casillas oscuras (casi negras) el píxel ya es el color 'sobre negro'; en las claras se
+    sustituye por el de las oscuras vecinas cuando la diferencia es gris (el ajedrez suma lo mismo a R, G y B).
+    La transparencia sale del brillo; el cuerpo (opaco) y su contorno oscuro se conservan"""
+    a = img(i); lo, hi = levels(i); x0, y0, x1, y1 = box
+    X0, Y0, X1, Y1 = max(0, x0 - pad), max(0, y0 - pad), min(a.shape[1], x1 + pad), min(a.shape[0], y1 + pad)
+    E = a[Y0:Y1, X0:X1]; LE = E.mean(2); sE = E.max(2) - E.min(2)
+    cand = (sE < 16) & ((abs(LE - lo) < 13) | (abs(LE - hi) < 13))
+    c0 = fit(LE, cand, lo, hi, np.arange(4.5, 13.5, 0.25))[1][0]
+    sc, (s, ox, oy, pos) = fit(LE, cand, lo, hi, np.arange(c0 - 0.3, c0 + 0.31, 0.05))
+    H, W = LE.shape; X, Y = np.meshgrid(np.arange(W), np.arange(H))
+    par = ((np.floor((X - ox) / s).astype(int) + np.floor((Y - oy) / s).astype(int)) & 1) == 1
+    if not pos: par = ~par
+    m = np.where(par, hi, lo)[y0 - Y0:y1 - Y0, x0 - X0:x1 - X0]
+    A = a[y0:y1, x0:x1]
+    dark = (m == lo).astype(float)
+    num = np.dstack([nd.gaussian_filter(A[:, :, c] * dark, 2.5) for c in range(3)]); den = nd.gaussian_filter(dark, 2.5)[:, :, None]
+    interp = num / np.maximum(den, 1e-3)
+    d = A - interp; achrom = (d.max(2) - d.min(2) < 22) & (d.mean(2) > 3) & (d.mean(2) < (hi - lo) + 12)
+    edge = nd.binary_dilation(m != nd.grey_erosion(m, size=3)) | nd.binary_dilation(m != nd.grey_dilation(m, size=3))
+    P = A.copy(); sel = ((m == hi) | edge) & achrom; P[sel] = interp[sel]
+    al = np.clip((P.max(2) - lo - 6) / 45, 0, 1)
+    L = P.mean(2); sat = P.max(2) - P.min(2)
+    ol = (L > lo + 7) & (L < 90) & (sat < 45) & nd.binary_dilation(al > 0.95, iterations=3) & ~(edge & (L > lo + 25))
+    al = np.maximum(al, ol * 1.0)
+    # restos del ajedrez pegados al borde del recorte (grises de los dos niveles): fuera
+    La = A.mean(2); sa = A.max(2) - A.min(2)
+    chk = (sa < 14) & ((abs(La - lo) < 14) | (abs(La - hi) < 14))
+    lab, n = nd.label(chk)
+    border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    al[np.isin(lab, list(border))] = 0
+    lab, n = nd.label(al > 0.2, structure=np.ones((3, 3)))
+    if n:
+        sz = nd.sum(al > 0.2, lab, range(1, n + 1)); keep = np.zeros(n + 1, bool); keep[1:] = sz >= max(30, sz.max() * 0.02)
+        al = al * keep[lab]
+    rgb = np.clip(P / np.maximum(al[:, :, None], 1e-3), 0, 255)
+    return np.dstack([rgb, al * 255]).astype(np.uint8)
+
+def body_rows(rgba):
+    """Filas que ocupa el CUERPO (contorno oscuro opaco), no el aura: para escalar la pose igual que el resto"""
+    A = rgba[:, :, :3].astype(float); al = rgba[:, :, 3]
+    dk = (al > 240) & (A.mean(2) < 45)
+    rows = np.nonzero(dk.sum(1) >= 2)[0]
+    return (rows.min(), rows.max()) if len(rows) else (0, rgba.shape[0] - 1)

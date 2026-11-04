@@ -20,8 +20,8 @@ class Player {
   /** Un SpriteBatch (1 sprite) por hoja usada; se crean una sola vez y se reutilizan */
   batch(name) {
     if (!this.spr[name]) {
-      const s = this.sheets[name], H = 3.6;
-      const base = { texture: s.tex, cols: s.cols, rows: s.rows, w: H * (s.w / s.h), h: H, anchor: 0.04 };
+      const s = this.sheets[name], H = 3.6 * (s.hs || 1);             // hs: hojas de carga con celdas más altas (mismo tamaño de píxel)
+      const base = { texture: s.tex, cols: s.cols, rows: s.rows, w: H * (s.w / s.h), h: H, anchor: s.anc || 0.04 };
       this.spr[name] = new SpriteBatch(this.scene, Object.assign({ max: 1, blend: true, renderOrder: 3 }, base));
       this.gho[name] = new SpriteBatch(this.scene, Object.assign({ max: 12, blend: true, tint: 0x8defff, alpha: 0.5, renderOrder: 2 }, base));
     }
@@ -32,6 +32,8 @@ class Player {
   reset(ch) {
     this.ch = ch;
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
+    this.chgSheet = this.sheets[ch.id + '_chg'] ? ch.id + '_chg' : null; if (this.chgSheet) this.batch(this.chgSheet);
+    this.cineChg = false; this.chgPose = false;
     this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
     this.absorbed = 0; this.barT = 0; this.barHits = 0; this.barBoom = 0; this.barCol = 0x8ae0ff;   // Absorción de Célula y Barrera de Ki
@@ -311,6 +313,9 @@ class Player {
     const a = this.anim;
     this.drawSheet = this.form.sheet;
     let fr = a.idle;
+    const cf = this.chgSheet ? formChg(this.ch, this.formIdx) : -1;
+    this.chgPose = cf >= 0 && (this.charging || this.cineChg) && this.dashT <= 0;
+    if (this.chgPose) { this.drawSheet = this.chgSheet; this.frame = cf; return; }   // pose de cargar ki (con el aura de la forma)
     if (this.hurtT > 0 && a.hurt >= 0) fr = a.hurt;
     else if (this.hurtT > 0 && a.alt && a.alt.hurt >= 0) { fr = a.alt.hurt; this.drawSheet = a.alt.sheet; }
     else if (this.dashT > 0) fr = a.dash;
@@ -337,7 +342,8 @@ class Player {
       if (fr) { sheet = fr.s; frame = t < 0.35 ? fr.f[0] : t < 0.9 ? fr.f[1] : fr.f[2]; alpha = clamp(1 - (t - 1.1) / 0.75, 0, 1); }
       else { sheet = this.form.sheet; frame = a.idle; flash = t < 0.35 ? 1 : 0; alpha = clamp(1 - t / 1.5, 0, 1); y = t * 1.2; scale = 1 + t * 0.12; }
     } else {
-      if (this.dashT > 0) y = 0.5;
+      if (this.chgPose) scale = 1 + Math.sin(this.animT * 16) * 0.025;        // el aura de la pose de carga late
+      else if (this.dashT > 0) y = 0.5;
       else if (this.moving) y = Math.abs(Math.sin(this.animT * 9)) * 0.12;
       flash = this.hurtT > 0.22 ? 1 : 0;
       if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;
@@ -351,7 +357,7 @@ class Player {
     const V = this.vfx, useFx = !!(V && V.ok);
     if (useFx && !this.dying) {
       const ka = this.buffT > 0, au = this.form.aura || 0, F = formFx(this.ch, this.formIdx);
-      if (au || this.charging || ka) {
+      if ((au || this.charging || ka) && !this.chgPose) {
         const big = this.charging ? 1.3 : 1, name = ka || !F || !F.a ? 'auraSS1' : F.a, own = name === 'auraSS2' || name === 'auraSS3';
         V.aura(name, this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : own ? 0xffffff : (au || this.form.ki), this.charging ? 0.85 : own ? 0.62 : 0.5, this.animT);
       }
