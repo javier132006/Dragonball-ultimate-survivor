@@ -9,8 +9,8 @@
 
 /* Configuración: pon aquí los datos de TU proyecto (Supabase > Project Settings > API) */
 const ONLINE_CFG = {
-  url: '',      // URL del proyecto, p. ej. https://abcdefgh.supabase.co
-  key: ''       // clave pública "anon" / "publishable" (se puede publicar: la seguridad la dan las reglas RLS)
+  url: 'https://figkiqavpwhpglnhctwm.supabase.co',
+  key: 'sb_publishable_OwYQIRmWj5_qmZiQzUE5PQ_FoH7MO_Z'      // clave pública "anon" / "publishable" (se puede publicar: la seguridad la dan las reglas RLS)
 };
 const PENDING_KEY = 'dbus_pending_v1';   // partidas que no se pudieron enviar (se reintentan al volver a entrar)
 const NAME_RE = /^[A-Za-z0-9_ ÁÉÍÓÚÜÑáéíóúüñ-]{3,16}$/;
