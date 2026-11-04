@@ -342,7 +342,7 @@ class UIManager {
     cards.forEach((c, i) => {
       let pips = '';
       if (c.max) for (let k = 1; k <= c.max; k++) pips += '<u class="' + (k <= c.lv ? 'on' : '') + '"></u>';
-      h += '<button class="card ' + c.type + '" data-i="' + i + '"><em>' + (i + 1) + '</em><span class="ci">' + c.icon + '</span><small>' + c.tag + '</small><b>' + c.title + '</b><p>' + c.text + '</p><div class="pips">' + pips + '</div></button>';
+      h += '<button class="card ' + c.type + (c.tier ? ' r' + c.tier : '') + '" data-i="' + i + '"' + (c.tier ? ' style="--rc:' + CARD_TIERS[c.tier].col + '"' : '') + '><em>' + (i + 1) + '</em><span class="ci">' + c.icon + '</span><small>' + c.tag + '</small><b>' + c.title + '</b><p>' + c.text + '</p><div class="pips">' + pips + '</div></button>';
     });
     e.cardRow.innerHTML = h;
     this.cardHandlers = cards.map((c, i) => () => onPick(c, i));

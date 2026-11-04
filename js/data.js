@@ -308,16 +308,35 @@ const MAX_WEAPON_LEVEL = 5, MAX_WEAPONS = 6;
 
 /* ---------- Vitaminas (mejoras pasivas) ---------- */
 const STATS = [
-  { id: 'dmg', name: 'Gravedad x10', icon: '⬆', max: 5, text: '+12% de daño.', apply: (p) => { p.statDmg += 0.12; } },
-  { id: 'hp', name: 'Corazón Saiyajin', icon: '♥', max: 5, text: '+25 de vida máxima y curas 25.', apply: (p) => { p.maxHp += 25; p.hp += 25; } },
-  { id: 'spd', name: 'Vuelo Veloz', icon: '»', max: 5, text: '+8% de velocidad.', apply: (p) => { p.speedMul += 0.08; } },
-  { id: 'mag', name: 'Imán de Orbes', icon: '⌖', max: 5, text: '+35% de alcance del imán.', apply: (p) => { p.magnet *= 1.35; } },
-  { id: 'rate', name: 'Reflejos de Combate', icon: '⏱', max: 5, text: '+10% de cadencia de ataque.', apply: (p) => { p.rateMul += 0.1; } },
-  { id: 'crit', name: 'Instinto Letal', icon: '✚', max: 5, text: '+6% de probabilidad de crítico.', apply: (p) => { p.crit += 0.06; } },
-  { id: 'senzu', name: 'Semilla Senzu', icon: '❖', max: 5, text: 'Regeneras 0,6 de vida por segundo.', apply: (p) => { p.regen += 0.6; } },
-  { id: 'ki', name: 'Cápsula de Ki', icon: '⚡', max: 5, text: '+25 de Ki máximo y +1,5 Ki/s.', apply: (p) => { p.maxKi += 25; p.kiRegen += 1.5; } },
-  { id: 'armor', name: 'Gi de Entrenamiento', icon: '▣', max: 5, text: 'Recibes un 7% menos de daño.', apply: (p) => { p.armor = Math.min(0.5, p.armor + 0.07); } }
+  { id: 'dmg', name: 'Gravedad x10', icon: '⬆', max: 5, text: '+12% de daño.', apply: (p, k = 1) => { p.statDmg += 0.12 * k; } },
+  { id: 'hp', name: 'Corazón Saiyajin', icon: '♥', max: 5, text: '+25 de vida máxima y curas 25.', apply: (p, k = 1) => { p.maxHp += 25 * k; p.hp += 25 * k; } },
+  { id: 'spd', name: 'Vuelo Veloz', icon: '»', max: 5, text: '+8% de velocidad.', apply: (p, k = 1) => { p.speedMul += 0.08 * k; } },
+  { id: 'mag', name: 'Imán de Orbes', icon: '⌖', max: 5, text: '+35% de alcance del imán.', apply: (p, k = 1) => { p.magnet *= 1 + 0.35 * k; } },
+  { id: 'rate', name: 'Reflejos de Combate', icon: '⏱', max: 5, text: '+10% de cadencia de ataque.', apply: (p, k = 1) => { p.rateMul += 0.1 * k; } },
+  { id: 'crit', name: 'Instinto Letal', icon: '✚', max: 5, text: '+6% de probabilidad de crítico.', apply: (p, k = 1) => { p.crit += 0.06 * k; } },
+  { id: 'senzu', name: 'Semilla Senzu', icon: '❖', max: 5, text: 'Regeneras 0,6 de vida por segundo.', apply: (p, k = 1) => { p.regen += 0.6 * k; } },
+  { id: 'ki', name: 'Cápsula de Ki', icon: '⚡', max: 5, text: '+25 de Ki máximo y +1,5 Ki/s.', apply: (p, k = 1) => { p.maxKi += 25 * k; p.kiRegen += 1.5 * k; } },
+  { id: 'armor', name: 'Gi de Entrenamiento', icon: '▣', max: 5, text: 'Recibes un 7% menos de daño.', apply: (p, k = 1) => { p.armor = Math.min(0.5, p.armor + 0.07 * k); } }
 ];
+/* ---------- Rarezas de las cartas al subir de nivel ----------
+   Vitaminas: multiplican su efecto (mul). Técnicas: además de subir de nivel, ganan daño propio (dmg, se acumula).
+   La suerte del jugador sube las rarezas altas (más cuanto más alta es la rareza) */
+const CARD_TIERS = [
+  { name: 'COMÚN', mul: 1, dmg: 0, w: 62, col: '#c8d0d8' },
+  { name: 'RARO', mul: 1.5, dmg: 0.1, w: 24, col: '#4ab0ff' },
+  { name: 'SÚPER RARO', mul: 2, dmg: 0.2, w: 9, col: '#3ee08a' },
+  { name: 'ÉPICO', mul: 2.5, dmg: 0.35, w: 4, col: '#c06aff' },
+  { name: 'LEGENDARIO', mul: 3, dmg: 0.5, w: 1, col: '#ffc83a' }
+];
+/** Rareza al azar según la suerte (0 = común) */
+function rollTier(luck) {
+  const w = CARD_TIERS.map((t, i) => t.w * (i ? Math.pow(1 + Math.max(0, luck) * 0.1, 0.6 + i * 0.25) : 1));
+  let r = Math.random() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < w.length; i++) { r -= w[i]; if (r <= 0) return i; }
+  return 0;
+}
+/** Texto de una vitamina con su efecto multiplicado (los números del texto) */
+const scaleText = (s, k) => k === 1 ? s : s.replace(/\d+(?:,\d+)?/g, (n) => { const v = parseFloat(n.replace(',', '.')) * k; return String(v < 3 ? Math.round(v * 10) / 10 : Math.round(v)).replace('.', ','); });
 
 /* ---------- Enemigos: hoja "enemies" (8 columnas por fila) ----------
    Columnas de cada fila: 0-3 caminar · 4 herido · 5 ataque · 6 técnica · 7 pose.

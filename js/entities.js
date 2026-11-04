@@ -34,7 +34,7 @@ class Player {
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
     this.chgSheet = this.sheets[ch.id + '_chg'] ? ch.id + '_chg' : null; if (this.chgSheet) this.batch(this.chgSheet);
     this.cineChg = false; this.chgPose = false;
-    this.stacks = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
+    this.stacks = {}; this.stackMul = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
     this.absorbed = 0; this.barT = 0; this.barHits = 0; this.barBoom = 0; this.barCol = 0x8ae0ff;   // Absorción de Célula y Barrera de Ki
     this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.wade = 1; this.slowT = 0; this.confT = 0;
@@ -81,7 +81,7 @@ class Player {
   recompute() {
     const oh = this.hp, om = this.maxHp, ok = this.maxKi;
     this.initStats();
-    for (const s of STATS) for (let k = 0; k < (this.stacks[s.id] || 0); k++) s.apply(this);
+    for (const s of STATS) for (let k = 0; k < (this.stacks[s.id] || 0); k++) s.apply(this, (this.stackMul[s.id] || [])[k] || 1);   // cada nivel con su rareza
     for (const id in this.items) { const it = itemById(id); for (let k = 0; k < this.items[id]; k++) it.apply(this); }
     for (const id of this.buffs) BUFFS[id].apply(this);
     if (this.trait) applyTraitStats(this, this.trait);                 // rasgo de la transformación actual
@@ -540,6 +540,7 @@ class HordeManager {
       if (area) this.shield[i] = 0; else { this.shield[i]--; dmg *= 0.1; game.fx.burst(game.fx.sparks, this.x[i], 1.3, this.z[i], 4, 5, 0.25, 0.3, 0, 0x8ab0ff); }
     }
     if (this.type[i] === T_BOSS && game.bossInv > 0) dmg *= 0.1;  // el jefe cambiando de fase apenas recibe daño
+    const wm = game.wMul && game.wMul[DMG_SRC]; if (wm) dmg *= wm;  // daño extra de la técnica por las cartas raras
     const real = Math.min(dmg, this.hp[i]), R = game.run;
     R.damage += real; if (dmg > R.best) R.best = dmg;
     R.byW[DMG_SRC] = (R.byW[DMG_SRC] || 0) + real;

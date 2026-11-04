@@ -235,6 +235,12 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 .card.wish{background:var(--tone),linear-gradient(165deg,#178a4c,#0b4a28)}.card.wish .ci{background:radial-gradient(circle at 35% 30%,#d8ffc8,var(--shen) 50%,#0a4a1a)}
 .card.fusion{background:var(--tone),linear-gradient(165deg,#c8202e,#6e0a16)}.card.fusion .ci{background:radial-gradient(circle at 35% 30%,#ffe0d0,#ff5a3a 50%,#7a0a00)}
 .card.fusion small{background:#fff;color:var(--star)}
+/* Rarezas de las cartas: borde y brillo del color de la rareza */
+.card.r1,.card.r2,.card.r3,.card.r4{box-shadow:0 0 0 4px var(--rc),0 0 22px var(--rc),6px 8px 0 #000}
+.card.r1 small,.card.r2 small,.card.r3 small,.card.r4 small{background:var(--rc);color:#000}
+.card .rar{display:inline-block;margin-top:6px;font-size:11px;font-weight:800;color:var(--rc)}
+.card.r4{animation:legend 1.6s ease-in-out infinite}
+@keyframes legend{50%{box-shadow:0 0 0 4px var(--rc),0 0 40px var(--rc),6px 8px 0 #000}}
 .card.form{background:var(--tone),linear-gradient(165deg,#ffb22e,#d86a00)}.card.form .ci{background:radial-gradient(circle at 35% 30%,#fffbe0,var(--ki) 50%,#a86400)}
 .card.form p{color:#1a0800}.card.form p b{color:#000}
 .card.form p .trg,.card.form p .trb{display:inline-block;margin-top:4px;font-weight:800}.card.form p .trg{color:#0b6a2a}.card.form p .trb{color:#9a0010}

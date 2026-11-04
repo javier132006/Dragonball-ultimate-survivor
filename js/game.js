@@ -455,7 +455,7 @@ class Game {
     this.run = newRun(); this.curseHp = 0; this.curseDmg = 0; this.chal = 0; this.coinMul = 1; this.showMap = false; this.ui.el.bigmap.style.display = 'none';
     this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
     if (IS_TOUCH) { goFullscreen(); this.camDistT = 22; }
-    this.step = 0; this.booms.length = 0; this.rerolls = 2; this.sigOffered = {};
+    this.step = 0; this.booms.length = 0; this.rerolls = 2; this.sigOffered = {}; this.wMul = {};
     this.loadStage((this.daily ? dailySeed() % 2 === 1 : Math.random() < 0.5) ? 7 : 0);   // se empieza en la Tierra o en la Isla Kame
     this.applyForm();
     for (let i = 0; i < 14; i++) this.spawnEnemy();
@@ -1668,20 +1668,34 @@ class Game {
       seen[key] = 1; out.push(c);
     }
     const cards = out.map((c) => {
-      if (c.t === 'fusion') {
-        const F = WEAPONS[c.id];
-        return { type: 'fusion', id: c.id, icon: F.icon, tag: '⚭ FUSIÓN', title: F.name, text: F.lv[0] + ' (' + F.fusion.map((f) => WEAPONS[f].name).join(' + ') + ')' + (F.down ? '<br><span class="trb">✖ ' + F.down.text + '</span>' : ''), max: 0, lv: 0 };
+      const card = this.cardOf(c, W, p);
+      if (c.t === 'weapon' || c.t === 'stat') {                   // rareza de la carta (la suerte sube las altas)
+        const r = rollTier(p.luck), T = CARD_TIERS[r];
+        card.tier = r;
+        if (r) {
+          card.tag = T.name + ' · ' + card.tag;
+          if (c.t === 'stat') card.text = scaleText(card.text, T.mul) + '<br><span class="rar">Efecto x' + String(T.mul).replace('.', ',') + '</span>';
+          else card.text += '<br><span class="rar">+' + Math.round(T.dmg * 100) + '% de daño de esta técnica</span>';
+        }
       }
-      if (c.t === 'weapon') {
-        const d = WEAPONS[c.id], cur = W.levelOf(c.id), nl = cur + 1;
-        const hint = this.fusionHint(c.id);
-        return { type: 'weapon', id: c.id, icon: d.icon, tag: cur ? 'MEJORA · NV ' + nl : d.unique ? 'TÉCNICA' : 'NUEVA ARMA', title: d.name, text: d.lv[nl - 1] + (hint ? '<br><span class="fh">' + hint + '</span>' : ''), max: MAX_WEAPON_LEVEL, lv: nl };
-      }
-      const s = STATS.find((x) => x.id === c.id), n = (p.stacks[c.id] || 0) + 1;
-      return { type: 'stat', id: c.id, icon: s.icon, tag: 'VITAMINA · ' + n + '/' + s.max, title: s.name, text: s.text, max: s.max, lv: n };
+      return card;
     });
     while (cards.length < 3) cards.push({ type: 'heal', id: 'heal', icon: '❖', tag: 'RECOMPENSA', title: 'Semilla Senzu', text: 'Recuperas toda la vida.', max: 0, lv: 0 });
     return cards;
+  }
+  /** Carta de una opción del sorteo (sin rareza) */
+  cardOf(c, W, p) {
+    if (c.t === 'fusion') {
+      const F = WEAPONS[c.id];
+      return { type: 'fusion', id: c.id, icon: F.icon, tag: '⚭ FUSIÓN', title: F.name, text: F.lv[0] + ' (' + F.fusion.map((f) => WEAPONS[f].name).join(' + ') + ')' + (F.down ? '<br><span class="trb">✖ ' + F.down.text + '</span>' : ''), max: 0, lv: 0 };
+    }
+    if (c.t === 'weapon') {
+      const d = WEAPONS[c.id], cur = W.levelOf(c.id), nl = cur + 1;
+      const hint = this.fusionHint(c.id);
+      return { type: 'weapon', id: c.id, icon: d.icon, tag: cur ? 'MEJORA · NV ' + nl : d.unique ? 'TÉCNICA' : 'NUEVA ARMA', title: d.name, text: d.lv[nl - 1] + (hint ? '<br><span class="fh">' + hint + '</span>' : ''), max: MAX_WEAPON_LEVEL, lv: nl };
+    }
+    const s = STATS.find((x) => x.id === c.id), n = (p.stacks[c.id] || 0) + 1;
+    return { type: 'stat', id: c.id, icon: s.icon, tag: 'VITAMINA · ' + n + '/' + s.max, title: s.name, text: s.text, max: s.max, lv: n };
   }
 
   /** Técnicas propias disponibles ahora: exclusivas del personaje, gratuitas, no aprendidas y con nivel suficiente */
@@ -1713,15 +1727,17 @@ class Game {
       const p = this.player;
       SFX.play('select');
       if (c.type === 'weapon') {
-        const w = this.weapons.add(c.id);
+        const w = this.weapons.add(c.id), T = CARD_TIERS[c.tier || 0];
+        if (T.dmg) { this.wMul[c.id] = (this.wMul[c.id] || 1) * (1 + T.dmg); this.ui.toast(T.name + ': +' + Math.round(T.dmg * 100) + '% DE DAÑO · ' + WEAPONS[c.id].name.toUpperCase(), true); }
         if (w.lv >= MAX_WEAPON_LEVEL) { const h = this.fusionHint(c.id); if (h) this.ui.toast(WEAPONS[c.id].name.toUpperCase() + ' AL MÁXIMO · ' + h, true); }
       } else if (c.type === 'fusion') {
+        this.wMul[c.id] = Math.max(1, ...WEAPONS[c.id].fusion.map((f) => this.wMul[f] || 1));   // la fusión hereda el mejor extra
         this.weapons.fuse(c.id); this.run.fusions++; this.track('fusions', 1);
         p.fused.push(c.id); p.recompute();
         this.ui.toast('¡FUSIÓN! ' + WEAPONS[c.id].name.toUpperCase(), true); SFX.play('stinger');
         this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 70, 24, 0.8, 0.5, WEAPONS[c.id].color); this.impT = 0.14;
       }
-      else if (c.type === 'stat') { p.stacks[c.id] = c.lv; STATS.find((s) => s.id === c.id).apply(p); }
+      else if (c.type === 'stat') { const k = CARD_TIERS[c.tier || 0].mul; p.stacks[c.id] = c.lv; (p.stackMul[c.id] || (p.stackMul[c.id] = []))[c.lv - 1] = k; STATS.find((s) => s.id === c.id).apply(p, k); }
       else p.hp = p.maxHp;
       this.pendingLevels--;
       this.ui.hideCards();
