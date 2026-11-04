@@ -72,6 +72,7 @@ class Game {
     }
     this.ui.sheets = sheets;
     this.cine = new TransformScene(this);                // cinemática de transformación
+    this.intro = new FusionIntro(this);                  // intro de la fusión de Vegetto y Gogeta
     this.touch = new TouchControls(this);                // controles táctiles (solo en móvil)
     this.pad = new PadInput(this);                       // mando (Gamepad API)
     // Cuenta y ranking mundial (Supabase). Si no está configurado, el juego funciona igual
@@ -473,6 +474,11 @@ class Game {
     if (this.practice) this.ui.toast('L: subir de nivel · K: limpiar la horda · J: +500 Zeni', true);
     for (const m of this.modList) this.ui.toast(m.icon + ' ' + m.name + ': ' + m.text, true);
     SFX.music('battle');
+    // Vegetto y Gogeta empiezan con la intro de su fusión (el mundo espera congelado)
+    if (this.intro.has(ch.id)) {
+      this.state = 'intro'; this.releaseMouse();
+      this.intro.start(ch.id, () => { if (this.state !== 'intro') return; this.state = 'play'; this.grabMouse(); this.clock.getDelta(); });
+    }
   }
 
   /** Carga un mapa de la partida: mundo (tema y tamaño), puntos de interés, cápsulas y enemigos limpios */
@@ -2003,6 +2009,9 @@ class Game {
       this.fx.update(rawDt); this.updateCamera(rawDt, rawDt, false);
       if (this.transT > 0.7 && !this.transDone) { this.transDone = true; this.nextStage(this.riftTo); this.ui.el.fade.style.opacity = 0; }
       if (this.transT > 1.4) { this.state = 'play'; this.clock.getDelta(); }
+    } else if (s === 'intro') {                                       // intro de la fusión (Vegetto, Gogeta)
+      this.intro.update(rawDt);
+      this.updateCamera(0.0001, 0, false);
     } else if (s === 'menu') {
       this.player.animT += rawDt;
       this.player.pose();

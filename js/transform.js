@@ -91,6 +91,11 @@ const TRANSFORM_FX = {
     { c1: '#ffe14a', c2: '#bfe8ff', quote: '¡Es hora de acabar con esto!', frames: 'IWIBIC', charge: 2.0, fx: ['bolts', 'sparks', 'rocks', 'quake'], bolt: '#9fe0ff', shake: 1.2, kanji: '超サイヤ人２' },
     { c1: '#2ec8ff', c2: '#c8f4ff', quote: 'El guerrero más fuerte... con ki divino.', frames: 'WCIBC', charge: 1.9, fx: ['ripple', 'sparks', 'bolts'], bolt: '#8ad8ff', shake: 0.8, kanji: 'ベジットブルー' }
   ],
+  gogeta: [
+    null,
+    { c1: '#ffd400', c2: '#fff6a0', quote: 'Soy Gogeta. Y voy a acabar contigo.', frames: 'WIBIC', charge: 1.8, fx: ['rocks', 'bolts', 'cracks'], bolt: '#fff27a', shake: 1.0, kanji: 'ゴジータ' },
+    { c1: '#6fd8ff', c2: '#ffffff', quote: '¡Este es el poder de la fusión!', frames: 'BIWIBC', charge: 2.2, fx: ['bolts', 'sparks', 'ripple', 'quake'], bolt: '#bfe8ff', shake: 1.3, kanji: '限界' }
+  ],
   broly: [
     null,
     { c1: '#ffd400', c2: '#fff6a0', quote: '¡¡KAKAROTTO!!', frames: 'BIWIC', charge: 1.9, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.3, kanji: '超サイヤ人' },
@@ -134,7 +139,7 @@ class TransformScene {
     g.ui.el.hud.classList.add('cine');
     // Sonido: grito sintetizado + carga, música atenuada
     SFX.setDuck(0.3);
-    SFX.scream(this.cfg.charge, { goku: 175, vegeta: 160, black: 150, piccolo: 120, gohan: 200, freezer: 230, krilin: 210, trunks: 185, bardock: 150, vegito: 165, broly: 110 }[p.ch.id] || 170);
+    SFX.scream(this.cfg.charge, { goku: 175, vegeta: 160, black: 150, piccolo: 120, gohan: 200, freezer: 230, krilin: 210, trunks: 185, bardock: 150, vegito: 165, broly: 110, gogeta: 165 }[p.ch.id] || 170);
     SFX.play('charge');
   }
 

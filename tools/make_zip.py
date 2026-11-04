@@ -70,6 +70,7 @@ SHEETS = {
  'bardock': F(BD + 'Bardock', 5, (6, 7), 17, 52, 28, 42, 8, (44, 46, 48)),
  'bardock_ss': F(BD + 'Bardock Ssj', 15, (16, 17), 43, 73, 38, 64, 18, (64, 65, 67)),
  'bardock_ss4': F(BD + 'Bardock SSJ4', 3, (4, 5), 12, 41, 23, 35, 6, (36, 38, 39)),
+ 'gogeta': F('Gogeta', 41, (49, 50), 64, 98, 77, 85, 68, (86, 87, 88)),
 }
 # Poses de CARGAR KI con el aura (hoja <personaje>_chg, una tira por personaje): nombre -> [(carpeta, nº), ...]
 CHG = {
@@ -104,8 +105,16 @@ CHG = {
  'broly_chg': [(BR + 'Broly Segunda Forma', 57), (BR + 'Broly Segunda Forma', 60), (BR + 'Broly Segunda Forma', 61), (BR + 'Broly Terceira forma', 3),
                (BR + 'Broly Terceira forma', 60), (BR + 'Broly Full Power', 44), (BR + 'Broly Full Power', 45), (BR + 'Broly Full Power', 46),
                (BR + 'Broly Ssj4', 38), (BR + 'Broly Ssj4', 39), (BR + 'Broly Ssj4', 40)],
+ 'gogeta_chg': [('Gogeta', 91), ('Gogeta', 92), ('Gogeta', 93)],
  'bardock_chg': [(BD + 'Bardock', 60), (BD + 'Bardock', 61), (BD + 'Bardock', 62), (BD + 'Bardock Ssj', 3), (BD + 'Bardock Ssj', 6),
                  (BD + 'Bardock SSJ4', 44), (BD + 'Bardock SSJ4', 45), (BD + 'Bardock SSJ4', 46)],
+}
+# Intros de las fusiones (hoja <personaje>_intro, pies abajo): Goku y Vegeta se fusionan antes de empezar la partida
+# vegito_intro: 0 Goku · 1 Vegeta · 2-3 vuelan · 4-7 Vegetto aparece · 8-10 aura
+# gogeta_intro: 0-10 baile de Goku · 11-21 baile de Vegeta · 22 silueta · 23 Gogeta · 24-26 aura · 27 los dedos se tocan
+INTRO = {
+ 'vegito_intro': [(VG + 'Vegito Ssj2', n) for n in range(1, 9)] + [(VG + 'Vegito', n) for n in (105, 106, 107)],
+ 'gogeta_intro': [('Gogeta', n) for n in (3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 40, 41, 91, 92, 93, 44)],
 }
 # Jefes (hoja 'bosses', 8 columnas de 128 px: 0-3 caminar · 4 golpe recibido · 5 ataque · 6 técnica · 7 pose/aturdido)
 BOSS_ROWS = {
@@ -186,7 +195,7 @@ if __name__ == '__main__':
     out = sys.argv[2]; os.makedirs(out, exist_ok=True); meta = {}; used = set()
     solo = sys.argv[sys.argv.index('-solo') + 1].split(',') if '-solo' in sys.argv else None   # solo las hojas de estos personajes
     keep = lambda n: solo is None or n.split('_')[0] in solo
-    SHEETS = {n: v for n, v in SHEETS.items() if keep(n)}; CHG = {n: v for n, v in CHG.items() if keep(n)}
+    SHEETS = {n: v for n, v in SHEETS.items() if keep(n)}; CHG = {n: v for n, v in CHG.items() if keep(n)}; INTRO = {n: v for n, v in INTRO.items() if keep(n)}
     for name, S in SHEETS.items():
         fr = {i: load(S['folder'], n) for i, n in S['f'].items()}; used.add(S['folder'])
         sh, CW, CH, rows = build(fr)
@@ -198,6 +207,12 @@ if __name__ == '__main__':
         cols = min(8, len(L)); sh, CW, CH, rows = build(fr, cols=cols, center='box')
         sh.save(os.path.join(out, name + '.png'))
         meta[name] = {'cols': cols, 'rows': rows, 'w': CW, 'h': CH, 'hs': round(CH / REF, 4), 'anc': round(2 / CH, 4), 'px': 1}
+        print(name, len(L), CW, 'x', CH)
+    for name, L in INTRO.items():
+        fr = {i: load(fo, n) for i, (fo, n) in enumerate(L)}; used |= {fo for fo, n in L}
+        sh, CW, CH, rows = build(fr, cols=8)
+        sh.save(os.path.join(out, name + '.png'))
+        meta[name] = {'cols': 8, 'rows': rows, 'w': CW, 'h': CH}
         print(name, len(L), CW, 'x', CH)
     json.dump(meta, open(os.path.join(out, 'chars.json'), 'w'))
     json.dump(credits_of(sorted(used)), open(os.path.join(out, 'credits.json'), 'w'), ensure_ascii=False, indent=1)

@@ -73,6 +73,7 @@ class Player {
     if (ch.id === 'trunks') { this.crit += 0.06; this.critDmg += 0.3; }
     if (ch.id === 'bardock') { this.dodge += 0.1; this.crit += 0.08; }
     if (ch.id === 'vegito') { this.statDmg += 0.1; this.rateMul += 0.1; }
+    if (ch.id === 'gogeta') this.statDmg += 0.12;
     if (ch.id === 'broly') this.armor += 0.12;
     // Modificador del desafío diario «Cañón de cristal»
     if (typeof game !== 'undefined' && game && game.mods && game.mods.glass) { this.maxHp = Math.round(this.maxHp * 0.6); this.statDmg += 0.5; }
@@ -110,7 +111,7 @@ class Player {
 
   /** Multiplicador de daño total: vitaminas x forma x pasiva del personaje */
   /** Suma carga a la Ultimate (solo si el personaje tiene una) */
-  addUlt(n) { if (this.ch.ult) this.ult = Math.min(this.ch.ult.cost, this.ult + n); }
+  addUlt(n) { if (this.ch.ult) this.ult = Math.min(this.ch.ult.cost, this.ult + n * (this.ch.id === 'gogeta' ? 1.25 : 1)); }
   damageMul() {
     let m = this.statDmg * this.form.dmg * (this.buffT > 0 ? 1 + this.buffDmg : 1);
     if (this.ch.id === 'goku') m *= 1 + 0.015 * (this.level - 1);                     // Zenkai

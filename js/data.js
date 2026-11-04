@@ -11,8 +11,8 @@ const SHEET_NAMES = ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku
   'vegeta', 'vegeta_ss', 'vegeta_grade', 'vegeta_majin', 'vegeta_ss4', 'vegeta_god', 'vegeta_blue', 'vegeta_bfp',
   'black', 'black_ss', 'black_rose', 'black_boss', 'gohan', 'gohan_ss', 'gohan_ss2', 'gohan_ul',
   'freezer1', 'freezer3', 'freezer', 'freezer_fp', 'freezer_gold', 'trunks', 'trunks_ss', 'cell_imp', 'cell_semi', 'cell', 'piccolo', 'krilin',
-  'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4',
-  'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg',
+  'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4', 'gogeta',
+  'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg', 'gogeta_chg', 'vegito_intro', 'gogeta_intro',
   'enemies', 'bosses', 'fx', 'fxbig', 'props', 'tall', 'icons', 'tiles'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4 columnas, fila*4+columna) ---------- */
@@ -179,6 +179,18 @@ const CHARACTERS = [
     ]
   },
   {
+    id: 'gogeta', name: 'GOGETA', role: 'Danza de la fusión · Kamehameha', cost: 10000,
+    hp: 115, ki: 130, spd: 1.08, dmg: 1.15, start: ['gblast2'], unique: ['gblast2', 'bbkame', 'meteorexp', 'soulpunisher'],
+    passive: { name: 'Danza de la fusión', desc: '+12% de daño y la Ultimate se carga un 25% más rápido.' },
+    ult: { name: 'BIG BANG KAMEHAMEHA', key: 'Q', cost: 100, type: 'beam', dmg: 11, len: 68, hw: 3.6, life: 1.8, col: 0x9fe0ff, end: 'bbBurst', fx: ['#000', '#fff', '#ffe14a', '#6fd8ff', '#ffe14a'] },
+    portrait: { sheet: 'gogeta', frame: 0 },
+    forms: [
+      form('SUPER GOGETA', 1, 'gogeta', A_HD, 1.0, 1.0, 0xffe14a, 0xffd84a, 0xffffff),
+      form('PODER DE LA FUSIÓN', 14, 'gogeta', A_HD, 1.7, 1.16, 0xfff08a, 0xffe070, 0xfff8e8),
+      form('GOGETA AL LÍMITE', 28, 'gogeta', A_HD, 2.8, 1.3, 0xbfe8ff, 0x8ad8ff, 0xf4f8ff)
+    ]
+  },
+  {
     id: 'broly', name: 'BROLY', role: 'Berserker · Tanque', cost: 9500,
     hp: 150, ki: 110, spd: 0.92, dmg: 1.2, start: ['eraser'], unique: ['eraser', 'gigameteor', 'gigaroar', 'blaster'],
     passive: { name: 'Saiyajin Legendario', desc: 'Recibes un 12% menos de daño y haces un 30% más con menos de la mitad de vida.' },
@@ -266,6 +278,11 @@ const WEAPONS = {
   eraser: { name: 'Eraser Blow', icon: '✦', kind: 'blast', unique: 'broly', color: 0x7dff5a, lv: ['Broly lanza esferas de ki verde que explotan al impactar.', '+20% de daño.', '+1 esfera.', 'Explosión más grande.', '+1 esfera y +30% de cadencia.'] },
   gigameteor: { name: 'Gigantic Meteor', icon: '●', ico: 'genki', kind: 'bigbang', unique: 'broly', minLv: 3, color: 0x9aff6a, boomFx: 'kameBoomG', lv: ['Una esfera verde enorme que arrasa una gran zona.', '+35% de daño.', 'Explosión mayor.', 'Recarga reducida.', '+35% de daño y doble esfera.'] },
   gigaroar: { name: 'Rugido Legendario', icon: '✸', ico: 'explode', kind: 'nova', unique: 'broly', minLv: 5, color: 0x7dff5a, lv: ['Broly ruge y una onda de ki verde empuja y daña a la horda.', '+40% de daño.', 'Mayor radio.', 'Estalla dos veces seguidas.', '+40% de daño y recarga menor.'] },
+  /* --- Gogeta --- */
+  gblast2: { name: 'Ráfagas de Gogeta', icon: '✦', kind: 'bullet', unique: 'gogeta', color: 0x9fe0ff, lv: ['Gogeta lanza ráfagas de ki al enemigo más cercano.', '+18% de daño.', '+1 proyectil.', 'Las ráfagas atraviesan a 1 enemigo.', '+1 proyectil y +30% de cadencia.'] },
+  bbkame: { name: 'Big Bang Kamehameha', icon: '≋', ico: 'kame', kind: 'beam', unique: 'gogeta', minLv: 3, color: 0x9fe0ff, lv: ['El Big Bang y el Kamehameha en un solo rayo.', '+55% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Big Bang Kamehameha definitivo.'] },
+  meteorexp: { name: 'Explosión Meteoro', icon: '✸', ico: 'tp', kind: 'meteor', unique: 'gogeta', minLv: 5, color: 0xffd040, cfg: { n: 5, dmg: 40, cd: 3.5 }, lv: ['Gogeta golpea a varios enemigos en un instante y remata con una explosión.', '+1 golpe.', '+35% de daño.', 'Recarga reducida.', '+2 golpes.'] },
+  soulpunisher: { name: 'Soul Punisher', icon: '☀', ico: 'genki', kind: 'genki', unique: 'gogeta', minLv: 7, color: 0xbfe8ff, sty: 'genki', cfg: { r: 14, dmg: 170, cd: 8 }, lv: ['Una esfera de luz que purifica a la horda.', '+50% de daño.', 'Área mayor.', 'Recarga reducida.', 'Soul Punisher definitivo.'] },
   /* --- Técnicas nuevas de cada personaje (desde el nivel 7) --- */
   dragonfist: { name: 'Puño del Dragón', icon: '✊', kind: 'bigbeam', unique: 'goku', minLv: 7, color: 0xffd040, cfg: { cd: 5, dmg: 40, len: 20, hw: 4, life: 0.45, cost: 12 }, lv: ['Goku concentra el ki en el puño y atraviesa a la horda.', '+30% de daño.', 'Puño más largo y ancho.', 'Recarga reducida.', 'Puño del Dragón definitivo.'] },
   kakusan: { name: 'Kakusan Ha', icon: '✦', ico: 'homing', kind: 'homing', unique: 'vegeta', minLv: 7, color: 0xb06bff, cfg: { n: 5, dmg: 22, cd: 2.2 }, lv: ['Una esfera que se divide en rayos que persiguen a la horda.', '+1 rayo.', '+30% de daño.', '+1 rayo y giran más rápido.', '+2 rayos y recarga menor.'] },
@@ -316,6 +333,8 @@ const WEAPONS = {
   omegablaster: { name: 'Omega Blaster', icon: '☀', ico: 'genki', kind: 'genki', unique: 'broly', fusion: ['eraser', 'gigameteor'], color: 0x7dff5a, sty: 'sun', cfg: { r: 18, dmg: 230, cd: 10 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: un sol verde que lo destruye todo.'] },
   eraserstorm: { name: 'Lluvia de Eraser', icon: '✦', kind: 'barrage', unique: 'broly', fusion: ['eraser', 'gigaroar'], color: 0x7dff5a, cfg: { n: 14, dmg: 24, cd: 2.2, aoe: 2.4 }, down: { text: '-10% de experiencia', m: { xp: -0.1 } }, lv: ['Fusión: una lluvia de esferas verdes que explotan en cadena.'] },
   /* Fusiones nuevas: la técnica nueva de cada personaje con otra suya */
+  stardust: { name: 'Stardust Breaker', icon: '≋', ico: 'kame', kind: 'bigbeam', unique: 'gogeta', fusion: ['bbkame', 'soulpunisher'], color: 0xbfe8ff, end: 'bbBurst', cfg: { cd: 3.4, dmg: 56, len: 52, hw: 3.4, life: 1.2, cost: 10 }, down: { text: '-5% de armadura', m: { armor: -0.05 } }, lv: ['Fusión: la energía de la fusión en un rayo que lo destruye todo.'] },
+  meteorstorm2: { name: 'Explosión Meteoro Total', icon: '✸', kind: 'barrage', unique: 'gogeta', fusion: ['meteorexp', 'gblast2'], color: 0xffd040, cfg: { n: 16, dmg: 26, cd: 2, aoe: 2.4 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: una lluvia de esferas que explotan en cadena sobre la horda.'] },
   dragonmeteor: { name: 'Puño del Dragón Meteoro', icon: '✊', ico: 'tp', kind: 'meteor', unique: 'goku', fusion: ['dragonfist', 'meteor'], color: 0xffd040, cfg: { n: 10, dmg: 75, cd: 3 }, down: { text: '-5% de armadura', m: { armor: -0.05 } }, lv: ['Fusión: un dragón dorado golpea a toda la horda en un instante.'] },
   kakusanstorm: { name: 'Tormenta Kakusan', icon: '✦', kind: 'barrage', unique: 'vegeta', fusion: ['kakusan', 'galick'], color: 0xc08aff, cfg: { n: 14, dmg: 24, cd: 2, aoe: 2 }, down: { text: '-5% de velocidad', m: { spd: -0.05 } }, lv: ['Fusión: el Galick se divide en una lluvia de rayos que explotan.'] },
   rosekame: { name: 'Kamehameha Rosé', icon: '≋', ico: 'kame', kind: 'bigbeam', unique: 'black', fusion: ['blackkame', 'darkorbs'], color: 0xff5ac0, cfg: { cd: 3.2, dmg: 50, len: 48, hw: 3, life: 1, cost: 8 }, down: { text: '-5% de vida máxima', m: { maxHp: -0.05 } }, lv: ['Fusión: un Kamehameha rosa colosal con todo el ki divino de Black.'] },
@@ -809,6 +828,10 @@ const TRAITS = {
     { name: 'Electricidad fusionada', good: '+15% de cadencia y rayos a tu alrededor', bad: 'Recibes un 10% más de daño', m: { rate: 0.15, armor: -0.1 }, t: { bolt: 32 } },
     { name: 'Fusión divina', good: '+30% de daño crítico y +2 de vida/s', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { critDmg: 0.3, regen: 2 }, t: { kiDrain: 3 } }
   ],
+  gogeta: [null,
+    { name: 'Fusión perfecta', good: '+20% de daño y +10% de velocidad', bad: '-15% de regeneración de Ki', m: { dmg: 0.2, spd: 0.1, kiRegen: -0.15 } },
+    { name: 'Al límite', good: '+30% de daño crítico y rayos a tu alrededor', bad: 'Pierdes un 0,6% de vida por segundo', m: { critDmg: 0.3 }, t: { bolt: 34, hpDrain: 0.006 } }
+  ],
   broly: [null,
     { name: 'Furia creciente', good: 'Cada golpe recibido sube tu daño (hasta +30%)', bad: '-10% de velocidad', m: { spd: -0.1 }, t: { ego: 0.3 } },
     { name: 'Poder sin control', good: '+30% de daño y tu aura quema a los enemigos', bad: 'Gasta 4 de Ki/s sin regenerarlo y recibes un 10% más de daño', m: { dmg: 0.3, armor: -0.1 }, t: { aura: 36, kiDrain: 4 } },
@@ -857,6 +880,7 @@ const FORM_FX = {
   cell: [null, { spark: 'sparkG', burst: 'tfGold2' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xbfeeff, spark: 'lightB' }],
   bardock: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xff6a4a, burst: 'tfRose' }],
   vegito: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { spark: 'lightB', bolt: 0x8ad8ff, burst: 'tfStar' }],
+  gogeta: [{ a: 'auraGold', spark: 'sparkY' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'lightB', burst: 'tfStar' }],
   broly: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraGold', bolt: 0x9aff6a, spark: 'sparkG', burst: 'tfGold' }, { bolt: 0xff6a4a, burst: 'tfRose' }]
 };
 const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;
@@ -875,13 +899,14 @@ const FORM_CHG = {
   piccolo: [[0, 2], [0, 2], [0, 2], [0, 2]],
   vegito: [[0, 3], [3, 3], [6, 3], [9, 3]],
   broly: [[0, 3], [3, 2], [5, 3], [8, 3]],
-  bardock: [[0, 3], [3, 2], [5, 3]]
+  bardock: [[0, 3], [3, 2], [5, 3]],
+  gogeta: [[0, 3], [0, 3], [0, 3]]
 };
 const formChg = (ch, idx) => (FORM_CHG[ch.id] || [])[idx] || null;
 
 /* ---------- Créditos: autores de los sprites del pack «Dragon Ball Sagas» (archivo «Hecho por …» de cada carpeta) ---------- */
 const SPRITE_CREDITS = [
-  { author: "qsab101", what: ["Broly Segunda Forma", "Cooler", "Janemba", "Goku Black", "Goku Black Rose", "Goku Instinto Superior", "Goku Instinto Superior Completo", "Goku SSJ 2", "Goku kaioken", "Golden Freeza", "Kuririn", "Mirai Trunks", "Vegeta SSJ 4", "Vegeta Ssj Grade"] },
+  { author: "qsab101", what: ["Broly Segunda Forma", "Cooler", "Gogeta", "Janemba", "Goku Black", "Goku Black Rose", "Goku Instinto Superior", "Goku Instinto Superior Completo", "Goku SSJ 2", "Goku kaioken", "Golden Freeza", "Kuririn", "Mirai Trunks", "Vegeta SSJ 4", "Vegeta Ssj Grade"] },
   { author: "LukasAhl1", what: ["Bardock", "Bardock Ssj", "Freeza Forma Final", "Goku God", "Goku SSJ 1", "Goku SSJ 3", "Majin Vegeta", "Piccolo", "Super Mirai Trunks", "Teen Gohan SSJ", "Teen Gohan SSJ2", "cell Perfeito"] },
   { author: "MV95", what: ["Hitto", "Raditz", "Vegito", "Vegito SSJ Blue", "Cell Imperfeito", "Freeza Full Power", "Freeza Primeira Forma", "Goku Blue Kaioken Whis Gi", "Vegeta Blue"] },
   { author: "thekrillmaster", what: ["Broly Full Power", "Toppo", "Turles", "Cell Semi Perfeito", "Goku Black SSJ", "Saibaman"] },
