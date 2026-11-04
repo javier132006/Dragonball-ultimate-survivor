@@ -558,8 +558,8 @@ const labCost = (l, lvl) => Math.round(l.cost * (1 + lvl * 0.8));
 /* ---------- Dificultades: sobrevive hasta el objetivo para ganar ---------- */
 const DIFFS = [
   { id: 'easy', name: 'FÁCIL', hp: 0.75, dmg: 0.7, spawn: 0.8, coins: 1, reward: 250, color: '#5be07a' },
-  { id: 'normal', name: 'NORMAL', hp: 1, dmg: 1, spawn: 1, coins: 1.5, reward: 600, color: '#ffd84a' },
-  { id: 'hard', name: 'DIFÍCIL', hp: 1.6, dmg: 1.4, spawn: 1.3, coins: 2.5, reward: 1500, color: '#ff4d5e' }
+  { id: 'normal', name: 'NORMAL', hp: 1.15, dmg: 1.15, spawn: 1, coins: 1.5, reward: 600, color: '#ffd84a' },        // +15% de vida y de daño
+  { id: 'hard', name: 'DIFÍCIL', hp: 1.6 * 1.25, dmg: 1.4 * 1.3, spawn: 1.3, coins: 2.5, reward: 1500, color: '#ff4d5e' }   // +25% de vida y +30% de daño sobre lo que ya tenía
 ];
 const diffById = (id) => DIFFS.find((x) => x.id === id) || DIFFS[0];
 
@@ -745,6 +745,22 @@ const TRAITS = {
     { name: 'Bestia primigenia', good: '+40% de vida máxima y +15% de armadura', bad: '-15% de velocidad', m: { maxHp: 0.4, armor: 0.15, spd: -0.15 } }
   ]
 };
+/* Las desventajas de las transformaciones pesan un 50% más (las mejoras de la partida las tapaban): se endurecen
+   los valores negativos de cada rasgo y los números del texto «✖», con el mismo redondeo, para que siempre coincidan */
+const TRAIT_HARD = 1.5;
+(function hardenTraits() {
+  const r = (v) => { const x = v * TRAIT_HARD; return x < 3 ? Math.round(x * 10) / 10 : Math.round(x); };
+  const BAD_IF_UP = { dashCd: 1, dashCost: 1 };                // en estos, subir es lo malo
+  for (const id in TRAITS) for (const T of TRAITS[id]) {
+    if (!T) continue;
+    const m = T.m || {}, t = T.t || {};
+    for (const k in m) { if (BAD_IF_UP[k] ? m[k] > 0 : m[k] < 0) m[k] = Math.sign(m[k]) * r(Math.abs(m[k]) * 100) / 100; }
+    if (t.kiDrain) t.kiDrain = r(t.kiDrain);
+    if (t.dodgeKi) t.dodgeKi = r(t.dodgeKi);
+    if (t.hpDrain) t.hpDrain = r(t.hpDrain * 100) / 100;
+    T.bad = T.bad.replace(/\d+(?:,\d+)?/g, (s) => String(r(parseFloat(s.replace(',', '.')))).replace('.', ','));
+  }
+})();
 /** Fusiones que puede hacer un personaje (las suyas y las de cualquiera) */
 const fusionsFor = (chId) => Object.keys(WEAPONS).filter((id) => WEAPONS[id].fusion && (!WEAPONS[id].unique || WEAPONS[id].unique === chId));
 /** Una técnica de la tienda solo vale si la has comprado (en el entrenamiento, todas) */

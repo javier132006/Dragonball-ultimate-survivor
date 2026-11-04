@@ -863,7 +863,7 @@ class Game {
       ui.toast('¡LLUVIA DE SENZUS!'); ui.toast('Recoge las semillas para curarte', true);
     } else if (k === 'rival') {
       this.spawnPos(20, 26);
-      const i = this.horde.spawn(this._sx, this._sz, (14 + this.pressure() * 0.25) * ENEMY_TYPES[4].hp * this.diff.hp * this.stage.hp * 6, 4);
+      const i = this.horde.spawn(this._sx, this._sz, (14 + this.pressure() * 0.25) * ENEMY_TYPES[4].hp * this.diff.hp * this.stage.hp * this.timeMul() * 6, 4);
       if (i >= 0) this.rivalUid = this.horde.uid[i];
       ui.toast('¡UN RIVAL TE RETA!'); ui.toast('Derrótalo: suelta una cápsula dorada', true);
     } else if (k === 'storm') {
@@ -1128,7 +1128,12 @@ class Game {
   pressure() { return this.stageTime + this.step * 240; }
   swarmAt() { return this.stage.swarmAt || SWARM_TIME; }
   swarmLvl() { return this.swarm ? 1 + (this.stageTime - this.swarmAt()) / 60 : 0; }          // minutos de enjambre (0 = aún no)
-  enemyDamage() { return (7 + this.pressure() * 0.03) * this.diff.dmg * this.stage.dmg * (1 + this.curseDmg + this.chal * 0.15) * (1 + Math.max(0, this.swarmLvl() - 1) * 0.15); }
+  /** Los enemigos se hacen fuertes con el tiempo: +5% de vida y daño cada 2 minutos en el mapa y, con el enjambre, +2% más por cada minuto que dure */
+  timeMul() {
+    const t = this.stageTime;
+    return 1 + 0.05 * Math.floor(t / 120) + (this.swarm ? 0.02 * Math.floor(Math.max(0, t - this.swarmAt()) / 60) : 0);
+  }
+  enemyDamage() { return (7 + this.pressure() * 0.03) * this.diff.dmg * this.stage.dmg * (1 + this.curseDmg + this.chal * 0.15) * (1 + Math.max(0, this.swarmLvl() - 1) * 0.15) * this.timeMul(); }
 
   /** Explosión de área reutilizable (minas, meteoros, Big Bang) */
   explode(x, z, r, dmg, tint) {
@@ -1168,7 +1173,7 @@ class Game {
       else if (this.night > 0.5 && q < 0.5) t = T_FAST;
     }
     this.spawnPos(32, 40);
-    const hpMul = this.diff.hp * this.stage.hp * (1 + this.curseHp + this.chal * 0.25) * (1 + sw * 0.3) * (this.mods.rich ? 1.3 : 1);
+    const hpMul = this.diff.hp * this.stage.hp * (1 + this.curseHp + this.chal * 0.25) * (1 + sw * 0.3) * (this.mods.rich ? 1.3 : 1) * this.timeMul();
     this.horde.spawn(this._sx, this._sz, (14 + t0 * 0.25) * ENEMY_TYPES[t].hp * hpMul, t);
   }
   /** Invoca al jefe del mapa (en el altar, o en un punto fijo en el mapa final) */
@@ -1421,7 +1426,7 @@ class Game {
     if (!only) this.ui.toast('¡REFUERZOS!', true);
     for (let k = 0; k < n; k++) {
       const a = (k / n) * 6.28, t = only !== undefined ? only : k % 4 === 0 ? T_BRUTE : k % 3 === 0 ? T_BOOM : T_BASIC;
-      this.horde.spawn(clamp(bx + Math.cos(a) * 7, -CFG.ARENA, CFG.ARENA), clamp(bz + Math.sin(a) * 7, -CFG.ARENA, CFG.ARENA), (14 + this.pressure() * 0.25) * this.diff.hp * this.stage.hp * ENEMY_TYPES[t].hp, t);
+      this.horde.spawn(clamp(bx + Math.cos(a) * 7, -CFG.ARENA, CFG.ARENA), clamp(bz + Math.sin(a) * 7, -CFG.ARENA, CFG.ARENA), (14 + this.pressure() * 0.25) * this.diff.hp * this.stage.hp * this.timeMul() * ENEMY_TYPES[t].hp, t);
     }
   }
   /** Nueva fase del jefe: grito, onda que te aparta, breve invulnerabilidad, más velocidad y refuerzos */
