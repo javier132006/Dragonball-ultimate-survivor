@@ -1497,7 +1497,7 @@ class Game {
       SFX.play('charge');
     } else if (U.type === 'beam') {                          // Final Flash, Kamehameha Padre-Hijo, Kamehameha Solar
       W.beam(p.x, p.z, ax, az, U.len, U.hw, U.dmg * dm, U.life, 0.1, U.col, true);
-      p.beamT = U.life; p.attack(ax, az, true, this);
+      p.beamT = U.life; p.attack(ax, az, true, this); chargeFx(this, p.x + ax * 1.3, p.z + az * 1.3, U.col, 4.5);
       if (U.end) this.after(0.3, () => V.play(U.end, p.x + ax * U.len * 0.55, 2.4, p.z + az * U.len * 0.55, { size: 12, dur: 0.8, pri: 1 }));
       V.play('gather', p.x, 1.6, p.z, { size: 7, fps: 30, frames: FXA.gather ? FXA.gather.f.slice(12, 18) : null, pri: 1 });
       this.bossChunkLine(p.x, p.z, ax, az, U.len, U.hw, 0.06);

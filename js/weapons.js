@@ -153,6 +153,7 @@ class WeaponSystem {
     for (let i = 0; i < n; i++) {
       const a = w.ang + (i * Math.PI * 2) / n, ox = p.x + Math.cos(a) * rad, oz = p.z + Math.sin(a) * rad;
       this.orbB.push(ox, 1.3, oz, 0, 0, 0, 1.7 + Math.sin(g.time * 8 + i) * 0.15, 1, col);
+      if (w.id === 'darkorbs' && g.vfx && g.vfx.ok) g.vfx.now(0, fxf('darkRing', 0), ox, 1.3, oz, 2.3 + Math.sin(g.time * 8 + i) * 0.2, 0.95, 0xffffff, g.time * 3 + i);
       if (hit) { g.horde.damageRadius(ox, oz, 1.1, dm * p.damageMul(), 5, g); g.world.damageArea(ox, oz, 1, dm); }
       if (Math.random() < dt * 12) g.fx.sparks.emit(ox, 1.3, oz, rand(-1, 1), rand(0, 1.5), rand(-1, 1), 0.3, 0.2, 0, col);
     }
@@ -301,6 +302,7 @@ class WeaponSystem {
     if (crit) g.onCrit(dm);
     SFX.play('bigbeam');
     p.attack(a.dx, a.dz, true, g); p.beamT = c.life;
+    chargeFx(g, p.x + a.dx * 1.2, p.z + a.dz * 1.2, D.color, 3.2);
     g.shake(0.9); g.ui.toast(D.name.toUpperCase() + '!', true);
     if (lv >= 5 || w.fused) g.impact(0.1, 4);
     if (g.vfx) g.vfx.play('gather', p.x, 1.6, p.z, { size: 5, fps: 30, frames: FXA.gather ? FXA.gather.f.slice(12, 18) : null });
@@ -407,6 +409,7 @@ class WeaponSystem {
     p.attack(a.dx, a.dz, true, g); p.beamT = 0.75;
     g.shake(0.6);
     g.fx.burst(g.fx.aura, p.x, 1.4, p.z, 18, 6, 0.5, 0.35, 0, this.col(w, p));
+    chargeFx(g, p.x + a.dx * 1.1, p.z + a.dz * 1.1, this.col(w, p), 2.4);
   }
 
   /* ----- Big Bang Attack: esfera lenta con explosión ----- */
@@ -744,11 +747,29 @@ class WeaponSystem {
       }
       if (V && V.ok && b.hw > 0.9) {
         const k = (g.time * 20) | 0;
-        V.now(0, orbFrame(b.color, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.6, fade, 0xffffff);
+        const oc = bigOrb(b.color);                                   // esfera de las hojas nuevas en el origen (azul o blanca)
+        if (oc) V.now(2, fxf(oc, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.1, 0.75 * fade, 0xffffff, g.time * 2);
+        else V.now(0, orbFrame(b.color, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.6, fade, 0xffffff);
         V.now(0, fxf('kameStar', k % 4), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 3.4, 0.8 * fade, 0xffffff);
         V.now(0, fxf('kameImp', k & 1), b.x + b.dx * cur, 1.5, b.z + b.dz * cur, b.hw * 4.2, 0.85 * fade, 0xffffff);
       }
     }
     B.end();
   }
+}
+
+/* ---------- Sprites de ataque de las hojas nuevas ----------
+   Bola de carga en la mano al disparar un rayo (dorada, blanca o roja según el color) y esfera grande en el origen */
+const hexRGB = (h) => [(h >> 16) & 255, (h >> 8) & 255, h & 255];
+function chargeFx(g, x, z, col, size) {
+  const V = g.vfx; if (!V || !V.ok) return;
+  const [r, gg, b] = hexRGB(col);
+  const nm = r > 170 && gg < r * 0.7 && b < r * 0.8 ? 'chgR' : r > 170 && gg > 140 && b < 150 ? 'chgY' : 'chgW';
+  V.play(nm, x, 1.5, z, { size, grow: 1.5, dur: 0.32, pri: 1 });
+}
+function bigOrb(col) {
+  const [r, gg, b] = hexRGB(col);
+  if (b > 170 && b > r + 30) return 'orbKame';
+  if (r > 200 && gg > 200 && b > 200) return 'orbUI';
+  return null;
 }
