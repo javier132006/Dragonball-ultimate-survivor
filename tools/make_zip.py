@@ -199,7 +199,11 @@ if __name__ == '__main__':
 ROW_PATCH = {
  'enemies': (96, 86, {0: ('Saibaman', [1, 35, 1, 35, 18, 10, 21, 1]), 5: (CE + 'Cell Imperfeito', [1, 2, 1, 3, 15, 9, 31, 1]),
                       6: ('ANDROIDES/Androide 17', [1, 2, 1, 2, 21, 7, 27, 1])}),
- 'bosses': (128, 116, {0: (FZ + 'Freeza Forma Final', [1, 2, 3, 2, 22, 11, 40, 1]), 1: (CE + 'cell Perfeito', [1, 2, 3, 2, 27, 10, 34, 1])}),
+ 'bosses': (128, 116, {0: (FZ + 'Freeza Forma Final', [1, 2, 3, 2, 22, 11, 40, 1]), 1: (CE + 'cell Perfeito', [1, 2, 3, 2, 27, 10, 34, 1]),
+                       8: ('Cooler', [15, 16, 15, 17, 65, 32, 84, 3]), 9: ('Janemba', [1, 2, 3, 2, 22, 10, 58, 1]),
+                       10: ('MAJIN BUU formas/Super Buu', [1, 2, 1, 2, 33, 13, 48, 60]), 11: ('HITTO/Hitto', [3, 4, 3, 6, 60, 21, 125, 13]),
+                       12: ('Toppo', [1, 4, 1, 4, 6, 13, 62, 64]), 13: ('ANDROIDES/Androide 16', [1, 2, 1, 3, 35, 15, 43, 1]),
+                       14: ('RADITZ fases/Raditz', [3, 4, 3, 4, 41, 21, 49, 5]), 15: ('Turles', [3, 4, 3, 4, 34, 13, 65, 47])}),
 }
 # Jefe Goku Black (hoja propia, una fila por fase: 0 aturdido · 1 caminar · 2 golpe recibido · 3 ataque)
 BLACK_BOSS = [(GB + 'Goku Black', [3, 4, 54, 31]), (GB + 'Goku Black SSJ', [10, 11, 55, 34]), (GB + 'Goku Black Rose', [3, 4, 56, 35]),

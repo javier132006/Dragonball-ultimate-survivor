@@ -1214,7 +1214,7 @@ class Game {
       b.t[k] = BOSS_CD[k] * sp * rand(0.85, 1.15);
       b.gap = BOSS_GAP[k] !== undefined ? BOSS_GAP[k] : 0.8;
       this.bossMove(k, { i, bx, bz, a, dmg, ph, st, B, NP });
-      const nm = BOSS_MOVE_NAMES[k];                                 // nombre de la técnica (la primera vez, o siempre si es la grande)
+      const nm = (B.names && B.names[k]) || BOSS_MOVE_NAMES[k];                                 // nombre de la técnica (la primera vez, o siempre si es la grande)
       if (nm && (!b.seen[k] || nm[0] === '¡')) { b.seen[k] = true; this.ui.toast(nm, true); }
     }
     // Espiral: dos chorros de disparos que giran
