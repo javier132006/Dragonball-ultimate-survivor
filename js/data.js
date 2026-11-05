@@ -1373,6 +1373,7 @@ const PACTS = [
   { id: 'horda', icon: '☠', name: 'Pacto de la Horda', good: '+40% de experiencia y de Zeni', bad: 'Los enemigos van un 25% más rápido', apply: (p) => { p.xpMul *= 1.4; p.zeniMul *= 1.4; }, game: (g) => { g.mods.fast = true; } },
   { id: 'instinto', icon: '◎', name: 'Pacto del Instinto', good: '+15% de crítico y +50% de daño crítico', bad: '-15% de velocidad', apply: (p) => { p.crit += 0.15; p.critDmg += 0.5; p.speedMul *= 0.85; } }
 ];
+const ROOM_TIME = 40;   // Sala del Tiempo: segundos dentro (fuera pasan ROOM_TIME / 6)
 const BALL_SEE = 22;   // Radar del Dragón: a menos de esta distancia las esferas aparecen en el radar
 const dailySeed = () => +todayStr().replace(/-/g, '');
 /** 2 modificadores del día (iguales para todos ese día) */

@@ -118,7 +118,7 @@ class UIManager {
       else { gl = 'ENJAMBRE EN'; gv = fmtTime(Math.max(0, game.swarmAt() - game.stageTime)); }
       T(e.goalL, gl); T(e.goal, gv); this.setV(e.goal, 'color', gc);
       T(e.diffName, (game.daily ? 'DESAFÍO DIARIO · ' : '') + game.diff.name + (game.chal ? ' · DESAFÍO ' + game.chal : '')); this.setV(e.diffName, 'color', game.diff.color);
-      T(e.balls, game.pickups.collected + ' / 7' + (game.ballDist < 1e8 ? ' · ⌖ ' + Math.round(game.ballDist) + ' m' : ''));   // Radar del Dragón: distancia a la esfera más cercana
+      T(e.balls, game.pickups.collected + '/7' + (game.ballDist < 1e8 ? ' · ' + Math.round(game.ballDist) + ' m' : ''));   // Radar del Dragón: distancia a la esfera más cercana
       // Bioma actual (y si es de noche)
       const b = biomeAt(p.x, p.z);
       if (b !== this.lastBiome) { this.lastBiome = b; if (game.state === 'play' && game.time > 1) this.toast(BIOME_NAMES[b], true); }

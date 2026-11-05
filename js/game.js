@@ -451,7 +451,7 @@ class Game {
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
     this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
-    this.bossWeak = false; this.ballDist = 1e9; this.radarT = 0;
+    this.bossWeak = false; this.ballDist = 1e9; this.radarT = 0; this.roomT = 0; const rmEl = document.getElementById('roomFx'); if (rmEl) rmEl.classList.remove('show');
     this.camFocus = null; const bcEl = document.getElementById('bossCine'); if (bcEl) bcEl.classList.remove('show');   // por si acabó en mitad de una cinemática
     this.practice = !!practice; this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = rand(90, 130); this.rivalUid = 0; this.achT = 1;
     this.allies.reset(); this.setStorm(0);
@@ -669,7 +669,26 @@ class Game {
     } else if (o.type === 'merchant' || o.type === 'swapper') this.openTrade(o);
   }
   /** Habitación del Espíritu y el Tiempo completada: eliges 1 de 3 bendiciones */
+  /** Al cargar la Habitación del Tiempo entras en la sala: 40 s de oleadas intensas mientras fuera solo pasan ~7 s */
   onTimeRoomDone(o) {
+    this.roomT = ROOM_TIME; this.roomO = o; this.roomOut = 0;
+    document.getElementById('roomFx').classList.add('show');
+    this.fx.ring(this.fx.aura, o.x, 0.5, o.z, 60, 22, 0.8, 0.5, 0xffffff); this.shake(0.6); SFX.play('rift');
+    this.ui.toast('⧗ SALA DEL ESPÍRITU Y EL TIEMPO');
+    this.ui.toast(ROOM_TIME + ' s de oleadas intensas · experiencia doble · fuera solo pasan ' + Math.round(ROOM_TIME / 6) + ' s', true);
+  }
+  updateTimeRoom(dt) {
+    if (!(this.roomT > 0)) return;
+    this.roomT -= dt; this.roomOut += dt / 6;
+    const L = this.ui.el.roomLbl || (this.ui.el.roomLbl = document.getElementById('roomLbl'));
+    if (L) L.textContent = '⧗ DENTRO: ' + Math.max(0, Math.ceil(this.roomT)) + ' S · FUERA HAN PASADO ' + this.roomOut.toFixed(1) + ' S';
+    if (this.roomT <= 0) {
+      document.getElementById('roomFx').classList.remove('show');
+      this.ui.toast('Dentro han pasado ' + ROOM_TIME + ' s… fuera solo ' + this.roomOut.toFixed(0) + ' s', true);
+      this.timeRoomBlessing(this.roomO);
+    }
+  }
+  timeRoomBlessing(o) {
     this.run.rooms++; this.track('rooms', 1);
     this.fx.ring(this.fx.aura, o.x, 0.5, o.z, 60, 22, 0.8, 0.5, 0x6fd0ff);
     this.state = 'wish'; this.releaseMouse();
@@ -1810,7 +1829,7 @@ class Game {
   stageXp() { const f = this.stage.fx; return (f === 'time' ? 2 : f === 'gravity' ? 1.3 : f === 'hell' ? 1.2 : 1) * (this.night > 0.5 ? 1.2 : 1); }
   addXp(v) {
     const p = this.player;
-    p.xp += v * p.xpMul * this.stageXp();
+    p.xp += v * p.xpMul * this.stageXp() * (this.roomT > 0 ? 2 : 1);   // Sala del Tiempo: experiencia doble
     while (p.xp >= p.xpNext) {
       p.xp -= p.xpNext; p.level++; p.xpNext = p.xpFor(p.level);
       if (p.level > 300) { p.xp = 0; break; }
@@ -2023,7 +2042,9 @@ class Game {
   /* ---------- Un paso de simulación (dt ya incluye el hitstop) ---------- */
   update(dt) {
     const p = this.player, h = this.horde;
-    this.time += dt; this.stageTime += dt;
+    const clk = this.roomT > 0 ? 1 / 6 : 1;                         // Sala del Tiempo: fuera el tiempo pasa 6 veces más lento
+    this.time += dt * clk; this.stageTime += dt * clk;
+    this.updateTimeRoom(dt);
     p.update(dt, this);
     this.weapons.update(dt, this);
     this.updateTimers(dt);
@@ -2037,7 +2058,7 @@ class Game {
         this.swarm = true; this.ui.toast('¡ENJAMBRE FINAL!'); this.shake(1); SFX.play('alarm'); SFX.music('boss');
       }
       const sw = this.swarmLvl();
-      this.spawnAcc += Math.min(4 + t0 * 0.09, 22) * S.spawn * (1 + sw * 0.7) * this.diff.spawn * (1 + this.chal * 0.2) * dt;
+      this.spawnAcc += Math.min(4 + t0 * 0.09, 22) * S.spawn * (1 + sw * 0.7) * this.diff.spawn * (1 + this.chal * 0.2) * (this.roomT > 0 ? 3 : 1) * dt;   // en la sala, el triple
       while (this.spawnAcc >= 1) { this.spawnAcc -= 1; this.spawnEnemy(); }
       this.waveT -= dt;
       if (this.waveT <= 0 && !this.swarm) {                         // oleada normal cada minuto
