@@ -25,6 +25,18 @@ function orbIndex(hex) {
 }
 /** Fotograma de esfera para un color (fila 0 = grande y brillante, 2 = pequeña) */
 const orbFrame = (hex, row) => fxf('orb', (row || 0) * 8 + orbIndex(hex));
+/* Efectos del pack (hoja fxzip, pixel art): el color de cada ataque elige su bola, su impacto, su explosión y su rayo.
+   Y amarillo · O naranja · R rojo · B azul/blanco · P morado · G verde · K rosa */
+function zipKind(hex) {
+  const r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (mx === 0 || d / mx < 0.25) return 'B';
+  let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360;
+  return h < 15 || h >= 345 ? 'R' : h < 42 ? 'O' : h < 70 ? 'Y' : h < 165 ? 'G' : h < 250 ? 'B' : h < 290 ? 'P' : 'K';
+}
+const ZIP_BALL = { Y: ['zkiY', 0], O: ['zfireO', 0], R: ['zkiR', 0], B: ['zsphereB', 0], P: ['zkiP', 0], G: ['zkiG', 0], K: ['zpink', 0] };
+const ZIP_HIT = { Y: 'zstarG', O: 'zfireO', R: 'zburstR', B: 'zsphereB', P: 'zburstP', G: 'zburstG', K: 'zpinkB' };
+const ZIP_BOOM = { Y: 'zsunX', O: 'zsunX', R: 'zfireB', B: 'zsphereB', P: 'zburstP', G: 'zburstG', K: 'zpinkB' };
+const ZIP_BEAM = { Y: 'zblastY', O: 'zbeamO', R: 'zkiR', B: 'zbeamB', P: 'zkiP', G: 'zblastG', K: 'zpink' };
 /* Destellos de ki (4 filas de 7: amarillo, azul, morado y rojo) */
 function flashRow(hex) {
   const i = orbIndex(hex);
@@ -48,8 +60,11 @@ class VFX {
       B(sheets.fxbig, { max: 12, additive: true, anchor: 0.04, renderOrder: 2.5 }),
       B(sheets.props, { max: 90, blend: true, flat: true, renderOrder: 1 }),
       B(sheets.props, { max: 80, blend: true, anchor: 0.04, renderOrder: 2 }),
-      B(sheets.fx, { max: 16, blend: true, renderOrder: 6 })        // 6: esferas sólidas (Genkidama): con su color real, sin quemarse a blanco
+      B(sheets.fx, { max: 16, blend: true, renderOrder: 6 }),       // 6: esferas sólidas (Genkidama): con su color real, sin quemarse a blanco
+      B(sheets.fxzip || sheets.fx, { max: 500, blend: true, renderOrder: 6.5 })   // 7: efectos del pack (pixel art nítido)
     ];
+    this.zipOk = !!sheets.fxzip && !!FXA.zkiY;
+    this.rx = 1; this.rz = 0;                                             // eje «derecha» de la cámara (para girar los efectos)
     // Pool de animaciones (estructura de arrays: sin crear objetos durante la partida)
     const N = this.N = 520, f = () => new Float32Array(N);
     this.act = new Uint8Array(N); this.bi = new Uint8Array(N); this.fr = new Array(N).fill(null);
@@ -71,7 +86,7 @@ class VFX {
     if (!o.pri && this.cnt > this.N * 0.8 * this.load) return -1;        // con mucha carga se descartan los efectos menores
     const i = this.free.pop(); if (i === undefined) return -1;
     const flat = !!o.flat, sh = a.s;
-    this.bi[i] = sh === 'fxbig' ? 2 : sh === 'props' ? (flat ? 4 : 5) : flat ? 1 : 0;
+    this.bi[i] = sh === 'fxzip' ? 7 : sh === 'fxbig' ? 2 : sh === 'props' ? (flat ? 4 : 5) : flat ? 1 : 0;
     this.fr[i] = o.frames || a.f; this.act[i] = 1; this.list[this.cnt++] = i;
     this.x[i] = x; this.y[i] = y; this.z[i] = z; this.vx[i] = o.vx || 0; this.vy[i] = o.vy || 0; this.vz[i] = o.vz || 0;
     this.t[i] = 0; this.loop[i] = o.loop || 0;
@@ -97,7 +112,7 @@ class VFX {
     if (!this.ok) return;
     this.on = true;
     for (const b of this.b) b.begin();
-    if (camera) { const e = camera.matrixWorld.elements, l = Math.hypot(e[8], e[10]) || 1; this.bk.x = -e[8] / l; this.bk.z = -e[10] / l; }
+    if (camera) { const e = camera.matrixWorld.elements, l = Math.hypot(e[8], e[10]) || 1, m = Math.hypot(e[0], e[2]) || 1; this.bk.x = -e[8] / l; this.bk.z = -e[10] / l; this.rx = e[0] / m; this.rz = e[2] / m; }
   }
   /** Al final del cuadro: avanza las animaciones, las dibuja y sube los lotes a la GPU */
   flush(dt, player) {
@@ -128,6 +143,24 @@ class VFX {
     this.cnt = 0;
     for (const b of this.b) b.reset();
   }
+
+  /* ---------- Efectos del pack (fxzip) ---------- */
+  /** Ángulo en pantalla de una dirección del suelo (para que los efectos miren hacia donde van) */
+  ang(dx, dz) { return Math.atan2(dx * this.bk.x + dz * this.bk.z, dx * this.rx + dz * this.rz); }
+  /** Un fotograma del pack para este cuadro, con el dibujo de `size` unidades (no la casilla) */
+  zip(name, k, x, y, z, size, rot, alpha) {
+    const a = FXA[name]; if (!this.zipOk || !a) return;
+    this.now(7, fxf(name, k), x, y, z, size / (a.e || 1), alpha === undefined ? 1 : alpha, 0xffffff, rot || 0);
+  }
+  /** Animación del pack (dibujo de `size` unidades) */
+  zplay(name, x, y, z, size, o) {
+    const a = FXA[name]; if (!this.zipOk || !a) return -1;
+    return this.play(name, x, y, z, Object.assign({}, o, { size: size / (a.e || 1) }));
+  }
+  /** Impacto del color del ataque */
+  zhit(hex, x, y, z, size) { const n = ZIP_HIT[zipKind(hex)]; return this.zplay(n, x, y, z, size, { fps: 18, rot: Math.random() * 6.28, frames: n === 'zfireO' ? [fxf('zfireO', 1)] : null, dur: 0.22 }); }
+  /** Explosión del color del ataque */
+  zboom(hex, x, z, r, big) { const n = ZIP_BOOM[zipKind(hex)]; return this.zplay(n, x, r * 0.5, z, r * 2.1, { dur: big ? 0.6 : 0.4, grow: 1.35, pri: big ? 1 : 0, alpha: 0.95 }); }
 
   /* ---------- Recetas: combinaciones listas para usar ---------- */
   /** Destello de ki del color pedido (amarillo, azul, morado o rojo) */

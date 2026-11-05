@@ -1147,6 +1147,7 @@ class Game {
     SFX.play('boom');
     if (r >= 9) { this.vfx.boom(x, z, Math.min(r * 0.6, 7), tint, true); this.impact(0.14, 2.5); }   // Genkidama, Death Ball...: impact frame (tamaño acotado: no tapa la pantalla)
     else if (r >= 1.6) this.vfx.boom(x, z, r * 0.75, tint, false);
+    if (r >= 1.6) this.vfx.zboom(tint, x, z, Math.min(r * 0.8, 6), r >= 9);   // explosión del pack de su color (acotada: no tapa la pantalla)
     this.horde.damageRadius(x, z, r, dmg, 10, this);
     this.world.damageArea(x, z, r, dmg);
     this.fx.burst(this.fx.sparks, x, 1, z, 16, r * 2.4, 0.5, 0.4, 6, tint);

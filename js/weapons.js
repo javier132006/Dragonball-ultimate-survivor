@@ -74,6 +74,86 @@ class WeaponSystem {
   ready(w, dt, p) { if (w.cd > 0) { w.cd -= dt * p.rateMul; return false; } return true; }
   col(w, p) { return WEAPONS[w.id].color || p.form.ki; }
 
+  /* ===== Técnicas con dibujo propio del pack (hoja fxzip) ===== */
+  /** Proyectil configurable: cfg { n, spd, dmg, cd, size, look (animación del pack), spread, ring, pierce, aoe, home, life } */
+  zshot(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const C = WEAPONS[w.id].cfg, lv = w.fused ? 5 : w.lv, a = this.aim(g, p, C.range || 28); if (!a) return;
+    const n = (C.n || 1) + (lv >= 3) + (lv >= 5), dm = C.dmg * (1 + 0.3 * (lv >= 2) + 0.3 * (lv >= 5)), col = this.col(w, p);
+    w.cd = C.cd * (lv >= 4 ? 0.8 : 1);
+    let crit = false;
+    for (let i = 0; i < n; i++) {
+      const o = C.ring ? (i / n) * 6.2832 : (i - (n - 1) / 2) * (C.spread || 0.18), c = Math.cos(o), s = Math.sin(o);
+      crit = Math.random() < p.crit;
+      const b = g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, C.spd, dm * p.damageMul() * (crit ? p.critDmg : 1), C.r || 0.7, crit, C.life || 1.3, C.pierce || 0, C.aoe || 0, col, C.size * (crit ? 1.2 : 1), C.look);
+      if (b && C.home) b.home = C.home;
+    }
+    if (g.vfx) g.vfx.zhit(col, p.x + a.dx * 1.2, 1.4, p.z + a.dz * 1.2, C.size * 0.7);    // fogonazo en las manos
+    p.attack(a.dx, a.dz, crit, g);
+  }
+  /** Portal dimensional (Janemba): se abre junto a la horda y de él salen tajos durante 1,6 s */
+  zportal(w, dt, g, p) {
+    const C = WEAPONS[w.id].cfg, lv = w.fused ? 5 : w.lv, V = g.vfx, L = w.ps || (w.ps = []);
+    const R = (C.r || 3.6) * (lv >= 3 ? 1.25 : 1), dm = C.dmg * (1 + 0.35 * (lv >= 2) + 0.35 * (lv >= 5));
+    for (let k = L.length - 1; k >= 0; k--) {
+      const o = L[k]; o.t += dt; o.hit -= dt;
+      if (o.t > 1.6) { L.splice(k, 1); continue; }
+      const q = (o.t * 10) | 0, open = Math.min(1, o.t * 5) * Math.min(1, (1.6 - o.t) * 5);
+      if (V) { V.zip('zportal', q, o.x, 2.2, o.z, 4.4 * open, 0); if (o.t > 0.2) V.zip('zslashP', q, o.x + Math.sin(q * 2.1) * 1.2, 1.6, o.z + Math.cos(q * 1.7) * 1.2, R * 1.4, q * 1.3); }
+      if (o.hit <= 0 && o.t > 0.2) { o.hit = 0.2; DMG_SRC = w.id; g.horde.damageRadius(o.x, o.z, R, dm * p.damageMul(), 6, g); g.world.damageArea(o.x, o.z, R, dm); SFX.play('slash'); }
+    }
+    if (!this.ready(w, dt, p)) return;
+    const a = this.aim(g, p, 22); if (!a) return;
+    w.cd = C.cd * (lv >= 4 ? 0.75 : 1);
+    const n = 1 + (lv >= 5);
+    for (let i = 0; i < n; i++) L.push({ x: g.horde.x[a.i] + rand(-2, 2) * i, z: g.horde.z[a.i] + rand(-2, 2) * i, t: 0, hit: 0 });
+    SFX.play('rift');
+  }
+  /** Prisión del tiempo (Hit): encierra a varios enemigos en cubos de energía, los congela y les hace daño */
+  zcage(w, dt, g, p) {
+    const C = WEAPONS[w.id].cfg, lv = w.fused ? 5 : w.lv, V = g.vfx, h = g.horde, L = w.cs || (w.cs = []);
+    const T = (C.t || 2.2) * (lv >= 3 ? 1.3 : 1);
+    for (let k = L.length - 1; k >= 0; k--) {
+      const o = L[k], i = h.indexOfUid(o.u); o.t += dt;
+      if (i < 0 || o.t > T) { L.splice(k, 1); continue; }
+      h.stun[i] = Math.max(h.stun[i], 0.1);
+      if (V) V.zip('zcage', 2, h.x[i], 1.2, h.z[i], 2.8 * Math.min(1, o.t * 6), 0, 0.9);
+    }
+    if (!this.ready(w, dt, p)) return;
+    if (h.nearest(p.x, p.z, 18) < 0) return;
+    w.cd = C.cd * (lv >= 4 ? 0.75 : 1);
+    const n = (C.n || 4) + 2 * (lv >= 2) + 2 * (lv >= 5), dm = C.dmg * (1 + 0.35 * (lv >= 5)) * p.damageMul();
+    let c = 0;
+    for (let i = 0; i < h.n && c < n; i++) {
+      const dx = h.x[i] - p.x, dz = h.z[i] - p.z;
+      if (dx * dx + dz * dz > 18 * 18 || h.type[i] === T_BOSS) continue;
+      DMG_SRC = w.id; h.hurt(i, dm, 0, 0, g); L.push({ u: h.uid[i], t: 0 }); c++;
+      if (V) V.zplay('zcage', h.x[i], 1.2, h.z[i], 3, { fps: 14 });
+    }
+    if (c) { SFX.play('zap'); g.ui.toast('PRISIÓN TEMPORAL', true); }
+  }
+  /** Mini Supernova (Cooler): un sol que crece sobre la horda y estalla */
+  zsun(w, dt, g, p) {
+    const C = WEAPONS[w.id].cfg, lv = w.fused ? 5 : w.lv, V = g.vfx, L = w.ss || (w.ss = []);
+    const R = (C.r || 9) * (lv >= 3 ? 1.2 : 1), dm = C.dmg * (1 + 0.4 * (lv >= 2) + 0.4 * (lv >= 5));
+    for (let k = L.length - 1; k >= 0; k--) {
+      const o = L[k]; o.t += dt;
+      const u = Math.min(1, o.t / 1.3);
+      if (V) V.zip('zsun', 0, o.x, 3.5 + u * 2, o.z, 1.2 + u * R * 0.38, o.t * 0.8);
+      if (o.t >= 1.3) {
+        L.splice(k, 1); DMG_SRC = w.id;
+        g.explode(o.x, o.z, R, dm * p.damageMul(), 0xffb040);
+        if (V) V.zplay('znova', o.x, 2.5, o.z, R * 0.9, { dur: 0.55, grow: 1.3, pri: 1 });
+        g.shake(0.9);
+      }
+    }
+    if (!this.ready(w, dt, p)) return;
+    const a = this.aim(g, p, 26); if (!a) return;
+    w.cd = C.cd * (lv >= 4 ? 0.75 : 1);
+    L.push({ x: g.horde.x[a.i], z: g.horde.z[a.i], t: 0 });
+    SFX.play('charge');
+  }
+
   update(dt, g) {
     const p = g.player;
     this.orbB.begin();
@@ -728,6 +808,11 @@ class WeaponSystem {
       if (b.age >= b.life) { b.on = false; continue; }
       if (b.follow) { b.x = p.x; b.z = p.z; }
       const cur = b.len * Math.min(1, b.age / 0.12), fade = Math.min(1, (b.life - b.age) / 0.2);
+      if (g.vfx && g.vfx.zipOk) {                                  // cabeza del rayo en las manos y estallido en la punta (sprites del pack)
+        const V = g.vfx, k = zipKind(b.color), a = V.ang(b.dx, b.dz), q = (b.age * 16) | 0, w = Math.min(7, b.hw * 2.4);
+        V.zip(ZIP_BEAM[k], q, b.x + b.dx * 1.2, 1.4, b.z + b.dz * 1.2, w * 1.1, a, fade);
+        V.zip(ZIP_HIT[k], q, b.x + b.dx * cur, 1.4, b.z + b.dz * cur, w * (1.1 + Math.sin(b.age * 40) * 0.12), q * 0.7, fade);
+      }
       b.tick -= dt;
       if (b.tick <= 0) {
         b.tick = b.tickDt;

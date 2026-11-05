@@ -714,6 +714,7 @@ class KiPool {
       b.active = true; b.x = x; b.z = z; b.y = 1.4; b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
       b.crit = crit; b.pierce = pierce; b.aoe = aoe; b.tint = tint; b.trail = 0; b.ni = 0; b.size = size || (crit ? 3.6 : 2.6) * r * 1.3; b.look = look || 0;
       b.fr = this.fx ? (b.look ? -1 : orbFrame(tint, crit || b.size > 3.5 ? 0 : 1)) : 0;
+      b.zk = zipKind(tint); b.zl = b.look && FXA[b.look] && FXA[b.look].s === 'fxzip' ? b.look : '';   // dibujo del pack (bola de su color o el de la técnica)
       for (let k = 0; k < 6; k++) b.ign[k] = 0;
       b.src = DMG_SRC; b.home = 0; b.ht = 0; SFX.play('ki');
       return b;
@@ -746,6 +747,7 @@ class KiPool {
       if (!done && game.world.damageArea(b.x, b.z, b.r * 0.4, b.dmg)) done = b.pierce <= 0;
       if (done) {
         b.active = false;
+        if (!out && game.vfx) game.vfx.zhit(b.tint, b.x, b.y, b.z, b.size * (b.zl ? 1.1 : 0.8));   // impacto del color de la ráfaga
         if (b.aoe > 0 && !(out && b.life > 0)) {
           game.explode(b.x, b.z, b.aoe, b.dmg * 1.2, b.tint);
           const D = WEAPONS[b.src];                               // detonación propia (Big Bang, Burning Attack...)
@@ -755,10 +757,15 @@ class KiPool {
       }
       b.trail -= dt;
       if (b.trail <= 0) { b.trail = 0.03; game.fx.sparks.emit(b.x, b.y, b.z, rand(-1, 1), rand(0, 1.5), rand(-1, 1), 0.25, b.r * 0.5, 0, b.tint); }
+      const V = game.vfx, zr = V && V.zipOk ? V.ang(b.vx, b.vz) : 0;
+      if (b.zl) { V.zip(b.zl, (b.life * 12) | 0, b.x, b.y, b.z, b.size, zr); continue; }          // técnica con dibujo propio del pack
       if (!this.fx) sb.push(b.x, b.y, b.z, 0, 0, 0, b.size, 1, b.tint);
       else if (b.fr < 0 && b.look !== 1) sb.push(b.x, b.y, b.z, fxf(b.look, ((b.life * 14) | 0) % fxn(b.look)), 0, 0, b.size * 1.2, 1, 0xffffff, b.life * 9);
       else if (b.fr < 0) sb.push(b.x, b.y, b.z, fxf('disc', 3 + (((b.life * 18) | 0) & 1)), 0, 0, b.size * 1.15, 1, 0xffffff, b.life * 9);
-      else sb.push(b.x, b.y, b.z, b.fr, 0, 0, b.size * 0.75, 1, 0xffffff);
+      else {
+        sb.push(b.x, b.y, b.z, b.fr, 0, 0, b.size * (V && V.zipOk ? 0.6 : 0.75), 1, 0xffffff);             // brillo de ki
+        if (V && V.zipOk) { const Z = ZIP_BALL[b.zk]; V.zip(Z[0], Z[1], b.x, b.y, b.z, b.size * 0.62, zr); }   // y encima, la bola del pack de su color
+      }
     }
     DMG_SRC = 'otros';
     sb.end();

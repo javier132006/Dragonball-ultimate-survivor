@@ -15,4 +15,7 @@ for k, (name, cols, cell) in A.items():
     S.put(sheets, name, q, {'cols': cols, 'rows': im.height // cell, 'w': cell, 'h': cell})
 anims = json.load(open(os.path.join(src, 'fxmeta.json')))
 anims = {n: {'s': A[m['a']][0], 'f': m['f']} for n, m in anims.items()}
+import re as _re                                                    # conserva las animaciones de la hoja fxzip (tools/fxzip.py)
+_old = _re.match(r'window\.FX_ANIMS = (\{.*\});', S.load()[1])
+if _old: anims.update({n: v for n, v in json.loads(_old.group(1)).items() if v.get('s') == 'fxzip'})
 print('ok sprites.js', S.save(sheets, 'window.FX_ANIMS = %s;' % json.dumps(anims, separators=(',', ':'))))
