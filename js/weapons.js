@@ -808,11 +808,6 @@ class WeaponSystem {
       if (b.age >= b.life) { b.on = false; continue; }
       if (b.follow) { b.x = p.x; b.z = p.z; }
       const cur = b.len * Math.min(1, b.age / 0.12), fade = Math.min(1, (b.life - b.age) / 0.2);
-      if (g.vfx && g.vfx.zipOk) {                                  // cabeza del rayo en las manos y estallido en la punta (sprites del pack)
-        const V = g.vfx, k = zipKind(b.color), a = V.ang(b.dx, b.dz), q = (b.age * 16) | 0, w = Math.min(7, b.hw * 2.4);
-        V.zip(ZIP_BEAM[k], q, b.x + b.dx * 1.2, 1.4, b.z + b.dz * 1.2, w * 1.1, a, fade);
-        V.zip(ZIP_HIT[k], q, b.x + b.dx * cur, 1.4, b.z + b.dz * cur, w * (1.1 + Math.sin(b.age * 40) * 0.12), q * 0.7, fade);
-      }
       b.tick -= dt;
       if (b.tick <= 0) {
         b.tick = b.tickDt;

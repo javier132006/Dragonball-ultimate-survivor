@@ -36,7 +36,6 @@ function zipKind(hex) {
 const ZIP_BALL = { Y: ['zkiY', 0], O: ['zfireO', 0], R: ['zkiR', 0], B: ['zsphereB', 0], P: ['zkiP', 0], G: ['zkiG', 0], K: ['zpink', 0] };
 const ZIP_HIT = { Y: 'zstarG', O: 'zfireO', R: 'zburstR', B: 'zsphereB', P: 'zburstP', G: 'zburstG', K: 'zpinkB' };
 const ZIP_BOOM = { Y: 'zsunX', O: 'zsunX', R: 'zfireB', B: 'zsphereB', P: 'zburstP', G: 'zburstG', K: 'zpinkB' };
-const ZIP_BEAM = { Y: 'zblastY', O: 'zbeamO', R: 'zkiR', B: 'zbeamB', P: 'zkiP', G: 'zblastG', K: 'zpink' };
 /* Destellos de ki (4 filas de 7: amarillo, azul, morado y rojo) */
 function flashRow(hex) {
   const i = orbIndex(hex);
