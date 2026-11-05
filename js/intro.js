@@ -24,6 +24,15 @@ const INTROS = {
     { d: 0.8, f: [4, 5, 6, 7] },
     { d: 1.7, reveal: 1 }
   ] },
+  // Zamasu fusionado: Black Rosé (izquierda) y Zamasu (derecha, volteado para mirar a Black) se ponen los pendientes Pothala
+  zamasuf: { sheet: 'zamasuf_intro', name: 'ZAMASU FUSIONADO', sub: 'Dos cuerpos, una sola justicia.', col: '#ff6ac8', fR: true, steps: [
+    { d: 0.6, L: [0], R: [2], lx: [0.22, 0.24], rx: [0.78, 0.76] },
+    { d: 1.2, L: [0], R: [3], lx: [0.24, 0.27], rx: [0.76, 0.73], txt: 'ES LA HORA, ZAMASU.', small: true },
+    { d: 0.8, L: [1], R: [3], lx: [0.27, 0.47], rx: [0.73, 0.53], txt: '¡POTHALA!' },
+    { d: 0.45, imp: 'BIWIBC' },
+    { d: 0.8, f: [4, 5, 6] },
+    { d: 1.7, reveal: 1 }
+  ] },
   // Gogeta: Goku (izquierda) y Vegeta (derecha, volteado para que mire a Goku) bailan la danza de la fusión
   gogeta: { sheet: 'gogeta_intro', name: 'GOGETA', sub: 'Soy Gogeta. Y voy a acabar contigo.', col: '#ffd84a', fR: true, steps: [
     { d: 0.6, L: [0], R: [11], lx: [0.26, 0.27], rx: [0.74, 0.73] },
@@ -206,6 +215,7 @@ const ULT_CINE = {
   andro18: { quote: 'No necesito más que esto.', kanji: '人造人間18号', col: '#ffe86a', orb: { name: 'hzCluster', at: 'ring', s: [0.5, 1.8], tint: 0xfff0a0 }, gather: 0xffe86a, imp: 'WIC' },
   majin: { quote: '¡Buu... kiyaaa!', kanji: '魔人ブウ', col: '#ff9ad0', orb: { name: 'genki', at: 'head', s: [1, 7], tint: 0xffc8e8 }, gather: 0xff9ad0, imp: 'BIWC' },
   superbuu: { quote: '¡Ahora sí, ahora!', kanji: 'スーパーブウ', col: '#ff7ac8', orb: { name: 'genki', at: 'hands', s: [0.8, 4], tint: 0xffc0e8 }, gather: 0xff7ac8, imp: 'BICB' },
+  zamasuf: { quote: 'Arrodillaos ante la justicia absoluta.', kanji: '絶対正義', col: '#ff6ac8', orb: { name: 'darkRing', at: 'ring1', s: [2, 7.5], tint: 0xff8ad8 }, gather: 0xff6ac8, imp: 'BIWIBC' },
   zamasu: { quote: 'Vuestra existencia no tiene sentido.', kanji: 'ザマス', col: '#a890ff', orb: { name: 'darkRing', at: 'ring1', s: [2, 6], tint: 0xc8b8ff }, gather: 0xa890ff, imp: 'BICB' },
 };
 const ULT_CINE_T = { zoom: 0.25, charge: 1.25, strike: 0.35, hold: 0.2 };   // duración de cada parte (s)

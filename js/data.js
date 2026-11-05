@@ -13,7 +13,7 @@ const SHEET_NAMES = ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku
   'freezer1', 'freezer3', 'freezer', 'freezer_fp', 'freezer_gold', 'trunks', 'trunks_ss', 'cell_imp', 'cell_semi', 'cell', 'piccolo', 'krilin',
   'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4', 'gogeta_base', 'gogeta', 'gogeta_ss2', 'gogeta_blue',
   'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg', 'gogeta_chg', 'vegito_intro', 'gogeta_intro',
-  'enemies', 'bosses', 'fx', 'fxbig', 'fxzip', 'kefla', 'gotenks', 'trunksarm', 'caulifla', 'kale', 'kyabe', 'toppo', 'janemba', 'jiren', 'turles', 'saibaman', 'bills', 'cooler', 'hitto', 'raditz', 'andro16', 'andro17', 'andro18', 'majin', 'superbuu', 'zamasu', 'props', 'tall', 'icons', 'tiles'];
+  'enemies', 'bosses', 'fx', 'fxbig', 'fxzip', 'kefla', 'gotenks', 'trunksarm', 'caulifla', 'kale', 'kyabe', 'toppo', 'janemba', 'jiren', 'turles', 'saibaman', 'bills', 'cooler', 'hitto', 'raditz', 'andro16', 'andro17', 'andro18', 'majin', 'superbuu', 'zamasu', 'zamasuf', 'zamasuf_cor', 'zamasuf_div', 'zamasuf_intro', 'props', 'tall', 'icons', 'tiles'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4 columnas, fila*4+columna) ---------- */
 /* 0 quieto · 1-2 caminar · 5 golpe · 8 herido · 9 dash · 10 rayo · 11 técnica · 12-14 muerte */
@@ -190,6 +190,18 @@ const CHARACTERS = [
       form('SUPER SAIYAN', 10, 'gogeta', A_HD, 1.6, 1.15, 0xffe14a, 0xffd84a, 0xffffff),
       form('SUPER SAIYAN 2', 20, 'gogeta_ss2', A_HD, 2.3, 1.22, 0xfff08a, 0xfff07a, 0xffffff),
       form('SUPER SAIYAN BLUE', 32, 'gogeta_blue', A_HD, 3.3, 1.32, 0x6fd8ff, 0x4fc8ff, 0xffffff)
+    ]
+  },
+  {
+    id: 'zamasuf', name: 'ZAMASU FUSIONADO', role: 'Fusión Potara · Juicio divino', cost: 12000,
+    hp: 120, ki: 140, spd: 1.05, dmg: 1.18, start: ['zfblade'], unique: ['zfblade', 'zfspears', 'zfhalo', 'zfjudge'],
+    passive: { name: 'Inmortalidad imperfecta', desc: '+15% de daño.', stat: { dmg: 0.15 } },
+    ult: { name: 'RELÁMPAGO DE LA ABSOLUCIÓN', key: 'Q', cost: 100, type: 'storm', dmg: 36, n: 24, r: 30, fx: ['#000', '#fff', '#ff6ac8', '#d8ff9a', '#ff6ac8'], debuff: { name: 'CUERPO INESTABLE', text: 'pierdes un 2% de vida por segundo durante 6 s', t: 6, bleed: 0.02 } },
+    portrait: { sheet: 'zamasuf', frame: 0 },
+    forms: [
+      form('FUSIONADO', 1, 'zamasuf', A_HD, 1.0, 1.0, 0xff6ac8, 0, 0xffffff),
+      form('MEDIO CORROMPIDO', 14, 'zamasuf_cor', A_HD, 1.8, 1.18, 0xb06bff, 0xb06bff, 0xffffff),
+      form('FUSIÓN DIVINA', 28, 'zamasuf_div', A_HD, 2.8, 1.3, 0xe8d8ff, 0xd8c8ff, 0xffffff)
     ]
   },
   {
@@ -549,6 +561,10 @@ const WEAPONS = {
   spiritcannon: { name: 'Final Spirit Cannon', icon: '●', ico: 'genki', kind: 'bigbang', unique: 'bardock', minLv: 3, color: 0x8ad0ff, look: 'bbOrb', boomFx: 'bbBoom', lv: ['Esfera azul que explota en gran área.', '+35% de daño.', 'Explosión mayor.', 'Recarga reducida.', '+35% de daño y doble esfera.'] },
   rebellion: { name: 'Rebellion Spear', icon: '➹', ico: 'sbc', kind: 'pbolt', unique: 'bardock', minLv: 5, color: 0xbfe8ff, cfg: { cd: 0.9, dmg: 16, len: 24, hw: 0.45 }, lv: ['Lanzas de ki que atraviesan a todos.', '+20% de daño.', '+1 lanza.', 'Mayor alcance.', '+1 lanza y +30% de cadencia.'] },
   /* --- Vegetto --- */
+  zfblade: { name: 'Hoja del Juicio', icon: '⚔', ico: 'pole', kind: 'scythe', unique: 'zamasuf', color: 0xff6ac8, cfg: { cd: 0.8, r: 5.5, dmg: 15 }, lv: ['Zamasu corta con una hoja de ki rosa frente a él.', '+40% de daño.', 'Doble tajo.', 'Mayor alcance.', 'Tajo circular completo.'] },
+  zfspears: { name: 'Lanzas Divinas', icon: '✦', ico: 'homing', kind: 'homing', unique: 'zamasuf', minLv: 3, color: 0xff8ad8, cfg: { n: 6, dmg: 24, cd: 2.2 }, lv: ['Lanzas de luz que persiguen a la horda.', '+1 lanza.', '+30% de daño.', '+1 lanza y giran más rápido.', '+2 lanzas y recarga menor.'] },
+  zfhalo: { name: 'Halo Divino', icon: '◍', kind: 'orbit', unique: 'zamasuf', minLv: 5, color: 0xd8ff9a, lv: ['Esferas de luz orbitan a tu alrededor.', '+1 esfera.', 'Mayor daño.', '+1 esfera y más radio.', 'Giran más rápido y dañan más.'] },
+  zfjudge: { name: 'Espada de la Justicia', icon: '✧', kind: 'godslash', unique: 'zamasuf', minLv: 8, color: 0xff6ac8, cfg: { cd: 2.4, r: 8.5, dmg: 32 }, lv: ['Una espada de luz gigante gira alrededor de Zamasu.', '+30% de daño.', 'Mayor alcance.', 'Recarga reducida.', 'Espada de la Justicia definitiva.'] },
   vblade: { name: 'Espada de Ki', icon: '⚔', ico: 'pole', kind: 'scythe', unique: 'vegito', color: 0x8ad8ff, cfg: { cd: 0.8, r: 5.5, dmg: 15 }, lv: ['Vegetto corta con una espada de ki frente a él.', '+40% de daño.', 'Doble tajo.', 'Mayor alcance.', 'Tajo circular completo.'] },
   vkame: { name: 'Final Kamehameha', icon: '≋', ico: 'kame', kind: 'beam', unique: 'vegito', minLv: 3, color: 0x8ad8ff, lv: ['El Galick Ho y el Kamehameha en un solo rayo.', '+55% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Final Kamehameha definitivo.'] },
   excalibur: { name: 'Spirit Excalibur', icon: '✧', kind: 'godslash', unique: 'vegito', minLv: 6, color: 0xbfe8ff, cfg: { cd: 2.4, r: 8.5, dmg: 32 }, lv: ['Una espada de luz gigante gira alrededor de Vegetto.', '+30% de daño.', 'Mayor alcance.', 'Recarga reducida.', 'Spirit Excalibur definitiva.'] },
@@ -1293,8 +1309,8 @@ const formChg = (ch, idx) => (FORM_CHG[ch.id] || [])[idx] || null;
 const SPRITE_CREDITS = [
   { author: "qsab101", what: ["Broly Segunda Forma", "Cooler", "Gogeta", "Janemba", "Goku Black", "Goku Black Rose", "Goku Instinto Superior", "Goku Instinto Superior Completo", "Goku SSJ 2", "Goku kaioken", "Golden Freeza", "Kuririn", "Mirai Trunks", "Vegeta SSJ 4", "Vegeta Ssj Grade", "Gotenks", "Kefla"] },
   { author: "LukasAhl1", what: ["Bardock", "Bardock Ssj", "Freeza Forma Final", "Goku God", "Goku SSJ 1", "Goku SSJ 3", "Majin Vegeta", "Piccolo", "Super Mirai Trunks", "Teen Gohan SSJ", "Teen Gohan SSJ2", "cell Perfeito", "Androide 18"] },
-  { author: "MV95", what: ["Hitto", "Raditz", "Vegito", "Vegito SSJ Blue", "Cell Imperfeito", "Freeza Full Power", "Freeza Primeira Forma", "Goku Blue Kaioken Whis Gi", "Vegeta Blue", "Bills", "Kyabe SSJ"] },
-  { author: "thekrillmaster", what: ["Broly Full Power", "Toppo", "Turles", "Cell Semi Perfeito", "Goku Black SSJ", "Saibaman", "Majin Buu", "Zamasu"] },
+  { author: "MV95", what: ["Zamasu fusionado", "Zamasu fusión divina", "Hitto", "Raditz", "Vegito", "Vegito SSJ Blue", "Cell Imperfeito", "Freeza Full Power", "Freeza Primeira Forma", "Goku Blue Kaioken Whis Gi", "Vegeta Blue", "Bills", "Kyabe SSJ"] },
+  { author: "thekrillmaster", what: ["Broly Full Power", "Toppo", "Turles", "Cell Semi Perfeito", "Goku Black SSJ", "Saibaman", "Majin Buu", "Zamasu", "Zamasu medio corrompido"] },
   { author: "PeculiarDoc", what: ["Gohan Adulto", "Goku Blue"] },
   { author: "gogeta68", what: ["Vegeta Saga Buu SSJ"] },
   { author: "JuanGomezgg", what: ["Goku SSJ 4"] },

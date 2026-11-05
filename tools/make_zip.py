@@ -19,6 +19,7 @@ def F(folder, idle, walk, atk, beam, crit, hurt, dash, death):
                                    12: death[0], 13: death[1], 14: death[2]})
 G = 'GOKU fases/'; V = 'VEGETA fases/'; GB = 'GOKU BLACK formas/'; GH = 'GOHAN fases/'; FZ = 'FREEZA formas/'
 TR = 'MIRAI TRUNKS fases/'; CE = 'CELL formas/'
+ZF = 'ZAMASU formas/Zamasu e Black Fusion'; ZC = 'ZAMASU formas/Zamasu e Black Fusão Desmanchando'; ZD = 'ZAMASU formas/Zamasu e Black fusion Robotica'
 VG = 'VEGITO fases/'; BR = 'BROLY fases/'; BD = 'BARDOCK fases/'
 # Recoloreados (formas que el pack no trae): tono exacto del pelo/aura -> tono nuevo, tomados de otros sprites del pack
 _HL = [(249, 245, 199), (255, 255, 204), (242, 242, 200)]; _HM = [(242, 190, 48), (255, 200, 62), (234, 168, 68)]; _HD = [(178, 110, 21), (185, 114, 49), (191, 119, 19)]
@@ -98,6 +99,10 @@ SHEETS = {
  'majin': F('MAJIN BUU formas/Majin Buu', 1, (2, 3), 9, 45, 42, 34, 38, (34, 34, 34)),
  'superbuu': F('MAJIN BUU formas/Super Buu', 1, (2, 3), 12, 50, 41, 4, 20, (4, 4, 4)),
  'zamasu': F('ZAMASU formas/Zamasu', 2, (3, 4), 9, 43, 46, 65, 32, (65, 65, 65)),   # Kefla SSJ (el pack mezcla Kale en la misma carpeta: se omiten sus fotogramas)
+ # Zamasu fusionado: fusión, medio corrompido (golpes y caída en la subcarpeta Damage) y fusión divina (versión lila)
+ 'zamasuf': F(ZF, 34, (45, 46), 103, 102, 63, 62, 65, (79, 80, 81)),
+ 'zamasuf_cor': F(ZC, 3, (5, 6), 47, 185, 74, (ZC + '/Damage', 5), 73, ((ZC + '/Damage', 9), (ZC + '/Damage', 14), (ZC + '/Damage', 15))),
+ 'zamasuf_div': F(ZD, 12, (13, 16), 61, 102, 52, 75, 39, (76, 77, 78)),
  'vegito': F(VG + 'Vegito', 20, (21, 35), 66, 137, 78, 96, 40, (97, 99, 100)),
  'vegito_ss': F(VG + 'Vegito Ssj1', 1, (2, 3), 24, 72, 34, 38, 17, (43, 45, 47)),
  'vegito_ss2': F(VG + 'Vegito Ssj2', 21, (22, 25), 41, 120, 70, 82, 26, (83, 84, 85)),
@@ -156,6 +161,8 @@ CHG = {
 # gogeta_intro: 0-10 baile de Goku · 11-21 baile de Vegeta · 22 silueta · 23 Gogeta · 24-26 aura · 27 los dedos se tocan
 INTRO = {
  'vegito_intro': [(VG + 'Vegito Ssj2', n) for n in range(1, 9)] + [(VG + 'Vegito', n) for n in (105, 106, 107)],
+ # zamasuf_intro: 0-1 Black Rosé · 2-3 Zamasu · 4 destello de los pendientes · 5 silueta · 6 Zamasu fusionado
+ 'zamasuf_intro': [(ZF, n) for n in (21, 20, 3, 4, 26, 31, 33)],
  'gogeta_intro': [('Gogeta', n, 'base') for n in (3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 40, 41, 91, 92, 93, 44)],
 }
 # Jefes (hoja 'bosses', 8 columnas de 128 px: 0-3 caminar · 4 golpe recibido · 5 ataque · 6 técnica · 7 pose/aturdido)
@@ -239,7 +246,7 @@ if __name__ == '__main__':
     keep = lambda n: solo is None or n.split('_')[0] in solo
     SHEETS = {n: v for n, v in SHEETS.items() if keep(n)}; CHG = {n: v for n, v in CHG.items() if keep(n)}; INTRO = {n: v for n, v in INTRO.items() if keep(n)}
     for name, S in SHEETS.items():
-        fr = {i: recolor(load(S['folder'], n), S.get('rc')) for i, n in S['f'].items()}; used.add(S['folder'])
+        fr = {i: recolor(load(*n) if isinstance(n, tuple) else load(S['folder'], n), S.get('rc')) for i, n in S['f'].items()}; used.add(S['folder'])
         sh, CW, CH, rows = build(fr)
         sh.save(os.path.join(out, name + '.png'))
         meta[name] = {'cols': 4, 'rows': rows, 'w': CW, 'h': CH, 'hs': round(CH / REF, 4), 'anc': round(2 / CH, 4), 'px': 1}
