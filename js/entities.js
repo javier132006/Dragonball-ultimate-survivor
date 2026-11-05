@@ -40,7 +40,6 @@ class Player {
     this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.wade = 1; this.slowT = 0; this.confT = 0; this.poisonT = 0; this.weakT = 0; this.noDashT = 0; this.ud = null; this.udT = 0;
     // Transmisión Instantánea y efectos de los rasgos de transformación
     this.tpCd = 0; this.prevF = false;
-    this.flying = false; this.prevV = false; this.flyH = 0; this.vy = 0; this.flyT = 0; this.dashY = 0;   // vuelo libre (V): altura sobre el suelo y velocidad vertical
     this.egoStk = 0; this.auraT = 0; this.boltT = 0; this.tfCd = 0; this.formSeen = {}; this.trait = null; this.tr = {};
     this.fused = [];                                             // fusiones hechas (cada una tiene una pequeña desventaja)
     this.initStats();
@@ -140,7 +139,7 @@ class Player {
     }
     if (this.dodge > 0 && Math.random() < this.dodge) {            // esquiva (objetos y rasgos)
       this.iframes = 0.3; game.ui.toast('ESQUIVA', true);
-      game.fx.burst(game.fx.trail, this.x, 1 + this.flyH, this.z, 8, 4, 0.4, 0.3, 0);
+      game.fx.burst(game.fx.trail, this.x, 1, this.z, 8, 4, 0.4, 0.3, 0);
       return false;
     }
     if (this.udT > 0 && this.ud.take) amount *= 1 + this.ud.take;   // desventaja de la Ultimate: recibes más daño
@@ -155,7 +154,7 @@ class Player {
     game.ui.flash = 1;
     game.shake(0.45);
     game.hitstop = 0.04;
-    game.fx.burst(game.fx.sparks, this.x, 1.3 + this.flyH, this.z, 8, 7, 0.4, 0.35, 8);
+    game.fx.burst(game.fx.sparks, this.x, 1.3, this.z, 8, 7, 0.4, 0.35, 8);
     return true;
   }
 
@@ -165,12 +164,8 @@ class Player {
     this.atkT = 0.18; this.atkFrame = crit ? this.anim.crit : this.anim.atk;
   }
 
-  die() { this.dying = true; this.deathT = 0; this.charging = false; this.vx = 0; this.vz = 0; this.flying = false; this.vy = Math.min(this.vy, 0); }
-  updateDeath(dt) {
-    this.deathT += dt;
-    if (this.flyH > 0) { this.vy -= 30 * dt; this.flyH = Math.max(0, this.flyH + this.vy * dt); }   // si mueres volando, caes
-    return this.deathT >= 1.9;
-  }
+  die() { this.dying = true; this.deathT = 0; this.charging = false; this.vx = 0; this.vz = 0; }
+  updateDeath(dt) { this.deathT += dt; return this.deathT >= 1.9; }
 
   update(dt, game) {
     // --- Entrada relativa a la cámara: W siempre avanza "hacia arriba" en pantalla ---
@@ -198,39 +193,12 @@ class Player {
     if (fKey && !this.prevF && this.tpCd <= 0 && this.ki >= 35 && !this.charging && this.dashT <= 0) {
       const dx = il > 0 ? wx : (this.flip ? -game.camCos : game.camCos), dz = il > 0 ? wz : (this.flip ? game.camSin : -game.camSin);
       const ox = this.x, oz = this.z, lim = CFG.ARENA - 1;
-      game.world.push(clamp(this.x + dx * 14, -lim, lim), clamp(this.z + dz * 14, -lim, lim), CFG.PLAYER_R, this.flyH);
+      game.world.push(clamp(this.x + dx * 14, -lim, lim), clamp(this.z + dz * 14, -lim, lim), CFG.PLAYER_R);
       this.x = game.world.px; this.z = game.world.pz; this.vx = 0; this.vz = 0;
       this.ki -= 35; this.tpCd = this.tpMax; this.iframes = Math.max(this.iframes, 0.45);
       game.onTeleport(ox, oz, this.x, this.z);
     }
     this.prevF = fKey;
-
-    // --- Vuelo libre (V): vuelas hacia donde mira la cámara; R sube, SHIFT baja. Consume Ki ---
-    const vKey = !!keys.KeyV;
-    if (vKey && !this.prevV && !this.dying) {
-      if (this.flying) { this.flying = false; game.ui.toast('ATERRIZAJE', true); }
-      else if (this.ki >= CFG.FLY_TAKEOFF && !this.charging) {
-        this.flying = true; this.flyT = 0; this.vy = Math.max(this.vy, 9);      // impulso de despegue
-        game.onTakeoff(this);
-      } else if (!this.charging) game.ui.toast('NECESITAS ' + CFG.FLY_TAKEOFF + ' DE KI PARA VOLAR', true);
-    }
-    this.prevV = vKey;
-    if (this.flying) {
-      this.flyT += dt;
-      this.ki = Math.max(0, this.ki - CFG.FLY_DRAIN * dt);
-      if (this.ki <= 0) { this.flying = false; game.ui.toast('SIN KI · ATERRIZAS', true); }
-    }
-    // Vector de vuelo: el avance (W/S) se inclina con la cámara (mirar arriba = subir) y R/SHIFT suben o bajan en vertical
-    let fx3 = wx, fz3 = wz, fy3 = 0;
-    if (this.flying) {
-      const aim = clamp(CFG.FLY_LEVEL - game.camPitch, -1.25, 1.25), ca = Math.cos(aim), sa = Math.sin(aim);
-      const up = (keys.KeyR ? 1 : 0) - (keys.ShiftLeft || keys.ShiftRight ? 1 : 0);
-      fx3 = ix * game.camCos + iz * ca * game.camSin; fz3 = -ix * game.camSin + iz * ca * game.camCos;
-      fy3 = -iz * sa + up;
-      if (this.flyT < 0.45 && this.flyH < 3.5) fy3 = Math.max(fy3, 1);   // despegue: sube unos metros antes de controlar
-      const l3 = Math.hypot(fx3, fz3, fy3);
-      if (l3 > 1) { fx3 /= l3; fz3 /= l3; fy3 /= l3; }
-    }
 
     // --- Dash / Shunkan Ido: solo en el flanco de bajada de ESPACIO ---
     const space = !!keys.Space;
@@ -239,22 +207,18 @@ class Player {
     if (space && !this.prevSpace && this.dashT <= 0 && this.dashCd <= 0 && this.ki >= dashCost && !this.charging && this.noDashT <= 0) {
       this.dashX = il > 0 ? wx : (this.flip ? -game.camCos : game.camCos);
       this.dashZ = il > 0 ? wz : (this.flip ? this.dashZ * 0 + game.camSin : -game.camSin);
-      this.dashY = 0;
-      if (this.flying && Math.hypot(fx3, fz3, fy3) > 0.1) {            // en el aire el dash va en 3D, hacia donde vuelas
-        const l = Math.hypot(fx3, fz3, fy3); this.dashX = fx3 / l; this.dashZ = fz3 / l; this.dashY = fy3 / l;
-      }
       this.dashT = CFG.DASH_TIME; this.dashCd = CFG.DASH_CD * this.dashMul; this.ghostT = 0;
       this.ki -= dashCost; game.run.dashes++; SFX.play('dash');
       this.dashT *= this.dashBoost > 1 ? 1.25 : 1;                 // gravedad baja: dash más largo
       this.iframes = Math.max(this.iframes, CFG.DASH_TIME + 0.1);
-      game.fx.burst(game.fx.trail, this.x, 0.8 + this.flyH, this.z, 12, 5, 0.5, 0.6, 0);
+      game.fx.burst(game.fx.trail, this.x, 0.8, this.z, 12, 5, 0.5, 0.6, 0);
       game.shake(0.25);
     }
     this.prevSpace = space;
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1) * (this.flying ? CFG.FLY_SPD : 1);
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1);
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
@@ -262,22 +226,8 @@ class Player {
       if (this.ghostT <= 0) this.spawnGhost();
     } else {
       const k = 1 - Math.exp(-16 * dt);
-      this.vx += ((this.charging ? 0 : fx3 * speed) - this.vx) * k;
-      this.vz += ((this.charging ? 0 : fz3 * speed) - this.vz) * k;
-    }
-    // --- Altura: en vuelo se sigue el vector 3D (con algo de inercia); sin vuelo, caes hasta el suelo ---
-    if (this.flying) {
-      if (this.dashT > 0) this.vy = this.dashY * CFG.DASH_SPEED * this.dashBoost;
-      else this.vy += ((this.charging ? 0 : fy3 * speed) - this.vy) * (1 - Math.exp(-9 * dt));
-    } else if (this.flyH > 0 || this.vy > 0) this.vy -= 38 * dt;   // gravedad al aterrizar
-    this.flyH += this.vy * dt;
-    if (this.flyH >= CFG.FLY_MAX) { this.flyH = CFG.FLY_MAX; if (this.vy > 0) this.vy = 0; }
-    if (this.flyH <= 0) {
-      const hit = -this.vy;
-      this.flyH = 0;
-      if (this.flying && this.flyT > 0.6 && fy3 < -0.2) this.flying = false;      // bajar hasta el suelo = aterrizar
-      if (!this.flying) { if (hit > 4) game.onLand(this, hit); this.vy = 0; }
-      else if (this.vy < 0) this.vy = 0;
+      this.vx += ((this.charging ? 0 : wx * speed) - this.vx) * k;
+      this.vz += ((this.charging ? 0 : wz * speed) - this.vz) * k;
     }
     for (const g of this.ghosts) if (g.t > 0) g.t -= dt;
     // Empujón de los enemigos grandes (se amortigua rápido)
@@ -285,10 +235,10 @@ class Player {
     this.x = clamp(this.x + (this.vx + this.kbx) * dt, -CFG.ARENA, CFG.ARENA);
     this.z = clamp(this.z + (this.vz + this.kbz) * dt, -CFG.ARENA, CFG.ARENA);
     this.kbx *= kd; this.kbz *= kd;
-    game.world.push(this.x, this.z, CFG.PLAYER_R, this.flyH); this.x = game.world.px; this.z = game.world.pz;   // volando, solo chocas con lo que es más alto que tú
-    const sp = Math.hypot(this.vx, this.vz, this.flying ? this.vy : 0);
+    game.world.push(this.x, this.z, CFG.PLAYER_R);
+    this.x = game.world.px; this.z = game.world.pz;
+    const sp = Math.hypot(this.vx, this.vz);
     this.moving = sp > 0.8;
-    if (this.flyH > 0.8 && sp > 7 && Math.random() < dt * 30) game.fx.trail.emit(this.x + rand(-0.3, 0.3), 1.2 + this.flyH, this.z + rand(-0.3, 0.3), 0, 0, 0, 0.35, 0.5, 0, this.form.aura || 0xffffff);   // estela de vuelo
     if (this.moving && this.atkT <= 0 && this.beamT <= 0) this.flip = this.vx * game.camCos - this.vz * game.camSin < 0 ? 1 : 0;
 
     // --- Ki, vida y carga táctica ---
@@ -300,16 +250,16 @@ class Player {
       const n = Math.max(1, Math.round(dt * 130)), ac = this.form.aura || 0xfff2b0;
       for (let i = 0; i < n; i++) {
         const a = rand(0, 6.28), r = rand(0.9, 1.6);
-        game.fx.aura.emit(this.x + Math.cos(a) * r, rand(0.1, 0.6) + this.flyH, this.z + Math.sin(a) * r, 0, rand(4, 7), 0, rand(0.45, 0.8), rand(0.12, 0.28), 0, ac);
+        game.fx.aura.emit(this.x + Math.cos(a) * r, rand(0.1, 0.6), this.z + Math.sin(a) * r, 0, rand(4, 7), 0, rand(0.45, 0.8), rand(0.12, 0.28), 0, ac);
       }
       this.shockT -= dt;
       if (this.shockT <= 0) {                    // onda expansiva que repele a los enemigos
         this.shockT = 0.55;
         game.horde.shockwave(this.x, this.z, 8, 17);
-        game.fx.ring(game.fx.aura, this.x, 0.5 + this.flyH, this.z, 40, 15, 0.45, 0.3, ac);
+        game.fx.ring(game.fx.aura, this.x, 0.5, this.z, 40, 15, 0.45, 0.3, ac);
         game.shake(0.14);
       }
-    } else { if (!this.flying && !this.tr.kiDrain && !(this.udT > 0 && this.ud.noki)) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
+    } else { if (!this.tr.kiDrain && !(this.udT > 0 && this.ud.noki)) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
 
     // --- Aura continua de la transformación (el Kaio-ken la tiñe de rojo) ---
     if (this.form.aura || this.buffT > 0) {
@@ -336,7 +286,7 @@ class Player {
         this.auraT = 0.5; DMG_SRC = 'aura';
         game.horde.damageRadius(this.x, this.z, 4.5, T.aura * 0.5 * this.damageMul(), 3, game);
         DMG_SRC = 'otros';
-        game.fx.ring(game.fx.aura, this.x, 0.3 + this.flyH, this.z, 16, 9, 0.3, 0.3, this.form.aura || 0xffffff);
+        game.fx.ring(game.fx.aura, this.x, 0.3, this.z, 16, 9, 0.3, 0.3, this.form.aura || 0xffffff);
       }
     }
     if (T.bolt) {
@@ -371,7 +321,6 @@ class Player {
     else if (this.dashT > 0) fr = a.dash;
     else if (this.beamT > 0) fr = a.atk2;
     else if (this.atkT > 0) fr = this.atkFrame;
-    else if (this.moving && this.flyH > 0.8 && a.dash != null) fr = a.dash;          // volando: pose de avance
     else if (this.moving) fr = a.walk[((this.animT * 9) | 0) % a.walk.length];
     this.frame = fr;
   }
@@ -379,7 +328,7 @@ class Player {
   spawnGhost() {
     this.ghostT = 0.025;
     for (const g of this.ghosts) {
-      if (g.t <= 0) { g.t = 0.3; g.x = this.x; g.z = this.z; g.y = this.flyH; g.frame = this.frame; g.flip = this.flip; g.sheet = this.drawSheet; return; }
+      if (g.t <= 0) { g.t = 0.3; g.x = this.x; g.z = this.z; g.frame = this.frame; g.flip = this.flip; g.sheet = this.drawSheet; return; }
     }
   }
 
@@ -392,11 +341,9 @@ class Player {
       const fr = a.death ? { s: this.form.sheet, f: a.death } : a.alt && a.alt.death ? { s: a.alt.sheet, f: a.alt.death } : null;
       if (fr) { sheet = fr.s; frame = t < 0.35 ? fr.f[0] : t < 0.9 ? fr.f[1] : fr.f[2]; alpha = clamp(1 - (t - 1.1) / 0.75, 0, 1); }
       else { sheet = this.form.sheet; frame = a.idle; flash = t < 0.35 ? 1 : 0; alpha = clamp(1 - t / 1.5, 0, 1); y = t * 1.2; scale = 1 + t * 0.12; }
-      y += this.flyH;
     } else {
       if (this.dashT > 0) y = 0.5;
-      else if (this.moving && this.flyH < 0.3) y = Math.abs(Math.sin(this.animT * 9)) * 0.12;
-      y += this.flyH + (this.flyH > 0.3 ? Math.sin(this.animT * 2.4) * 0.15 : 0);   // vuelo: altura y leve balanceo en el aire
+      else if (this.moving) y = Math.abs(Math.sin(this.animT * 9)) * 0.12;
       flash = this.hurtT > 0.22 ? 1 : 0;
       if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;
       if (this.introHide) alpha = 0;                               // intro de la fusión: aún no ha aparecido
@@ -404,7 +351,7 @@ class Player {
     // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
     const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.form.tint;
     this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint);
-    for (const g of this.ghosts) if (g.t > 0) this.gho[g.sheet].push(g.x, 0.5 + (g.y || 0), g.z, g.frame, g.flip, 0, 1, g.t / 0.3, this.form.tint);
+    for (const g of this.ghosts) if (g.t > 0) this.gho[g.sheet].push(g.x, 0.5, g.z, g.frame, g.flip, 0, 1, g.t / 0.3, this.form.tint);
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
     // Aura de fuego (sprites): forma transformada, carga de ki o Kaio-ken. En las formas altas, rayos sueltos alrededor
     const V = this.vfx, useFx = !!(V && V.ok);
@@ -412,32 +359,30 @@ class Player {
       const ka = this.buffT > 0, au = this.form.aura || 0, F = formFx(this.ch, this.formIdx);
       if ((au || this.charging || ka) && !this.chgPose) {
         const big = this.charging ? 1.3 : 1, name = ka || !F || !F.a ? 'auraSS1' : F.a, own = name === 'auraSS2' || name === 'auraSS3';
-        V.aura(name, this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : own ? 0xffffff : (au || this.form.ki), this.charging ? 0.85 : own ? 0.62 : 0.5, this.animT, this.flyH);
+        V.aura(name, this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : own ? 0xffffff : (au || this.form.ki), this.charging ? 0.85 : own ? 0.62 : 0.5, this.animT);
       }
       if (F && !ka) {
         // Rayitos de electricidad pegados al cuerpo (SSJ2, Evolución, Ultra Ego...): fotogramas de 'bolt' que saltan de sitio
         if (F.bolt && ((this.animT * 9) | 0) % 2 === 0) {
           const k = ((this.animT * 30) | 0) % 8, j = ((this.animT * 9) | 0) % 5;
-          V.now(0, fxf('bolt', k), this.x + (j - 2) * 0.35, 1.0 + (j % 3) * 0.6 + this.flyH, this.z, 1.7, 0.9, F.bolt, j * 1.3);
+          V.now(0, fxf('bolt', k), this.x + (j - 2) * 0.35, 1.0 + (j % 3) * 0.6, this.z, 1.7, 0.9, F.bolt, j * 1.3);
         }
         // Chispas de ki que suben desde los pies (tiempo de partida, no de fotogramas: igual en cualquier ordenador)
         const q = (this.animT * (this.charging ? 22 : 10)) | 0;
         if (F.spark && q !== this.spQ) {
           this.spQ = q; const a = (q * 2.39996) % 6.283, r = 0.5 + (q % 3) * 0.35;
-          V.play(F.spark, this.x + Math.cos(a) * r, 0.3 + (q % 4) * 0.35 + this.flyH, this.z + Math.sin(a) * r, { size: 0.9, vy: 2.6, fps: 16 });
+          V.play(F.spark, this.x + Math.cos(a) * r, 0.3 + (q % 4) * 0.35, this.z + Math.sin(a) * r, { size: 0.9, vy: 2.6, fps: 16 });
         }
       }
       if ((this.formIdx >= 2 || (this.charging && this.formIdx >= 1)) && ((this.animT * 7) | 0) % 3 === 0) {
         const k = ((this.animT * 21) | 0) % 10, o = (((this.animT * 13) | 0) % 4) - 1.5;
-        V.now(0, fxf('lightA', k), this.x + o * 0.5, 1.6 + (k % 3) * 0.4 + this.flyH, this.z, 2.2, 0.95, 0xffffff);
+        V.now(0, fxf('lightA', k), this.x + o * 0.5, 1.6 + (k % 3) * 0.4, this.z, 2.2, 0.95, 0xffffff);
       }
     }
     this.shield.begin();
-    if (this.charging && !useFx) this.shield.push(this.x, 1.5 + this.flyH, this.z, 0, 0, 0, 5 * (1 + Math.sin(this.animT * 12) * 0.05), 1);
+    if (this.charging && !useFx) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 5 * (1 + Math.sin(this.animT * 12) * 0.05), 1);
     this.shield.end();
-    // Sombra: en el suelo se encoge con el salto; en vuelo, más pequeña y suave cuanto más alto (ayuda a calcular la altura)
-    const shS = this.flyH > 0.3 ? clamp(1 - this.flyH / 24, 0.3, 1) : 1 - y * 0.3, shA = this.flyH > 0.3 ? clamp(1 - this.flyH / 30, 0.4, 1) : 1;
-    shadows.push(this.x, 0.06, this.z, 0, 0, 0, 2.5 * shS, alpha * shA);
+    shadows.push(this.x, 0.06, this.z, 0, 0, 0, 2.5 * (1 - y * 0.3), alpha);
   }
 }
 
@@ -450,7 +395,6 @@ class HordeManager {
     this.type = new Uint8Array(max); this.uid = new Int32Array(max);
     this.stun = f(); this.aux = f(); this.shield = new Uint8Array(max);       // aturdimiento, temporizador propio y escudo
     this.pose = f(); this.poseC = new Uint8Array(max); this.grow = f();       // pose de técnica (tiempo y columna) y crecimiento (Célula)
-    this.fy = f();                                                              // altura de los voladores (te siguen cuando vuelas)
     this.abCd = 0;                                                              // pausa global entre técnicas de la horda (que no se amontonen)
     this.half = CFG.ARENA + 8;
     this.cols = Math.ceil((this.half * 2) / CFG.CELL);
@@ -490,7 +434,7 @@ class HordeManager {
     this.x[i] = x; this.z[i] = z; this.hp[i] = hp; this.maxHp[i] = hp; this.hitT[i] = 0; this.kx[i] = 0; this.kz[i] = 0;
     this.phase[i] = rand(0, 40); this.flip[i] = 0; this.type[i] = type; this.uid[i] = this.uidNext++;
     this.stun[i] = 0; this.aux[i] = rand(1.5, 4); this.shield[i] = ENEMY_TYPES[type].shield || 0;
-    this.pose[i] = 0; this.grow[i] = 0; this.fy[i] = 2.2;
+    this.pose[i] = 0; this.grow[i] = 0;
     return i;
   }
   remove(i) {
@@ -499,7 +443,7 @@ class HordeManager {
     this.kx[i] = this.kx[l]; this.kz[i] = this.kz[l]; this.phase[i] = this.phase[l]; this.flip[i] = this.flip[l];
     this.type[i] = this.type[l]; this.uid[i] = this.uid[l];
     this.stun[i] = this.stun[l]; this.aux[i] = this.aux[l]; this.shield[i] = this.shield[l];
-    this.pose[i] = this.pose[l]; this.poseC[i] = this.poseC[l]; this.grow[i] = this.grow[l]; this.fy[i] = this.fy[l];
+    this.pose[i] = this.pose[l]; this.poseC[i] = this.poseC[l]; this.grow[i] = this.grow[l];
   }
   indexOfUid(u) { for (let i = 0; i < this.n; i++) if (this.uid[i] === u) return i; return -1; }
 
@@ -525,12 +469,10 @@ class HordeManager {
       const sp = this.speed * T.spd;
       let vx = dx * sp, vz = dz * sp, sx = 0, sz = 0;
       if (T.fly) {                                              // volador: mantiene la distancia, rodea y dispara
-        const want = player.flyH > 0.3 ? clamp(player.flyH + 0.6 + ((this.uid[i] % 3) - 1) * 1.2, 2.2, CFG.FLY_MAX + 1) : 2.2;
-        this.fy[i] += (want - this.fy[i]) * Math.min(1, dt * 1.4);       // si vuelas, te siguen a tu altura
         const side = (this.uid[i] & 1) ? 1 : -1;
         if (d < 8) { vx = -vx; vz = -vz; } else if (d < 12) { vx = -dz * sp * side; vz = dx * sp * side; }
         this.aux[i] -= dt;
-        if (this.aux[i] <= 0 && d < 24) { this.aux[i] = rand(2.6, 4); shots.fire(xi, zi, dx, dz, 12, dmg * 0.8, { tint: T.flyTint || 0xff4a4a, size: 1.9, eff: T.flyEff, y: this.fy[i] + 0.6 }); this.pose[i] = 0.35; this.poseC[i] = 5; }
+        if (this.aux[i] <= 0 && d < 24) { this.aux[i] = rand(2.6, 4); shots.fire(xi, zi, dx, dz, 12, dmg * 0.8, { tint: T.flyTint || 0xff4a4a, size: 1.9, eff: T.flyEff }); this.pose[i] = 0.35; this.poseC[i] = 5; }
       } else if (T.boom && d < CFG.PLAYER_R + T.r + 0.5 && this.hp[i] > 0) {   // kamikaze: explota al llegar
         this.aux[i] = -99; this.hp[i] = 0; continue;
       } else if (T.boom && d < 7) { this.pose[i] = 0.1; this.poseC[i] = 6; if (((t * 10) | 0) % 2) this.hitT[i] = 0.06; }   // brazos arriba y parpadeo antes de explotar
@@ -583,7 +525,7 @@ class HordeManager {
       this.flip[i] = dx * cc - dz * cs < 0 ? 1 : 0;
       this.phase[i] += dt * 8 * (0.6 + T.spd * 0.4);
       const R = T.r * (1 + this.grow[i]);
-      if (!T.fly && player.flyH < 1.7 * T.scale * (1 + this.grow[i]) && d < CFG.PLAYER_R + R + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game)) {
+      if (!T.fly && d < CFG.PLAYER_R + R + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game)) {
         if (T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6); }
         if (T.drain) {                                            // Androide 18: te roba Ki
           player.ki = Math.max(0, player.ki - T.drain);
@@ -719,7 +661,7 @@ class HordeManager {
       const ty = this.type[i], T = ENEMY_TYPES[ty], ph = this.phase[i], hit = this.hitT[i] > 0 ? this.hitT[i] : 0, st = this.stun[i] > 0;
       const sc = T.scale * (1 + this.grow[i]);
       let y = st ? 0 : Math.abs(Math.sin(ph * 1.1)) * 0.14 * sc, tint = this.tints[ty];
-      if (T.fly) y = this.fy[i] + Math.sin(ph * 0.5) * 0.3;
+      if (T.fly) y = 2.2 + Math.sin(ph * 0.5) * 0.3;
       if (T.shield && this.shield[i] <= 0) tint = 0x8a96b0;               // blindaje roto: metal apagado
       if (st) tint = 0x9a9aff;
       if (ty === T_BOSS && bossOwn) {                                  // el jefe usa su hoja: caminar, golpe, técnica o aturdido
@@ -730,7 +672,7 @@ class HordeManager {
         const col = hit > 0.05 || st ? 4 : this.pose[i] > 0 ? this.poseC[i] : walk[(ph | 0) % 4];
         sb.push(this.x[i], y, this.z[i], rows[ty] * 8 + col, this.flip[i], hit * 8, sc * (1 + hit * 1.2), 1, tint);
       }
-      shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, (T.fly ? clamp(1.5 - this.fy[i] * 0.05, 0.6, 1.2) : 1.9) * sc, T.fly ? 0.6 : 1);
+      shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, (T.fly ? 1.2 : 1.9) * sc, T.fly ? 0.6 : 1);
     }
     sb.end();
     if (bossOwn) bsb.end();
@@ -751,10 +693,7 @@ class KiPool {
     for (let i = 0; i < this.max; i++) {
       const b = this.b[i];
       if (b.active) continue;
-      const P = window.game && window.game.player;
-      // Desde el aire, las ráfagas salen a tu altura
-      b.active = true; b.x = x; b.z = z; b.y = 1.4 + (P && Math.abs(P.x - x) + Math.abs(P.z - z) < 4 ? P.flyH : 0);
-      b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
+      b.active = true; b.x = x; b.z = z; b.y = 1.4; b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
       b.crit = crit; b.pierce = pierce; b.aoe = aoe; b.tint = tint; b.trail = 0; b.ni = 0; b.size = size || (crit ? 3.6 : 2.6) * r * 1.3; b.look = look || 0;
       const zl = b.look && FXA[b.look] && FXA[b.look].s === 'fxzip' ? b.look : '';   // técnica con dibujo del pack (ver ZIP_FX)
       b.fr = this.fx ? (b.look && !zl ? -1 : orbFrame(tint, crit || b.size > 3.5 ? 0 : 1)) : 0;
@@ -784,7 +723,6 @@ class KiPool {
         }
       }
       b.x += b.vx * dt; b.z += b.vz * dt;
-      if (b.y > 1.4) b.y = Math.max(1.4, b.y - Math.max(6, (b.y - 1.4) * 2.6) * dt);   // bajan en picado hacia los enemigos
       const out = b.life <= 0 || Math.abs(b.x) > CFG.ARENA + 10 || Math.abs(b.z) > CFG.ARENA + 10;
       let done = out;
       DMG_SRC = b.src;
@@ -839,11 +777,7 @@ class XpOrbs {
       else if (d2 < mr2) { const d = Math.sqrt(d2), s = (26 * dt) / d; this.x[i] += dx * s; this.z[i] += dz * s; }
     }
     this.sb.begin();
-    const fh = player.flyH, mg = player.magnet;
-    for (let i = 0; i < this.n; i++) {
-      const lift = fh > 0.3 ? fh * clamp(1 - Math.hypot(player.x - this.x[i], player.z - this.z[i]) / mg, 0, 1) : 0;   // volando, suben hacia ti al atraerlos
-      this.sb.push(this.x[i], 0.7 + lift + Math.sin(this.t * 4 + this.x[i]) * 0.15, this.z[i], 0, 0, 0, 0.7 + Math.min(0.9, this.v[i] * 0.06), 1);
-    }
+    for (let i = 0; i < this.n; i++) this.sb.push(this.x[i], 0.7 + Math.sin(this.t * 4 + this.x[i]) * 0.15, this.z[i], 0, 0, 0, 0.7 + Math.min(0.9, this.v[i] * 0.06), 1);
     this.sb.end();
   }
   reset() { this.n = 0; this.sb.reset(); }
@@ -969,7 +903,7 @@ class Capsules {
 class EnemyShots {
   constructor(scene, tex) {
     this.max = 220; this.s = [];
-    for (let i = 0; i < this.max; i++) this.s.push({ on: false, x: 0, z: 0, y: 1.3, ty: 1.3, vy: 0, vx: 0, vz: 0, life: 0, dmg: 0, tint: 0, size: 1.5, r2: 1.1, home: 0, spd: 0, eff: '', ghost: false });
+    for (let i = 0; i < this.max; i++) this.s.push({ on: false, x: 0, z: 0, vx: 0, vz: 0, life: 0, dmg: 0, tint: 0, size: 1.5, r2: 1.1, home: 0, spd: 0, eff: '', ghost: false });
     this.sb = new SpriteBatch(scene, { max: this.max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.02, renderOrder: 5 });
     // Zonas marcadas en el suelo (explotan tras el aviso) y rayos con aviso de los jefes
     this.marks = []; for (let i = 0; i < 40; i++) this.marks.push({ on: false, x: 0, z: 0, r: 3, t: 0, T: 1, dmg: 0, tint: 0, ring: 0, bolt: false, eff: '', big: false });
@@ -999,10 +933,6 @@ class EnemyShots {
       s.on = true; s.x = x; s.z = z; s.vx = dx * speed; s.vz = dz * speed; s.spd = speed; s.dmg = dmg;
       s.life = (o && o.life) || 5; s.tint = (o && o.tint) || 0xff5070; s.size = (o && o.size) || 1.5;
       const r = (o && o.r) || 1.05; s.r2 = r * r; s.home = (o && o.home) || 0; s.eff = (o && o.eff) || ''; s.ghost = !!(o && o.ghost);
-      // Altura: sale desde quien dispara y se inclina para llegar a tu altura (si vuelas, los disparos suben hacia ti)
-      const P = window.game && window.game.player;
-      s.y = o && o.y != null ? o.y : 1.3; s.ty = 1.3; s.vy = 0;
-      if (P && !s.ghost) { const d = Math.hypot(P.x - x, P.z - z); s.ty = 1.3 + P.flyH; s.vy = d > 0.5 ? clamp((s.ty - s.y) * speed / d, -30, 30) : 0; }
       return s;
     }
     return null;
@@ -1037,17 +967,15 @@ class EnemyShots {
         s.vx = Math.cos(na) * s.spd; s.vz = Math.sin(na) * s.spd;
       }
       s.x += s.vx * dt; s.z += s.vz * dt;
-      if (s.home > 0) { s.ty = 1.3 + p.flyH; s.y += (s.ty - s.y) * Math.min(1, dt * 2.5); }   // teledirigidos: también siguen tu altura
-      else if (s.vy) { s.y += s.vy * dt; if ((s.vy > 0 && s.y > s.ty) || (s.vy < 0 && s.y < s.ty)) { s.y = s.ty; s.vy = 0; } }
       if (s.life <= 0) { s.on = false; continue; }
       if (!s.ghost) {
         const dx = p.x - s.x, dz = p.z - s.z;
-        if (dx * dx + dz * dz < s.r2 && Math.abs(s.y - (1.3 + p.flyH)) < 1.9) {       // también tiene que estar a tu altura
+        if (dx * dx + dz * dz < s.r2) {
           if (p.takeDamage(s.dmg, game) && s.eff) this.effect(s.eff, p, game);
-          s.on = false; game.fx.burst(game.fx.sparks, s.x, s.y, s.z, 5, 5, 0.3, 0.3, 6, s.tint); continue;
+          s.on = false; game.fx.burst(game.fx.sparks, s.x, 1.2, s.z, 5, 5, 0.3, 0.3, 6, s.tint); continue;
         }
       }
-      const sy = s.ghost ? 1.5 + s.size * 0.35 : s.y;                // las bolas gigantes van por encima de la cabeza del jefe
+      const sy = s.ghost ? 1.5 + s.size * 0.35 : 1.3;                // las bolas gigantes van por encima de la cabeza del jefe
       if (this.fx) {                                                // esfera de energía de su color; las grandes, con destellos
         this.sb.push(s.x, sy, s.z, orbFrame(s.tint, s.size > 3 ? 0 : 1), 0, 0, s.size * 0.8, 1, 0xffffff);
         if (s.size > 3) this.sb.push(s.x, sy, s.z, fxf('kameStar', ((game.time * 16) | 0) % 4), 0, 0, s.size * 0.9, 0.8, 0xffffff);
@@ -1065,8 +993,7 @@ class EnemyShots {
       if (m.t <= 0) {
         m.on = false;
         const dx = p.x - m.x, dz = p.z - m.z;
-        // Zona del suelo: la explosión llega tan alto como su radio (los rayos del cielo te alcanzan a cualquier altura)
-        if (dx * dx + dz * dz < m.r * m.r && (m.bolt || p.flyH < m.r * (m.big ? 1.2 : 0.8) + 1) && p.takeDamage(m.dmg, game) && m.eff) this.effect(m.eff, p, game);
+        if (dx * dx + dz * dz < m.r * m.r && p.takeDamage(m.dmg, game) && m.eff) this.effect(m.eff, p, game);
         const fx = game.fx, V = game.vfx;
         if (V && V.ok) {                                             // explosión animada (y rayo del cielo); las enormes, con impact frame
           if (m.bolt) V.bolt(m.x, m.z, 16, m.tint);
@@ -1097,7 +1024,7 @@ class EnemyShots {
         if (l.onFire) l.onFire(l);
         if (game.vfx && game.vfx.ok) { game.vfx.flash(l.x, 1.4, l.z, l.hw * 4, l.tint); game.vfx.flash(l.x + l.dx * l.len, 1.4, l.z + l.dz * l.len, l.hw * 3, l.tint); }
         const ex = p.x - l.x, ez = p.z - l.z, tt = ex * l.dx + ez * l.dz;
-        if (tt > -1 && tt < l.len && Math.abs(ex * l.dz - ez * l.dx) < l.hw + CFG.PLAYER_R && p.flyH < l.hw * 2 + 2 && p.takeDamage(l.dmg, game) && l.eff) this.effect(l.eff, p, game);
+        if (tt > -1 && tt < l.len && Math.abs(ex * l.dz - ez * l.dx) < l.hw + CFG.PLAYER_R && p.takeDamage(l.dmg, game) && l.eff) this.effect(l.eff, p, game);
       }
       for (let s = 0.8; s < l.len; s += firing ? Math.max(0.9, l.hw * 0.5) : 1.6) {
         const bx = l.x + l.dx * s, bz = l.z + l.dz * s;

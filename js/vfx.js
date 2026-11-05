@@ -103,10 +103,10 @@ class VFX {
     if (this.on) this.b[batch].push(x, y, z, frame, flip ? 1 : 0, 0, size, alpha, tint, rot);
   }
   /** Aura de fuego detrás de un personaje (fotogramas de `name` en bucle), un poco desplazada hacia el fondo */
-  aura(name, x, z, size, tint, alpha, t, y) {
+  aura(name, x, z, size, tint, alpha, t) {
     if (!this.on) return;
     const n = fxn(name), k = ((t * 12) | 0) % n;
-    this.b[3].push(x + this.bk.x * 0.35, y || 0, z + this.bk.z * 0.35, fxf(name, k), ((t * 3) | 0) & 1, 0, size, alpha, tint);
+    this.b[3].push(x + this.bk.x * 0.35, 0, z + this.bk.z * 0.35, fxf(name, k), ((t * 3) | 0) & 1, 0, size, alpha, tint);
   }
   stop(i) { if (i >= 0 && this.act[i]) this.dur[i] = 0, this.loop[i] = 0; }
   /** Al principio de cada cuadro: vacía los lotes (luego cada sistema añade lo suyo) */

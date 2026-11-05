@@ -36,8 +36,7 @@ class TouchControls {
     window.addEventListener('touchcancel', (e) => this.end(e), opt);
     // Botones: mientras se mantienen pulsados escriben en `keys` (como el teclado)
     this.hold('tbDash', 'Space'); this.hold('tbKi', 'KeyC');
-    this.hold('tbFly', 'KeyV'); this.hold('tbTp', 'KeyF');                              // vuelo y Transmisión Instantánea
-    this.hold('tbUp', 'KeyR'); this.hold('tbDn', 'ShiftLeft');                         // en vuelo: subir y bajar
+    this.hold('tbTp', 'KeyF');                                                         // Transmisión Instantánea
     this.tap('tbBase', () => { if (game.state === 'play') game.revertForm(); });
     this.tap('tbE', () => { if (game.state === 'play') game.interact(); else if (game.state === 'trade') game.closeTrade(); });
     this.tap('tbTf', () => { if (game.state === 'play') game.transform(); });
@@ -87,8 +86,8 @@ class TouchControls {
         e.preventDefault();
         const g = this.g;
         if (g.state === 'play' || g.state === 'dying') {
-          g.camYaw -= (t.clientX - this.cx) * 0.0065; g.flyCamT = 0;
-          g.camPitch = clamp(g.camPitch + (t.clientY - this.cy) * 0.0045, Math.min(g.pitchMin(), g.camPitch), 1.35);
+          g.camYaw -= (t.clientX - this.cx) * 0.0065;
+          g.camPitch = clamp(g.camPitch + (t.clientY - this.cy) * 0.0045, 0.12, 1.35);
         }
         this.cx = t.clientX; this.cy = t.clientY;
       }
@@ -105,7 +104,7 @@ class TouchControls {
     if (!IS_TOUCH || !this.root) return;
     const show = game.state === 'play';
     this.root.style.display = show ? 'block' : 'none';
-    if (!show) { if (stick.on && this.stickId !== null) { this.stickId = null; stick.on = false; stick.x = stick.z = 0; this.base.style.display = 'none'; } if (this.wasShown) { keys.Space = false; keys.KeyC = false; keys.KeyV = false; keys.KeyF = false; keys.KeyR = false; keys.ShiftLeft = false; } this.wasShown = false; return; }
+    if (!show) { if (stick.on && this.stickId !== null) { this.stickId = null; stick.on = false; stick.x = stick.z = 0; this.base.style.display = 'none'; } if (this.wasShown) { keys.Space = false; keys.KeyC = false; keys.KeyF = false; } this.wasShown = false; return; }
     this.wasShown = true;
     const info = game.promptInfo();
     document.getElementById('tbE').classList.toggle('ready', !!info);
@@ -113,10 +112,6 @@ class TouchControls {
     document.getElementById('tbTf').classList.toggle('ready', game.canTransform());
     document.getElementById('tbBase').style.display = game.player.formIdx > 0 ? 'flex' : 'none';
     document.getElementById('tbTp').classList.toggle('cd', game.player.tpCd > 0);
-    const fl = game.player.flying;                                       // en vuelo aparecen ▲ y ▼, y ✈ se ilumina
-    document.getElementById('tbFly').classList.toggle('on', fl);
-    document.getElementById('tbUp').style.display = fl ? 'flex' : 'none';
-    document.getElementById('tbDn').style.display = fl ? 'flex' : 'none';
     document.getElementById('tbLv').style.display = game.practice ? 'flex' : 'none';
     const ub = document.getElementById('tbUlt'), U = game.player.ch.ult;
     ub.style.display = U ? 'flex' : 'none';

@@ -484,11 +484,8 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 #tbPause{left:calc(50% - 50px)}#tbMap{left:calc(50% + 8px)}
 #tbLv{display:none;left:calc(50% + 66px);top:8px;width:42px;height:42px;font-size:12px}
 #tbBase{display:none;left:calc(50% - 108px);font-size:10px}
-#tbFly{right:calc(max(22px,env(safe-area-inset-right)) + 176px);bottom:18px;width:62px;height:62px;font-size:20px;background:radial-gradient(circle at 38% 32%,#d4f4ff,#3a90c8)}
 #tbTp{right:calc(max(22px,env(safe-area-inset-right)) + 200px);bottom:96px;width:58px;height:58px;font-size:20px;background:radial-gradient(circle at 38% 32%,#e8c8ff,#7a3ad8)}
 #tbTp.cd{opacity:.45}
-#tbUp,#tbDn{display:none;right:calc(max(22px,env(safe-area-inset-right)) + 14px);width:56px;height:56px;font-size:20px;background:radial-gradient(circle at 38% 32%,#d4f4ff,#3a90c8)}
-#tbUp{bottom:262px}#tbDn{bottom:194px}
 #tbUlt{right:calc(max(22px,env(safe-area-inset-right)) + 254px);bottom:18px;width:62px;height:62px;font-size:20px;background:radial-gradient(circle at 38% 32%,#ffc8ec,#c8207a)}
 #tbUlt.ready{animation:pulse 1s infinite;box-shadow:3px 3px 0 #000,0 0 22px #ff5ac0}
 #rotate{display:none;position:fixed;inset:0;z-index:40;background:var(--tone),radial-gradient(circle,#1e3fae,#0b1850);flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:20px}
@@ -618,10 +615,9 @@ html.touch #rhud #pr{width:160px}
     <div class="ab" id="abDash"><div class="fill" id="dashFill"></div><span>DASH <b>[ESPACIO]</b></span></div>
     <div class="ab" id="abCharge"><span>CARGAR KI <b>[C]</b></span></div>
         <div class="ab" id="abTp"><div class="fill" id="tpFill"></div><span>TELETRANSP. <b>[F]</b></span></div>
-    <div class="ab" id="abFly"><span>VOLAR <b>[V]</b></span></div>
     <div class="ab" id="abUlt" style="display:none"><div class="fill" id="ultFill"></div><span>ULTIMATE <b>[Q]</b></span></div>
   </div>
-  <div id="controls">WASD: mover · RATÓN: cámara · ESPACIO: dash · C: cargar ki · V: volar (R sube · SHIFT baja) · F: teletransporte · G: transformarse · H: forma base · E: interactuar · M: mapa · TAB: estadísticas · P/ESC: pausa · También con mando</div>
+  <div id="controls">WASD: mover · RATÓN: cámara · ESPACIO: dash · C: cargar ki · F: teletransporte · G: transformarse · H: forma base · E: interactuar · M: mapa · TAB: estadísticas · P/ESC: pausa · También con mando</div>
   <div id="zoneBox"><div id="zoneName">HABITACIÓN DEL ESPÍRITU Y EL TIEMPO · <b id="zoneTxt">0%</b></div><div class="bar"><i id="zoneBar"></i></div></div>
   <div id="combo"><b id="comboN">0</b><span>COMBO</span><div class="cbar"><i id="comboBar"></i></div></div>
   <div id="tfBtn"><span class="key">G</span><div><small id="tfSub">TRANSFORMACIÓN DISPONIBLE</small><b id="tfName"></b></div></div>
@@ -644,9 +640,6 @@ html.touch #rhud #pr{width:160px}
   <div class="tbt sm" id="tbPause">II</div>
   <div class="tbt sm" id="tbMap">◎</div>
   <div class="tbt" id="tbLv">NV+</div>
-  <div class="tbt" id="tbFly">✈<small>VUELO</small></div>
-  <div class="tbt" id="tbUp">▲<small>SUBIR</small></div>
-  <div class="tbt" id="tbDn">▼<small>BAJAR</small></div>
   <div class="tbt" id="tbTp">⇝<small>TELETR.</small></div>
   <div class="tbt" id="tbUlt" style="display:none">✦<small>ULTI</small></div>
   <div class="tbt sm" id="tbBase">BASE</div>
@@ -688,7 +681,7 @@ html.touch #rhud #pr{width:160px}
    ===================================================================== */
 (function () {
   const TIPS = ['Pulsa E junto a una cápsula para abrirla.', 'Mantén C para cargar Ki y repeler a la horda.', 'Reúne las 7 Esferas del Dragón para invocar a Shenron.',
-    'Las élites doradas sueltan mucho Zeni.', 'Compra técnicas en la tienda para que salgan al subir de nivel.', 'V: vuela con Ki y deja atrás a la horda del suelo.',
+    'Las élites doradas sueltan mucho Zeni.', 'Compra técnicas en la tienda para que salgan al subir de nivel.',
     'Las cajas y estatuas se rompen y sueltan premios.', 'Con F te teletransportas: úsalo para salir de un rodeo.', 'Cada jefe anuncia sus técnicas al aparecer: apréndelas.'];
   const $ = (id) => document.getElementById(id), tip = $('tip');
   let ti = (Math.random() * TIPS.length) | 0;

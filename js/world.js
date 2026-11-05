@@ -124,7 +124,7 @@ class World {
     scene.add(this.sun, this.sun.target);
 
     // Colisiones estáticas (rejilla de celdas de 8 unidades)
-    this.cx = []; this.cz = []; this.cr = []; this.cdest = []; this.ch = [];   // ch: altura de cada obstáculo (volando por encima no choca)
+    this.cx = []; this.cz = []; this.cr = []; this.cdest = [];
     this.destr = [];                       // cristales destructibles: {x,z,hp,col,idx}
     this.px = 0; this.pz = 0;              // resultado de push()
     this.reliefSeed = RELIEF_SEED;
@@ -289,7 +289,7 @@ class World {
     return m;
   }
 
-  collider(x, z, r, dest, h) { this.cx.push(x); this.cz.push(z); this.cr.push(r); this.cdest.push(dest === undefined ? -1 : dest); this.ch.push(h || 3); }
+  collider(x, z, r, dest) { this.cx.push(x); this.cz.push(z); this.cr.push(r); this.cdest.push(dest === undefined ? -1 : dest); }
 
   buildProps(scene) {
     const rng = this.rng, R = this.R, th = this.th, rr = (a, b) => a + rng() * (b - a), N = (c) => Math.max(3, Math.round(c * this.dens)), sc = R < 100 ? 0.3 : 1;
@@ -301,7 +301,7 @@ class World {
     for (let i = 0; i < (th.noMesas ? 0 : N(90)); i++) {
       const [x, z] = spot(30), b = biomeAt(x, z), k = b === 2 ? 1 : b === 3 ? 2 : 0, w = rr(3, 6.5), h = rr(9, 26);
       mesas[k].push([x, h / 2 - 0.5, z, w, h, w, rr(0, 6.28)]);
-      this.collider(x, z, w * 0.82, -1, h - 0.5);
+      this.collider(x, z, w * 0.82);
     }
     mesas.forEach((l, k) => { if (l.length) this.inst(scene, cyl, toonMat(MC[k]), l, true); });
     // Muralla de mesetas gigantes fuera del mapa (oculta el borde)
@@ -310,7 +310,7 @@ class World {
     if (rim.length) this.inst(scene, cyl, toonMat(th.rim), rim, false);
     // Rocas grandes (con colisión) y guijarros decorativos
     const rocks = [], pebbles = [];
-    for (let i = 0; i < N(150); i++) { const [x, z] = spot(14), s = rr(1.1, 2.6); rocks.push([x, s * 0.45, z, s, s * 0.8, s * rr(0.8, 1.2), rr(0, 6.28)]); this.collider(x, z, s * 0.85, -1, s * 0.9); }
+    for (let i = 0; i < N(150); i++) { const [x, z] = spot(14), s = rr(1.1, 2.6); rocks.push([x, s * 0.45, z, s, s * 0.8, s * rr(0.8, 1.2), rr(0, 6.28)]); this.collider(x, z, s * 0.85); }
     for (let i = 0; i < N(400); i++) { const [x, z] = spot(0), w = rr(0.25, 0.8); pebbles.push([x, 0, z, w, w * 0.35, w * rr(0.7, 1.3), rr(0, 6.28)]); }
     this.inst(scene, ico, toonMat(th.rock), rocks, true);
     this.inst(scene, ico, toonMat(th.pebble), pebbles, false);
@@ -318,9 +318,9 @@ class World {
     const trunks = [], crowns = [], dead = [], pillars = [];
     for (let i = 0; i < (th.noTrees ? 0 : 700) && trunks.length + dead.length < N(230); i++) {
       const [x, z] = spot(20), b = biomeAt(x, z);
-      if (b === 1) { const h = rr(3.5, 6); trunks.push([x, h / 2, z, 0.35, h, 0.35, 0]); crowns.push([x, h + 1.1, z, rr(1.8, 2.8), rr(1.6, 2.4), rr(1.8, 2.8), rr(0, 6)]); this.collider(x, z, 0.5, -1, h + 2); }
-      else if (b === 3 && rng() < 0.6) { const h = rr(3, 5); dead.push([x, h / 2, z, 0.3, h, 0.3, rr(0, 6)]); this.collider(x, z, 0.45, -1, h); }
-      else if (b === 3 && rng() < 0.5) { const h = rr(3, 8); pillars.push([x, h / 2, z, 1.1, h, 1.1, rr(0, 6)]); this.collider(x, z, 1.0, -1, h); }
+      if (b === 1) { const h = rr(3.5, 6); trunks.push([x, h / 2, z, 0.35, h, 0.35, 0]); crowns.push([x, h + 1.1, z, rr(1.8, 2.8), rr(1.6, 2.4), rr(1.8, 2.8), rr(0, 6)]); this.collider(x, z, 0.5); }
+      else if (b === 3 && rng() < 0.6) { const h = rr(3, 5); dead.push([x, h / 2, z, 0.3, h, 0.3, rr(0, 6)]); this.collider(x, z, 0.45); }
+      else if (b === 3 && rng() < 0.5) { const h = rr(3, 8); pillars.push([x, h / 2, z, 1.1, h, 1.1, rr(0, 6)]); this.collider(x, z, 1.0); }
     }
     this.inst(scene, new THREE.CylinderGeometry(0.8, 1, 1, 6), toonMat(th.trunk), trunks, true);
     this.inst(scene, new THREE.IcosahedronGeometry(1, 1), toonMat(th.crown), crowns, true);
@@ -340,7 +340,7 @@ class World {
       const [x, z] = spot(16), s = rr(1.2, 1.9);
       cr.push([x, s * 1.1, z, s * 0.8, s * 1.4, s * 0.8, rr(0, 6)]);
       this.destr.push({ x, z, hp: 50, max: 50, col: this.cx.length, idx: i, s });
-      this.collider(x, z, s * 0.8, i, s * 1.8);
+      this.collider(x, z, s * 0.8, i);
     }
     this.crystals = this.inst(scene, new THREE.OctahedronGeometry(1, 0), toonMat(th.crystal), cr, true);
     this.crystalPlace = cr;
@@ -363,7 +363,7 @@ class World {
       if (col) {
         const di = hp ? this.destr.length : -1;
         if (hp) this.destr.push({ x, z, hp, max: hp, col: this.cx.length, idx: -1, s: col / 0.8, spr: this.sp.length });
-        this.collider(x, z, col, di, size);
+        this.collider(x, z, col, di);
       }
       this.sp.push(o); return o;
     };
@@ -398,7 +398,7 @@ class World {
     } else if (theme === 3) {                                // Planeta Vegeta: volcanes en las afueras, cajas y suelo agrietado
       for (let i = 0; i < N(16); i++) {                     // repartidos por el mapa (siempre hay alguno a la vista)
         const [x, z] = spot(34);
-        this.collider(x, z, 4.5, -1, 9); this.volcs.push({ x, z, size: rr(11, 15), ph: rng() * 6, f: rng() < 0.5 ? 0 : 1 });
+        this.collider(x, z, 4.5, -1); this.volcs.push({ x, z, size: rr(11, 15), ph: rng() * 6, f: rng() < 0.5 ? 0 : 1 });
       }
       for (let i = 0; i < N(26); i++) { const [x, z] = spot(18); add('crate', 1, x, z, 2.3, 0.9, 45, 3); }
       for (let i = 0; i < N(22); i++) { const [x, z] = spot(24); add('rockT', i & 1, x, z, rr(8, 12), 2.2, 0, -1, true); }
@@ -410,7 +410,7 @@ class World {
       for (let i = 0; i < N(30); i++) { const [x, z] = spot(16); add('column', 0, x, z, rr(9, 12), 1.1, 0, -1, true); }
       for (let i = 0; i < N(40); i++) { const [x, z] = spot(8); add('craterR', i % 3, x, z, rr(3, 4.2)); }
     } else if (theme === 6) {                                // Infierno: volcanes, rocas, lápidas y grietas
-      for (let i = 0; i < N(14); i++) { const [x, z] = spot(34); this.collider(x, z, 4.5, -1, 9); this.volcs.push({ x, z, size: rr(11, 15), ph: rng() * 6, f: rng() < 0.5 ? 0 : 1 }); }
+      for (let i = 0; i < N(14); i++) { const [x, z] = spot(34); this.collider(x, z, 4.5, -1); this.volcs.push({ x, z, size: rr(11, 15), ph: rng() * 6, f: rng() < 0.5 ? 0 : 1 }); }
       for (let i = 0; i < N(26); i++) { const [x, z] = spot(24); add('rockT', i & 1, x, z, rr(8, 12), 2.2, 0, -1, true); }
       for (let i = 0; i < N(70); i++) { const [x, z] = spot(12); add('rockP', rng() < 0.6 ? 0 : 5, x, z, rr(2.4, 3.6), 1.1, 90, 7); }
       for (let i = 0; i < N(40); i++) { const [x, z] = spot(16); add('tomb', i % 2, x, z, rr(2.6, 3.4), 0.8, 60, -1, false, 'vase'); }
@@ -463,8 +463,7 @@ class World {
   }
 
   /** Saca (x,z) de los obstáculos cercanos. Resultado en this.px / this.pz (sin crear objetos) */
-  /** Saca un círculo de los obstáculos. `y`: altura sobre el suelo (volando por encima de un obstáculo no choca) */
-  push(x, z, rad, y) {
+  push(x, z, rad) {
     const c = this.cellOf(x, z), cc = this.gCols, ca = c % cc, cb = (c / cc) | 0;
     for (let b = cb - 1; b <= cb + 1; b++) {
       if (b < 0 || b >= cc) continue;
@@ -472,7 +471,7 @@ class World {
         if (a < 0 || a >= cc) continue;
         for (let j = this.gHead[b * cc + a]; j !== -1; j = this.gNext[j]) {
           const r = this.cr[j] + rad;
-          if (this.cr[j] <= 0 || (y > 0 && y > this.ch[j])) continue;
+          if (this.cr[j] <= 0) continue;
           const dx = x - this.cx[j], dz = z - this.cz[j], d2 = dx * dx + dz * dz;
           if (d2 < r * r) { const d = Math.sqrt(d2) || 0.001; x = this.cx[j] + (dx / d) * r; z = this.cz[j] + (dz / d) * r; }
         }

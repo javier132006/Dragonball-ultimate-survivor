@@ -11,10 +11,7 @@ const CFG = {
   CELL: 4,                 // celda de la rejilla espacial de enemigos
   PLAYER_R: 0.6, ENEMY_R: 0.7,
   DASH_COST: 20, DASH_TIME: 0.2, DASH_SPEED: 42, DASH_CD: 0.55,
-  CHARGE_TIME_SCALE: 0.55, // el mundo va más lento mientras cargas Ki
-  // Vuelo libre: Ki mínimo para despegar, consumo por segundo, techo (5 veces la altura del personaje),
-  // inclinación de cámara que equivale a volar recto y multiplicador de velocidad en el aire
-  FLY_TAKEOFF: 10, FLY_DRAIN: 4, FLY_MAX: 18, FLY_LEVEL: 0.35, FLY_SPD: 1.3
+  CHARGE_TIME_SCALE: 0.55  // el mundo va más lento mientras cargas Ki
 };
 
 /* ---------- Entrada: objeto global de estado (evita key-ghosting) ---------- */

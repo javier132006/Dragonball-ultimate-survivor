@@ -88,7 +88,7 @@ class WeaponSystem {
       const b = g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, C.spd, dm * p.damageMul() * (crit ? p.critDmg : 1), C.r || 0.7, crit, C.life || 1.3, C.pierce || 0, C.aoe || 0, col, C.size * (crit ? 1.2 : 1), C.look);
       if (b && C.home) b.home = C.home;
     }
-    if (g.vfx) g.vfx.zhit(col, p.x + a.dx * 1.2, 1.4 + p.flyH, p.z + a.dz * 1.2, C.size * 0.7);    // fogonazo en las manos
+    if (g.vfx) g.vfx.zhit(col, p.x + a.dx * 1.2, 1.4, p.z + a.dz * 1.2, C.size * 0.7);    // fogonazo en las manos
     p.attack(a.dx, a.dz, crit, g);
   }
   /** Portal dimensional (Janemba): se abre junto a la horda y de él salen tajos durante 1,6 s */
@@ -232,10 +232,10 @@ class WeaponSystem {
     const hit = w.tick <= 0; if (hit) w.tick = 0.25;
     for (let i = 0; i < n; i++) {
       const a = w.ang + (i * Math.PI * 2) / n, ox = p.x + Math.cos(a) * rad, oz = p.z + Math.sin(a) * rad;
-      this.orbB.push(ox, 1.3 + p.flyH, oz, 0, 0, 0, 1.7 + Math.sin(g.time * 8 + i) * 0.15, 1, col);
-      if (w.id === 'darkorbs' && g.vfx && g.vfx.ok) g.vfx.now(0, fxf('darkRing', 0), ox, 1.3 + p.flyH, oz, 2.3 + Math.sin(g.time * 8 + i) * 0.2, 0.95, 0xffffff, g.time * 3 + i);
+      this.orbB.push(ox, 1.3, oz, 0, 0, 0, 1.7 + Math.sin(g.time * 8 + i) * 0.15, 1, col);
+      if (w.id === 'darkorbs' && g.vfx && g.vfx.ok) g.vfx.now(0, fxf('darkRing', 0), ox, 1.3, oz, 2.3 + Math.sin(g.time * 8 + i) * 0.2, 0.95, 0xffffff, g.time * 3 + i);
       if (hit) { g.horde.damageRadius(ox, oz, 1.1, dm * p.damageMul(), 5, g); g.world.damageArea(ox, oz, 1, dm); }
-      if (Math.random() < dt * 12) g.fx.sparks.emit(ox, 1.3 + p.flyH, oz, rand(-1, 1), rand(0, 1.5), rand(-1, 1), 0.3, 0.2, 0, col);
+      if (Math.random() < dt * 12) g.fx.sparks.emit(ox, 1.3, oz, rand(-1, 1), rand(0, 1.5), rand(-1, 1), 0.3, 0.2, 0, col);
     }
   }
 
@@ -365,7 +365,7 @@ class WeaponSystem {
     p.buffT = 4 + lv * 1.2 + (lv >= 5 ? 3 : 0); p.buffDmg = 0.4 + (lv >= 3) * 0.1 + (lv >= 5) * 0.2;
     w.cd = lv >= 4 ? 16 : 22;
     g.ui.toast('¡KAIO-KEN!', true);
-    g.fx.ring(g.fx.aura, p.x, 0.5 + p.flyH, p.z, 40, 14, 0.6, 0.4, 0xff3030);
+    g.fx.ring(g.fx.aura, p.x, 0.5, p.z, 40, 14, 0.6, 0.4, 0xff3030);
     g.shake(0.4);
   }
 
@@ -385,8 +385,8 @@ class WeaponSystem {
     chargeFx(g, p.x + a.dx * 1.2, p.z + a.dz * 1.2, D.color, 3.2);
     g.shake(0.9); g.ui.toast(D.name.toUpperCase() + '!', true);
     if (lv >= 5 || w.fused) g.impact(0.1, 4);
-    if (g.vfx) g.vfx.play('gather', p.x, 1.6 + p.flyH, p.z, { size: 5, fps: 30, frames: FXA.gather ? FXA.gather.f.slice(12, 18) : null });
-    g.fx.burst(g.fx.aura, p.x, 1.4 + p.flyH, p.z, 24, 7, 0.6, 0.4, 0, D.color);
+    if (g.vfx) g.vfx.play('gather', p.x, 1.6, p.z, { size: 5, fps: 30, frames: FXA.gather ? FXA.gather.f.slice(12, 18) : null });
+    g.fx.burst(g.fx.aura, p.x, 1.4, p.z, 24, 7, 0.6, 0.4, 0, D.color);
     this.beamEnd(g, D, p.x + a.dx * c.len * (lv >= 3 ? 1.2 : 1), p.z + a.dz * c.len * (lv >= 3 ? 1.2 : 1), c.hw);
   }
   /** Detonación al final de un rayo grande (y el sello de cómic del Big Bang) */
@@ -413,12 +413,12 @@ class WeaponSystem {
     g.horde.damageRadius(p.x, p.z, r, dm * p.damageMul(), 20, g);
     g.world.damageArea(p.x, p.z, r, dm);
     g.horde.shockwave(p.x, p.z, r, 22);
-    g.fx.ring(g.fx.sparks, p.x, 0.5 + p.flyH, p.z, 80, r * 3.2, 0.6, 0.45, 0xff8a3a);
-    g.fx.burst(g.fx.sparks, p.x, 1.4 + p.flyH, p.z, 70, 16, 0.9, 0.5, 4, 0xffd060);
+    g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 80, r * 3.2, 0.6, 0.45, 0xff8a3a);
+    g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 16, 0.9, 0.5, 4, 0xffd060);
     g.shake(1.2); g.hitstop = 0.1; g.ui.toast('¡' + WEAPONS[w.id].name.toUpperCase() + '!', true); SFX.play('bigboom');
     const sty = WEAPONS[w.id].sty;
-    if (g.vfx && sty === 'self') { g.vfx.play('selfBall', p.x, 2 + p.flyH, p.z, { size: r * 0.6, grow: 2.2, dur: 0.55, pri: 1 }); g.vfx.play('cellBoom', p.x, 3 + p.flyH, p.z, { size: r * 1.2, dur: 0.8, pri: 1 }); }
-    else if (g.vfx) { g.vfx.boom(p.x, p.z, r * 0.55, 0xff8a3a, true); g.vfx.play('dome', p.x, 2 + p.flyH, p.z, { size: r, grow: 1.6, dur: 0.6, pri: 1 }); g.vfx.play('fireBoom', p.x, 3 + p.flyH, p.z, { size: r * 0.9, fps: 9, pri: 1 }); }
+    if (g.vfx && sty === 'self') { g.vfx.play('selfBall', p.x, 2, p.z, { size: r * 0.6, grow: 2.2, dur: 0.55, pri: 1 }); g.vfx.play('cellBoom', p.x, 3, p.z, { size: r * 1.2, dur: 0.8, pri: 1 }); }
+    else if (g.vfx) { g.vfx.boom(p.x, p.z, r * 0.55, 0xff8a3a, true); g.vfx.play('dome', p.x, 2, p.z, { size: r, grow: 1.6, dur: 0.6, pri: 1 }); g.vfx.play('fireBoom', p.x, 3, p.z, { size: r * 0.9, fps: 9, pri: 1 }); }
     g.impact(0.14, 2);
   }
 
@@ -446,11 +446,11 @@ class WeaponSystem {
     w.cd = C.cd || (lv >= 5 ? 6 : 9);
     g.horde.stunRadius(p.x, p.z, r, C.stun || (lv >= 3 ? 3.5 : 2.5));
     if (lv >= 2) g.horde.damageRadius(p.x, p.z, r, (C.dmg || 18) * p.damageMul(), 2, g);
-    if (C.dmg) { g.fx.ring(g.fx.sparks, p.x, 0.6 + p.flyH, p.z, 60, r * 2.6, 0.45, 0.45, 0xffb040); SFX.play('boom'); }
-    g.fx.ring(g.fx.sparks, p.x, 1.4 + p.flyH, p.z, 70, r * 3, 0.35, 0.5, 0xffffff);
-    g.fx.burst(g.fx.aura, p.x, 2 + p.flyH, p.z, 40, 12, 0.4, 0.6, 0, 0xfff8d0);
+    if (C.dmg) { g.fx.ring(g.fx.sparks, p.x, 0.6, p.z, 60, r * 2.6, 0.45, 0.45, 0xffb040); SFX.play('boom'); }
+    g.fx.ring(g.fx.sparks, p.x, 1.4, p.z, 70, r * 3, 0.35, 0.5, 0xffffff);
+    g.fx.burst(g.fx.aura, p.x, 2, p.z, 40, 12, 0.4, 0.6, 0, 0xfff8d0);
     if (!Save.d.opt.flash) g.ui.flash = Math.max(g.ui.flash, 0.4);
-    if (g.vfx) { g.vfx.flash(p.x, 2.2 + p.flyH, p.z, 10, 0xffe060, { pri: 1 }); g.vfx.play('kameStar', p.x, 2.2 + p.flyH, p.z, { size: 14, fps: 14, pri: 1 }); }
+    if (g.vfx) { g.vfx.flash(p.x, 2.2, p.z, 10, 0xffe060, { pri: 1 }); g.vfx.play('kameStar', p.x, 2.2, p.z, { size: 14, fps: 14, pri: 1 }); }
     g.ui.toast('¡TAIYOKEN!', true); SFX.play('crit');
   }
 
@@ -470,8 +470,8 @@ class WeaponSystem {
     g.horde.shockwave(p.x, p.z, r, 12);
     SFX.play('pulse');
     if (g.vfx && FXA.auraGen) g.vfx.play('auraGen', p.x, 0.3, p.z, { flat: true, size: r * 0.7, grow: 3, dur: 0.4, frames: FXA.auraGen.f.slice(0, 4) });
-    g.fx.ring(g.fx.sparks, p.x, 0.5 + p.flyH, p.z, 56, r * 3, 0.4, 0.3, p.form.ki);
-    g.fx.ring(g.fx.aura, p.x, 0.5 + p.flyH, p.z, 36, r * 2, 0.5, 0.35, 0xffffff);
+    g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 56, r * 3, 0.4, 0.3, p.form.ki);
+    g.fx.ring(g.fx.aura, p.x, 0.5, p.z, 36, r * 2, 0.5, 0.35, 0xffffff);
     g.shake(0.3);
   }
 
@@ -488,7 +488,7 @@ class WeaponSystem {
     SFX.play('beam');
     p.attack(a.dx, a.dz, true, g); p.beamT = 0.75;
     g.shake(0.6);
-    g.fx.burst(g.fx.aura, p.x, 1.4 + p.flyH, p.z, 18, 6, 0.5, 0.35, 0, this.col(w, p));
+    g.fx.burst(g.fx.aura, p.x, 1.4, p.z, 18, 6, 0.5, 0.35, 0, this.col(w, p));
     chargeFx(g, p.x + a.dx * 1.1, p.z + a.dz * 1.1, this.col(w, p), 2.4);
   }
 
@@ -523,7 +523,7 @@ class WeaponSystem {
     const base = Math.atan2(dz, dx), arc = full ? Math.PI * 2 : 2.4;
     const SD = WEAPONS[DMG_SRC];
     if (g.vfx && SD && SD.unique === 'black') {                  // guadaña rosa de la hoja de Black sobre el tajo
-      g.vfx.play('scytheArc', p.x + dx * r * 0.55, 1.6 + p.flyH, p.z + dz * r * 0.55, { size: r * 1.15, grow: 1.15, rot: Math.atan2(-dz, dx), dur: 0.26, pri: 1 });
+      g.vfx.play('scytheArc', p.x + dx * r * 0.55, 1.6, p.z + dz * r * 0.55, { size: r * 1.15, grow: 1.15, rot: Math.atan2(-dz, dx), dur: 0.26, pri: 1 });
     }
     if (g.vfx) for (let k = 0; k < (full ? 4 : 1); k++) {
       const a = base + k * Math.PI / 2, cx = Math.cos(a), cz = Math.sin(a);
@@ -531,8 +531,8 @@ class WeaponSystem {
     }
     for (let i = 0; i < 30; i++) {
       const a = base + (i / 29 - 0.5) * arc, c = Math.cos(a), s = Math.sin(a);
-      g.fx.sparks.emit(p.x + c * r * 0.9, 1.2 + p.flyH, p.z + s * r * 0.9, c * 5, 0.4, s * 5, 0.28, 0.42, 0, color);
-      if (i % 3 === 0) g.fx.aura.emit(p.x + c * r * 0.6, 1.2 + p.flyH, p.z + s * r * 0.6, c * 3, 0, s * 3, 0.3, 0.3, 0, color);
+      g.fx.sparks.emit(p.x + c * r * 0.9, 1.2, p.z + s * r * 0.9, c * 5, 0.4, s * 5, 0.28, 0.42, 0, color);
+      if (i % 3 === 0) g.fx.aura.emit(p.x + c * r * 0.6, 1.2, p.z + s * r * 0.6, c * 3, 0, s * 3, 0.3, 0.3, 0, color);
     }
     g.shake(0.2);
     SFX.play('slash');
@@ -611,7 +611,7 @@ class WeaponSystem {
     const hit = w.tick <= 0; if (hit) w.tick = 0.2;
     for (let i = 0; i < n; i++) {
       const a = w.ang + (i * Math.PI * 2) / n, ox = p.x + Math.cos(a) * rad, oz = p.z + Math.sin(a) * rad;
-      this.orbB.push(ox, 1.3 + p.flyH, oz, 0, 0, 0, 2.1, 1, col);
+      this.orbB.push(ox, 1.3, oz, 0, 0, 0, 2.1, 1, col);
       if (hit) { g.horde.damageRadius(ox, oz, 1.4, dm * p.damageMul(), 6, g); g.world.damageArea(ox, oz, 1.2, dm); }
     }
     if (this.ready(w, dt, p) && g.horde.nearest(p.x, p.z, 14) >= 0) { w.cd = 2.2; this.pulse(g, p, 12, 40); }
@@ -640,7 +640,7 @@ class WeaponSystem {
       p.barT -= dt;
       if (g.vfx && g.vfx.ok) {
         const k = ((g.time * 12) | 0) % 6, green = w.id === 'cellbarrier';
-        g.vfx.now(0, green ? fxf('cellRing', 0) : fxf('barrier', k), p.x, 1.6 + p.flyH, p.z, 4.6 * (1 + Math.sin(g.time * 9) * 0.04), 0.75, green ? 0xffffff : col, green ? g.time * 2 : 0);
+        g.vfx.now(0, green ? fxf('cellRing', 0) : fxf('barrier', k), p.x, 1.6, p.z, 4.6 * (1 + Math.sin(g.time * 9) * 0.04), 0.75, green ? 0xffffff : col, green ? g.time * 2 : 0);
       }
       if (p.barT <= 0) p.barHits = 0;
       return;
@@ -651,8 +651,8 @@ class WeaponSystem {
     p.barT = 6; p.barHits = C.hits || 2 + (lv >= 3) + (lv >= 5); p.barBoom = C.boom || 0; p.barCol = col;
     g.horde.shockwave(p.x, p.z, lv >= 5 ? 9 : 7, 18);
     if (lv >= 2) g.horde.damageRadius(p.x, p.z, lv >= 5 ? 7 : 5.5, 16 * (1 + 0.3 * (lv >= 5)) * p.damageMul(), 14, g);
-    if (g.vfx) { g.vfx.play('pulse', p.x, 1.4 + p.flyH, p.z, { size: 8, fps: 18, tint: col }); g.vfx.flash(p.x, 1.6 + p.flyH, p.z, 5, col); }
-    g.fx.ring(g.fx.aura, p.x, 0.6 + p.flyH, p.z, 40, 14, 0.5, 0.4, col);
+    if (g.vfx) { g.vfx.play('pulse', p.x, 1.4, p.z, { size: 8, fps: 18, tint: col }); g.vfx.flash(p.x, 1.6, p.z, 5, col); }
+    g.fx.ring(g.fx.aura, p.x, 0.6, p.z, 40, 14, 0.5, 0.4, col);
     SFX.play('pulse');
   }
 
@@ -715,7 +715,7 @@ class WeaponSystem {
       break;
     }
     p.attack(a.dx, a.dz, true, g);
-    if (g.vfx) g.vfx.play('godSlicer', p.x + a.dx * 2, 1.6 + p.flyH, p.z + a.dz * 2, { size: 5, dur: 0.35, rot: Math.atan2(-a.dz, a.dx) });
+    if (g.vfx) g.vfx.play('godSlicer', p.x + a.dx * 2, 1.6, p.z + a.dz * 2, { size: 5, dur: 0.35, rot: Math.atan2(-a.dz, a.dx) });
     SFX.play('slash');
   }
   updateHoles(dt, g) {
@@ -796,8 +796,6 @@ class WeaponSystem {
     for (const b of this.beams) {
       if (b.on) continue;
       b.on = true; b.x = x; b.z = z; b.dx = dx; b.dz = dz; b.len = len; b.hw = hw; b.dmg = dmg; b.age = 0; b.life = life; b.tick = 0; b.tickDt = tickDt; b.color = color; b.follow = follow; b.src = DMG_SRC;
-      const P = window.game && window.game.player;
-      b.h0 = P && Math.abs(P.x - x) + Math.abs(P.z - z) < 4 ? P.flyH : 0;   // desde el aire, el rayo baja en diagonal hasta el suelo
       return;
     }
   }
@@ -808,43 +806,42 @@ class WeaponSystem {
       if (!b.on) continue;
       b.age += dt;
       if (b.age >= b.life) { b.on = false; continue; }
-      if (b.follow) { b.x = p.x; b.z = p.z; b.h0 = p.flyH; }
+      if (b.follow) { b.x = p.x; b.z = p.z; }
       const cur = b.len * Math.min(1, b.age / 0.12), fade = Math.min(1, (b.life - b.age) / 0.2);
-      const h0 = b.h0 || 0, by = (t) => 1.5 + h0 * Math.max(0, 1 - t / b.len);   // altura del rayo a la distancia t
       b.tick -= dt;
       if (b.tick <= 0) {
         b.tick = b.tickDt;
         DMG_SRC = b.src;
         g.horde.damageLine(b.x, b.z, b.dx, b.dz, cur, b.hw, b.dmg, g);
         for (let t = 2; t < cur; t += 4) g.world.damageArea(b.x + b.dx * t, b.z + b.dz * t, b.hw, b.dmg);
-        g.fx.sparks.emit(b.x + b.dx * cur, by(cur), b.z + b.dz * cur, rand(-3, 3), rand(0, 4), rand(-3, 3), 0.3, 0.35, 0, b.color);
+        g.fx.sparks.emit(b.x + b.dx * cur, 1.5, b.z + b.dz * cur, rand(-3, 3), rand(0, 4), rand(-3, 3), 0.3, 0.35, 0, b.color);
       }
       // Tres capas (halo, cuerpo y núcleo blanco). Cada capa separa sus sprites según su tamaño y sube su opacidad
       // en la misma proporción: se ve igual, pero se pintan aproximadamente la mitad de píxeles (menos trabajo de GPU)
       const wob = 1 + Math.sin(g.time * 40) * 0.08;
       for (let k = 0; k < 3; k++) {
         const size = b.hw * BEAM_K[k] * wob, step = Math.max(0.8, size * 0.3), al = Math.min(1, BEAM_A[k] * step / 0.8) * fade, col = k === 2 ? 0xffffff : b.color;
-        for (let t = 0.8; t <= cur; t += step) B.push(b.x + b.dx * t, by(t), b.z + b.dz * t, 0, 0, 0, size, al, col);
+        for (let t = 0.8; t <= cur; t += step) B.push(b.x + b.dx * t, 1.5, b.z + b.dz * t, 0, 0, 0, size, al, col);
       }
-      B.push(b.x + b.dx * cur, by(cur), b.z + b.dz * cur, 0, 0, 0, b.hw * 3.6, 0.7 * fade, b.color);
+      B.push(b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 0, 0, 0, b.hw * 3.6, 0.7 * fade, b.color);
       const V = g.vfx, D = WEAPONS[b.src];
       if (V && V.ok && D && D.sty === 'sbc') {                     // Makankosappo: espiral alrededor del rayo
         const k = ((g.time * 16) | 0) & 1, rot = Math.atan2(-b.dz, b.dx), st = b.hw * 3;
-        for (let t = st * 0.5; t < cur; t += st) V.now(1, fxf('sbcSpiral', k), b.x + b.dx * t, by(t), b.z + b.dz * t, st * 1.15, 0.9 * fade, 0xffffff, rot);
+        for (let t = st * 0.5; t < cur; t += st) V.now(1, fxf('sbcSpiral', k), b.x + b.dx * t, 1.5, b.z + b.dz * t, st * 1.15, 0.9 * fade, 0xffffff, rot);
       }
       if (V && V.ok && (b.src === 'finalflash' || b.src === 'bbflash' || (b.src === 'ult' && p.ch.id === 'vegeta'))) {
         // Final Flash: media luna de la hoja de Vegeta en la punta (azul en las formas Blue)
-        V.now(2, fxf(bigOrb(b.color) === 'orbKame' ? 'ffMoonB' : 'ffMoonY', 0), b.x + b.dx * cur, by(cur), b.z + b.dz * cur, b.hw * 3.4, 0.9 * fade, 0xffffff, Math.atan2(-b.dz, b.dx));
+        V.now(2, fxf(bigOrb(b.color) === 'orbKame' ? 'ffMoonB' : 'ffMoonY', 0), b.x + b.dx * cur, 1.5, b.z + b.dz * cur, b.hw * 3.4, 0.9 * fade, 0xffffff, Math.atan2(-b.dz, b.dx));
       } else if (V && V.ok && (b.src === 'deathbeam' || b.src === 'cellbeam')) {
-        V.now(0, fxf('dbBall', 0), b.x + b.dx * cur, by(cur), b.z + b.dz * cur, 1.7, fade, 0xffffff, Math.atan2(-b.dz, b.dx));
+        V.now(0, fxf('dbBall', 0), b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 1.7, fade, 0xffffff, Math.atan2(-b.dz, b.dx));
       }
       if (V && V.ok && b.hw > 0.9) {
         const k = (g.time * 20) | 0;
         const pl = g.player, oc = pl.ch.id === 'gohan' && pl.formIdx === 4 && b.follow ? 'beastBall' : bigOrb(b.color);   // esfera de las hojas nuevas en el origen
-        if (oc) V.now(FXA[oc].s === 'fxbig' ? 2 : 0, fxf(oc, 0), b.x + b.dx * 0.9, by(0.9), b.z + b.dz * 0.9, b.hw * 2.1, 0.75 * fade, 0xffffff, g.time * 2);
-        else V.now(0, orbFrame(b.color, 0), b.x + b.dx * 0.9, by(0.9), b.z + b.dz * 0.9, b.hw * 2.6, fade, 0xffffff);
-        V.now(0, fxf('kameStar', k % 4), b.x + b.dx * 0.9, by(0.9), b.z + b.dz * 0.9, b.hw * 3.4, 0.8 * fade, 0xffffff);
-        V.now(0, fxf('kameImp', k & 1), b.x + b.dx * cur, by(cur), b.z + b.dz * cur, b.hw * 4.2, 0.85 * fade, 0xffffff);
+        if (oc) V.now(FXA[oc].s === 'fxbig' ? 2 : 0, fxf(oc, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.1, 0.75 * fade, 0xffffff, g.time * 2);
+        else V.now(0, orbFrame(b.color, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.6, fade, 0xffffff);
+        V.now(0, fxf('kameStar', k % 4), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 3.4, 0.8 * fade, 0xffffff);
+        V.now(0, fxf('kameImp', k & 1), b.x + b.dx * cur, 1.5, b.z + b.dz * cur, b.hw * 4.2, 0.85 * fade, 0xffffff);
       }
     }
     B.end();
@@ -858,7 +855,7 @@ function chargeFx(g, x, z, col, size) {
   const V = g.vfx; if (!V || !V.ok) return;
   const [r, gg, b] = hexRGB(col);
   const nm = r > 170 && gg < r * 0.7 && b < r * 0.8 ? 'chgR' : r > 170 && gg > 140 && b < 150 ? 'chgY' : 'chgW';
-  V.play(nm, x, 1.5 + g.player.flyH, z, { size, grow: 1.5, dur: 0.32, pri: 1 });   // brillo en las manos (también en el aire)
+  V.play(nm, x, 1.5, z, { size, grow: 1.5, dur: 0.32, pri: 1 });
 }
 function bigOrb(col) {
   const [r, gg, b] = hexRGB(col);
