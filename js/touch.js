@@ -113,7 +113,7 @@ class TouchControls {
     document.getElementById('tbBase').style.display = game.player.formIdx > 0 ? 'flex' : 'none';
     document.getElementById('tbTp').classList.toggle('cd', game.player.tpCd > 0);
     document.getElementById('tbLv').style.display = game.practice ? 'flex' : 'none';
-    const ub = document.getElementById('tbUlt'), U = game.player.ch.ult;
+    const ub = document.getElementById('tbUlt'), U = game.player.ultD;
     ub.style.display = U ? 'flex' : 'none';
     ub.classList.toggle('ready', !!U && game.player.ult >= U.cost);
   }

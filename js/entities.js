@@ -30,7 +30,7 @@ class Player {
 
   /** Prepara al personaje elegido con sus stats base + mejoras permanentes del laboratorio */
   reset(ch) {
-    this.ch = ch;
+    this.ch = ch; this.fusion = null;                              // fusión en tiempo real: { id, ch, sheet, t }
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
     this.chgSheet = this.sheets[ch.id + '_chg'] ? ch.id + '_chg' : null; if (this.chgSheet) this.batch(this.chgSheet);
     this.cineChg = false; this.chgPose = false;
@@ -115,9 +115,12 @@ class Player {
 
   /** Multiplicador de daño total: vitaminas x forma x pasiva del personaje */
   /** Suma carga a la Ultimate (solo si el personaje tiene una) */
-  addUlt(n) { if (this.ch.ult) this.ult = Math.min(this.ch.ult.cost, this.ult + n * (this.ch.id === 'gogeta' ? 1.25 : 1)); }
+  /** Ultimate activa: la de la fusión mientras dura (y su cinemática) */
+  get ultD() { return this.fusion ? this.fusion.ch.ult : this.ch.ult; }
+  get ultId() { return this.fusion ? this.fusion.id : this.ch.id; }
+  addUlt(n) { const U = this.ultD; if (U) this.ult = Math.min(U.cost, this.ult + n * (this.ultId === 'gogeta' ? 1.25 : 1)); }
   damageMul() {
-    let m = this.statDmg * this.form.dmg * (this.buffT > 0 ? 1 + this.buffDmg : 1);
+    let m = this.statDmg * this.form.dmg * (this.buffT > 0 ? 1 + this.buffDmg : 1) * (this.fusion ? 1.4 : 1);   // fusión: +40% de daño
     if (this.ch.id === 'goku') m *= 1 + 0.015 * (this.level - 1);                     // Zenkai
     if (this.ch.id === 'vegeta' && this.ki >= this.maxKi * 0.8) m *= 1.25;           // Orgullo Saiyajin
     if (this.ch.id === 'gohan' && this.hp < this.maxHp * 0.5) m *= 1.4;               // Potencial oculto
@@ -221,7 +224,7 @@ class Player {
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1);
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1) * (this.fusion ? 1.2 : 1);   // fusión: +20% de velocidad
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
@@ -314,10 +317,10 @@ class Player {
   /** Elige hoja y fotograma según el estado */
   pose() {
     const a = this.anim;
-    this.drawSheet = this.form.sheet;
+    this.drawSheet = this.fusion ? this.fusion.sheet : this.form.sheet;          // fusionado: el aspecto de la fusión
     let fr = a.idle;
     const cf = this.chgSheet ? formChg(this.ch, this.formIdx) : null;
-    this.chgPose = !!cf && (this.charging || this.cineChg) && this.dashT <= 0;
+    this.chgPose = !!cf && !this.fusion && (this.charging || this.cineChg) && this.dashT <= 0;
     if (this.chgPose) { this.drawSheet = this.chgSheet; this.frame = cf[0] + ((this.animT * 10) | 0) % cf[1]; return; }   // pose de cargar ki (aura animada)
     if (this.hurtT > 0 && a.hurt >= 0) fr = a.hurt;
     else if (this.hurtT > 0 && a.alt && a.alt.hurt >= 0) { fr = a.alt.hurt; this.drawSheet = a.alt.sheet; }

@@ -12,9 +12,20 @@ const ALLIES = [
   { id: 'gohan', name: 'GOHAN', sheet: 'gohan', anim: A_GOH, tint: 0xffffff, ki: 0x8fe0ff, atk: 'blast', cd: 0.9 },
   { id: 'vegeta', name: 'VEGETA', sheet: 'vegeta', anim: A_HD, tint: 0xffffff, ki: 0xb06bff, atk: 'blast', cd: 0.9 },
   { id: 'goku', name: 'SON GOKU', sheet: 'goku', anim: A_HD, tint: 0xffffff, ki: 0x6fd0ff, atk: 'beam', cd: 2.2 },
-  { id: 'bardock', name: 'BARDOCK', sheet: 'bardock', anim: A_HD, tint: 0xffffff, ki: 0x8ad0ff, atk: 'blast', cd: 1.0 }
+  { id: 'bardock', name: 'BARDOCK', sheet: 'bardock', anim: A_HD, tint: 0xffffff, ki: 0x8ad0ff, atk: 'blast', cd: 1.0 },
+  { id: 'black', name: 'GOKU BLACK', sheet: 'black', anim: A_HD, tint: 0xffffff, ki: 0xff6ac8, atk: 'blast', cd: 0.9 },
+  { id: 'zamasu', name: 'ZAMASU', sheet: 'zamasu', anim: A_HD, tint: 0xffffff, ki: 0xa890ff, atk: 'blast', cd: 1.0 },
+  { id: 'kale', name: 'KALE', sheet: 'kale', anim: A_HD, tint: 0xffffff, ki: 0x9aff4a, atk: 'beam', cd: 2.2 },
+  { id: 'caulifla', name: 'CAULIFLA', sheet: 'caulifla', anim: A_HD, tint: 0xffffff, ki: 0xffd84a, atk: 'blast', cd: 0.9 }
 ];
 const ALLY_TIME = 60;
+/* Fusión en tiempo real: tu personaje + el aliado de su pareja = la fusión (si hay varias, una al azar) durante FUSION_TIME s */
+const FUSION_PAIRS = {
+  goku: { vegeta: ['vegito', 'gogeta'] }, vegeta: { goku: ['vegito', 'gogeta'] },
+  black: { zamasu: ['zamasuf'] }, zamasu: { black: ['zamasuf'] },
+  kale: { caulifla: ['kefla'] }, caulifla: { kale: ['kefla'] }
+};
+const FUSION_TIME = 30;
 
 class Allies {
   constructor(scene, sheets) {
@@ -33,7 +44,8 @@ class Allies {
   summon(g) {
     const pool = ALLIES.filter((a) => a.id !== g.player.ch.id && !this.list.some((l) => l.d === a));
     if (!pool.length) return null;
-    const d = pick(pool), p = g.player, a = rand(0, 6.28);
+    const P = FUSION_PAIRS[g.player.ch.id], mates = P ? pool.filter((a) => P[a.id]) : [];
+    const d = mates.length && Math.random() < 0.5 ? pick(mates) : pick(pool), p = g.player, a = rand(0, 6.28);   // la pareja de fusión, la mitad de las veces
     const al = { d, x: p.x + Math.cos(a) * 4, z: p.z + Math.sin(a) * 4, t: ALLY_TIME, cd: 1, flip: 0, animT: 0, atkT: 0, off: rand(0, 6.28) };
     this.list.push(al);
     g.fx.ring(g.fx.aura, al.x, 0.5, al.z, 40, 14, 0.6, 0.4, d.ki);

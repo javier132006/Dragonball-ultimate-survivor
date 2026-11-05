@@ -600,6 +600,8 @@ class Game {
 
   /* ---------- Interacciones con E ---------- */
   interact() {
+    const fa = this.fusionAlly();
+    if (fa) { this.startFusion(fa); return; }
     const pts = this.points, c = this.capsules;
     const rn = pts.riftNear();
     if (rn) { this.enterRift(rn); return; }
@@ -608,6 +610,8 @@ class Game {
   }
   /** Texto del aviso inferior según lo que tengas cerca (null = nada) */
   promptInfo() {
+    const fa = this.fusionAlly();
+    if (fa) return { t: '[E] FUSIONARSE CON ' + fa.d.name, ok: true };
     const pts = this.points, c = this.capsules;
     const rn = pts.riftNear();
     if (rn) return { t: '[E] GRIETA HACIA ' + STAGES[rn.to].name, ok: true };
@@ -801,6 +805,42 @@ class Game {
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
 
+  /* ---------- Fusión en tiempo real: con tu pareja de fusión cerca, [E] os fusiona durante FUSION_TIME s ---------- */
+  fusionAlly() {
+    const p = this.player, P = FUSION_PAIRS[p.ch.id];
+    if (!P || p.fusion || p.dying || this.state !== 'play') return null;
+    for (const a of this.allies.list) if (P[a.d.id] && Math.hypot(a.x - p.x, a.z - p.z) < 4.5) return a;
+    return null;
+  }
+  startFusion(a) {
+    const p = this.player, id = pick(FUSION_PAIRS[p.ch.id][a.d.id]), F = CHARACTERS.find((c) => c.id === id);
+    if (!F) return;
+    const i = this.allies.list.indexOf(a); if (i >= 0) this.allies.list.splice(i, 1);   // el aliado se funde contigo
+    // Forma de la fusión equivalente a la tuya (base con base, la más alta con la más alta)
+    const n = F.forms.length, k = Math.min(n - 1, Math.round(p.formIdx * (n - 1) / Math.max(1, p.ch.forms.length - 1)));
+    p.fusion = { id, ch: F, sheet: F.forms[k].sheet, t: FUSION_TIME, warned: false }; p.batch(p.fusion.sheet);
+    const go = () => { this.ui.toast('¡' + F.name + '!'); this.ui.toast('Fusión: +40% de daño, +20% de velocidad y su Ultimate durante ' + FUSION_TIME + ' s', true); };
+    if (this.intro.has(id) && !Save.d.opt.noCine) {                 // cinemática de la fusión (Vegetto, Gogeta, Zamasu fusionado)
+      this.state = 'intro'; this.releaseMouse();
+      this.intro.start(id, () => { if (this.state !== 'intro') return; this.state = 'play'; this.grabMouse(); this.clock.getDelta(); go(); });
+    } else {                                                        // sin cinemática (Kefla): destello y onda
+      const c = F.forms[k].aura || F.forms[k].ki || 0xffffff;
+      if (this.vfx && this.vfx.ok) this.vfx.flash(p.x, 1.6, p.z, 8, c);
+      this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 70, 24, 0.8, 0.5, c); this.horde.shockwave(p.x, p.z, 9, 22);
+      this.shake(1.2); SFX.play('bigboom'); go();
+    }
+  }
+  updateFusion(dt) {
+    const p = this.player, f = p.fusion; if (!f) return;
+    f.t -= dt;
+    if (f.t <= 5 && !f.warned) { f.warned = true; this.ui.toast('LA FUSIÓN SE AGOTA · 5 S', true); }
+    if (f.t <= 0) {
+      p.fusion = null;
+      this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 50, 16, 0.6, 0.4, 0xffffff); this.shake(0.5); SFX.play('pulse');
+      this.ui.toast('LA FUSIÓN SE DESHACE', true);
+      if (p.ultD && p.ult > p.ultD.cost) p.ult = p.ultD.cost;
+    }
+  }
   /* ---------- Transmisión Instantánea y esquiva del Ultra Instinto ---------- */
   onTeleport(ox, oz, x, z) {
     const p = this.player, col = p.form.ki;
@@ -1472,7 +1512,7 @@ class Game {
 
   /** Ultimate del personaje. Solo con la carga completa y jugando */
   ultimate() {
-    const p = this.player, U = p.ch.ult;
+    const p = this.player, U = p.ultD;
     if (!U || this.state !== 'play' || this.ultT >= 0 || p.ult < U.cost || p.dying) return;
     const kc = Math.round(p.maxKi * ULT_KI);
     if (p.ki < kc) { this.ui.toast('NECESITAS ' + kc + ' DE KI PARA LA ULTIMATE · CARGA CON [C]', true); SFX.play('warn'); return; }
@@ -1486,9 +1526,9 @@ class Game {
       this.shake(0.6); SFX.play('boom');
     };
     // Animación propia de cada personaje (el mundo espera congelado) y después la Ultimate
-    if (this.ultCine.has(p.ch.id) && !Save.d.opt.noCine) {
+    if (this.ultCine.has(p.ultId) && !Save.d.opt.noCine) {
       this.state = 'ultcine';
-      this.ultCine.start(p.ch.id, U.name, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); });
+      this.ultCine.start(p.ultId, U.name, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); });
     } else fire();
   }
   /** Secuencia de la Ultimate en tiempo real: destellos de impacto de colores y, al final, el tajo */
@@ -1497,7 +1537,7 @@ class Game {
     this.ultT += dt;
     const t = this.ultT, el = this.ultFx || (this.ultFx = document.getElementById('ultFx'));
     // Fotogramas [tiempo, color, opacidad]: negro, blanco, los colores de cada personaje y una caída suave
-    const C = (this.player.ch.ult && this.player.ch.ult.fx) || ['#000', '#fff', '#b050ff', '#ff3fa0', '#b050ff'];
+    const C = (this.player.ultD && this.player.ultD.fx) || ['#000', '#fff', '#b050ff', '#ff3fa0', '#b050ff'];
     const F = [[0, C[0], 1], [0.09, C[1], 0.9], [0.18, C[2], 0.75], [0.27, C[3], 0.5], [0.4, C[4], 0.25]];
     if (t >= 0.5) { this.ultT = -1; if (el) el.style.opacity = 0; return; }
     if (t >= 0.27 && !this.ultCut) { this.ultCut = true; this.ultFire(); }
@@ -1506,7 +1546,7 @@ class Game {
   }
   /** Lanza la Ultimate según su tipo (rift, bomb, beam, storm, discs, slash) */
   ultFire() {
-    const p = this.player, U = p.ch.ult, W = this.weapons, V = this.vfx, dm = p.damageMul();
+    const p = this.player, U = p.ultD, W = this.weapons, V = this.vfx, dm = p.damageMul();
     if (U.type === 'rift' || !U.type) return this.ultSlash();
     const a = W.aim(this, p, 40) || W.facing(this, p), ax = a.dx, az = a.dz;
     DMG_SRC = 'ult';
@@ -1566,7 +1606,7 @@ class Game {
   }
   /** El tajo: dos cortes que cruzan el mapa a través del jugador. Daña a todo lo que toca */
   ultSlash() {
-    const p = this.player, U = p.ch.ult, a = this.camYaw, L = U.len, dmg = U.dmg * p.damageMul();
+    const p = this.player, U = p.ultD, a = this.camYaw, L = U.len, dmg = U.dmg * p.damageMul();
     for (const [dx, dz] of [[Math.cos(a), Math.sin(a)], [-Math.sin(a), Math.cos(a)]]) {
       this.horde.damageLine(p.x - dx * L, p.z - dz * L, dx, dz, 2 * L, U.hw, dmg, this);
       for (let s = -L; s < L; s += 2.5) this.fx.burst(this.fx.sparks, p.x + dx * s, 1.2, p.z + dz * s, 2, 7, 0.55, 0.45, 8, 0xd080ff);
@@ -1948,6 +1988,7 @@ class Game {
     this.points.update(dt, p, this);
     this.shots.update(dt, this);
     this.allies.update(dt, this);
+    this.updateFusion(dt);
     if (this.world.follow(p.x, p.z)) this.shadowDirty = true;
 
     // Enemigos que se quedan muy lejos reaparecen cerca (el mapa es grande)

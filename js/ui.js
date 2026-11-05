@@ -90,7 +90,10 @@ class UIManager {
     T(e.hpTxt, Math.max(0, Math.ceil(p.hp)) + ' / ' + Math.ceil(p.maxHp));
     T(e.kiTxt, Math.floor(p.ki) + ' / ' + Math.round(p.maxKi));
     T(e.xpTxt, Math.floor(p.xp) + ' / ' + p.xpNext);
-    T(e.lvl, String(p.level)); T(e.formName, p.form.name); T(e.chName, p.ch.name);
+    T(e.lvl, String(p.level));
+    // Fusionado: nombre de la fusión y segundos que le quedan
+    if (p.fusion) { T(e.formName, 'FUSIÓN · ' + Math.ceil(p.fusion.t) + ' S'); T(e.chName, p.fusion.ch.name); }
+    else { T(e.formName, p.form.name); T(e.chName, p.ch.name); }
     this.setV(e.formName, '--fc', '#' + (p.form.aura || 0xffe14a).toString(16).padStart(6, '0'));
     T(e.trait, p.trait ? p.trait.name.toUpperCase() + ' · ✚ ' + p.trait.good + ' · ✖ ' + p.trait.bad : '');
     if (e.trait._t !== e.trait.title) e.trait.title = e.trait._t;
@@ -150,10 +153,10 @@ class UIManager {
     sc(e.tpFill, 1 - p.tpCd / p.tpMax);
     this.setC(e.abTp, 'ab' + (p.tpCd > 0 || p.ki < 35 ? ' low' : ''));
     // Ultimate: solo para los personajes que la tienen; se ilumina cuando está cargada
-    if (p.ch.ult) {
+    if (p.ultD) {
       if (e.abUlt.style.display !== '') e.abUlt.style.display = '';
-      sc(e.ultFill, p.ult / p.ch.ult.cost);
-      this.setC(e.abUlt, 'ab' + (p.ult >= p.ch.ult.cost && p.ki >= p.maxKi * ULT_KI ? ' on' : ''));
+      sc(e.ultFill, p.ult / p.ultD.cost);
+      this.setC(e.abUlt, 'ab' + (p.ult >= p.ultD.cost && p.ki >= p.maxKi * ULT_KI ? ' on' : ''));
     } else if (e.abUlt.style.display !== 'none') e.abUlt.style.display = 'none';
     // FPS suavizado
     this.fpsAcc += dt; this.fpsN++;
