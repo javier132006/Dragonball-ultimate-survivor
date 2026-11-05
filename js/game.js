@@ -1170,6 +1170,9 @@ class Game {
         t = pick(L);
       }
     }
+    // Variantes nuevas: el soldado élite sale entre los rápidos y el saibaiman de hielo entre la tropa básica
+    if (t === T_FAST && t0 > 80 && Math.random() < 0.25) t = T_SOLDIER_E;
+    else if (t === 0 && t0 > 100 && Math.random() < 0.12) t = T_ICESAI;
     this.spawnPos(32, 40);
     const hpMul = this.diff.hp * this.stage.hp * (1 + this.curseHp + this.chal * 0.25) * (1 + sw * 0.3) * (this.mods.rich ? 1.3 : 1) * this.timeMul();
     this.horde.spawn(this._sx, this._sz, (14 + t0 * 0.25) * ENEMY_TYPES[t].hp * hpMul, t);
@@ -1583,6 +1586,9 @@ class Game {
   }
   onEnemyKilled(x, z, type, uid) {
     this.kills++; this.track('kills', 1);
+    if (this.player.pluma && this.kills % 20 === 0 && !this.player.dying) {       // Pluma Sagrada
+      const q = this.player; q.hp = Math.min(q.maxHp, q.hp + q.maxHp * 0.05); this.ui.toast('✿ PLUMA SAGRADA · +5% DE VIDA', true);
+    }
     this.addCombo();
     if (uid && uid === this.rivalUid) {                              // rival del evento
       this.rivalUid = 0; this.run.rivals++; this.track('rivals', 1);
@@ -1857,7 +1863,12 @@ class Game {
       }
     }
     if (this.victoryT > 0) { this.victoryT -= dt; if (this.victoryT <= 0) { this.victory(); return; } }
-    h.speed = (3.4 + Math.min(t0 * 0.01, 2.2) + Math.min(this.swarmLvl() * 0.12, 1)) * (this.storm > 0 ? 0.6 : 1) * (this.mods.fast ? 1.25 : 1);
+    const P = this.player;
+    if (P.reloj) {                                                              // Reloj de Arena: al bajar del 30% de vida, la horda va más lenta 5 s (cada 30 s)
+      P.relojCd = Math.max(0, (P.relojCd || 0) - dt); P.relojT = Math.max(0, (P.relojT || 0) - dt);
+      if (P.relojT <= 0 && P.relojCd <= 0 && P.hp < P.maxHp * 0.3 && !P.dying) { P.relojT = 5; P.relojCd = 30; this.ui.toast('⌛ RELOJ DE ARENA · ENEMIGOS MÁS LENTOS', true); }
+    }
+    h.speed = (3.4 + Math.min(t0 * 0.01, 2.2) + Math.min(this.swarmLvl() * 0.12, 1)) * (this.storm > 0 ? 0.6 : 1) * (this.mods.fast ? 1.25 : 1) * (P.relojT > 0 ? 0.85 : 1);
     this.bossInv = Math.max(0, this.bossInv - dt); this.dodgeMsgT -= dt;
     // Combo: se pierde si pasan 3 s sin derribar a nadie
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) { this.combo = 0; p.comboMul = 1; } }

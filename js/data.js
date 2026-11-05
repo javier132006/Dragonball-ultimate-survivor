@@ -46,7 +46,7 @@ const CHARACTERS = [
   },
   {
     id: 'vegeta', name: 'VEGETA', role: 'Artillería · Daño explosivo', cost: 2500,
-    hp: 100, ki: 130, spd: 1.0, dmg: 1.12, start: ['vblast'], unique: ['vblast', 'galick', 'bigbang', 'kakusan'],
+    hp: 100, ki: 130, spd: 1.0, dmg: 1.12, start: ['vblast'], unique: ['vblast', 'vtriple', 'galick', 'bigbang', 'kakusan'],
     passive: { name: 'Orgullo Saiyajin', desc: '+25% de daño mientras tu Ki esté por encima del 80%.' },
     ult: { name: 'FINAL FLASH MÁXIMO', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 66, hw: 3.4, life: 1.8, col: 0xffe14a, end: 'ffBoom', fx: ['#000', '#fff', '#ffe14a', '#6fb8ff', '#ffe14a'], debuff: { name: 'ORGULLO HERIDO', text: 'recibes un 25% más de daño durante 8 s', t: 8, take: 0.25 } },
     portrait: { sheet: 'vegeta', frame: 0 },
@@ -90,7 +90,7 @@ const CHARACTERS = [
   },
   {
     id: 'gohan', name: 'GOHAN', role: 'Potencial oculto · Rayos', cost: 5000,
-    hp: 100, ki: 120, spd: 1.0, dmg: 1.05, start: ['gblast'], unique: ['gblast', 'fsk', 'rage', 'zsword', 'gthunder'],
+    hp: 100, ki: 120, spd: 1.0, dmg: 1.05, start: ['gblast'], unique: ['gblast', 'gshield', 'fsk', 'rage', 'zsword', 'gthunder'],
     passive: { name: 'Potencial oculto', desc: '+40% de daño mientras tu vida esté por debajo del 50%.' },
     ult: { name: 'KAMEHAMEHA PADRE-HIJO', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 64, hw: 3.3, life: 1.8, col: 0x8fe0ff, end: 'genkiBoom', fx: ['#000', '#fff', '#5ab8ff', '#ffe14a', '#5ab8ff'], debuff: { name: 'AGOTADO', text: '-25% de daño durante 8 s', t: 8, dmg: 0.25 } },
     portrait: { sheet: 'gohan', frame: 0 },
@@ -491,6 +491,7 @@ const WEAPONS = {
   mines: { name: 'Minas de Energía', icon: '✹', kind: 'mines', lv: ['Dejas minas que explotan al acercarse un enemigo.', '+30% de daño.', 'Explosión más grande.', 'Colocas minas más rápido.', '+40% de daño y +2 minas máx.'] },
   rain: { name: 'Lluvia de Ki', icon: '☄', kind: 'rain', lv: ['Proyectiles caen del cielo sobre tus enemigos.', '+1 impacto.', '+35% de daño.', '+1 impacto y área mayor.', '+2 impactos y recarga menor.'] },
   nova: { name: 'Pulso de Poder', icon: '✸', kind: 'nova', lv: ['Onda expansiva periódica que empuja y daña.', '+40% de daño.', 'Mayor radio.', 'Se lanza dos veces seguidas.', '+40% de daño y recarga menor.'] },
+  vtriple: { name: 'Ráfaga Triple', icon: '✦', kind: 'splitblast', unique: 'vegeta', minLv: 3, shop: 2600, color: 0xb06bff, lv: ['Esferas de ki violeta que se dividen en dos a mitad de camino.', '+20% de daño.', '+1 esfera.', 'Recarga reducida.', '+1 esfera y +30% de cadencia.'] },
   vblast: { name: 'Ráfaga Explosiva', icon: '✦', kind: 'blast', unique: 'vegeta', color: 0xb06bff, lv: ['Esferas de ki violeta que explotan al impactar.', '+20% de daño.', '+1 esfera.', 'Explosión más grande.', '+1 esfera y +30% de cadencia.'] },
   kamehameha: { name: 'Kamehameha', icon: '≋', kind: 'beam', unique: 'goku', minLv: 3, color: 0x6fd0ff, lv: ['Rayo devastador en línea recta.', '+55% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', '¡Kamehameha definitivo! Daño y tamaño máximos.'] },
   galick: { name: 'Galick Ho', icon: '≋', kind: 'beam', unique: 'vegeta', minLv: 4, color: 0xb06bff, lv: ['Cañón de energía violeta en línea recta.', '+55% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Galick definitivo. Daño y tamaño máximos.'] },
@@ -512,6 +513,7 @@ const WEAPONS = {
   hellzone: { name: 'Hellzone Grenade', icon: '❂', kind: 'hellzone', unique: 'piccolo', minLv: 4, color: 0xffd040, sty: 'hz', lv: ['Rodea a los enemigos de esferas que convergen y explotan.', '+40% de daño.', '+2 esferas.', 'Recarga reducida.', 'Hellzone definitivo: área y daño máximos.'] },
   lightgrenade: { name: 'Light Grenade', icon: '✺', kind: 'bigbang', unique: 'piccolo', minLv: 6, color: 0xffe86a, boomFx: 'sbcBoom', lv: ['Granada de luz que explota en gran área.', '+35% de daño.', 'Explosión mayor.', 'Recarga reducida.', '+35% de daño y doble granada.'] },
   /* --- Gohan --- */
+  gshield: { name: 'Escudo de Gohan', icon: '◎', ico: 'barrier', kind: 'barrier', unique: 'gohan', minLv: 3, shop: 2400, color: 0x8ae0ff, cfg: { hits: 1, boom: 0 }, lv: ['Barrera que para el siguiente golpe y empuja a la horda.', 'La onda también daña a los enemigos cercanos.', 'La onda es más grande.', 'Recarga reducida.', 'Onda más grande y más daño.'] },
   gblast: { name: 'Ráfaga de Gohan', icon: '✦', kind: 'bullet', unique: 'gohan', color: 0xbfe4ff, lv: ['Gohan lanza ráfagas de ki al enemigo más cercano.', '+18% de daño.', '+1 proyectil.', 'Las ráfagas atraviesan a 1 enemigo.', '+1 proyectil y +30% de cadencia.'] },
   fsk: { name: 'Kamehameha de Gohan', icon: '≋', kind: 'beam', unique: 'gohan', minLv: 3, color: 0x8fe0ff, lv: ['Rayo azul en línea recta.', '+55% de daño.', 'Rayo más largo y ancho.', 'Recarga reducida.', 'Kamehameha Padre-Hijo: daño y tamaño máximos.'] },
   rage: { name: 'Furia Definitiva', icon: '✸', kind: 'nova', unique: 'gohan', minLv: 6, color: 0xffffff, lv: ['Estallido de ira que empuja y daña a tu alrededor.', '+40% de daño.', 'Mayor radio.', 'Estalla dos veces seguidas.', '+40% de daño y recarga menor.'] },
@@ -794,11 +796,15 @@ const ENEMY_TYPES = [
   // Kyabe: «Ki de Sadala». Te debilita: haces menos daño unos segundos
   { name: 'Kyabe', row: 12, hp: 1.2, spd: 1.05, scale: 1, tint: 0xffffff, dmg: 0.9, xp: 2, r: 0.65, cash: 2.5, ab: 'weakshot' },
   // Caulifla: vuela y dispara; sus ráfagas te dejan sin dash
-  { name: 'Caulifla', row: 13, hp: 1, spd: 1.25, scale: 1, tint: 0xffffff, dmg: 0.85, xp: 2.2, r: 0.65, cash: 2.5, fly: true, flyEff: 'nodash', flyTint: 0xff6aa0 }
+  { name: 'Caulifla', row: 13, hp: 1, spd: 1.25, scale: 1, tint: 0xffffff, dmg: 0.85, xp: 2.2, r: 0.65, cash: 2.5, fly: true, flyEff: 'nodash', flyTint: 0xff6aa0 },
+  // Soldado de Freezer élite (dibujo rojo): más vida y tres disparos en abanico
+  { name: 'Soldado élite', row: 1, hp: 2.6, spd: 0.9, scale: 1.15, tint: 0xff7a7a, dmg: 1.3, xp: 4, r: 0.85, cash: 5, ab: 'volley' },
+  // Saibaiman de hielo: rápido y frágil; su ráfaga helada te ralentiza
+  { name: 'Saibaiman de hielo', row: 0, hp: 0.7, spd: 1.6, scale: 0.9, tint: 0xa8e8ff, dmg: 0.8, xp: 1.6, r: 0.65, cash: 2, ab: 'icebolt' }
 ];
 /* Índices de tipo para que el código se lea mejor */
 const T_BASIC = 0, T_FAST = 1, T_BRUTE = 2, T_BOSS = 3, T_ELITE = 4, T_BOOM = 5, T_SHIELD = 6, T_FLY = 7, T_ABSORB = 8, T_CELLJR = 9;
-const T_FROST = 10, T_MBUU = 11, T_A18 = 12, T_KALE = 13, T_KYABE = 14, T_CAULI = 15;
+const T_FROST = 10, T_MBUU = 11, T_A18 = 12, T_KALE = 13, T_KYABE = 14, T_CAULI = 15, T_SOLDIER_E = 16, T_ICESAI = 17;
 
 
 /* ---------- Rarezas y objetos (se encuentran en Cápsulas del mapa) ----------
@@ -819,6 +825,9 @@ const ITEMS = [
   { id: 'radar', icon: '⌖', name: 'Radar del Dragón', rarity: 0, text: '+20% de imán de orbes.', apply: (p) => { p.magnet *= 1.2; } },
   { id: 'capsula_ki', icon: '⚡', name: 'Cápsula de Ki', rarity: 0, text: '+15 de Ki máximo y +1 Ki/s.', apply: (p) => { p.maxKi += 15; p.kiRegen += 1; } },
   { id: 'scouter', icon: '◎', name: 'Scouter Roto', rarity: 0, text: '+4% de probabilidad de crítico.', apply: (p) => { p.crit += 0.04; } },
+  { id: 'guante_hielo', icon: '✊', name: 'Guante de Hielo', rarity: 1, text: '+10% de daño contra enemigos con menos del 30% de vida.', apply: (p) => { p.guanteMul = 1.1; } },
+  { id: 'pluma_sagrada', icon: '✿', name: 'Pluma Sagrada', rarity: 1, text: 'Cada 20 enemigos derrotados recuperas un 5% de vida.', apply: (p) => { p.pluma = true; } },
+  { id: 'reloj_arena', icon: '⌛', name: 'Reloj de Arena', rarity: 1, text: 'Al bajar del 30% de vida, los enemigos van un 15% más lentos durante 5 s (cada 30 s).', apply: (p) => { p.reloj = true; } },
 
   { id: 'gi_roshi', icon: '▣', name: 'Gi del Maestro Roshi', rarity: 1, text: 'Recibes un 6% menos de daño.', apply: (p) => { p.armor = Math.min(0.6, p.armor + 0.06); } },
   { id: 'nube', icon: '☁', name: 'Nube Voladora', rarity: 1, text: '+10% de velocidad y dash 8% más rápido.', apply: (p) => { p.speedMul += 0.1; p.dashMul *= 0.92; } },
@@ -1013,6 +1022,8 @@ const LAB = [
   { id: 'xp', name: 'Pergaminos de Kami', desc: '+5% de experiencia', max: 6, cost: 350 },
   { id: 'luck', name: 'Bendición de Shenron', desc: '+1 de suerte (más rareza en las cápsulas)', max: 6, cost: 400 },
   { id: 'tp', name: 'Shunkan Ido', desc: 'La Transmisión Instantánea se recarga un 8% antes', max: 5, cost: 350 },
+  { id: 'kidmg', name: 'Entrenamiento de Ki', desc: '+5% de daño de las técnicas de ki', max: 6, cost: 350 },
+  { id: 'gravx', name: 'Gravedad Extra', desc: '+10% de vida máxima', max: 1, cost: 1200 },
   { id: 'revive', name: 'Esfera de Reserva', desc: 'Revives una vez por partida con el 50% de vida', max: 1, cost: 3000 }
 ];
 const labCost = (l, lvl) => Math.round(l.cost * (1 + lvl * 0.8));

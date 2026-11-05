@@ -182,6 +182,22 @@ class WeaponSystem {
     p.attack(a.dx, a.dz, crit, g);
   }
 
+  /* ----- Ráfaga Triple (Vegeta): cada esfera se divide en dos a mitad de camino ----- */
+  splitblast(w, dt, g, p) {
+    if (!this.ready(w, dt, p)) return;
+    const a = this.aim(g, p, 30); if (!a) return;
+    const lv = w.lv, n = 1 + (lv >= 3) + (lv >= 5), dm = 9 * (lv >= 2 ? 1.2 : 1), col = this.col(w, p);
+    w.cd = 0.9 / (lv >= 5 ? 1.3 : 1) * (lv >= 4 ? 0.8 : 1);
+    let crit = false;
+    for (let i = 0; i < n; i++) {
+      const ang = (i - (n - 1) / 2) * 0.16, c = Math.cos(ang), s = Math.sin(ang);
+      crit = Math.random() < p.crit;
+      const b = g.ki.fire(p.x, p.z, a.dx * c - a.dz * s, a.dx * s + a.dz * c, 20, dm * p.damageMul() * (crit ? p.critDmg : 1), 0.55, crit, 1.5, 0, 0, col);
+      if (b) b.split = { at: 0.75 };
+    }
+    p.attack(a.dx, a.dz, crit, g);
+  }
+
   /* ----- Ráfaga Explosiva (ataque básico de Vegeta): esferas que explotan ----- */
   blast(w, dt, g, p) {
     if (!this.ready(w, dt, p)) return;
@@ -636,6 +652,7 @@ class WeaponSystem {
   /* ----- Barrera de Ki (y Barrera Perfecta de Célula): para golpes y empuja a la horda ----- */
   barrier(w, dt, g, p) {
     const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
+    const rad = w.id === 'gshield' && lv >= 3 ? 7.8 : lv >= 5 ? 9 : 7;   // Escudo de Gohan: onda un poco más grande desde el nivel 3
     if (p.barT > 0) {                                           // activa: burbuja alrededor del jugador
       p.barT -= dt;
       if (g.vfx && g.vfx.ok) {
@@ -649,7 +666,7 @@ class WeaponSystem {
     if (g.horde.nearest(p.x, p.z, 5.5) < 0) return;            // solo cuando te rodean
     w.cd = C.cd || (lv >= 4 ? 7 : 10);
     p.barT = 6; p.barHits = C.hits || 2 + (lv >= 3) + (lv >= 5); p.barBoom = C.boom || 0; p.barCol = col;
-    g.horde.shockwave(p.x, p.z, lv >= 5 ? 9 : 7, 18);
+    g.horde.shockwave(p.x, p.z, rad, 18);
     if (lv >= 2) g.horde.damageRadius(p.x, p.z, lv >= 5 ? 7 : 5.5, 16 * (1 + 0.3 * (lv >= 5)) * p.damageMul(), 14, g);
     if (g.vfx) { g.vfx.play('pulse', p.x, 1.4, p.z, { size: 8, fps: 18, tint: col }); g.vfx.flash(p.x, 1.6, p.z, 5, col); }
     g.fx.ring(g.fx.aura, p.x, 0.6, p.z, 40, 14, 0.5, 0.4, col);

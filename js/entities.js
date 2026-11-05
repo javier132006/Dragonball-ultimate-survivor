@@ -59,7 +59,9 @@ class Player {
   /** Estadísticas base del personaje + mejoras permanentes del laboratorio */
   initStats() {
     const ch = this.ch, L = (id) => Save.lab(id);
-    this.maxHp = Math.round(ch.hp * (1 + 0.08 * L('hp'))); this.maxKi = ch.ki; this.kiRegen = 4 * (1 + 0.08 * L('ki'));
+    this.guanteMul = 1; this.pluma = false; this.reloj = false;                // objetos nuevos (se reaplican al recalcular)
+    this.kiMul = 1 + 0.05 * L('kidmg');                                        // Entrenamiento de Ki: daño de las técnicas de ki
+    this.maxHp = Math.round(ch.hp * (1 + 0.08 * L('hp')) * (1 + 0.1 * L('gravx')));   // Gravedad Extra: +10% de vida máxima this.maxKi = ch.ki; this.kiRegen = 4 * (1 + 0.08 * L('ki'));
     this.statDmg = 1 + 0.04 * L('dmg'); this.speedMul = ch.spd * (1 + 0.03 * L('spd')); this.magnet = 5 * (1 + 0.1 * L('mag'));
     this.crit = 0.08 + 0.02 * L('crit'); this.critDmg = 2;
     this.rateMul = 1; this.regen = 0; this.armor = 0; this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.luck = 0;
@@ -501,6 +503,12 @@ class HordeManager {
           } else if (T.ab === 'weakshot') {                       // Kyabe: ki que debilita
             this.aux[i] = rand(4, 6); this.pose[i] = 0.4;
             shots.fire(xi, zi, dx, dz, 13, dmg * 0.6, { tint: 0x9a7aff, size: 1.8, eff: 'weak' });
+          } else if (T.ab === 'volley') {                         // Soldado élite: tres disparos en abanico
+            this.aux[i] = rand(3.5, 4.5); this.pose[i] = 0.4;
+            for (const o of [-0.22, 0, 0.22]) { const c = Math.cos(o), s = Math.sin(o); shots.fire(xi, zi, dx * c - dz * s, dx * s + dz * c, 14, dmg * 0.5, { tint: 0xff5a5a, size: 1.5 }); }
+          } else if (T.ab === 'icebolt') {                        // Saibaiman de hielo: ráfaga que ralentiza
+            this.aux[i] = rand(3, 4.5); this.pose[i] = 0.4;
+            shots.fire(xi, zi, dx, dz, 15, dmg * 0.5, { tint: 0xa8e8ff, size: 1.4, eff: 'slow' });
           }
           continue;                                               // se planta para lanzar la técnica
         }
@@ -549,6 +557,7 @@ class HordeManager {
     }
     if (this.type[i] === T_BOSS && game.bossInv > 0) dmg *= 0.1;  // el jefe cambiando de fase apenas recibe daño
     const wm = game.wMul && game.wMul[DMG_SRC]; if (wm) dmg *= wm;  // daño extra de la técnica por las cartas raras
+    if (game.player.guanteMul > 1 && this.hp[i] < this.maxHp[i] * 0.3) dmg *= game.player.guanteMul;   // Guante de Hielo
     const real = Math.min(dmg, this.hp[i]), R = game.run;
     R.damage += real; if (dmg > R.best) R.best = dmg;
     R.byW[DMG_SRC] = (R.byW[DMG_SRC] || 0) + real;
@@ -690,16 +699,17 @@ class KiPool {
   /** Con el atlas de efectos, cada ráfaga es una esfera de su color (y los Kienzan, discos que giran) */
   useFx(sh) { const u = this.sb.mat.uniforms; u.uMap.value = sh.tex; u.uGrid.value.set(sh.cols, sh.rows); this.fx = true; }
   fire(x, z, dx, dz, speed, dmg, r, crit, life, pierce, aoe, tint, size, look) {
+    const base = dmg; dmg = base * ((window.game && window.game.player && window.game.player.kiMul) || 1);   // técnicas de ki: Entrenamiento de Ki
     for (let i = 0; i < this.max; i++) {
       const b = this.b[i];
       if (b.active) continue;
-      b.active = true; b.x = x; b.z = z; b.y = 1.4; b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
+      b.active = true; b.x = x; b.z = z; b.y = 1.4; b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.base = base; b.r = r;
       b.crit = crit; b.pierce = pierce; b.aoe = aoe; b.tint = tint; b.trail = 0; b.ni = 0; b.size = size || (crit ? 3.6 : 2.6) * r * 1.3; b.look = look || 0;
       const zl = b.look && FXA[b.look] && FXA[b.look].s === 'fxzip' ? b.look : '';   // técnica con dibujo del pack (ver ZIP_FX)
       b.fr = this.fx ? (b.look && !zl ? -1 : orbFrame(tint, crit || b.size > 3.5 ? 0 : 1)) : 0;
       b.zk = zipKind(tint); b.zl = ZIP_FX ? zl : '';
       for (let k = 0; k < 6; k++) b.ign[k] = 0;
-      b.src = DMG_SRC; b.home = 0; b.ht = 0; SFX.play('ki');
+      b.src = DMG_SRC; b.home = 0; b.ht = 0; b.split = null; SFX.play('ki');
       return b;
     }
     return false;
@@ -711,6 +721,13 @@ class KiPool {
       const b = this.b[i];
       if (!b.active) continue;
       b.life -= dt;
+      if (b.split && b.life <= b.split.at) {                    // Ráfaga Triple: a mitad de camino se divide en dos
+        b.split = null;
+        for (const o of [-0.4, 0.4]) {
+          const ang = Math.atan2(b.vz, b.vx) + o, sp = Math.hypot(b.vx, b.vz);
+          this.fire(b.x, b.z, Math.cos(ang), Math.sin(ang), sp, b.base * 0.6, b.r, false, b.life, 0, 0, b.tint, b.size * 0.8);
+        }
+      }
       if (b.home) {                                             // teledirigida: gira hacia el enemigo más cercano
         b.ht -= dt;
         if (b.ht <= 0) { b.ht = 0.1; b.ti = game.horde.nearest(b.x, b.z, 20); }
