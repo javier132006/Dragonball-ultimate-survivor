@@ -35,7 +35,9 @@ const INTROS = {
     { d: 1.7, reveal: 1 }
   ] }
 };
-const INTRO_SPREAD = 9;           // unidades del mundo entre la posición 0 y 1 de la pantalla
+const INTRO_SPREAD = 9;
+/** Oculta los avisos de la partida durante las escenas (no tapan los textos de la cinemática) */
+const cineToasts = (on) => { for (const id of ['toast', 'feed']) { const e = document.getElementById(id); if (e) e.style.visibility = on ? '' : 'hidden'; } };           // unidades del mundo entre la posición 0 y 1 de la pantalla
 
 class FusionIntro {
   constructor(game) {
@@ -68,7 +70,7 @@ class FusionIntro {
     this.b = this.batch(this.S.sheet);
     p.introHide = true; p.cineChg = false;
     this.cam = g.camDistT; g.camDist = 14; g.camDistT = 11;      // la cámara se acerca a la escena
-    this.cv.style.display = 'block'; this.resize(); g.ui.showHud(false);
+    this.cv.style.display = 'block'; this.resize(); g.ui.showHud(false); cineToasts(false);
     SFX.play('charge');
   }
   end() {
@@ -76,7 +78,7 @@ class FusionIntro {
     const g = this.g, p = g.player;
     this.on = false; this.cv.style.display = 'none';
     this.b.reset(); p.introHide = false; p.cineChg = false;
-    g.camDistT = this.cam || 19; g.renderer.domElement.style.filter = ''; g.ui.showHud(true);
+    g.camDistT = this.cam || 19; g.renderer.domElement.style.filter = ''; g.ui.showHud(true); cineToasts(true);
     if (!this.revealed) this.reveal();
     if (this.done) this.done();
   }
@@ -160,3 +162,118 @@ class FusionIntro {
     return false;
   }
 }
+
+/* =====================================================================
+   Animación de la Ultimate de cada personaje, dentro del mapa: la cámara
+   se acerca, el personaje carga con su pose de Ki mientras crece su
+   técnica (Genkidama sobre la cabeza, Death Ball, Kamehameha en las
+   manos...), sale el nombre con la frase, cambia a la pose de ataque,
+   impact frames y, al acabar, se dispara la Ultimate de siempre.
+   ===================================================================== */
+/* orb: animación que crece (name), dónde (head = encima de la cabeza · hands = delante, a la altura de las manos · ring = corona de esferas),
+   tamaño inicial y final, tinte · gather: color de las partículas que convergen · imp: impact frames del final */
+const ULT_CINE = {
+  goku: { quote: '¡Amigos, prestadme vuestra energía!', kanji: '元気玉', col: '#6fc8ff', orb: { name: 'genki', at: 'head', s: [1, 7.5], tint: 0x9fd8ff }, gather: 0x9fe8ff, imp: 'BIWC' },
+  vegeta: { quote: '¡FINAL... FLASH!', kanji: 'ファイナルフラッシュ', col: '#ffe14a', orb: { name: 'bbOrb', at: 'hands', s: [0.6, 3.4], tint: 0xfff08a }, gather: 0xffe14a, imp: 'WIBC' },
+  black: { quote: 'Contempla la justicia de un dios.', kanji: '神の裁き', col: '#ff6ac8', orb: { name: 'darkRing', at: 'ring1', s: [2, 7], tint: 0xff7ac8 }, gather: 0xff6ac8, imp: 'BICB' },
+  piccolo: { quote: '¡Hellzone... Grenade!', kanji: '魔空包囲弾', col: '#ffd040', orb: { name: 'hzCluster', at: 'ring', s: [0.5, 1.8], tint: 0xffe070 }, gather: 0x9cff8a, imp: 'WIBC' },
+  gohan: { quote: 'Papá... préstame tu fuerza.', kanji: '親子かめはめ波', col: '#8fe0ff', orb: { name: 'orbKame', at: 'hands', s: [0.6, 3.2], tint: 0xffffff }, gather: 0x8fe0ff, imp: 'BIWC' },
+  freezer: { quote: 'Desaparece junto a este planeta.', kanji: 'デスボール', col: '#ff5ad0', orb: { name: 'dbBall', at: 'head', s: [0.6, 7], tint: 0xff8a4a }, gather: 0xff7ad8, imp: 'BICB' },
+  krilin: { quote: '¡KIENZAN!', kanji: '気円斬', col: '#ffe86a', orb: { name: 'disc', at: 'head', s: [1, 4.5], tint: 0xfff4a0, spin: 1 }, gather: 0xffe86a, imp: 'WIC' },
+  trunks: { quote: '¡Burning... Slash!', kanji: 'バーニングスラッシュ', col: '#ffb040', orb: { name: 'burnSwirl', at: 'hands', s: [0.8, 4], tint: 0xffffff }, gather: 0xffb040, imp: 'BIWC' },
+  cell: { quote: 'El Kamehameha perfecto.', kanji: 'かめはめ波', col: '#6aff9a', orb: { name: 'orbKame', at: 'hands', s: [0.6, 3.4], tint: 0x9affb0 }, gather: 0x6aff9a, imp: 'BIWC' },
+  bardock: { quote: '¡Este es mi último ataque, Freezer!', kanji: '最後の攻撃', col: '#8ad0ff', orb: { name: 'bbOrb', at: 'head', s: [0.8, 5.5], tint: 0x9fd8ff }, gather: 0x8ad0ff, imp: 'WIBC' },
+  vegito: { quote: '¡Final... Kamehameha!', kanji: 'ファイナルかめはめ波', col: '#6fd8ff', orb: { name: 'orbKame', at: 'hands', s: [0.6, 3.8], tint: 0xffffff }, gather: 0x9fe0ff, imp: 'BIWIC' },
+  broly: { quote: '¡¡KAKAROTTOOOO!!', kanji: 'ギガンティックミーティア', col: '#7dff5a', orb: { name: 'beastBall', at: 'hands', s: [0.8, 6], tint: 0x9aff6a }, gather: 0x7dff5a, imp: 'BIBIC' },
+  gogeta: { quote: '¡Big Bang... Kamehameha!', kanji: 'ビッグバンかめはめ波', col: '#ffd84a', orb: { name: 'bbOrb', at: 'hands', s: [0.6, 4], tint: 0xffffff }, gather: 0xffe14a, imp: 'WIBIC' }
+};
+const ULT_CINE_T = { zoom: 0.25, charge: 1.25, strike: 0.35, hold: 0.2 };   // duración de cada parte (s)
+
+class UltCine {
+  constructor(game) {
+    this.g = game; this.on = false; this.t = 0;
+    const c = this.cv = document.createElement('canvas');
+    c.id = 'ultCine';
+    c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:22;display:none;pointer-events:none';
+    document.body.appendChild(c);
+    this.ctx = c.getContext ? c.getContext('2d') : null;
+  }
+  has(id) { return !!ULT_CINE[id] && !!this.ctx; }
+  start(id, name, done) {
+    const g = this.g;
+    this.R = ULT_CINE[id]; this.S = { col: this.R.col }; this.name = name; this.done = done; this.t = 0; this.on = true; this.lastImp = ''; this.gq = -1;
+    const T = ULT_CINE_T; this.total = T.zoom + T.charge + T.strike + T.hold;
+    this.cam = g.camDistT; g.camDistT = this.R.orb.at === 'head' ? 15 : 10;      // con la esfera sobre la cabeza, la cámara se aleja un poco
+    this.cv.style.display = 'block'; this.resize(); g.ui.showHud(false); cineToasts(false);
+    SFX.play('charge'); SFX.scream(1.4, 160);
+  }
+  end() {
+    if (!this.on) return;
+    const g = this.g, p = g.player;
+    this.on = false; this.cv.style.display = 'none';
+    p.cineChg = false; g.camDistT = this.cam || 19; g.renderer.domElement.style.filter = ''; g.ui.showHud(true); cineToasts(true);
+    if (this.done) this.done();
+  }
+  resize() { const r = Math.min(2, window.devicePixelRatio || 1); this.cv.width = Math.round(window.innerWidth * r); this.cv.height = Math.round(window.innerHeight * r); }
+  /** Dibuja un fotograma de una animación de efectos (en su lote) para este cuadro */
+  fx(name, k, x, y, z, size, tint, rot) {
+    const V = this.g.vfx, a = FXA[name]; if (!V || !V.ok || !a) return;
+    V.now(a.s === 'fxbig' ? 2 : 0, fxf(name, k % a.f.length), x, y, z, size, 1, tint, rot || 0);
+  }
+  update(dt) {
+    if (!this.on) return true;
+    this.t += dt;
+    if (this.t >= this.total) { this.end(); return true; }
+    const G = this.g, p = G.player, R = this.R, O = R.orb, T = ULT_CINE_T, t = this.t;
+    const tc = t - T.zoom, ts = tc - T.charge, charging = tc >= 0 && ts < 0, striking = ts >= 0;
+    const u = clamp(tc / T.charge, 0, 1);                                    // avance de la carga
+    // Hacia dónde mira el personaje (en el eje «derecha» de la cámara)
+    const sx = (p.flip ? -1 : 1) * G.camCos, sz = (p.flip ? -1 : 1) * -G.camSin;
+    // Pose: cargando Ki (con su aura) y después la pose de ataque
+    p.cineChg = charging;
+    if (striking) { p.beamT = Math.max(p.beamT, 0.2); p.atkT = Math.max(p.atkT, 0.2); }
+    // La técnica que crece: encima de la cabeza, en las manos o en corona alrededor
+    if (tc >= 0) {
+      const s = O.s[0] + (O.s[1] - O.s[0]) * Math.min(1, striking ? 1 : u), k = (t * 14) | 0, rot = O.spin ? t * 14 : 0;
+      if (O.at === 'head') this.fx(O.name, k, p.x, 2.9 + s * 0.36, p.z, s, O.tint, rot);
+      else if (O.at === 'hands') this.fx(O.name, k, p.x + sx * (0.9 + s * 0.25), 1.5, p.z + sz * (0.9 + s * 0.25), s, O.tint, rot);
+      else if (O.at === 'ring1') this.fx(O.name, k, p.x, 1.3, p.z, s, O.tint, t * 3);
+      else for (let i = 0; i < 8; i++) {                                     // corona de esferas (Hellzone)
+        const a = (i / 8) * 6.2832 + t * 1.5, r = 5 - u * 1.5;
+        this.fx(O.name, k + i, p.x + Math.cos(a) * r, 1.2 + (i % 3) * 0.8, p.z + Math.sin(a) * r, s, O.tint);
+      }
+    }
+    // Energía que converge hacia el personaje mientras carga
+    if (charging && ((t * 30) | 0) !== this.gq) {
+      this.gq = (t * 30) | 0;
+      for (let i = 0; i < 3; i++) {
+        const a = Math.random() * 6.2832, r = rand(6, 10), y = rand(0.5, 4);
+        G.fx.sparks.emit(p.x + Math.cos(a) * r, y, p.z + Math.sin(a) * r, -Math.cos(a) * r * 2.2, (2 - y) * 0.8, -Math.sin(a) * r * 2.2, 0.45, 0.35, 0, R.gather);
+      }
+      if (this.gq % 9 === 0) G.fx.ring(G.fx.aura, p.x, 0.4, p.z, 30, 6 + u * 4, 0.45, 0.35, R.gather);
+      G.shake(0.15 + u * 0.35);
+    }
+    // Capa 2D: barras de cine, nombre y frase, impact frames
+    const g = this.ctx, W = this.cv.width, H = this.cv.height;
+    if (W !== Math.round(window.innerWidth * Math.min(2, window.devicePixelRatio || 1))) this.resize();
+    g.clearRect(0, 0, W, H);
+    if (striking && ts < T.strike) {
+      const k = R.imp[Math.min(R.imp.length - 1, (ts / T.strike * R.imp.length) | 0)];
+      this.impact(k, W, H);
+      if (k !== this.lastImp) { this.lastImp = k; G.shake(1.1); if (k === 'W') SFX.play('stinger'); }
+    } else if (this.lastImp) { this.lastImp = ''; G.renderer.domElement.style.filter = ''; }
+    const bar = H * 0.1 * Math.min(1, t / 0.2, (this.total - t) / 0.15);
+    g.fillStyle = '#000'; g.fillRect(0, 0, W, bar); g.fillRect(0, H - bar, W, bar);
+    if (tc > 0.1 && !(striking && ts < T.strike)) {
+      const a = Math.min(1, (tc - 0.1) * 5), sc = 1 + Math.max(0, 0.2 - (tc - 0.1)) * 1.5;
+      g.save(); g.globalAlpha = a;
+      this.text(R.kanji, W * 0.5, H * 0.66, H * 0.045, 'rgba(255,255,255,0.85)');      // abajo: la técnica crece arriba
+      this.text(this.name, W * 0.5, H * 0.75, H * 0.09 * sc, R.col);
+      this.text(R.quote, W * 0.5, H - bar - H * 0.05, H * 0.038, '#fff');
+      g.restore();
+    }
+    return false;
+  }
+}
+UltCine.prototype.text = FusionIntro.prototype.text;
+UltCine.prototype.impact = FusionIntro.prototype.impact;

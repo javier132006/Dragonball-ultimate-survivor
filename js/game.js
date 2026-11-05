@@ -73,6 +73,7 @@ class Game {
     this.ui.sheets = sheets;
     this.cine = new TransformScene(this);                // cinemática de transformación
     this.intro = new FusionIntro(this);                  // intro de la fusión de Vegetto y Gogeta
+    this.ultCine = new UltCine(this);                    // animación de la Ultimate de cada personaje
     this.touch = new TouchControls(this);                // controles táctiles (solo en móvil)
     this.pad = new PadInput(this);                       // mando (Gamepad API)
     // Cuenta y ranking mundial (Supabase). Si no está configurado, el juego funciona igual
@@ -1492,9 +1493,16 @@ class Game {
     // Desventaja de la Ultimate: empieza al lanzarla (después del destello)
     const D = U.debuff;
     if (D) this.after(0.6, () => { p.ud = D; p.udT = D.t; if (D.hp) p.hp = Math.max(1, p.hp - p.maxHp * D.hp); if (D.nodash) p.noDashT = Math.max(p.noDashT, D.t); this.ui.toast('✖ ' + D.name + ': ' + D.text, true); });
-    this.ultT = 0; this.ultCut = false;
-    this.hitstop = Math.max(this.hitstop, 0.5);                  // el mundo se congela mientras dura el destello
-    this.shake(0.6); SFX.play('boom');
+    const fire = () => {
+      this.ultT = 0; this.ultCut = false;
+      this.hitstop = Math.max(this.hitstop, 0.5);                // el mundo se congela mientras dura el destello
+      this.shake(0.6); SFX.play('boom');
+    };
+    // Animación propia de cada personaje (el mundo espera congelado) y después la Ultimate
+    if (this.ultCine.has(p.ch.id) && !Save.d.opt.noCine) {
+      this.state = 'ultcine';
+      this.ultCine.start(p.ch.id, U.name, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); });
+    } else fire();
   }
   /** Secuencia de la Ultimate en tiempo real: destellos de impacto de colores y, al final, el tajo */
   updateUlt(dt) {
@@ -1973,7 +1981,7 @@ class Game {
     requestAnimationFrame(this.loop);
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     const s = this.state;
-    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro';
+    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine';
     if (vf) this.vfx.begin(this.camera);
     if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }
     if (s === 'play' && IS_TOUCH && window.innerHeight > window.innerWidth) this.togglePause();   // móvil en vertical: pausa
@@ -2014,8 +2022,8 @@ class Game {
       this.fx.update(rawDt); this.updateCamera(rawDt, rawDt, false);
       if (this.transT > 0.7 && !this.transDone) { this.transDone = true; this.nextStage(this.riftTo); this.ui.el.fade.style.opacity = 0; }
       if (this.transT > 1.4) { this.state = 'play'; this.clock.getDelta(); }
-    } else if (s === 'intro') {                                       // intro de la fusión (Vegetto, Gogeta) dentro del mapa
-      this.intro.update(rawDt);
+    } else if (s === 'intro' || s === 'ultcine') {                    // intro de la fusión / animación de la Ultimate, dentro del mapa
+      (s === 'intro' ? this.intro : this.ultCine).update(rawDt);
       const p = this.player;
       p.animT += rawDt; p.pose();
       this.fx.update(rawDt);
