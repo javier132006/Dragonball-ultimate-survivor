@@ -13,7 +13,7 @@ const SHEET_NAMES = ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku
   'freezer1', 'freezer3', 'freezer', 'freezer_fp', 'freezer_gold', 'trunks', 'trunks_ss', 'cell_imp', 'cell_semi', 'cell', 'piccolo', 'krilin',
   'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4', 'gogeta_base', 'gogeta', 'gogeta_ss2', 'gogeta_blue',
   'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg', 'gogeta_chg', 'vegito_intro', 'gogeta_intro',
-  'enemies', 'bosses', 'fx', 'fxbig', 'fxzip', 'impact', 'props', 'tall', 'icons', 'tiles'];
+  'enemies', 'bosses', 'fx', 'fxbig', 'fxzip', 'props', 'tall', 'icons', 'tiles'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4 columnas, fila*4+columna) ---------- */
 /* 0 quieto · 1-2 caminar · 5 golpe · 8 herido · 9 dash · 10 rayo · 11 técnica · 12-14 muerte */

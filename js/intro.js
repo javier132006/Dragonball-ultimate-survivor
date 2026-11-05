@@ -36,26 +36,6 @@ const INTROS = {
   ] }
 };
 const INTRO_SPREAD = 9;
-
-/* Impact frames (hoja «impact», 4 columnas de 256 px). Índices de cada fotograma por tipo de impacto:
-   radial = estallido de rayos · lines = líneas de velocidad · ring = anillo o marco · slash = tajo de espada */
-const IMP_POOL = {
-  B: [0, 2, 5, 13, 14],                // negro: estallido blanco
-  I: [0, 2, 5, 13, 14],                // negativo: el filtro invierte la escena y encima va el estallido blanco
-  W: [1, 7, 8, 9, 10, 12, 11],         // blanco: líneas de velocidad y el tajo, en negro
-  C: [3, 4, 6, 13]                     // color: anillos y grietas en blanco sobre el color de la escena
-};
-let impTint = null;                    // lienzo auxiliar para teñir un fotograma sin tocar la hoja original
-/** Dibuja el fotograma `idx` de la hoja `S` centrado en (x, y), de `size` píxeles, teñido de `col` y girado `rot` */
-function drawImpactSprite(g, S, idx, x, y, size, col, rot) {
-  const cw = S.w, ch = S.h, sx = (idx % S.cols) * cw, sy = Math.floor(idx / S.cols) * ch;
-  if (!impTint) impTint = document.createElement('canvas');
-  impTint.width = cw; impTint.height = ch;
-  const t = impTint.getContext('2d');
-  t.clearRect(0, 0, cw, ch); t.drawImage(S.tex.image, sx, sy, cw, ch, 0, 0, cw, ch);
-  t.globalCompositeOperation = 'source-in'; t.fillStyle = col; t.fillRect(0, 0, cw, ch);   // solo se tiñen los píxeles visibles
-  g.save(); g.translate(x, y); g.rotate(rot); g.drawImage(impTint, -size / 2, -size / 2, size, size); g.restore();
-}
 /** Oculta los avisos de la partida durante las escenas (no tapan los textos de la cinemática) */
 const cineToasts = (on) => { for (const id of ['toast', 'feed']) { const e = document.getElementById(id); if (e) e.style.visibility = on ? '' : 'hidden'; } };           // unidades del mundo entre la posición 0 y 1 de la pantalla
 
@@ -122,30 +102,18 @@ class FusionIntro {
     g.lineJoin = 'round'; g.lineWidth = size * 0.16; g.strokeStyle = '#000'; g.strokeText(t, x, y);
     g.fillStyle = col || '#fff'; g.fillText(t, x, y); g.restore();
   }
-  /** Un impact frame (B negro · I negativo · W blanco · C color). Dibuja fotogramas de la hoja «impact» (dibujos de
-   tinta: blanco sobre transparente, teñidos según el fondo). Si la hoja no está, usa los rayos de siempre. */
+  /** Un impact frame (B negro con estallido blanco · I negativo · W blanco con líneas negras · C color con líneas) */
   impact(k, W, H) {
     const g = this.ctx, el = this.g.renderer.domElement, cx = W / 2, cy = H * 0.55;
     el.style.filter = k === 'I' ? 'grayscale(1) contrast(9) invert(1)' : '';
-    const S = this.g.ui.sheets && this.g.ui.sheets.impact;
-    if (!S || !S.tex || !S.tex.image) {                            // respaldo: rayos dibujados por código
-      const rays = (col, n, w) => {
-        g.save(); g.translate(cx, cy); g.fillStyle = col;
-        for (let i = 0; i < n; i++) { const a = (i / n) * 6.2832 + Math.random() * 0.2, r = Math.hypot(W, H); g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a - w) * r, Math.sin(a - w) * r); g.lineTo(Math.cos(a + w) * r, Math.sin(a + w) * r); g.fill(); }
-        g.restore();
-      };
-      if (k === 'B') { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); rays('#fff', 18, 0.03); }
-      else if (k === 'W') { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); rays('#000', 26, 0.012); }
-      else if (k === 'C') { g.fillStyle = this.S.col; g.globalAlpha = 0.85; g.fillRect(0, 0, W, H); g.globalAlpha = 1; rays('#fff', 22, 0.015); }
-      return;
-    }
-    // Fondo: negro en B, blanco en W y color de la escena en C. En I no hay fondo: el filtro invierte la escena
-    if (k === 'B') { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
-    else if (k === 'W') { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); }
-    else if (k === 'C') { g.fillStyle = this.S.col; g.globalAlpha = 0.85; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
-    // Un fotograma de la categoría de este impacto, grande y girado al azar; negro sobre blanco, blanco en el resto
-    const pool = IMP_POOL[k] || IMP_POOL.B, idx = pool[(Math.random() * pool.length) | 0];
-    drawImpactSprite(g, S, idx, cx, cy, Math.max(W, H) * 1.3, k === 'W' ? '#000' : '#fff', Math.random() * 6.2832);
+    const rays = (col, n, w) => {
+      g.save(); g.translate(cx, cy); g.fillStyle = col;
+      for (let i = 0; i < n; i++) { const a = (i / n) * 6.2832 + Math.random() * 0.2, r = Math.hypot(W, H); g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a - w) * r, Math.sin(a - w) * r); g.lineTo(Math.cos(a + w) * r, Math.sin(a + w) * r); g.fill(); }
+      g.restore();
+    };
+    if (k === 'B') { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); rays('#fff', 18, 0.03); }
+    else if (k === 'W') { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); rays('#000', 26, 0.012); }
+    else if (k === 'C') { g.fillStyle = this.S.col; g.globalAlpha = 0.85; g.fillRect(0, 0, W, H); g.globalAlpha = 1; rays('#fff', 22, 0.015); }
   }
   update(dt) {
     if (!this.on) return true;
