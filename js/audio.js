@@ -114,6 +114,8 @@ class SoundEngine {
   s_tp(t) { this.tone('sine', 2200, 400, t, 0.15, 0.06); this.tone('sine', 400, 2200, t + 0.08, 0.12, 0.05); }
   s_phase(t) { this.tone('sawtooth', 70, 140, t, 1.2, 0.12, null, 0.05); this.hiss('lowpass', 3000, 100, 0.7, t, 1.2, 0.3, null, 0.01); [45, 51].forEach((n) => this.tone('square', NOTE(n), NOTE(n), t, 0.9, 0.04)); }
   s_revert(t) { this.tone('sine', 660, 220, t, 0.4, 0.07); }
+  s_radar(t) { this.tone('sine', 1320, 1320, t, 0.06, 0.05); }
+  s_radar2(t) { this.tone('sine', 1980, 1980, t, 0.05, 0.06); }
   s_warn(t) { this.tone('square', 880, 880, t, 0.08, 0.04); this.tone('square', 880, 880, t + 0.14, 0.08, 0.04); }
   s_stinger(t) { [60, 64, 67, 72].forEach((n) => this.tone('sawtooth', NOTE(n), NOTE(n), t, 1.1, 0.035, null, 0.02)); this.tone('square', NOTE(84), NOTE(84), t, 0.6, 0.03); }
 

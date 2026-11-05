@@ -854,7 +854,7 @@ const ITEMS = [
 
   { id: 'ropa_piccolo', icon: '▼', name: 'Ropa con Pesas de Piccolo', rarity: 2, text: '+15% de daño y 6% menos de daño recibido.', apply: (p) => { p.statDmg += 0.15; p.armor = Math.min(0.6, p.armor + 0.06); } },
   { id: 'agua_karin', icon: '≈', name: 'Agua Sagrada de Karin', rarity: 2, text: '+40 de vida máxima y +1 de vida/s.', apply: (p) => { hp(p, 40); p.regen += 1; } },
-  { id: 'radar_bulma', icon: '◉', name: 'Radar de Bulma', rarity: 2, text: '+40% de imán y +20% de experiencia.', apply: (p) => { p.magnet *= 1.4; p.xpMul += 0.2; } },
+  { id: 'radar_bulma', icon: '◉', name: 'Radar de Bulma', rarity: 2, text: '+40% de imán, +20% de experiencia y ves las esferas en el radar.', apply: (p) => { p.magnet *= 1.4; p.xpMul += 0.2; p.ballSight = true; } },
   { id: 'gravedad', icon: '⟳', name: 'Cámara de Gravedad', rarity: 2, text: '+20% de cadencia de ataque.', apply: (p) => { p.rateMul += 0.2; } },
   { id: 'bolsa_zeni', icon: '$', name: 'Bolsa de Zeni', rarity: 2, text: '+30% de Zeni ganados.', apply: (p) => { p.zeniMul += 0.3; } },
 
@@ -1373,6 +1373,7 @@ const PACTS = [
   { id: 'horda', icon: '☠', name: 'Pacto de la Horda', good: '+40% de experiencia y de Zeni', bad: 'Los enemigos van un 25% más rápido', apply: (p) => { p.xpMul *= 1.4; p.zeniMul *= 1.4; }, game: (g) => { g.mods.fast = true; } },
   { id: 'instinto', icon: '◎', name: 'Pacto del Instinto', good: '+15% de crítico y +50% de daño crítico', bad: '-15% de velocidad', apply: (p) => { p.crit += 0.15; p.critDmg += 0.5; p.speedMul *= 0.85; } }
 ];
+const BALL_SEE = 22;   // Radar del Dragón: a menos de esta distancia las esferas aparecen en el radar
 const dailySeed = () => +todayStr().replace(/-/g, '');
 /** 2 modificadores del día (iguales para todos ese día) */
 function dailyMods() {

@@ -118,7 +118,7 @@ class UIManager {
       else { gl = 'ENJAMBRE EN'; gv = fmtTime(Math.max(0, game.swarmAt() - game.stageTime)); }
       T(e.goalL, gl); T(e.goal, gv); this.setV(e.goal, 'color', gc);
       T(e.diffName, (game.daily ? 'DESAFÍO DIARIO · ' : '') + game.diff.name + (game.chal ? ' · DESAFÍO ' + game.chal : '')); this.setV(e.diffName, 'color', game.diff.color);
-      T(e.balls, game.pickups.collected + ' / 7');
+      T(e.balls, game.pickups.collected + ' / 7' + (game.ballDist < 1e8 ? ' · ⌖ ' + Math.round(game.ballDist) + ' m' : ''));   // Radar del Dragón: distancia a la esfera más cercana
       // Bioma actual (y si es de noche)
       const b = biomeAt(p.x, p.z);
       if (b !== this.lastBiome) { this.lastBiome = b; if (game.state === 'play' && game.time > 1) this.toast(BIOME_NAMES[b], true); }
@@ -266,7 +266,7 @@ class UIManager {
       if (q.used && q.type !== 'merchant' && q.type !== 'swapper') continue;
       edge(q.x, q.z, PC[q.type], PL[q.type], 7);
     }
-    for (let i = 0; i < 7; i++) if (!pk.got[i]) edge(pk.bx[i], pk.bz[i], '#ffb030', '★', 6);
+    for (let i = 0; i < 7; i++) if (!pk.got[i] && (p.ballSight || Math.hypot(pk.bx[i] - p.x, pk.bz[i] - p.z) < BALL_SEE)) edge(pk.bx[i], pk.bz[i], '#ffb030', '★', 6);   // esferas: solo de cerca
     for (const r of game.points.rifts) edge(r.x, r.z, '#' + r.col.toString(16).padStart(6, '0'), '◎', 8 + Math.sin(t * 6));
     const ri = game.rivalUid ? h.indexOfUid(game.rivalUid) : -1;
     if (ri >= 0) edge(h.x[ri], h.z[ri], '#ff9a00', '⚔', 7);
@@ -285,7 +285,7 @@ class UIManager {
     g.clearRect(0, 0, N, N);
     if (w.mini) g.drawImage(w.mini, 0, 0, N, N);
     const sq = (x, z, s, c) => { g.fillStyle = c; g.fillRect(X(x) - s / 2, X(z) - s / 2, s, s); };
-    for (let i = 0; i < 7; i++) if (!game.pickups.got[i]) sq(game.pickups.bx[i], game.pickups.bz[i], 3 * k, '#ffd84a');
+    for (let i = 0; i < 7; i++) if (!game.pickups.got[i] && (p.ballSight || Math.hypot(game.pickups.bx[i] - p.x, game.pickups.bz[i] - p.z) < BALL_SEE)) sq(game.pickups.bx[i], game.pickups.bz[i], 3 * k, '#ffd84a');
     const CC = ['#ff7ad0', '#ffd24a', '#b050ff'];
     for (let i = 0; i < game.capsules.n; i++) sq(game.capsules.x[i], game.capsules.z[i], (game.capsules.gold[i] ? 3 : 2) * k, CC[game.capsules.gold[i]]);
     const PC = { boss: '#ff3050', time: '#6fd0ff', temple: '#5be07a', merchant: '#ffd24a', swapper: '#ff9a3a' };

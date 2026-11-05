@@ -30,7 +30,7 @@ class Player {
 
   /** Prepara al personaje elegido con sus stats base + mejoras permanentes del laboratorio */
   reset(ch) {
-    this.ch = ch; this.fusion = null; this.pact = null;                // pacto del Oráculo de Kami (id)                              // fusión en tiempo real: { id, ch, sheet, t }
+    this.ch = ch; this.fusion = null; this.pact = null; this.godT = 0;                // pacto del Oráculo de Kami (id)                              // fusión en tiempo real: { id, ch, sheet, t }
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
     this.chgSheet = this.sheets[ch.id + '_chg'] ? ch.id + '_chg' : null; if (this.chgSheet) this.batch(this.chgSheet);
     this.cineChg = false; this.chgPose = false;
@@ -61,6 +61,7 @@ class Player {
     const ch = this.ch, L = (id) => Save.lab(id);
     this.guanteMul = 1; this.pluma = false; this.reloj = false;                // objetos nuevos (se reaplican al recalcular)
     this.takeMul = 1; this.noSenzu = false; this.noRegen = false;              // debilidades de los pactos de Kami
+    this.ballSight = false;                                                    // Radar de Bulma: ves las esferas en el radar
     this.kiMul = 1 + 0.05 * L('kidmg');                                        // Entrenamiento de Ki: daño de las técnicas de ki
     // Gravedad Extra: +10% de vida máxima
     this.maxHp = Math.round(ch.hp * (1 + 0.08 * L('hp')) * (1 + 0.1 * L('gravx'))); this.maxKi = ch.ki; this.kiRegen = 4 * (1 + 0.08 * L('ki'));
@@ -122,7 +123,7 @@ class Player {
   get ultId() { return this.fusion ? this.fusion.id : this.ch.id; }
   addUlt(n) { const U = this.ultD; if (U) this.ult = Math.min(U.cost, this.ult + n * (this.ultId === 'gogeta' ? 1.25 : 1)); }
   damageMul() {
-    let m = this.statDmg * this.form.dmg * (this.buffT > 0 ? 1 + this.buffDmg : 1) * (this.fusion ? 1.4 : 1);   // fusión: +40% de daño
+    let m = this.statDmg * this.form.dmg * (this.buffT > 0 ? 1 + this.buffDmg : 1) * (this.fusion ? 1.4 : 1) * (this.godT > 0 ? 2 : 1);   // fusión +40% · Poder de los dioses x2
     if (this.ch.id === 'goku') m *= 1 + 0.015 * (this.level - 1);                     // Zenkai
     if (this.ch.id === 'vegeta' && this.ki >= this.maxKi * 0.8) m *= 1.25;           // Orgullo Saiyajin
     if (this.ch.id === 'gohan' && this.hp < this.maxHp * 0.5) m *= 1.4;               // Potencial oculto
@@ -137,7 +138,7 @@ class Player {
 
   /** Devuelve true si el golpe entra (para el empujón de los enemigos grandes) */
   takeDamage(amount, game) {
-    if (this.iframes > 0 || game.state !== 'play') return false;
+    if (this.iframes > 0 || game.state !== 'play' || this.godT > 0) return false;   // Poder de los dioses: invencible
     // Rasgo Ultra Instinto: esquiva todo mientras quede Ki
     if (this.tr.dodgeKi && this.ki >= this.tr.dodgeKi) { this.ki -= this.tr.dodgeKi; this.iframes = 0.35; game.onAutoDodge(); return false; }
     if (this.barT > 0 && this.barHits > 0) {                        // Barrera de Ki: para el golpe entero
@@ -194,7 +195,7 @@ class Player {
     this.iframes = Math.max(0, this.iframes - dt); this.dashCd = Math.max(0, this.dashCd - dt);
     this.atkT = Math.max(0, this.atkT - dt); this.hurtT = Math.max(0, this.hurtT - dt); this.beamT = Math.max(0, this.beamT - dt);
     this.charging = !!keys.KeyC && this.dashT <= 0;
-    this.tpCd = Math.max(0, this.tpCd - dt); this.tfCd = Math.max(0, this.tfCd - dt);
+    this.tpCd = Math.max(0, this.tpCd - dt); this.godT = Math.max(0, (this.godT || 0) - dt); this.tfCd = Math.max(0, this.tfCd - dt);
 
     // --- Transmisión Instantánea (F): te teletransportas 14 m hacia donde te mueves ---
     const fKey = !!keys.KeyF;

@@ -198,6 +198,8 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
   background:#000;border:3px solid var(--c1,var(--ki));border-radius:8px}
 #tfBanner .trt u{text-decoration:none;font-family:var(--disp);font-size:clamp(15px,2.1vw,24px);color:var(--c1,var(--ki))}
 @keyframes tfb{0%{opacity:0;transform:scale(2.6)}12%{opacity:1;transform:scale(.94)}20%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.06) translateY(-20px)}}
+#balls.ping{animation:radarPing .35s ease-out}
+@keyframes radarPing{0%{color:#fff;text-shadow:0 0 10px #ffd84a,0 0 18px #ffb030}100%{text-shadow:none}}
 #ultFx{position:fixed;inset:0;pointer-events:none;z-index:45;opacity:0;background:#000}
 /* Cinemática de transformación de los jefes: franjas de cine y el nombre de la nueva forma */
 #bossCine{position:fixed;inset:0;pointer-events:none;z-index:44;display:none;--bc:#ff5a3a}

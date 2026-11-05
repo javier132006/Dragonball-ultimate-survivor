@@ -451,6 +451,7 @@ class Game {
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
     this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
+    this.bossWeak = false; this.ballDist = 1e9; this.radarT = 0;
     this.camFocus = null; const bcEl = document.getElementById('bossCine'); if (bcEl) bcEl.classList.remove('show');   // por si acabó en mitad de una cinemática
     this.practice = !!practice; this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = rand(90, 130); this.rivalUid = 0; this.achT = 1;
     this.allies.reset(); this.setStorm(0);
@@ -826,6 +827,19 @@ class Game {
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
 
+  /* ---------- Radar del Dragón: distancia a la esfera más cercana y pitidos más rápidos al acercarte ---------- */
+  updateRadar(dt) {
+    const pk = this.pickups, p = this.player; let d = 1e9;
+    for (let i = 0; i < 7; i++) if (!pk.got[i]) d = Math.min(d, Math.hypot(pk.bx[i] - p.x, pk.bz[i] - p.z));
+    this.ballDist = d;
+    if (d > 150) return;
+    this.radarT = (this.radarT || 0) - dt;
+    if (this.radarT <= 0) {
+      this.radarT = clamp(0.1 + d / 55, 0.12, 2.6);            // de un pitido cada 2,6 s (lejos) a casi continuo (encima)
+      SFX.play(d < 15 ? 'radar2' : 'radar');
+      const el = this.ui.el.balls; if (el) { el.classList.remove('ping'); void el.offsetWidth; el.classList.add('ping'); }
+    }
+  }
   /* ---------- Rival con memoria: recuerda con qué tipo de técnica lo venciste y se prepara contra ella ---------- */
   rivalCat(src) {
     if (src === 'ult') return 'ult';
@@ -1297,6 +1311,7 @@ class Game {
     const lvMul = 1 + 0.025 * (this.player.level - 1);
     const i = this.horde.spawn(x, z, B.hp * lvMul * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15) * (this.mods.bigboss ? 1.5 : 1), T_BOSS);
     if (i >= 0) {
+      if (this.bossWeak) { this.bossWeak = false; this.horde.hp[i] *= 0.5; this.ui.toast('¡El castigo de Shenron lo ha debilitado!', true); }
       this.bossUid = this.horde.uid[i]; this.bossSpawned = true;
       this.boss = { t: {}, q: [], gap: 1.2, seen: {}, spiral: 0, spA: 0, spT: 0, spTint: 0, dashW: 0, sd: false };
       this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = 0.62; this.horde.tints[T_BOSS] = B.tints[0];
@@ -1938,7 +1953,10 @@ class Game {
       { id: 'dmg', icon: '⬆', title: 'Poder ilimitado', text: '+35% de daño durante toda la partida.' },
       { id: 'zeni', icon: '$', title: 'Fortuna', text: '+400 Zeni ahora y +500 monedas al terminar la partida.' },
       { id: 'revive', icon: '✚', title: 'Segunda oportunidad', text: 'Revives una vez con el 50% de vida.' },
-      { id: 'lv', icon: '★', title: 'Entrenamiento divino', text: 'Subes 2 niveles al instante.' }
+      { id: 'lv', icon: '★', title: 'Entrenamiento divino', text: 'Subes 2 niveles al instante.' },
+      { id: 'ally', icon: '☯', title: 'Compañero eterno', text: 'Un aliado lucha a tu lado el resto de la partida.' },
+      { id: 'boss', icon: '☠', title: 'Castigo divino', text: 'El jefe pierde la mitad de su vida (si aún no ha llegado, llegará debilitado).' },
+      { id: 'god', icon: '✧', title: 'Poder de los dioses', text: '45 segundos invencible y con el doble de daño.' }
     ];
     const cards = [];
     while (cards.length < 3) { const c = pick(all); if (!cards.includes(c)) cards.push(c); }
@@ -1948,6 +1966,13 @@ class Game {
       else if (c.id === 'dmg') { p.buffs.push('w_dmg'); p.recompute(); }
       else if (c.id === 'zeni') { this.zeniRun += 500; this.gainCash(400); }
       else if (c.id === 'revive') p.canRevive = true;
+      else if (c.id === 'ally') { const al = this.allies.summon(this); if (al) { al.t = 1e9; this.ui.toast('¡' + al.d.name + ' SE UNE A TI PARA SIEMPRE!', true); } else this.ui.toast('Ya tienes a todos tus aliados', true); }
+      else if (c.id === 'boss') {
+        const h = this.horde; let hit = false;
+        for (let i = 0; i < h.n; i++) if (h.type[i] === T_BOSS) { h.hp[i] *= 0.5; hit = true; }
+        if (hit) this.ui.toast('¡SHENRON CASTIGA AL JEFE: PIERDE LA MITAD DE SU VIDA!', true); else { this.bossWeak = true; this.ui.toast('El próximo jefe llegará debilitado', true); }
+      }
+      else if (c.id === 'god') { p.godT = 45; this.ui.toast('✧ PODER DE LOS DIOSES · 45 S', true); }
       else { this.addXp(p.xpNext - p.xp); this.addXp(p.xpNext); }
       this.pickups.scatterBalls();
       this.ui.hideCards();
@@ -2108,6 +2133,7 @@ class Game {
     this.shots.update(dt, this);
     this.allies.update(dt, this);
     this.updateFusion(dt);
+    this.updateRadar(dt);
     this.updateRival(dt);
     if (this.world.follow(p.x, p.z)) this.shadowDirty = true;
 
