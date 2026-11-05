@@ -9,7 +9,7 @@
 
 /* Botón -> tecla según el estado del juego (índices de la distribución estándar) */
 const PAD_MAP = {
-  play: { 0: 'Space', 1: 'KeyF', 2: 'KeyE', 3: 'KeyG', 4: 'KeyV', 6: 'KeyV', 5: 'KeyC', 7: 'KeyC', 8: 'KeyM', 9: 'Escape', 10: 'KeyQ', 12: 'KeyT', 13: 'KeyH' },
+  play: { 0: 'Space', 1: 'KeyF', 2: 'KeyE', 3: 'KeyG', 4: 'KeyV', 5: 'KeyR', 6: 'ShiftLeft', 7: 'KeyC', 8: 'KeyM', 9: 'Escape', 10: 'KeyQ', 12: 'KeyT', 13: 'KeyH' },
   cards: { 0: 'Enter', 2: 'KeyR', 14: 'ArrowLeft', 15: 'ArrowRight' },
   pause: { 9: 'Escape', 8: 'Tab' },
   trade: { 1: 'Escape', 2: 'KeyE' },
@@ -59,8 +59,8 @@ class PadInput {
     // Stick derecho: cámara
     const rx = ax[2] || 0, ry = ax[3] || 0;
     if ((g.state === 'play' || g.state === 'dying') && Math.hypot(rx, ry) > dz) {
-      g.camYaw -= rx * 2.6 * dt;
-      g.camPitch = clamp(g.camPitch + ry * 1.8 * dt, 0.12, 1.35);
+      g.camYaw -= rx * 2.6 * dt; if (Math.abs(ry) > 0.2) g.flyCamT = 0;
+      g.camPitch = clamp(g.camPitch + ry * 1.8 * dt, Math.min(g.pitchMin(), g.camPitch), 1.35);
     }
   }
 }

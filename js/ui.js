@@ -10,7 +10,7 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
-      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abTp', 'tpFill', 'abUlt', 'ultFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abFly', 'abTp', 'tpFill', 'abUlt', 'ultFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'cardFoot', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
@@ -149,6 +149,7 @@ class UIManager {
     this.setC(e.abCharge, 'ab' + (p.charging ? ' on' : ''));
     sc(e.tpFill, 1 - p.tpCd / p.tpMax);
     this.setC(e.abTp, 'ab' + (p.tpCd > 0 || p.ki < 35 ? ' low' : ''));
+    this.setC(e.abFly, 'ab' + (p.flying ? ' on' : p.ki < CFG.FLY_TAKEOFF ? ' low' : ''));   // encendido mientras vuelas
     // Ultimate: solo para los personajes que la tienen; se ilumina cuando está cargada
     if (p.ch.ult) {
       if (e.abUlt.style.display !== '') e.abUlt.style.display = '';
@@ -522,8 +523,8 @@ class UIManager {
       '<textarea id="saveTxt" spellcheck="false" placeholder="Aquí aparecerá el texto de la copia, o pega aquí una copia para importarla"></textarea>' +
       '<div class="qbs"><button class="qb" data-exp>EXPORTAR</button><button class="qb" data-imp>IMPORTAR' + (this.impArmed ? ' (CONFIRMAR)' : '') + '</button><button class="qb" data-impfile>ELEGIR ARCHIVO…</button><input type="file" id="impFile" accept=".json,.txt,application/json" style="display:none"></div>' +
       (this.optMsg ? '<p class="omsg">' + this.optMsg + '</p>' : '') + '</div></div>' +
-      '<div class="item info wide"><div><b>CONTROLES</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · V volar con Ki · F Transmisión Instantánea · G transformarse (sube de una en una: cuesta Ki, y mantener la forma también) · H volver a la forma base · F11 o el botón de la esquina: pantalla completa · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
-      'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · LB/LT volar · RB/RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir, A para confirmar y X para cambiar las cartas.</p></div></div>' +
+      '<div class="item info wide"><div><b>CONTROLES</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · V volar con Ki (vuelas hacia donde miras; R sube y SHIFT baja) · F Transmisión Instantánea · G transformarse (sube de una en una: cuesta Ki, y mantener la forma también) · H volver a la forma base · F11 o el botón de la esquina: pantalla completa · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
+      'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · LB volar · RB subir · LT bajar · RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir, A para confirmar y X para cambiar las cartas.</p></div></div>' +
       '<div class="item info"><div><b>SONIDO SINTETIZADO</b><p>Toda la música y los efectos se generan en el momento con Web Audio (sin archivos). En el móvil, el sonido se activa al tocar la pantalla por primera vez.</p></div></div></div>';
     this.optMsg = '';
   }

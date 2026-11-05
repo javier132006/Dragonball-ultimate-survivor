@@ -237,8 +237,8 @@ class Game {
     window.addEventListener('mousemove', (e) => {
       if (this.state !== 'play' && this.state !== 'dying') return;
       if (!this.locked() && !this.drag) return;                       // sin captura: botón derecho + arrastrar
-      this.camYaw -= e.movementX * 0.0025;
-      this.camPitch = clamp(this.camPitch + e.movementY * 0.0025, 0.12, 1.35);
+      this.camYaw -= e.movementX * 0.0025; if (e.movementY) this.flyCamT = 0;   // si mueves la cámara, deja de colocarse sola
+      this.camPitch = clamp(this.camPitch + e.movementY * 0.0025, Math.min(this.pitchMin(), this.camPitch), 1.35);
     });
     // Si el navegador libera el ratón (Esc) durante la partida, se pausa
     document.addEventListener('pointerlockchange', () => { if (!this.locked() && this.state === 'play') this.togglePause(); });
@@ -329,6 +329,8 @@ class Game {
   }
 
   locked() { return document.pointerLockElement === this.renderer.domElement; }
+  /** Inclinación mínima de la cámara: volando puede bajar por debajo del jugador para mirar hacia arriba */
+  pitchMin() { return this.player && this.player.flying ? -0.75 : 0.12; }
   grabMouse() { if (IS_TOUCH) return; try { const r = this.renderer.domElement.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* sin pointer lock */ } }
   releaseMouse() { try { if (this.locked()) document.exitPointerLock(); } catch (e) { /* nada */ } }
 
@@ -463,6 +465,7 @@ class Game {
     this.horde.buildGrid();
     this.camYaw = 0; this.camPitch = 0.6; this.camDist = this.camDistT = 19;
     this.camLook.set(0, 1.4, 0);
+    this.flyCamT = 0; this.flyCamTo = 0.6; this.flyHint = false;      // vuelo: ajuste automático de la cámara y aviso de controles
     this.grabMouse();
     this.syncSprites();
     this.ui.hideMenu(); this.ui.hideScreen(); this.ui.hideCards(); this.ui.showHud(true);
@@ -801,6 +804,24 @@ class Game {
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
 
+  /* ---------- Vuelo libre: despegue y aterrizaje ---------- */
+  onTakeoff(p) {
+    const c = p.form.aura || p.form.ki || 0x9fe8ff;
+    this.fx.ring(this.fx.aura, p.x, 0.3, p.z, 30, 12, 0.4, 0.35, c);
+    this.fx.burst(this.fx.trail, p.x, 0.4, p.z, 18, 6, 0.6, 0.6, 0);
+    this.shake(0.3); SFX.play('dash');
+    this.flyCamT = 0.9; this.flyCamTo = Math.min(this.camPitch, 0.42);   // la cámara se coloca detrás para volar
+    if (!this.flyHint) {
+      this.flyHint = true;
+      this.ui.toast('¡VUELO LIBRE!');
+      this.ui.toast(IS_TOUCH ? 'Arrastra para mirar · ▲ sube · ▼ baja · ✈ aterriza' : 'Mira hacia donde quieras ir · R sube · SHIFT baja · V aterriza', true);
+    } else this.ui.toast('¡VUELO!', true);
+  }
+  onLand(p, hit) {
+    this.fx.ring(this.fx.aura, p.x, 0.2, p.z, 26, 10, 0.4, 0.3, 0xd8c8a0);
+    this.shake(Math.min(0.55, hit * 0.025)); SFX.play('dash');
+    if (this.camPitch < 0.5) { this.flyCamT = 0.9; this.flyCamTo = 0.62; }   // vuelve la cámara de siempre
+  }
   /* ---------- Transmisión Instantánea y esquiva del Ultra Instinto ---------- */
   onTeleport(ox, oz, x, z) {
     const p = this.player, col = p.form.ki;
@@ -827,7 +848,7 @@ class Game {
     for (const b of this.booms) {
       if (b.self) {
         const dx = p.x - b.x, dz = p.z - b.z;
-        if (dx * dx + dz * dz < 3.4 * 3.4) p.takeDamage(this.enemyDamage() * ENEMY_TYPES[T_BOOM].dmg, this);
+        if (dx * dx + dz * dz < 3.4 * 3.4 && p.flyH < 3.4) p.takeDamage(this.enemyDamage() * ENEMY_TYPES[T_BOOM].dmg, this);
         DMG_SRC = 'otros'; this.horde.damageRadius(b.x, b.z, 3.2, 20, 8, this);
       } else { DMG_SRC = 'chain'; this.horde.damageRadius(b.x, b.z, 3.6, 30 * p.damageMul(), 10, this); }
       this.fx.burst(this.fx.sparks, b.x, 1, b.z, 18, 9, 0.45, 0.4, 6, 0x9aff4a);
@@ -1798,18 +1819,22 @@ class Game {
     else {
       if (keys.KeyT) { this.camPitch = 0.6; this.camDistT = 19; }
     }
+    if (!menu && this.flyCamT > 0) { this.flyCamT -= rawDt; this.camPitch += (this.flyCamTo - this.camPitch) * (1 - Math.exp(-5 * rawDt)); }
+    if (!menu && !p.flying && this.camPitch < 0.12) this.camPitch += (0.12 - this.camPitch) * (1 - Math.exp(-6 * rawDt));   // al aterrizar, de vuelta por encima
     this.camCos = Math.cos(this.camYaw); this.camSin = Math.sin(this.camYaw);
     const k = 1 - Math.exp(-6 * dt);
     this.camLook.x += (p.x - this.camLook.x) * k;
     this.camLook.z += (p.z - this.camLook.z) * k;
     // La cámara sigue el suelo bajo el jugador (con suavidad, para que las colinas no den saltos)
-    this.camLook.y += ((menu ? 0 : 1.4 + groundH(p.x, p.z)) - this.camLook.y) * k;
+    this.camLook.y += ((menu ? 0 : 1.4 + groundH(p.x, p.z) + p.flyH) - this.camLook.y) * (p.flyH > 0.3 ? 1 - Math.exp(-9 * dt) : k);   // y la altura de vuelo
     this.camDist += (this.camDistT - this.camDist) * (1 - Math.exp(-8 * rawDt));
     const cp = Math.cos(this.camPitch), sp = Math.sin(this.camPitch), s = this.shakeAmt, d = this.camDist;
     this.camera.position.set(
       this.camLook.x + this.camSin * d * cp + (Math.random() - 0.5) * s * 1.2,
       this.camLook.y + d * sp + (Math.random() - 0.5) * s * 1.2,
       this.camLook.z + this.camCos * d * cp);
+    const cg = groundH(this.camera.position.x, this.camera.position.z) + 0.8;     // mirando desde abajo: la cámara no atraviesa el suelo
+    if (this.camera.position.y < cg) this.camera.position.y = cg;
     this.camera.lookAt(this.camLook);
     this.shakeAmt = Math.max(0, s - rawDt * 2.6);
   }
@@ -1888,15 +1913,17 @@ class Game {
         if (!this.edgeMsg) { this.edgeMsg = true; this.ui.toast('¡FUERA DEL RING! VUELVE DENTRO', true); SFX.play('warn'); }
       }
       if (S.fx === 'sea') {
-        p.wade = out ? 0.6 : 1;
-        if (out && Math.random() < dt * 10) this.fx.aura.emit(p.x + rand(-1, 1), 0.1, p.z + rand(-1, 1), 0, rand(1, 3), 0, 0.5, 0.2, 0, 0xcff0ff);
-        if (out && !this.edgeMsg) { this.edgeMsg = true; this.ui.toast('EL MAR TE FRENA', true); }
+        const sea = out && p.flyH < 1;                                // volando no tocas el mar
+        p.wade = sea ? 0.6 : 1;
+        if (sea && Math.random() < dt * 10) this.fx.aura.emit(p.x + rand(-1, 1), 0.1, p.z + rand(-1, 1), 0, rand(1, 3), 0, 0.5, 0.2, 0, 0xcff0ff);
+        if (sea && !this.edgeMsg) { this.edgeMsg = true; this.ui.toast('EL MAR TE FRENA', true); }
       }
       if (!out) this.edgeMsg = false;
     }
     if (S.fx === 'lake' || S.lava) {
       let wet = false;
       for (const l of this.world.lakes) { const dx = p.x - l.x, dz = p.z - l.z; if (dx * dx + dz * dz < (l.r + (S.fx === 'lake' ? 2.5 : -1)) ** 2) { wet = true; break; } }
+      if (p.flyH > 1) wet = false;                                  // volando no tocas el agua ni la lava
       if (wet && S.fx === 'lake') {
         p.hp = Math.min(p.maxHp, p.hp + 6 * dt);
         if (Math.random() < dt * 14) this.fx.aura.emit(p.x + rand(-1, 1), 0.2, p.z + rand(-1, 1), 0, rand(2, 4), 0, 0.5, 0.2, 0, 0x7fe8ff);
