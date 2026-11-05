@@ -1362,6 +1362,17 @@ const DAILY_MODS = [
   { id: 'noregen', icon: '♥', name: 'Sin descanso', text: 'Sin regeneración de vida (las semillas sí curan).' },
   { id: 'bigboss', icon: '♛', name: 'Jefes colosales', text: 'Los jefes tienen +50% de vida, pero dan el doble de recompensa.' }
 ];
+/* ---------- Oráculo de Kami: al empezar cada partida eliges un pacto (ventaja fuerte + debilidad clara) o ninguno ---------- */
+const PACTS = [
+  { id: 'cristal', icon: '✷', name: 'Pacto de Cristal', good: '+40% de daño', bad: 'Recibes el doble de daño', apply: (p) => { p.statDmg *= 1.4; p.takeMul = 2; } },
+  { id: 'ermitano', icon: '☯', name: 'Pacto del Ermitaño', good: '+50% de experiencia', bad: 'Las semillas senzu no curan', apply: (p) => { p.xpMul *= 1.5; p.noSenzu = true; } },
+  { id: 'avaricia', icon: '$', name: 'Pacto de la Avaricia', good: '+60% de Zeni', bad: '-25% de vida máxima', apply: (p) => { p.zeniMul *= 1.6; p.maxHp *= 0.75; } },
+  { id: 'viento', icon: '»', name: 'Pacto del Viento', good: '+25% de velocidad', bad: '-20% de daño', apply: (p) => { p.speedMul *= 1.25; p.statDmg *= 0.8; } },
+  { id: 'kiinf', icon: '⚡', name: 'Pacto del Ki Infinito', good: 'El Ki se regenera el doble de rápido', bad: '-30% de vida máxima', apply: (p) => { p.kiRegen *= 2; p.maxHp *= 0.7; } },
+  { id: 'sangre', icon: '♥', name: 'Pacto de Sangre', good: 'Curas 1 de vida por cada enemigo', bad: 'Sin regeneración de vida', apply: (p) => { p.killHeal += 1; p.noRegen = true; } },
+  { id: 'horda', icon: '☠', name: 'Pacto de la Horda', good: '+40% de experiencia y de Zeni', bad: 'Los enemigos van un 25% más rápido', apply: (p) => { p.xpMul *= 1.4; p.zeniMul *= 1.4; }, game: (g) => { g.mods.fast = true; } },
+  { id: 'instinto', icon: '◎', name: 'Pacto del Instinto', good: '+15% de crítico y +50% de daño crítico', bad: '-15% de velocidad', apply: (p) => { p.crit += 0.15; p.critDmg += 0.5; p.speedMul *= 0.85; } }
+];
 const dailySeed = () => +todayStr().replace(/-/g, '');
 /** 2 modificadores del día (iguales para todos ese día) */
 function dailyMods() {

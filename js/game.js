@@ -477,8 +477,28 @@ class Game {
     // Vegetto y Gogeta empiezan con la intro de su fusión (el mundo espera congelado)
     if (this.intro.has(ch.id)) {
       this.state = 'intro'; this.releaseMouse();
-      this.intro.start(ch.id, () => { if (this.state !== 'intro') return; this.state = 'play'; this.grabMouse(); this.clock.getDelta(); });
-    }
+      this.intro.start(ch.id, () => { if (this.state !== 'intro') return; this.state = 'play'; this.grabMouse(); this.clock.getDelta(); this.openOracle(); });
+    } else this.openOracle();
+  }
+
+  /** Oráculo de Kami: 3 pactos al azar (ventaja + debilidad) o jugar sin pacto. No sale en el entrenamiento */
+  openOracle() {
+    if (this.practice || this.state !== 'play') return;
+    this.state = 'wish'; this.releaseMouse(); this.cardT = 0;
+    const pool = PACTS.slice(), list = [];
+    while (list.length < 3) list.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
+    const cards = list.map((P) => ({ type: 'form', id: P.id, icon: P.icon, tag: 'PACTO', title: P.name, text: '<span class="trg">✚ ' + P.good + '</span><br><span class="trb">✖ ' + P.bad + '</span>', max: 0, lv: 0 }));
+    cards.push({ type: 'form', id: '', icon: '✖', tag: 'RECHAZAR', title: 'Sin pacto', text: 'Juegas sin ventajas ni debilidades.', max: 0, lv: 0 });
+    SFX.play('event');
+    this.ui.showCards('EL ORÁCULO DE KAMI', 'ELIGE UN PACTO PARA ESTA PARTIDA [1 · 2 · 3 · 4]', cards, (c) => {
+      const p = this.player, P = PACTS.find((x) => x.id === c.id);
+      if (P) {
+        p.pact = P.id; p.recompute(); if (P.game) P.game(this);
+        this.ui.toast(P.icon + ' ' + P.name.toUpperCase()); this.ui.toast('✚ ' + P.good + ' · ✖ ' + P.bad, true);
+      } else this.ui.toast('SIN PACTO', true);
+      this.ui.hideCards();
+      if (this.pendingLevels > 0) this.openLevelUp(); else this.resume();
+    });
   }
 
   /** Carga un mapa de la partida: mundo (tema y tamaño), puntos de interés, cápsulas y enemigos limpios */

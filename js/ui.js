@@ -10,7 +10,7 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
-      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abTp', 'tpFill', 'abUlt', 'ultFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'pactTag', 'abTp', 'tpFill', 'abUlt', 'ultFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'cardFoot', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
@@ -97,6 +97,8 @@ class UIManager {
     this.setV(e.formName, '--fc', '#' + (p.form.aura || 0xffe14a).toString(16).padStart(6, '0'));
     T(e.trait, p.trait ? p.trait.name.toUpperCase() + ' · ✚ ' + p.trait.good + ' · ✖ ' + p.trait.bad : '');
     if (e.trait._t !== e.trait.title) e.trait.title = e.trait._t;
+    const PK = p.pact && PACTS.find((x) => x.id === p.pact);                    // pacto de Kami de esta partida
+    T(e.pactTag, PK ? PK.icon + ' ' + PK.name.toUpperCase() + ' · ✚ ' + PK.good + ' · ✖ ' + PK.bad : '');
     // El resto del texto del HUD cambia poco: se refresca 10 veces por segundo
     this.hudT -= dt;
     const slow = this.hudT <= 0;

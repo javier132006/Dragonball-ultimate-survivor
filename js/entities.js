@@ -30,7 +30,7 @@ class Player {
 
   /** Prepara al personaje elegido con sus stats base + mejoras permanentes del laboratorio */
   reset(ch) {
-    this.ch = ch; this.fusion = null;                              // fusión en tiempo real: { id, ch, sheet, t }
+    this.ch = ch; this.fusion = null; this.pact = null;                // pacto del Oráculo de Kami (id)                              // fusión en tiempo real: { id, ch, sheet, t }
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
     this.chgSheet = this.sheets[ch.id + '_chg'] ? ch.id + '_chg' : null; if (this.chgSheet) this.batch(this.chgSheet);
     this.cineChg = false; this.chgPose = false;
@@ -60,6 +60,7 @@ class Player {
   initStats() {
     const ch = this.ch, L = (id) => Save.lab(id);
     this.guanteMul = 1; this.pluma = false; this.reloj = false;                // objetos nuevos (se reaplican al recalcular)
+    this.takeMul = 1; this.noSenzu = false; this.noRegen = false;              // debilidades de los pactos de Kami
     this.kiMul = 1 + 0.05 * L('kidmg');                                        // Entrenamiento de Ki: daño de las técnicas de ki
     // Gravedad Extra: +10% de vida máxima
     this.maxHp = Math.round(ch.hp * (1 + 0.08 * L('hp')) * (1 + 0.1 * L('gravx'))); this.maxKi = ch.ki; this.kiRegen = 4 * (1 + 0.08 * L('ki'));
@@ -89,6 +90,7 @@ class Player {
     for (const s of STATS) for (let k = 0; k < (this.stacks[s.id] || 0); k++) s.apply(this, (this.stackMul[s.id] || [])[k] || 1);   // cada nivel con su rareza
     for (const id in this.items) { const it = itemById(id); for (let k = 0; k < this.items[id]; k++) it.apply(this); }
     for (const id of this.buffs) BUFFS[id].apply(this);
+    if (this.pact) { const P = PACTS.find((x) => x.id === this.pact); if (P) P.apply(this); }   // pacto de Kami
     if (this.trait) applyTraitStats(this, this.trait);                 // rasgo de la transformación actual
     for (const id of this.fused) if (WEAPONS[id].down) applyTraitStats(this, WEAPONS[id].down);   // desventaja de cada fusión
     this.maxHp = Math.max(20, Math.round(this.maxHp));
@@ -149,7 +151,7 @@ class Player {
       return false;
     }
     if (this.udT > 0 && this.ud.take) amount *= 1 + this.ud.take;   // desventaja de la Ultimate: recibes más daño
-    const real = amount * (1 - this.armor);
+    const real = amount * this.takeMul * (1 - this.armor);           // Pacto de Cristal: recibes el doble
     if (game.practice && this.hp - real <= 1) { this.hp = this.maxHp; game.ui.toast('ENTRENAMIENTO · VIDA RESTAURADA', true); }
     game.onPlayerHit();
     SFX.play('hurt');
@@ -248,7 +250,7 @@ class Player {
     if (this.moving && this.atkT <= 0 && this.beamT <= 0) this.flip = this.vx * game.camCos - this.vz * game.camSin < 0 ? 1 : 0;
 
     // --- Ki, vida y carga táctica ---
-    if (!game.mods.noregen) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
+    if (!game.mods.noregen && !this.noRegen) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
     this.traitTick(dt, game);
     if (this.charging) {
       this.ki = Math.min(this.maxKi, this.ki + 35 * dt);
@@ -847,9 +849,9 @@ class Pickups {
     for (let i = this.sn - 1; i >= 0; i--) {
       const dx = player.x - this.sx[i], dz = player.z - this.sz[i];
       if (dx * dx + dz * dz < 2.6) {
-        player.hp = Math.min(player.maxHp, player.hp + 30); SFX.play('heal');
+        if (!player.noSenzu) player.hp = Math.min(player.maxHp, player.hp + 30); SFX.play('heal');   // Pacto del Ermitaño: no curan
         game.fx.burst(game.fx.aura, this.sx[i], 0.8, this.sz[i], 10, 4, 0.5, 0.25, 0, 0x9cff6a);
-        game.ui.toast('+30 VIDA', true);
+        game.ui.toast(player.noSenzu ? 'EL PACTO DEL ERMITAÑO IMPIDE CURARTE' : '+30 VIDA', true);
         const l = --this.sn; this.sx[i] = this.sx[l]; this.sz[i] = this.sz[l];
       }
     }
