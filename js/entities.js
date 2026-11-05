@@ -752,7 +752,9 @@ class KiPool {
       const b = this.b[i];
       if (b.active) continue;
       const P = window.game && window.game.player;
-      b.active = true; b.x = x; b.z = z; b.y = 1.4 + (P && Math.abs(P.x - x) + Math.abs(P.z - z) < 4 ? P.flyH : 0);   // desde el aire, salen a tu altura b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
+      // Desde el aire, las ráfagas salen a tu altura
+      b.active = true; b.x = x; b.z = z; b.y = 1.4 + (P && Math.abs(P.x - x) + Math.abs(P.z - z) < 4 ? P.flyH : 0);
+      b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
       b.crit = crit; b.pierce = pierce; b.aoe = aoe; b.tint = tint; b.trail = 0; b.ni = 0; b.size = size || (crit ? 3.6 : 2.6) * r * 1.3; b.look = look || 0;
       const zl = b.look && FXA[b.look] && FXA[b.look].s === 'fxzip' ? b.look : '';   // técnica con dibujo del pack (ver ZIP_FX)
       b.fr = this.fx ? (b.look && !zl ? -1 : orbFrame(tint, crit || b.size > 3.5 ? 0 : 1)) : 0;
