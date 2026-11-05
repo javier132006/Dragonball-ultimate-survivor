@@ -713,8 +713,9 @@ class KiPool {
       if (b.active) continue;
       b.active = true; b.x = x; b.z = z; b.y = 1.4; b.vx = dx * speed; b.vz = dz * speed; b.life = life; b.dmg = dmg; b.r = r;
       b.crit = crit; b.pierce = pierce; b.aoe = aoe; b.tint = tint; b.trail = 0; b.ni = 0; b.size = size || (crit ? 3.6 : 2.6) * r * 1.3; b.look = look || 0;
-      b.fr = this.fx ? (b.look ? -1 : orbFrame(tint, crit || b.size > 3.5 ? 0 : 1)) : 0;
-      b.zk = zipKind(tint); b.zl = b.look && FXA[b.look] && FXA[b.look].s === 'fxzip' ? b.look : '';   // dibujo del pack (bola de su color o el de la técnica)
+      const zl = b.look && FXA[b.look] && FXA[b.look].s === 'fxzip' ? b.look : '';   // técnica con dibujo del pack (ver ZIP_FX)
+      b.fr = this.fx ? (b.look && !zl ? -1 : orbFrame(tint, crit || b.size > 3.5 ? 0 : 1)) : 0;
+      b.zk = zipKind(tint); b.zl = ZIP_FX ? zl : '';
       for (let k = 0; k < 6; k++) b.ign[k] = 0;
       b.src = DMG_SRC; b.home = 0; b.ht = 0; SFX.play('ki');
       return b;

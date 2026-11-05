@@ -33,7 +33,10 @@ function zipKind(hex) {
   let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360;
   return h < 15 || h >= 345 ? 'R' : h < 42 ? 'O' : h < 70 ? 'Y' : h < 165 ? 'G' : h < 250 ? 'B' : h < 290 ? 'P' : 'K';
 }
-const ZIP_BALL = { Y: ['zkiY', 0], O: ['zfireO', 0], R: ['zkiR', 0], B: ['zsphereB', 0], P: ['zkiP', 0], G: ['zkiG', 0], K: ['zpink', 0] };
+/* Dibujo de los efectos del pack (hoja fxzip). Está APAGADO: los ataques usan sus dibujos de siempre.
+   Pon true para volver a verlos (rayos, impactos, explosiones y técnicas del pack). */
+const ZIP_FX = false;
+const ZIP_BALL ={ Y: ['zkiY', 0], O: ['zfireO', 0], R: ['zkiR', 0], B: ['zsphereB', 0], P: ['zkiP', 0], G: ['zkiG', 0], K: ['zpink', 0] };
 const ZIP_HIT = { Y: 'zstarG', O: 'zfireO', R: 'zburstR', B: 'zsphereB', P: 'zburstP', G: 'zburstG', K: 'zpinkB' };
 const ZIP_BOOM = { Y: 'zsunX', O: 'zsunX', R: 'zfireB', B: 'zsphereB', P: 'zburstP', G: 'zburstG', K: 'zpinkB' };
 /* Destellos de ki (4 filas de 7: amarillo, azul, morado y rojo) */
@@ -62,7 +65,7 @@ class VFX {
       B(sheets.fx, { max: 16, blend: true, renderOrder: 6 }),       // 6: esferas sólidas (Genkidama): con su color real, sin quemarse a blanco
       B(sheets.fxzip || sheets.fx, { max: 500, blend: true, renderOrder: 6.5 })   // 7: efectos del pack (pixel art nítido)
     ];
-    this.zipOk = !!sheets.fxzip && !!FXA.zkiY;
+    this.zipOk = ZIP_FX && !!sheets.fxzip && !!FXA.zkiY;
     this.rx = 1; this.rz = 0;                                             // eje «derecha» de la cámara (para girar los efectos)
     // Pool de animaciones (estructura de arrays: sin crear objetos durante la partida)
     const N = this.N = 520, f = () => new Float32Array(N);
