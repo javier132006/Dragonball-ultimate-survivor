@@ -61,7 +61,8 @@ class Player {
     const ch = this.ch, L = (id) => Save.lab(id);
     this.guanteMul = 1; this.pluma = false; this.reloj = false;                // objetos nuevos (se reaplican al recalcular)
     this.kiMul = 1 + 0.05 * L('kidmg');                                        // Entrenamiento de Ki: daño de las técnicas de ki
-    this.maxHp = Math.round(ch.hp * (1 + 0.08 * L('hp')) * (1 + 0.1 * L('gravx')));   // Gravedad Extra: +10% de vida máxima this.maxKi = ch.ki; this.kiRegen = 4 * (1 + 0.08 * L('ki'));
+    // Gravedad Extra: +10% de vida máxima
+    this.maxHp = Math.round(ch.hp * (1 + 0.08 * L('hp')) * (1 + 0.1 * L('gravx'))); this.maxKi = ch.ki; this.kiRegen = 4 * (1 + 0.08 * L('ki'));
     this.statDmg = 1 + 0.04 * L('dmg'); this.speedMul = ch.spd * (1 + 0.03 * L('spd')); this.magnet = 5 * (1 + 0.1 * L('mag'));
     this.crit = 0.08 + 0.02 * L('crit'); this.critDmg = 2;
     this.rateMul = 1; this.regen = 0; this.armor = 0; this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.luck = 0;
