@@ -562,6 +562,7 @@ class HordeManager {
     if (this.type[i] === T_BOSS && game.bossInv > 0) dmg *= 0.1;  // el jefe cambiando de fase apenas recibe daño
     const wm = game.wMul && game.wMul[DMG_SRC]; if (wm) dmg *= wm;  // daño extra de la técnica por las cartas raras
     if (game.player.guanteMul > 1 && this.hp[i] < this.maxHp[i] * 0.3) dmg *= game.player.guanteMul;   // Guante de Hielo
+    if (game.rivalUid && this.uid[i] === game.rivalUid) dmg = game.rivalHit(dmg);   // rival con memoria
     const real = Math.min(dmg, this.hp[i]), R = game.run;
     R.damage += real; if (dmg > R.best) R.best = dmg;
     R.byW[DMG_SRC] = (R.byW[DMG_SRC] || 0) + real;

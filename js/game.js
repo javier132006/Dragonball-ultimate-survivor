@@ -805,6 +805,50 @@ class Game {
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
 
+  /* ---------- Rival con memoria: recuerda con qué tipo de técnica lo venciste y se prepara contra ella ---------- */
+  rivalCat(src) {
+    if (src === 'ult') return 'ult';
+    const k = WEAPONS[src] && WEAPONS[src].kind;
+    if (!k) return 'explosiones';
+    if (['beam', 'bigbeam', 'ray', 'pbolt'].includes(k)) return 'rayos';
+    if (['scythe', 'godslash', 'orbit', 'kiplanet', 'barrier', 'minions'].includes(k)) return 'cuerpo';
+    if (['bullet', 'blast', 'homing', 'barrage', 'discs', 'zshot', 'fan', 'splitblast', 'rain', 'hellzone'].includes(k)) return 'rafagas';
+    return 'explosiones';
+  }
+  /** «tu técnica Kamehameha» / «tu Ultimate» (vale también para nombres en plural, como Bolas de Ki) */
+  rivalWName(w) { return w === 'ult' || !w || !WEAPONS[w] ? 'tu Ultimate' : 'tu técnica ' + WEAPONS[w].name; }
+  rivalTaunt(M) {
+    if (M.beatMe) return '«¿Vuelves a por más? La última vez te derroté.»';
+    const n = this.rivalWName(M.topW);
+    if (M.counter === 'rayos') return '«¡Esta vez ' + n + ' no me servirá!» · Resiste los rayos';
+    if (M.counter === 'cuerpo') return '«¡No volverás a acercarte a mí!» · Ataca a distancia';
+    if (M.counter === 'rafagas') return '«¡Mi escudo parará ' + n + '!» · Escudo contra ráfagas';
+    if (M.counter === 'ult') return '«¡Tu Ultimate ya no me hará nada!» · Resiste la Ultimate';
+    if (M.counter === 'explosiones') return '«¡Tus explosiones ya no me asustan!» · Resiste las explosiones';
+    return 'Derrótalo: suelta una cápsula dorada';
+  }
+  /** Golpe al rival: apunta el daño por tipo de técnica y aplica su resistencia (rayos, explosiones o Ultimate) */
+  rivalHit(dmg) {
+    const c = this.rivalCat(DMG_SRC), M = this.rivalMem;
+    if (M && M.counter === c && c !== 'cuerpo' && c !== 'rafagas') dmg *= 0.6;
+    this.rivalDmg[c] = (this.rivalDmg[c] || 0) + dmg; this.rivalByW[DMG_SRC] = (this.rivalByW[DMG_SRC] || 0) + dmg;
+    return dmg;
+  }
+  /** Contra el cuerpo a cuerpo: se aparta si te acercas y dispara abanicos de ki */
+  updateRival(dt) {
+    const M = this.rivalMem; if (!this.rivalUid || !M || M.counter !== 'cuerpo') return;
+    const h = this.horde, p = this.player; let i = -1;
+    for (let j = 0; j < h.n; j++) if (h.uid[j] === this.rivalUid) { i = j; break; }
+    if (i < 0) return;
+    const dx = h.x[i] - p.x, dz = h.z[i] - p.z, d = Math.hypot(dx, dz) || 1;
+    if (d < 8) { h.kx[i] += (dx / d) * 60 * dt; h.kz[i] += (dz / d) * 60 * dt; }
+    this.rivalShotT -= dt;
+    if (this.rivalShotT <= 0 && d < 24) {
+      this.rivalShotT = Math.max(1.2, 2.4 - M.lvl * 0.15);
+      for (const o of [-0.25, 0, 0.25]) { const c = Math.cos(o), s = Math.sin(o), ux = -dx / d, uz = -dz / d;
+        this.shots.fire(h.x[i], h.z[i], ux * c - uz * s, ux * s + uz * c, 15, this.enemyDamage() * 0.9, { tint: 0xc070ff, size: 1.7 }); }
+    }
+  }
   /* ---------- Fusión en tiempo real: con tu pareja de fusión cerca, [E] os fusiona durante FUSION_TIME s ---------- */
   fusionAlly() {
     const p = this.player, P = FUSION_PAIRS[p.ch.id];
@@ -892,10 +936,16 @@ class Game {
       for (let i = 0; i < 12; i++) { const a = rand(0, 6.28), r = rand(6, 18); this.pickups.drop(clamp(p.x + Math.cos(a) * r, -CFG.ARENA, CFG.ARENA), clamp(p.z + Math.sin(a) * r, -CFG.ARENA, CFG.ARENA)); }
       ui.toast('¡LLUVIA DE SENZUS!'); ui.toast('Recoge las semillas para curarte', true);
     } else if (k === 'rival') {
+      const M = Save.d.rival || (Save.d.rival = { lvl: 0, counter: '', topW: '', beatMe: false });   // memoria entre partidas
+      this.rivalMem = Object.assign({}, M); this.rivalDmg = {}; this.rivalByW = {}; this.rivalShotT = 2;
       this.spawnPos(20, 26);
-      const i = this.horde.spawn(this._sx, this._sz, (14 + this.pressure() * 0.25) * ENEMY_TYPES[4].hp * this.diff.hp * this.stage.hp * this.timeMul() * 6, 4);
-      if (i >= 0) this.rivalUid = this.horde.uid[i];
-      ui.toast('¡UN RIVAL TE RETA!'); ui.toast('Derrótalo: suelta una cápsula dorada', true);
+      const i = this.horde.spawn(this._sx, this._sz, (14 + this.pressure() * 0.25) * ENEMY_TYPES[4].hp * this.diff.hp * this.stage.hp * this.timeMul() * 6 * (1 + 0.3 * M.lvl), 4);
+      if (i >= 0) {
+        this.rivalUid = this.horde.uid[i];
+        if (M.counter === 'rafagas') this.horde.shield[i] = 6 + M.lvl * 2;        // contra tus ráfagas: escudo
+      }
+      ui.toast(M.lvl ? '¡TU RIVAL VUELVE! · NV ' + (M.lvl + 1) : '¡UN RIVAL TE RETA!');
+      ui.toast(this.rivalTaunt(M), true);
     } else if (k === 'storm') {
       this.setStorm(25);
       ui.toast('¡TORMENTA DE KI!'); ui.toast('Todo se ralentiza durante 25 segundos', true);
@@ -1632,8 +1682,14 @@ class Game {
     this.addCombo();
     if (uid && uid === this.rivalUid) {                              // rival del evento
       this.rivalUid = 0; this.run.rivals++; this.track('rivals', 1);
-      this.capsules.add(x, z, 1, this.world); this.gainCash(80);
-      this.ui.toast('¡RIVAL DERROTADO!'); SFX.play('achieve');
+      const M = Save.d.rival || (Save.d.rival = { lvl: 0 }), lv = M.lvl || 0;
+      this.capsules.add(x, z, 1, this.world); if (lv >= 3) this.capsules.add(x + 2, z, 1, this.world);   // desde el nivel 4, dos cápsulas
+      this.gainCash(80 + 40 * lv);
+      // Memoria: el tipo de técnica que más daño le hizo (y cuál) es lo que preparará para la próxima vez
+      let top = '', best = 0; for (const c in this.rivalDmg) if (this.rivalDmg[c] > best) { best = this.rivalDmg[c]; top = c; }
+      let topW = '', bw = 0; for (const w in this.rivalByW) if (this.rivalCat(w) === top && this.rivalByW[w] > bw) { bw = this.rivalByW[w]; topW = w; }
+      Save.d.rival = { lvl: lv + 1, counter: top, topW, beatMe: false }; Save.write();
+      this.ui.toast('¡RIVAL DERROTADO!'); this.ui.toast('Recordará ' + this.rivalWName(topW) + '... y volverá más fuerte', true); SFX.play('achieve');
     }
     this.gainCash(ENEMY_TYPES[type].cash);
     this.orbs.spawn(x, z, ENEMY_TYPES[type].xp);
@@ -1989,6 +2045,7 @@ class Game {
     this.shots.update(dt, this);
     this.allies.update(dt, this);
     this.updateFusion(dt);
+    this.updateRival(dt);
     if (this.world.follow(p.x, p.z)) this.shadowDirty = true;
 
     // Enemigos que se quedan muy lejos reaparecen cerca (el mapa es grande)
@@ -2007,7 +2064,10 @@ class Game {
         h.shockwave(p.x, p.z, 20, 30);
         this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 60, 20, 0.8, 0.45, 0xffffff);
         this.ui.toast('¡RENACES!'); this.shake(1);
-      } else { p.die(); this.state = 'dying'; this.releaseMouse(); }
+      } else {
+        if (this.rivalUid && Save.d.rival && this.horde.uid.subarray(0, this.horde.n).includes(this.rivalUid)) { Save.d.rival.beatMe = true; Save.write(); }   // el rival te ha visto caer
+        p.die(); this.state = 'dying'; this.releaseMouse();
+      }
     }
     if (this.state === 'play' && this.pendingLevels > 0) this.openLevelUp();
     this.syncSprites();
