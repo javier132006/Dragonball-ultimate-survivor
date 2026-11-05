@@ -1587,6 +1587,11 @@ class Game {
     const kc = Math.round(p.maxKi * ULT_KI);
     if (p.ki < kc) { this.ui.toast('NECESITAS ' + kc + ' DE KI PARA LA ULTIMATE · CARGA CON [C]', true); SFX.play('warn'); return; }
     p.ki -= kc; p.ult = 0; p.iframes = Math.max(p.iframes, 1.2);
+    // Ataque combinado: el aliado más cercano (a menos de COMBO_R) ataca contigo y la Ultimate hace +50% de daño
+    let ca = null, cd = COMBO_R;
+    for (const a of this.allies.list) { const d = Math.hypot(a.x - p.x, a.z - p.z); if (d < cd) { cd = d; ca = a; } }
+    this.ultCombo = ca ? { ally: ca, name: comboName(p.ch.id, ca) } : null;
+    const UN = this.ultCombo ? this.ultCombo.name : U.name;
     // Desventaja de la Ultimate: empieza al lanzarla (después del destello)
     const D = U.debuff;
     if (D) this.after(0.6, () => { p.ud = D; p.udT = D.t; if (D.hp) p.hp = Math.max(1, p.hp - p.maxHp * D.hp); if (D.nodash) p.noDashT = Math.max(p.noDashT, D.t); this.ui.toast('✖ ' + D.name + ': ' + D.text, true); });
@@ -1598,7 +1603,7 @@ class Game {
     // Animación propia de cada personaje (el mundo espera congelado) y después la Ultimate
     if (this.ultCine.has(p.ultId) && !Save.d.opt.noCine) {
       this.state = 'ultcine';
-      this.ultCine.start(p.ultId, U.name, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); });
+      this.ultCine.start(p.ultId, UN, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); });
     } else fire();
   }
   /** Secuencia de la Ultimate en tiempo real: destellos de impacto de colores y, al final, el tajo */
@@ -1616,11 +1621,12 @@ class Game {
   }
   /** Lanza la Ultimate según su tipo (rift, bomb, beam, storm, discs, slash) */
   ultFire() {
-    const p = this.player, U = p.ultD, W = this.weapons, V = this.vfx, dm = p.damageMul();
-    if (U.type === 'rift' || !U.type) return this.ultSlash();
+    const p = this.player, U = p.ultD, W = this.weapons, V = this.vfx, C = this.ultCombo, dm = p.damageMul() * (C ? COMBO_DMG : 1);
+    if (C) this.comboAttack(C);
+    if (U.type === 'rift' || !U.type) return this.ultSlash(dm);
     const a = W.aim(this, p, 40) || W.facing(this, p), ax = a.dx, az = a.dz;
     DMG_SRC = 'ult';
-    this.ui.toast('¡' + U.name + '!');
+    this.ui.toast('¡' + (C ? C.name : U.name) + '!');
     if (U.type === 'bomb') {                                 // Super Genkidama / Death Ball: esfera gigante sobre la horda
       const d = a.d ? Math.min(a.d, 14) : 10;
       W.bigStrike(p.x + ax * d, p.z + az * d, U.r, U.dmg * dm, U.col, 2.2, U.sty, 'ult');
@@ -1674,9 +1680,21 @@ class Game {
     const ex = this.horde.x[bi] - x, ez = this.horde.z[bi] - z, t = ex * dx + ez * dz;
     if (t > -1 && t < len && Math.abs(ex * dz - ez * dx) < hw + ENEMY_TYPES[T_BOSS].r) this.horde.hurt(bi, this.horde.maxHp[bi] * frac, 0, 0, this);
   }
+  /** Ataque combinado: el aliado lanza su propio rayo contra el mismo objetivo, con su color de Ki */
+  comboAttack(C) {
+    const p = this.player, A = C.ally, W = this.weapons, U = p.ultD;
+    const t = W.aim(this, p, 40) || W.facing(this, p), tx = p.x + t.dx * (t.d || 12), tz = p.z + t.dz * (t.d || 12);
+    const dx = tx - A.x, dz = tz - A.z, d = Math.hypot(dx, dz) || 1;
+    A.atkT = 1.2; A.flip = dx < 0 ? 1 : 0;
+    DMG_SRC = 'ult';
+    W.beam(A.x, A.z, dx / d, dz / d, 42, 2.2, (U.dmg || 20) * 0.06 * p.damageMul(), 1.3, 0.1, A.d.ki, false);   // daño por golpe (13 golpes)
+    DMG_SRC = 'otros';
+    this.fx.ring(this.fx.aura, A.x, 0.5, A.z, 40, 14, 0.6, 0.4, A.d.ki);
+    this.ui.toast('¡' + A.d.name + ' SE UNE A TU ATAQUE! · +50% de daño y su propio rayo', true);
+  }
   /** El tajo: dos cortes que cruzan el mapa a través del jugador. Daña a todo lo que toca */
-  ultSlash() {
-    const p = this.player, U = p.ultD, a = this.camYaw, L = U.len, dmg = U.dmg * p.damageMul();
+  ultSlash(dm) {
+    const p = this.player, U = p.ultD, a = this.camYaw, L = U.len, dmg = U.dmg * (dm || p.damageMul());
     for (const [dx, dz] of [[Math.cos(a), Math.sin(a)], [-Math.sin(a), Math.cos(a)]]) {
       this.horde.damageLine(p.x - dx * L, p.z - dz * L, dx, dz, 2 * L, U.hw, dmg, this);
       for (let s = -L; s < L; s += 2.5) this.fx.burst(this.fx.sparks, p.x + dx * s, 1.2, p.z + dz * s, 2, 7, 0.55, 0.45, 8, 0xd080ff);

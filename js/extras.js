@@ -26,6 +26,18 @@ const FUSION_PAIRS = {
   kale: { caulifla: ['kefla'] }, caulifla: { kale: ['kefla'] }
 };
 const FUSION_TIME = 30;
+/* Ataques combinados: lanzar la Ultimate con un aliado cerca. Nombre propio para las parejas míticas (en ambos sentidos) */
+const COMBO_ULTS = {
+  'goku+gohan': 'KAMEHAMEHA PADRE E HIJO', 'goku+vegeta': 'KAMEHAMEHA + FINAL FLASH', 'gohan+piccolo': 'MASENKO + MAKANKOSAPPO',
+  'trunks+vegeta': 'BIG BANG + BURNING ATTACK', 'goku+krilin': 'KAMEHAMEHA DE LA TORTUGA', 'bardock+goku': 'KAMEHAMEHA + RIOT JAVELIN',
+  'black+zamasu': 'JUICIO DE LOS DIOSES', 'caulifla+kale': 'FURIA SAIYAJIN DE SADALA', 'gohan+trunks': 'GUERREROS DEL FUTURO'
+};
+const COMBO_R = 14, COMBO_DMG = 1.5;
+/** Nombre del ataque combinado entre tu personaje y un aliado (las fusiones cuentan como su personaje base) */
+function comboName(meId, ally) {
+  const a = meId, b = ally.d.id;
+  return COMBO_ULTS[a + '+' + b] || COMBO_ULTS[b + '+' + a] || 'ATAQUE COMBINADO CON ' + ally.d.name;
+}
 
 class Allies {
   constructor(scene, sheets) {
