@@ -451,6 +451,7 @@ class Game {
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
     this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
+    this.camFocus = null; const bcEl = document.getElementById('bossCine'); if (bcEl) bcEl.classList.remove('show');   // por si acabó en mitad de una cinemática
     this.practice = !!practice; this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = rand(90, 130); this.rivalUid = 0; this.achT = 1;
     this.allies.reset(); this.setStorm(0);
     this.run = newRun(); this.curseHp = 0; this.curseDmg = 0; this.chal = 0; this.coinMul = 1; this.showMap = false; this.ui.el.bigmap.style.display = 'none';
@@ -1566,6 +1567,29 @@ class Game {
     this.ui.toast(last ? 'ÚLTIMA FASE: ataca con todo' : 'Aprende sus nuevos ataques', true);
     this.bossSummon(bx, bz, 8 + this.step * 3);
     if (ph === 2) this.track('phase3', 1);
+    // Recupera un 15% de su vida al transformarse
+    const h = this.horde; for (let i = 0; i < h.n; i++) if (h.type[i] === T_BOSS) { h.hp[i] = Math.min(h.maxHp[i], h.hp[i] + h.maxHp[i] * 0.15); break; }
+    this.ui.toast('¡Recupera un 15% de su vida!', true);
+    if (!Save.d.opt.noCine && this.state === 'play') this.startBossCine(bx, bz, B.name, B.forms ? B.forms[ph] : 'FASE ' + (ph + 1), last, col);
+  }
+  /** Cinemática corta de la transformación del jefe: el mundo se congela, la cámara se acerca y aparece su nueva forma */
+  startBossCine(x, z, name, form, last, col) {
+    const el = document.getElementById('bossCine');
+    document.getElementById('bcName').textContent = name;
+    document.getElementById('bcForm').textContent = form;
+    document.getElementById('bcSub').textContent = last ? 'ÚLTIMA FORMA · ¡ATACA CON TODO!' : 'SE TRANSFORMA Y RECUPERA VIDA';
+    el.style.setProperty('--bc', '#' + (col >>> 0).toString(16).padStart(6, '0').slice(-6));
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');   // reinicia las animaciones
+    this.bossCineT = 0; this.camFocus = { x, z }; this.state = 'bosscine';
+  }
+  updateBossCine(dt) {
+    this.bossCineT += dt;
+    this.player.animT += dt; this.player.pose();
+    this.fx.update(dt); this.syncSprites(); this.updateCamera(dt, dt, false); this.ui.update(this, dt);
+    if (this.bossCineT >= 2) {
+      document.getElementById('bossCine').classList.remove('show');
+      this.camFocus = null; this.state = 'play'; this.clock.getDelta();
+    }
   }
 
   /** Barrera de Ki: un golpe parado. Destello, empujón y, con la fusión, estallido */
@@ -1940,11 +1964,12 @@ class Game {
     }
     this.camCos = Math.cos(this.camYaw); this.camSin = Math.sin(this.camYaw);
     const k = 1 - Math.exp(-6 * dt);
-    this.camLook.x += (p.x - this.camLook.x) * k;
-    this.camLook.z += (p.z - this.camLook.z) * k;
+    const F = this.camFocus, fx = F ? F.x : p.x, fz = F ? F.z : p.z;          // cinemática del jefe: la cámara va hacia él
+    this.camLook.x += (fx - this.camLook.x) * k;
+    this.camLook.z += (fz - this.camLook.z) * k;
     // La cámara sigue el suelo bajo el jugador (con suavidad, para que las colinas no den saltos)
     this.camLook.y += ((menu ? 0 : 1.4 + groundH(p.x, p.z)) - this.camLook.y) * k;
-    this.camDist += (this.camDistT - this.camDist) * (1 - Math.exp(-8 * rawDt));
+    this.camDist += ((F ? this.camDistT * 0.55 : this.camDistT) - this.camDist) * (1 - Math.exp(-(F ? 4 : 8) * rawDt));
     const cp = Math.cos(this.camPitch), sp = Math.sin(this.camPitch), s = this.shakeAmt, d = this.camDist;
     this.camera.position.set(
       this.camLook.x + this.camSin * d * cp + (Math.random() - 0.5) * s * 1.2,
@@ -2115,7 +2140,7 @@ class Game {
     requestAnimationFrame(this.loop);
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     const s = this.state;
-    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine';
+    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine' || s === 'bosscine';
     if (vf) this.vfx.begin(this.camera);
     if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }
     if (s === 'play' && IS_TOUCH && window.innerHeight > window.innerWidth) this.togglePause();   // móvil en vertical: pausa
@@ -2156,6 +2181,8 @@ class Game {
       this.fx.update(rawDt); this.updateCamera(rawDt, rawDt, false);
       if (this.transT > 0.7 && !this.transDone) { this.transDone = true; this.nextStage(this.riftTo); this.ui.el.fade.style.opacity = 0; }
       if (this.transT > 1.4) { this.state = 'play'; this.clock.getDelta(); }
+    } else if (s === 'bosscine') {                                     // transformación del jefe
+      this.updateBossCine(rawDt);
     } else if (s === 'intro' || s === 'ultcine') {                    // intro de la fusión / animación de la Ultimate, dentro del mapa
       (s === 'intro' ? this.intro : this.ultCine).update(rawDt);
       const p = this.player;
