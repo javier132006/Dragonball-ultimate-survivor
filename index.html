@@ -204,6 +204,22 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 #roomLbl{position:absolute;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);padding:6px 16px;border-radius:999px;background:rgba(10,30,60,.75);border:2px solid #9fe8ff;color:#e8f8ff;font:800 clamp(11px,1.6vw,15px)/1 system-ui,sans-serif;letter-spacing:.08em;white-space:nowrap}
 #tourLbl{position:fixed;z-index:6;display:none;pointer-events:none;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);padding:6px 16px;border-radius:999px;background:rgba(60,30,0,.8);border:2px solid #ffd060;color:#fff3cf;font:800 clamp(11px,1.6vw,15px)/1 system-ui,sans-serif;letter-spacing:.08em;white-space:nowrap}
 #tourLbl.show{display:block}
+/* Modo Leyenda: objetivo de la saga, cuadro de diálogo con retrato y pantalla de sagas */
+#sagaLbl{position:fixed;z-index:6;display:none;pointer-events:none;top:calc(52px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);max-width:92vw;overflow:hidden;text-overflow:ellipsis;padding:5px 14px;border-radius:999px;background:rgba(40,10,60,.8);border:2px solid #d8a8ff;color:#f6eaff;font:800 clamp(10px,1.4vw,14px)/1 system-ui,sans-serif;letter-spacing:.06em;white-space:nowrap}
+#sagaLbl.show{display:block}
+#talk{position:fixed;z-index:46;display:none;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(780px,calc(100vw - 32px));gap:14px;align-items:center;padding:14px 18px;border-radius:14px;background:linear-gradient(180deg,rgba(14,26,70,.96),rgba(8,14,40,.96));border:3px solid #ffd24a;box-shadow:0 8px 0 #000,0 0 30px rgba(0,0,0,.6);cursor:pointer;user-select:none}
+#talk.show{display:flex;animation:talkIn .25s ease-out}
+#talk canvas{flex:none;width:88px;height:88px;border-radius:10px;background:radial-gradient(circle,#2a4aa0,#0a1430);border:2px solid #ffd24a;image-rendering:pixelated}
+#talk .tx{flex:1;min-width:0}#talk b{display:block;color:#ffd24a;font:900 17px/1 system-ui,sans-serif;letter-spacing:.06em;margin-bottom:6px}
+#talk p{margin:0;min-height:2.6em;color:#fff;font:600 clamp(14px,1.9vw,18px)/1.35 system-ui,sans-serif}
+#talk small{display:block;margin-top:6px;color:#9fb4e8;font:700 10px/1 system-ui,sans-serif;letter-spacing:.12em;text-align:right}
+@keyframes talkIn{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+.legendList{display:flex;flex-direction:column;gap:10px}.legendList .saga{display:flex;gap:14px;align-items:center;padding:12px 14px;border-radius:12px;background:rgba(10,20,60,.7);border:2px solid #3a5ab0}
+.legendList .saga.done{border-color:#5be07a}.legendList .saga.locked{opacity:.55;filter:grayscale(.7)}
+.legendList .saga canvas{flex:none;width:72px;height:72px;border-radius:10px;background:radial-gradient(circle,#2a4aa0,#0a1430);image-rendering:pixelated}
+.legendList .sg{flex:1;min-width:0}.legendList h4{margin:0 0 4px;color:#ffd24a}.legendList h4 em{font-style:normal;color:#5be07a;font-size:.8em}.legendList p{margin:2px 0}.legendList .goal{color:#d8a8ff;font-weight:700}
+.legendList .start{flex:none}.legendList .start small{display:block;font-size:10px;opacity:.85}
+@media (max-width:640px){.legendList .saga{flex-wrap:wrap}.legendList .start{width:100%}#talk canvas{width:64px;height:64px}}
 #balls.ping{animation:radarPing .35s ease-out}
 @keyframes radarPing{0%{color:#fff;text-shadow:0 0 10px #ffd84a,0 0 18px #ffb030}100%{text-shadow:none}}
 #ultFx{position:fixed;inset:0;pointer-events:none;z-index:45;opacity:0;background:#000}
@@ -767,6 +783,8 @@ html.touch #rhud #pr{width:160px}
 <div id="ultFx"></div>
 <div id="roomFx"><span id="roomLbl"></span></div>
 <div id="tourLbl"></div>
+<div id="sagaLbl"></div>
+<div id="talk"><canvas id="talkPic" width="96" height="96"></canvas><div class="tx"><b id="talkName"></b><p id="talkText"></p><small>[E] · ESPACIO · CLIC PARA CONTINUAR</small></div></div>
 <div id="bossCine"><i class="bar t"></i><i class="bar b"></i><div class="bc"><small id="bcName"></small><b id="bcForm"></b><em id="bcSub"></em></div></div>
 <!-- Pantalla completa (se oculta si el navegador no la permite, p. ej. Safari de iPhone) -->
 <button id="fsBtn" type="button" title="Pantalla completa" aria-label="Pantalla completa"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path class="in" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path class="out" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg></button>

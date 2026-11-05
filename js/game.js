@@ -261,7 +261,7 @@ class Game {
       else if (D.tech) this.buyTech(D.tech);
       else if (D.claim) this.claimMission(D.claim);
       else if (D.diff) { Save.d.diff = D.diff; Save.write(); ui.renderMenu(); }
-      else if (D.start !== undefined) this.startLoad(D.start === 'practice', D.start === 'daily');
+      else if (D.start !== undefined) { this.saga = D.start.startsWith('saga:') ? sagaById(D.start.slice(5)) : null; this.startLoad(D.start === 'practice', D.start === 'daily'); }
       else if (D.exit !== undefined) ui.showExit(true);
       else if (D.rtab) { ui.rtab = D.rtab; ui.renderMenu(); }
       else if (D.otab) { ui.otab = D.otab; ui.renderMenu(); }
@@ -437,8 +437,9 @@ class Game {
     }));
   }
   start(practice, daily) {
-    const ch = charById(Save.d.sel);
-    if (!ch || ch.soon || !Save.d.unlocked.includes(ch.id)) return;
+    if (practice || daily) this.saga = null;                         // el Modo Leyenda solo en partidas normales
+    const ch = this.saga ? charById(this.saga.ch) : charById(Save.d.sel);
+    if (!ch || ch.soon || (!this.saga && !Save.d.unlocked.includes(ch.id))) return;   // en una saga juegas con su personaje
     // Desafío diario: mapa con la semilla del día, 2 modificadores y dificultad NORMAL para todos
     this.daily = !!daily && !practice;
     this.modList = this.daily ? dailyMods() : [];
@@ -451,7 +452,7 @@ class Game {
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
     this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
-    this.bossWeak = false; this.ballDist = 1e9; this.radarT = 0; this.roomT = 0; this.tourney = null; const rmEl = document.getElementById('roomFx'); if (rmEl) rmEl.classList.remove('show');
+    this.bossWeak = false; this.ballDist = 1e9; this.radarT = 0; this.roomT = 0; this.tourney = null; const tkEl = document.getElementById('talk'); if (tkEl) tkEl.classList.remove('show'); const rmEl = document.getElementById('roomFx'); if (rmEl) rmEl.classList.remove('show');
     this.camFocus = null; const bcEl = document.getElementById('bossCine'); if (bcEl) bcEl.classList.remove('show');   // por si acabó en mitad de una cinemática
     this.practice = !!practice; this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = rand(90, 130); this.rivalUid = 0; this.achT = 1;
     this.allies.reset(); this.setStorm(0);
@@ -459,7 +460,11 @@ class Game {
     this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
     if (IS_TOUCH) { goFullscreen(); this.camDistT = 22; }
     this.step = 0; this.booms.length = 0; this.rerolls = 2; this.sigOffered = {}; this.wMul = {};
-    this.loadStage((this.daily ? dailySeed() % 2 === 1 : Math.random() < 0.5) ? 7 : 0);   // se empieza en la Tierra o en la Isla Kame
+    this.loadStage(this.saga ? this.saga.stage : (this.daily ? dailySeed() % 2 === 1 : Math.random() < 0.5) ? 7 : 0);
+    if (this.saga) {                                                   // Modo Leyenda: jefe fijo y objetivo
+      const SG = this.saga; this.stage.boss = Object.assign({}, BOSSES[SG.boss], { hp: this.stage.bossHp, id: SG.boss });
+      this.sagaGoal = SG.goal.type === 'boss'; this.sagaT = 0; this.sagaTalked = false;
+    }   // se empieza en la Tierra o en la Isla Kame
     this.applyForm();
     for (let i = 0; i < 14; i++) this.spawnEnemy();
     this.horde.buildGrid();
@@ -486,6 +491,7 @@ class Game {
   /** Oráculo de Kami: 3 pactos al azar (ventaja + debilidad) o jugar sin pacto. No sale en el entrenamiento */
   openOracle() {
     if (this.practice || this.state !== 'play') return;
+    if (this.saga) { this.talk(this.saga.intro); return; }      // Modo Leyenda: diálogo de inicio en vez del Oráculo
     this.state = 'wish'; this.releaseMouse(); this.cardT = 0;
     const pool = PACTS.slice(), list = [];
     while (list.length < 3) list.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
@@ -643,7 +649,8 @@ class Game {
     }
     if (pts.near >= 0) {
       const o = pts.list[pts.near];
-      if (o.type === 'boss') return { t: this.bossUid ? 'EL JEFE YA ESTÁ AQUÍ' : '[E] INVOCAR A ' + this.stage.boss.name, ok: !this.bossUid };
+      if (o.type === 'boss') { if (this.saga && !this.sagaGoal) return { t: 'OBJETIVO PENDIENTE: ' + this.saga.goal.text.toUpperCase(), ok: false };
+        return { t: this.bossUid ? 'EL JEFE YA ESTÁ AQUÍ' : '[E] INVOCAR A ' + this.stage.boss.name, ok: !this.bossUid }; }
       if (o.type === 'temple') return { t: '[E] ACEPTAR EL DESAFÍO · ENEMIGOS MÁS FUERTES, MÁS RECOMPENSA', ok: true };
       if (o.type === 'merchant') return { t: '[E] HABLAR CON BULMA', ok: true };
       if (o.type === 'swapper') return { t: '[E] HABLAR CON EL MAESTRO ROSHI', ok: true };
@@ -654,6 +661,7 @@ class Game {
     const ui = this.ui;
     if (o.type === 'boss') {
       if (this.bossUid || o.used) return;
+      if (this.saga && !this.sagaGoal) { ui.toast('Primero cumple el objetivo: ' + this.saga.goal.text, true); return; }
       o.used = true;
       const a = rand(0, 6.28);
       this.spawnBoss(o.x + Math.cos(a) * 12, o.z + Math.sin(a) * 12);
@@ -846,6 +854,56 @@ class Game {
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
 
+  /* ---------- Modo Leyenda: objetivo del mapa (invoca al jefe) y diálogos con retrato ---------- */
+  updateSaga(dt) {
+    const SG = this.saga, L = this.ui.el.sagaLbl || (this.ui.el.sagaLbl = document.getElementById('sagaLbl'));
+    if (!SG) { if (L && L.classList.contains('show')) L.classList.remove('show'); return; }
+    this.sagaT += dt;
+    const G = SG.goal, v = G.type === 'kills' ? this.kills : G.type === 'balls' ? this.pickups.collected : G.type === 'survive' ? this.sagaT : 0;
+    if (L) {
+      L.classList.add('show');
+      L.textContent = '☆ ' + SG.name + ' · ' + (this.sagaGoal ? '¡DERROTA A ' + this.stage.boss.name + '!' : G.text + ' · ' +
+        (G.type === 'survive' ? fmtTime(Math.max(0, G.n - v)) : Math.min(v, G.n) + '/' + G.n));
+    }
+    if (!this.sagaGoal && v >= G.n) {
+      this.sagaGoal = true; this.ui.toast('¡OBJETIVO CUMPLIDO!'); SFX.play('achieve');
+      const go = () => { if (!this.bossSpawned) this.spawnBoss(); };
+      if (SG.bossTalk.length) this.talk(SG.bossTalk, go); else go();
+    }
+  }
+  /** Diálogo: líneas [quién, texto]. El mundo se congela; E, Espacio, Intro, clic o el mando para avanzar */
+  talk(lines, cb) {
+    if (!lines || !lines.length) { if (cb) cb(); return; }
+    this.talkQ = lines.slice(); this.talkCb = cb || null; this.talkHeld = true;
+    const el = document.getElementById('talk');
+    if (!el.onclick) el.onclick = () => this.talkNext();
+    el.classList.add('show'); this.state = 'talk'; this.releaseMouse();
+    this.talkLine();
+  }
+  talkLine() {
+    const [who, text] = this.talkQ[0], c = charById(who);
+    document.getElementById('talkName').textContent = c ? c.name : who.toUpperCase();
+    const cv = document.getElementById('talkPic'); if (c && c.portrait) this.ui.drawFrame(cv, c.portrait.sheet, c.portrait.frame, c.portrait.tint);
+    this.talkText = text; this.talkT = 0; document.getElementById('talkText').textContent = '';
+  }
+  talkNext() {
+    if (this.state !== 'talk') return;
+    if (this.talkT * 45 < this.talkText.length) { this.talkT = 99; return; }   // primer toque: termina de escribir la frase
+    this.talkQ.shift();
+    if (this.talkQ.length) { this.talkLine(); return; }
+    document.getElementById('talk').classList.remove('show');
+    this.state = 'play'; this.grabMouse(); this.clock.getDelta();
+    const cb = this.talkCb; this.talkCb = null; if (cb) cb();
+  }
+  updateTalk(dt) {
+    this.talkT += dt;
+    const n = Math.min(this.talkText.length, Math.floor(this.talkT * 45));      // efecto de máquina de escribir
+    const el = document.getElementById('talkText'); if (el.textContent.length !== n) el.textContent = this.talkText.slice(0, n);
+    const k = !!(keys.KeyE || keys.Space || keys.Enter || keys.NumpadEnter);
+    if (k && !this.talkHeld) this.talkNext();
+    this.talkHeld = k;
+    this.player.animT += dt; this.player.pose(); this.fx.update(dt); this.syncSprites(); this.updateCamera(dt, dt, false); this.ui.update(this, dt);
+  }
   /* ---------- Torneo de las Artes Marciales: ring, tres rivales seguidos, salir del ring decide ---------- */
   updateTourney(dt) {
     const T = this.tourney, L = this.ui.el.tourLbl || (this.ui.el.tourLbl = document.getElementById('tourLbl'));
@@ -1158,9 +1216,16 @@ class Game {
     this.ui.showScreen('DERROTA', 'HAS CAÍDO EN COMBATE', this.runSummary(this.finishRun(false)), 'REINTENTAR [R]', 'MENÚ [M]', 'lose');
   }
   victory() {
+    if (this.saga && !this.sagaTalked) { this.sagaTalked = true; this.talk(this.saga.win, () => this.victory()); return; }
     this.won = true; this.state = 'over'; this.releaseMouse(); SFX.music(''); SFX.play('win');
     this.fx.ring(this.fx.aura, this.player.x, 0.5, this.player.z, 70, 24, 0.9, 0.5, 0xffd24a);
-    this.ui.showScreen('¡VICTORIA!', 'HAS DERROTADO A ' + this.stage.boss.name + ' · ' + this.diff.name, this.runSummary(this.finishRun(true)), 'JUGAR OTRA VEZ [R]', 'MENÚ [M]', 'win');
+    let sub = 'HAS DERROTADO A ' + this.stage.boss.name + ' · ' + this.diff.name;
+    if (this.saga) {                                                   // Modo Leyenda: saga completada (y recompensa la primera vez)
+      const SG = this.saga, done = Save.d.sagas || (Save.d.sagas = {}), first = !done[SG.id];
+      done[SG.id] = true; if (first) Save.d.zeni += SG.reward; Save.write();
+      sub = SG.name + ' COMPLETADA' + (first ? ' · +' + SG.reward + ' MONEDAS' : '');
+    }
+    this.ui.showScreen('¡VICTORIA!', sub, this.runSummary(this.finishRun(true)), this.saga ? 'REPETIR LA SAGA [R]' : 'JUGAR OTRA VEZ [R]', 'MENÚ [M]', 'win');
   }
 
   /* ---------- Formas y efectos ---------- */
@@ -1870,7 +1935,7 @@ class Game {
       this.vfx.play('dome', x, 3, z, { size: 14, grow: 1.6, dur: 0.8, pri: 1 });
       this.impact(0.26, 0);
       this.ui.toast('¡' + this.stage.boss.name + ' DERROTADO!'); this.shake(1); SFX.play('bigboom'); SFX.music('battle');
-      if (this.stage.final) this.victoryT = 2.2;
+      if (this.stage.final || this.saga) this.victoryT = 2.2;
       else this.openRifts(x, z);
     } else {
       if (Math.random() < 0.012) this.pickups.drop(x, z);
@@ -2107,7 +2172,7 @@ class Game {
     if (S.final) {                                                  // mapa final: solo el jefe (y sus refuerzos)
       if (!this.bossSpawned && this.stageTime > 2) this.spawnBoss(0, -22);
     } else {
-      if (S.bossAt && !this.bossSpawned && this.stageTime >= S.bossAt) this.spawnBoss();   // Cámara del Tiempo: el jefe llega solo
+      if (S.bossAt && !this.bossSpawned && !this.saga && this.stageTime >= S.bossAt) this.spawnBoss();   // Cámara del Tiempo: el jefe llega solo
       if (!this.swarm && !this.practice && this.stageTime >= this.swarmAt()) {            // a los 10 minutos llega el enjambre final
         this.swarm = true; this.ui.toast('¡ENJAMBRE FINAL!'); this.shake(1); SFX.play('alarm'); SFX.music('boss');
       }
@@ -2210,6 +2275,7 @@ class Game {
     this.updateFusion(dt);
     this.updateRadar(dt);
     this.updateTourney(dt);
+    this.updateSaga(dt);
     this.updateRival(dt);
     if (this.world.follow(p.x, p.z)) this.shadowDirty = true;
 
@@ -2242,7 +2308,7 @@ class Game {
     requestAnimationFrame(this.loop);
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     const s = this.state;
-    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine' || s === 'bosscine';
+    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine' || s === 'bosscine' || s === 'talk';
     if (vf) this.vfx.begin(this.camera);
     if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }
     if (s === 'play' && IS_TOUCH && window.innerHeight > window.innerWidth) this.togglePause();   // móvil en vertical: pausa
@@ -2285,6 +2351,8 @@ class Game {
       if (this.transT > 1.4) { this.state = 'play'; this.clock.getDelta(); }
     } else if (s === 'bosscine') {                                     // transformación del jefe
       this.updateBossCine(rawDt);
+    } else if (s === 'talk') {                                         // diálogo del Modo Leyenda
+      this.updateTalk(rawDt);
     } else if (s === 'intro' || s === 'ultcine') {                    // intro de la fusión / animación de la Ultimate, dentro del mapa
       (s === 'intro' ? this.intro : this.ultCine).update(rawDt);
       const p = this.player;

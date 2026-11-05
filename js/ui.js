@@ -382,11 +382,11 @@ class UIManager {
   }
 
   renderMenu() {
-    const e = this.el, s = this.screen, TITLES = { play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES', records: 'RÉCORDS', account: 'CUENTA', credits: 'CRÉDITOS' };
+    const e = this.el, s = this.screen, TITLES = { legend: 'MODO LEYENDA', play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES', records: 'RÉCORDS', account: 'CUENTA', credits: 'CRÉDITOS' };
     e.zeniMenu.textContent = Save.d.zeni;
     e.menu.classList.toggle('ishome', s === 'home');
     e.menuNav.innerHTML = s === 'home' ? '' : '<button class="back" data-go="home">◂ VOLVER</button><h3>' + TITLES[s] + '</h3>';
-    if (s === 'home') this.renderHome(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else if (s === 'records') this.renderRecords(); else if (s === 'account') this.renderAccount(); else if (s === 'credits') this.renderCredits(); else this.renderMissions();
+    if (s === 'home') this.renderHome(); else if (s === 'legend') this.renderLegend(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else if (s === 'records') this.renderRecords(); else if (s === 'account') this.renderAccount(); else if (s === 'credits') this.renderCredits(); else this.renderMissions();
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
   }
@@ -400,6 +400,7 @@ class UIManager {
     this.el.menuBody.innerHTML = '<div class="home"><div class="hl">' +
       '<div class="titlebox"><div class="logo-db"><span class="dball"></span><h1>DRAGON <br>BALL</h1></div><div class="ribbon">ULTIMATE SURVIVOR</div><p>SOBREVIVE · TRANSFÓRMATE · REÚNE LAS 7 ESFERAS</p></div>' +
       '<div class="hbtns"><button class="big play" data-go="play">▶ JUGAR<small>' + sel.name + ' · ' + d.name + '</small></button>' +
+      '<button class="big" data-go="legend">☆ MODO LEYENDA<small>' + SAGAS.filter((g) => (Save.d.sagas || {})[g.id]).length + ' / ' + SAGAS.length + ' SAGAS</small></button>' +
       '<button class="big" data-go="shop">TIENDA</button>' +
       '<button class="big" data-go="missions">MISIONES' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +
       '<button class="big" data-go="records">RÉCORDS</button>' +
@@ -409,6 +410,22 @@ class UIManager {
       '<button class="big" data-go="credits">CRÉDITOS</button>' +
       '<button class="big ghost" data-exit>SALIR</button></div></div>' +
       '<div class="hr">' + this.dailyCard() + '<div class="hcard"><h4>MISIONES DIARIAS</h4>' + daily + '<h4 style="margin-top:12px">RACHA</h4><p>' + Save.d.login.streak + ' día(s) seguidos</p></div></div></div>';
+  }
+  /** Modo Leyenda: las sagas en orden, con su personaje, objetivo y recompensa (cada una se abre al completar la anterior) */
+  renderLegend() {
+    const done = Save.d.sagas || {};
+    const cards = SAGAS.map((g, i) => {
+      const c = charById(g.ch), open = sagaOpen(i), ok = !!done[g.id], B = BOSSES[g.boss], S = STAGES[g.stage];
+      return '<div class="saga' + (open ? '' : ' locked') + (ok ? ' done' : '') + '">' +
+        '<canvas width="72" height="72" data-sheet="' + c.portrait.sheet + '" data-frame="' + c.portrait.frame + '"></canvas>' +
+        '<div class="sg"><h4>' + (i + 1) + '. ' + g.name + (ok ? ' <em>✔ COMPLETADA</em>' : '') + '</h4>' +
+        '<p>' + g.desc + '</p>' +
+        '<p class="dim">' + c.name + ' · ' + S.name + ' · Jefe: ' + B.name + '</p>' +
+        '<p class="goal">◎ ' + g.goal.text + '</p></div>' +
+        (open ? '<button class="start" data-start="saga:' + g.id + '">' + (ok ? 'REPETIR' : 'JUGAR') + '<small>' + (ok ? 'sin recompensa' : '+' + g.reward + ' monedas') + '</small></button>'
+              : '<button class="start" disabled>🔒<small>Completa la saga anterior</small></button>') + '</div>';
+    }).join('');
+    this.el.menuBody.innerHTML = '<div class="legendList"><p class="dim">Revive las sagas de Dragon Ball con un guerrero y un objetivo especial en cada mapa. Cumple el objetivo para que aparezca el jefe.</p>' + cards + '</div>';
   }
   /** Tarjeta del desafío diario: modificadores de hoy, tu mejor puntuación y botón para jugar */
   dailyCard() {
