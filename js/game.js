@@ -7,7 +7,7 @@
    ===================================================================== */
 
 /** Estadísticas de la partida en curso (se muestran en la pausa y al terminar) */
-const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0, bosses: 0, perfects: 0, tps: 0, blocked: 0, route: [] });
+const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0, bosses: 0, tps: 0, route: [] });
 /** Nombre legible del origen del daño (gráfica de daño por técnica) */
 const SRC_NAMES = { ult: 'Ultimate', otros: 'Otros (ondas, explosiones)', ally: 'Compañeros', mines: 'Minas de Energía', transform: 'Transformación', aura: 'Aura de transformación', bolt: 'Rayos de la forma', counter: 'Contraataques', tp: 'Transmisión Instantánea', chain: 'Saibaimen en cadena' };
 /** Color del brillo de cada grieta según el mapa al que lleva */
@@ -231,10 +231,9 @@ class Game {
     // Cámara libre estilo Megabonk: el ratón queda capturado (pointer lock) y mueve la cámara siempre
     cv.addEventListener('mousedown', (e) => {
       if (this.state === 'play' && !this.locked()) this.grabMouse();
-      else if (this.locked() && e.button === 2) keys.Mouse2 = true;          // botón derecho con el ratón capturado = bloquear
       else if (e.button !== 0) this.drag = true;
     });
-    window.addEventListener('mouseup', (e) => { this.drag = false; if (e.button === 2) keys.Mouse2 = false; });
+    window.addEventListener('mouseup', () => { this.drag = false; });
     window.addEventListener('mousemove', (e) => {
       if (this.state !== 'play' && this.state !== 'dying') return;
       if (!this.locked() && !this.drag) return;                       // sin captura: botón derecho + arrastrar
@@ -746,7 +745,7 @@ class Game {
     h += '<h4 class="sh">PARTIDA</h4><div class="sum">' + [
       ['MAPA', (this.step + 1) + ' / ' + ROUTE_LEN + ' · ' + this.stage.name], ['TIEMPO EN EL MAPA', fmtTime(this.stageTime)], ['ENEMIGOS', this.kills], ['DAÑO TOTAL', Math.floor(r.damage)],
       ['GOLPE MÁS FUERTE', Math.floor(r.best)], ['DAÑO RECIBIDO', Math.floor(r.taken)], ['DASHES', r.dashes], ['CÁPSULAS', this.capsOpened],
-      ['MALDICIONES', r.curses], ['DESAFÍOS', r.temples + ' (nv ' + this.chal + ')'], ['HABITACIONES DEL TIEMPO', r.rooms], ['ZENI', Math.floor(this.cash)], ['COMBO MÁXIMO', r.maxCombo], ['EVENTOS', r.events], ['BLOQUEOS PERFECTOS', r.perfects], ['TELETRANSPORTES', r.tps]].map((x) => row(x[0], x[1])).join('') + '</div>' + this.dmgChart();
+      ['MALDICIONES', r.curses], ['DESAFÍOS', r.temples + ' (nv ' + this.chal + ')'], ['HABITACIONES DEL TIEMPO', r.rooms], ['ZENI', Math.floor(this.cash)], ['COMBO MÁXIMO', r.maxCombo], ['EVENTOS', r.events], ['TELETRANSPORTES', r.tps]].map((x) => row(x[0], x[1])).join('') + '</div>' + this.dmgChart();
     if (p.trait) h += '<h4 class="sh">FORMA · ' + p.form.name + '</h4><div class="trait"><b>' + p.trait.name + '</b><span class="trg">✚ ' + p.trait.good + '</span><span class="trb">✖ ' + p.trait.bad + '</span></div>';
     const fl = fusionsFor(p.ch.id).filter((f) => WEAPONS[f].fusion.every((x) => techOwned(x, this.practice)));
     if (fl.length) h += '<h4 class="sh">FUSIONES (LAS DOS TÉCNICAS AL NV 5)</h4><div class="chips">' + fl.map((f) => {
@@ -802,23 +801,7 @@ class Game {
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
 
-  /* ---------- Bloqueo, Transmisión Instantánea y esquiva del Ultra Instinto ---------- */
-  onPerfectBlock() {
-    const p = this.player;
-    this.run.perfects++; this.track('perfects', 1);
-    p.ki = Math.min(p.maxKi, p.ki + 12);
-    this.horde.shockwave(p.x, p.z, 9, 26);
-    this.fx.ring(this.fx.aura, p.x, 0.6, p.z, 40, 16, 0.45, 0.4, 0xffffff);
-    this.vfx.play('pulse', p.x, 1.6, p.z, { size: 5, grow: 2.2, fps: 18 }); this.vfx.flash(p.x, 1.6, p.z, 5, 0x9be7ff);
-    this.hitstop = Math.max(this.hitstop, 0.06); this.shake(0.4);
-    if (!Save.d.opt.flash) this.impT = Math.max(this.impT, 0.06);
-    SFX.play('perfect'); this.ui.toast('¡BLOQUEO PERFECTO!', true);
-  }
-  onGuardBreak() {
-    const p = this.player;
-    SFX.play('guard'); this.ui.toast('¡GUARDIA ROTA!', true); this.shake(0.6);
-    this.vfx.play('shBreak', p.x, 1.6, p.z, { size: 5, fps: 22 }); this.impact(0.06, 1);
-  }
+  /* ---------- Transmisión Instantánea y esquiva del Ultra Instinto ---------- */
   onTeleport(ox, oz, x, z) {
     const p = this.player, col = p.form.ki;
     this.run.tps++; this.track('tps', 1);

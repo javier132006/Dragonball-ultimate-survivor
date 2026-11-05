@@ -10,7 +10,7 @@ const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).pa
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
-      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abBlock', 'blockFill', 'abTp', 'tpFill', 'abUlt', 'ultFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
+      'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'abTp', 'tpFill', 'abUlt', 'ultFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'cardFoot', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
@@ -147,8 +147,6 @@ class UIManager {
     sc(e.dashFill, 1 - p.dashCd / (CFG.DASH_CD * p.dashMul || 1));
     this.setC(e.abDash, 'ab' + (p.ki < CFG.DASH_COST * p.dashCost ? ' low' : ''));
     this.setC(e.abCharge, 'ab' + (p.charging ? ' on' : ''));
-    sc(e.blockFill, p.guardT > 0 ? 1 - p.guardT / 1.4 : 1);
-    this.setC(e.abBlock, 'ab' + (p.blocking ? ' on' : p.guardT > 0 || p.ki < 10 ? ' low' : ''));
     sc(e.tpFill, 1 - p.tpCd / p.tpMax);
     this.setC(e.abTp, 'ab' + (p.tpCd > 0 || p.ki < 35 ? ' low' : ''));
     // Ultimate: solo para los personajes que la tienen; se ilumina cuando está cargada
@@ -524,8 +522,8 @@ class UIManager {
       '<textarea id="saveTxt" spellcheck="false" placeholder="Aquí aparecerá el texto de la copia, o pega aquí una copia para importarla"></textarea>' +
       '<div class="qbs"><button class="qb" data-exp>EXPORTAR</button><button class="qb" data-imp>IMPORTAR' + (this.impArmed ? ' (CONFIRMAR)' : '') + '</button><button class="qb" data-impfile>ELEGIR ARCHIVO…</button><input type="file" id="impFile" accept=".json,.txt,application/json" style="display:none"></div>' +
       (this.optMsg ? '<p class="omsg">' + this.optMsg + '</p>' : '') + '</div></div>' +
-      '<div class="item info wide"><div><b>CONTROLES</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · SHIFT (o botón derecho) bloquear · F Transmisión Instantánea · G transformarse (sube de una en una: cuesta Ki, y mantener la forma también) · H volver a la forma base · F11 o el botón de la esquina: pantalla completa · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
-      'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · LB/LT bloquear · RB/RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir, A para confirmar y X para cambiar las cartas.</p></div></div>' +
+      '<div class="item info wide"><div><b>CONTROLES</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · V volar con Ki · F Transmisión Instantánea · G transformarse (sube de una en una: cuesta Ki, y mantener la forma también) · H volver a la forma base · F11 o el botón de la esquina: pantalla completa · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
+      'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · LB/LT volar · RB/RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir, A para confirmar y X para cambiar las cartas.</p></div></div>' +
       '<div class="item info"><div><b>SONIDO SINTETIZADO</b><p>Toda la música y los efectos se generan en el momento con Web Audio (sin archivos). En el móvil, el sonido se activa al tocar la pantalla por primera vez.</p></div></div></div>';
     this.optMsg = '';
   }
@@ -601,7 +599,7 @@ class UIManager {
     const st = Save.d.stats, n = (k) => Math.floor(st[k] || 0);
     const rows = [['PARTIDAS', n('runs')], ['VICTORIAS', n('wins')], ['TIEMPO JUGADO', fmtTime(n('time'))], ['MAPA MÁS LEJANO', n('maxStage') + ' / ' + ROUTE_LEN], ['NIVEL MÁXIMO', n('maxLevel')],
       ['ENEMIGOS DERROTADOS', n('kills')], ['ÉLITES', n('elites')], ['JEFES', n('bosses')], ['DAÑO TOTAL', n('damage')], ['DAÑO RECIBIDO', n('taken')], ['DASHES', n('dashes')],
-      ['CÁPSULAS ABIERTAS', n('capsules')], ['MALDICIONES', n('curses')], ['DESAFÍOS ACEPTADOS', n('temples')], ['HABITACIONES DEL TIEMPO', n('rooms')], ['DESEOS A SHENRON', n('wishes')], ['COMBO MÁXIMO', n('maxCombo')], ['GOLPE MÁS FUERTE', n('bestHit')], ['TRANSFORMACIONES', n('transforms')], ['FUSIONES', n('fusions')], ['EVENTOS', n('events')], ['RIVALES DERROTADOS', n('rivals')], ['BLOQUEOS PERFECTOS', n('perfects')], ['TELETRANSPORTES', n('tps')], ['DESAFÍOS DIARIOS', n('dailies')]];
+      ['CÁPSULAS ABIERTAS', n('capsules')], ['MALDICIONES', n('curses')], ['DESAFÍOS ACEPTADOS', n('temples')], ['HABITACIONES DEL TIEMPO', n('rooms')], ['DESEOS A SHENRON', n('wishes')], ['COMBO MÁXIMO', n('maxCombo')], ['GOLPE MÁS FUERTE', n('bestHit')], ['TRANSFORMACIONES', n('transforms')], ['FUSIONES', n('fusions')], ['EVENTOS', n('events')], ['RIVALES DERROTADOS', n('rivals')], , ['TELETRANSPORTES', n('tps')], ['DESAFÍOS DIARIOS', n('dailies')]];
     const best = CHARACTERS.filter((c) => Save.d.best[c.id]).map((c) => { const b = Save.d.best[c.id]; return '<div class="dm"><span>' + c.name + ' · ' + fmtTime(b.time) + ' · ' + b.kills + ' enemigos · NV ' + b.level + '</span></div>'; }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
     this.el.menuBody.innerHTML = '<div class="msplit"><div><div class="sec">TOTALES</div><div class="sum">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div></div><div><div class="sec">MEJORES PARTIDAS</div>' + best + '</div></div>';
   }

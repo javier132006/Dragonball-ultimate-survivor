@@ -38,8 +38,8 @@ class Player {
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
     this.absorbed = 0; this.barT = 0; this.barHits = 0; this.barBoom = 0; this.barCol = 0x8ae0ff;   // Absorción de Célula y Barrera de Ki
     this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.wade = 1; this.slowT = 0; this.confT = 0; this.poisonT = 0; this.weakT = 0; this.noDashT = 0; this.ud = null; this.udT = 0;
-    // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
-    this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
+    // Transmisión Instantánea y efectos de los rasgos de transformación
+    this.tpCd = 0; this.prevF = false;
     this.flying = false; this.prevV = false; this.flyH = 0;   // vuelo (V): altura actual suavizada
     this.egoStk = 0; this.auraT = 0; this.boltT = 0; this.tfCd = 0; this.formSeen = {}; this.trait = null; this.tr = {};
     this.fused = [];                                             // fusiones hechas (cada una tiene una pequeña desventaja)
@@ -66,7 +66,7 @@ class Player {
     this.rateMul = 1; this.regen = 0; this.armor = 0; this.xpMul = 1; this.killHeal = 0; this.dodge = 0; this.dashMul = 1; this.luck = 0;
     this.zeniMul = 1 + 0.1 * L('zeni');
     this.armor = 0.02 * L('armor'); this.xpMul = 1 + 0.05 * L('xp'); this.luck = L('luck');
-    this.dashCost = 1; this.blockMul = 1 - 0.1 * L('block'); this.tpMax = 6 * (1 - 0.08 * L('tp'));
+    this.dashCost = 1; this.tpMax = 6 * (1 - 0.08 * L('tp'));
     // Pasivas de los personajes
     if (ch.id === 'piccolo') this.regen += 1.5;
     if (ch.id === 'freezer') this.zeniMul += 0.25;
@@ -144,23 +144,14 @@ class Player {
       return false;
     }
     if (this.udT > 0 && this.ud.take) amount *= 1 + this.ud.take;   // desventaja de la Ultimate: recibes más daño
-    // Bloqueo con Ki: perfecto (justo al empezar) = sin daño; normal = 70% menos gastando Ki; sin Ki = guardia rota
-    let blocked = false;
-    if (this.blocking) {
-      if (this.perfectT > 0) { this.iframes = 0.45; game.onPerfectBlock(); return false; }
-      const cost = 10 * this.blockMul;
-      if (this.ki >= cost) { this.ki -= cost; amount *= 0.3; blocked = true; }
-      else { this.guardT = 1.4; this.blocking = false; game.onGuardBreak(); }
-    }
     const real = amount * (1 - this.armor);
     if (game.practice && this.hp - real <= 1) { this.hp = this.maxHp; game.ui.toast('ENTRENAMIENTO · VIDA RESTAURADA', true); }
-    if (!blocked) game.onPlayerHit();                               // un golpe bloqueado no rompe el combo
-    SFX.play(blocked ? 'block' : 'hurt');
+    game.onPlayerHit();
+    SFX.play('hurt');
     this.hp -= real;
-    this.iframes = blocked ? 0.3 : 0.55; this.hurtT = blocked ? 0 : 0.3;
+    this.iframes = 0.55; this.hurtT = 0.3;
     if (this.tr.ego) this.egoStk = Math.min(this.tr.ego, this.egoStk + 0.03);
     game.run.taken += real;
-    if (blocked) { game.fx.burst(game.fx.aura, this.x, 1.3, this.z, 10, 6, 0.3, 0.3, 0, 0x9be7ff); game.shake(0.15); return false; }
     game.ui.flash = 1;
     game.shake(0.45);
     game.hitstop = 0.04;
@@ -196,14 +187,7 @@ class Player {
     this.iframes = Math.max(0, this.iframes - dt); this.dashCd = Math.max(0, this.dashCd - dt);
     this.atkT = Math.max(0, this.atkT - dt); this.hurtT = Math.max(0, this.hurtT - dt); this.beamT = Math.max(0, this.beamT - dt);
     this.charging = !!keys.KeyC && this.dashT <= 0;
-    this.tpCd = Math.max(0, this.tpCd - dt); this.guardT = Math.max(0, this.guardT - dt); this.perfectT = Math.max(0, this.perfectT - dt); this.tfCd = Math.max(0, this.tfCd - dt);
-
-    // --- Bloqueo con Ki (SHIFT o botón derecho): ventana de bloqueo perfecto al empezar ---
-    const wantBlock = !!(keys.ShiftLeft || keys.ShiftRight || keys.Mouse2);
-    this.blocking = wantBlock && !this.charging && this.dashT <= 0 && this.guardT <= 0 && this.ki > 1;
-    if (this.blocking && !this.prevBlock) this.perfectT = 0.22;
-    this.prevBlock = this.blocking;
-    if (this.blocking) this.ki = Math.max(0, this.ki - 6 * this.blockMul * dt);
+    this.tpCd = Math.max(0, this.tpCd - dt); this.tfCd = Math.max(0, this.tfCd - dt);
 
     // --- Transmisión Instantánea (F): te teletransportas 14 m hacia donde te mueves ---
     const fKey = !!keys.KeyF;
@@ -248,7 +232,7 @@ class Player {
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1) * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1) * (this.flying ? 1.1 : 1);
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1) * (this.flying ? 1.1 : 1);
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
@@ -289,7 +273,7 @@ class Player {
         game.fx.ring(game.fx.aura, this.x, 0.5, this.z, 40, 15, 0.45, 0.3, ac);
         game.shake(0.14);
       }
-    } else { if (!this.blocking && !this.flying && !this.tr.kiDrain && !(this.udT > 0 && this.ud.noki)) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
+    } else { if (!this.flying && !this.tr.kiDrain && !(this.udT > 0 && this.ud.noki)) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
 
     // --- Aura continua de la transformación (el Kaio-ken la tiñe de rojo) ---
     if (this.form.aura || this.buffT > 0) {
@@ -412,9 +396,6 @@ class Player {
     }
     this.shield.begin();
     if (this.charging && !useFx) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 5 * (1 + Math.sin(this.animT * 12) * 0.05), 1);
-    if (this.blocking && useFx) V.now(0, fxf('shield', this.perfectT > 0 ? 4 : 1), this.x, 1.6, this.z, 4.3 * (1 + Math.sin(this.animT * 20) * 0.04), this.perfectT > 0 ? 1 : 0.55, 0xffffff);
-    else if (this.blocking) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 3.6 * (1 + Math.sin(this.animT * 20) * 0.04), this.perfectT > 0 ? 1.6 : 1, this.perfectT > 0 ? 0xffffff : 0x9be7ff);
-    else if (this.guardT > 0 && ((this.animT * 10) | 0) % 2) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 3, 0.6, 0xff4060);
     this.shield.end();
     shadows.push(this.x, 0.06, this.z, 0, 0, 0, 2.5 * (1 - y * 0.3), alpha);
   }

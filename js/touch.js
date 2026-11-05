@@ -36,7 +36,7 @@ class TouchControls {
     window.addEventListener('touchcancel', (e) => this.end(e), opt);
     // Botones: mientras se mantienen pulsados escriben en `keys` (como el teclado)
     this.hold('tbDash', 'Space'); this.hold('tbKi', 'KeyC');
-    this.hold('tbBlk', 'ShiftLeft'); this.hold('tbTp', 'KeyF');                     // bloqueo con Ki y Transmisión Instantánea
+    this.hold('tbFly', 'KeyV'); this.hold('tbTp', 'KeyF');                              // vuelo y Transmisión Instantánea
     this.tap('tbBase', () => { if (game.state === 'play') game.revertForm(); });
     this.tap('tbE', () => { if (game.state === 'play') game.interact(); else if (game.state === 'trade') game.closeTrade(); });
     this.tap('tbTf', () => { if (game.state === 'play') game.transform(); });
@@ -104,7 +104,7 @@ class TouchControls {
     if (!IS_TOUCH || !this.root) return;
     const show = game.state === 'play';
     this.root.style.display = show ? 'block' : 'none';
-    if (!show) { if (stick.on && this.stickId !== null) { this.stickId = null; stick.on = false; stick.x = stick.z = 0; this.base.style.display = 'none'; } if (this.wasShown) { keys.Space = false; keys.KeyC = false; keys.ShiftLeft = false; keys.KeyF = false; } this.wasShown = false; return; }
+    if (!show) { if (stick.on && this.stickId !== null) { this.stickId = null; stick.on = false; stick.x = stick.z = 0; this.base.style.display = 'none'; } if (this.wasShown) { keys.Space = false; keys.KeyC = false; keys.KeyV = false; keys.KeyF = false; } this.wasShown = false; return; }
     this.wasShown = true;
     const info = game.promptInfo();
     document.getElementById('tbE').classList.toggle('ready', !!info);
