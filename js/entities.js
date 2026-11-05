@@ -40,6 +40,7 @@ class Player {
     this.kbx = 0; this.kbz = 0; this.comboMul = 1; this.dashBoost = 1; this.slow = 1; this.grav = 1; this.wade = 1; this.slowT = 0; this.confT = 0; this.poisonT = 0; this.weakT = 0; this.noDashT = 0; this.ud = null; this.udT = 0;
     // Bloqueo con Ki, Transmisión Instantánea y efectos de los rasgos de transformación
     this.blocking = false; this.prevBlock = false; this.perfectT = 0; this.guardT = 0; this.tpCd = 0; this.prevF = false;
+    this.flying = false; this.prevV = false; this.flyH = 0;   // vuelo (V): altura actual suavizada
     this.egoStk = 0; this.auraT = 0; this.boltT = 0; this.tfCd = 0; this.formSeen = {}; this.trait = null; this.tr = {};
     this.fused = [];                                             // fusiones hechas (cada una tiene una pequeña desventaja)
     this.initStats();
@@ -216,6 +217,19 @@ class Player {
     }
     this.prevF = fKey;
 
+    // --- Vuelo (V): despegas a una altura fija y consumes Ki mientras vuelas ---
+    const vKey = !!keys.KeyV;
+    if (vKey && !this.prevV && !this.dying) {
+      if (this.flying) { this.flying = false; game.ui.toast('ATERRIZAJE'); }
+      else if (this.ki >= CFG.FLY_TAKEOFF && !this.charging && this.dashT <= 0) { this.flying = true; game.ui.toast('¡VUELO! · V para aterrizar'); }
+    }
+    this.prevV = vKey;
+    if (this.flying) {
+      this.ki = Math.max(0, this.ki - CFG.FLY_DRAIN * dt);
+      if (this.ki <= 0) { this.flying = false; game.ui.toast('SIN KI · ATERRIZAS', true); }
+    }
+    this.flyH += ((this.flying ? CFG.FLY_H : 0) - this.flyH) * (1 - Math.exp(-6 * dt));   // subida y bajada suaves
+
     // --- Dash / Shunkan Ido: solo en el flanco de bajada de ESPACIO ---
     const space = !!keys.Space;
     const dashCost = CFG.DASH_COST * this.dashCost;
@@ -234,7 +248,7 @@ class Player {
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1) * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1);
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1) * (this.blocking ? 0.45 : 1) * (this.guardT > 0 ? 0.6 : 1) * (this.flying ? 1.1 : 1);
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
@@ -275,7 +289,7 @@ class Player {
         game.fx.ring(game.fx.aura, this.x, 0.5, this.z, 40, 15, 0.45, 0.3, ac);
         game.shake(0.14);
       }
-    } else { if (!this.blocking && !this.tr.kiDrain && !(this.udT > 0 && this.ud.noki)) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
+    } else { if (!this.blocking && !this.flying && !this.tr.kiDrain && !(this.udT > 0 && this.ud.noki)) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
 
     // --- Aura continua de la transformación (el Kaio-ken la tiñe de rojo) ---
     if (this.form.aura || this.buffT > 0) {
@@ -360,6 +374,7 @@ class Player {
     } else {
       if (this.dashT > 0) y = 0.5;
       else if (this.moving) y = Math.abs(Math.sin(this.animT * 9)) * 0.12;
+      y += this.flyH;                                              // vuelo: el sprite se eleva (la sombra se encoge)
       flash = this.hurtT > 0.22 ? 1 : 0;
       if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;
       if (this.introHide) alpha = 0;                               // intro de la fusión: aún no ha aparecido
@@ -544,7 +559,7 @@ class HordeManager {
       this.flip[i] = dx * cc - dz * cs < 0 ? 1 : 0;
       this.phase[i] += dt * 8 * (0.6 + T.spd * 0.4);
       const R = T.r * (1 + this.grow[i]);
-      if (!T.fly && d < CFG.PLAYER_R + R + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game)) {
+      if (!T.fly && !player.flying && d < CFG.PLAYER_R + R + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game)) {
         if (T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6); }
         if (T.drain) {                                            // Androide 18: te roba Ki
           player.ki = Math.max(0, player.ki - T.drain);
