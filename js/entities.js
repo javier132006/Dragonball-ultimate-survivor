@@ -70,6 +70,7 @@ class Player {
     if (ch.id === 'piccolo') this.regen += 1.5;
     if (ch.id === 'freezer') this.zeniMul += 0.25;
     if (ch.id === 'krilin') { this.dodge += 0.12; this.dashMul *= 0.75; }
+    if (ch.passive && ch.passive.stat) { const st = ch.passive.stat; this.statDmg *= 1 + (st.dmg || 0); this.speedMul *= 1 + (st.spd || 0); this.dodge += st.dodge || 0; }   // pasiva genérica de los personajes nuevos
     if (ch.id === 'trunks') { this.crit += 0.06; this.critDmg += 0.3; }
     if (ch.id === 'bardock') { this.dodge += 0.1; this.crit += 0.08; }
     if (ch.id === 'vegito') { this.statDmg += 0.1; this.rateMul += 0.1; }

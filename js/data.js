@@ -13,7 +13,7 @@ const SHEET_NAMES = ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku
   'freezer1', 'freezer3', 'freezer', 'freezer_fp', 'freezer_gold', 'trunks', 'trunks_ss', 'cell_imp', 'cell_semi', 'cell', 'piccolo', 'krilin',
   'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4', 'gogeta_base', 'gogeta', 'gogeta_ss2', 'gogeta_blue',
   'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg', 'gogeta_chg', 'vegito_intro', 'gogeta_intro',
-  'enemies', 'bosses', 'fx', 'fxbig', 'fxzip', 'props', 'tall', 'icons', 'tiles'];
+  'enemies', 'bosses', 'fx', 'fxbig', 'fxzip', 'kefla', 'gotenks', 'trunksarm', 'caulifla', 'kale', 'kyabe', 'toppo', 'janemba', 'jiren', 'turles', 'saibaman', 'bills', 'cooler', 'hitto', 'raditz', 'andro16', 'andro17', 'andro18', 'majin', 'superbuu', 'zamasu', 'props', 'tall', 'icons', 'tiles'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4 columnas, fila*4+columna) ---------- */
 /* 0 quieto · 1-2 caminar · 5 golpe · 8 herido · 9 dash · 10 rayo · 11 técnica · 12-14 muerte */
@@ -204,7 +204,280 @@ const CHARACTERS = [
       form('SUPER SAIYAN LEGENDARIO', 22, 'broly_lss', A_HD, 2.4, 1.12, 0x9aff6a, 0x7dff5a, 0xffffff),
       form('SUPER SAIYAN 4', 34, 'broly_ss4', A_HD, 3.4, 1.2, 0xff6a5a, 0xff3a2a, 0xffffff)
     ]
-  }
+  },
+  {
+    id: 'kefla', name: 'KEFLA', role: 'Furia Saiyajin · Ráfagas', cost: 4000,
+    hp: 110, ki: 130, spd: 1.1, dmg: 1.05, start: ['kefla_1'], unique: ['kefla_1', 'kefla_2', 'kefla_3', 'kefla_4'],
+    passive: { name: 'Furia Saiyajin', desc: '+10% de daño.', stat: { dmg: 0.1 } },
+    ult: { name: 'GOLPE SUPREMO', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 46, hw: 2.4, life: 1.6, col: 0xff8ad8, fx: ['#000', '#fff', '#ff8ad8', '#b8ff5a', '#ff8ad8'], debuff: { name: 'FURIA AGOTADA', text: '-20% de velocidad durante 6 s', t: 6, spd: 0.2 } },
+    portrait: { sheet: 'kefla', frame: 0 },
+    forms: [
+      form('BASE', 1, 'kefla', A_HD, 1.0, 1.0, 0xb8ff5a, 0, 0xffffff),
+      form('DESPERTAR', 10, 'kefla', A_HD, 1.4, 1.1, 0xb8ff5a, 0xb8ff5a, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'kefla', A_HD, 1.9, 1.2, 0xb8ff5a, 0xb8ff5a, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'kefla', A_HD, 2.5, 1.3, 0xb8ff5a, 0xb8ff5a, 0xffffff)
+    ]
+  },
+  {
+    id: 'gotenks', name: 'GOTENKS', role: 'Fusión infantil · Caos', cost: 4500,
+    hp: 100, ki: 120, spd: 1.2, dmg: 1.0, start: ['gotenks_1'], unique: ['gotenks_1', 'gotenks_2', 'gotenks_3', 'gotenks_4'],
+    passive: { name: 'Fusión infantil', desc: '+8% de velocidad.', stat: { spd: 0.08 } },
+    ult: { name: 'SUPER GHOST KAMIKAZE', key: 'Q', cost: 100, type: 'storm', dmg: 30, n: 20, r: 28, fx: ['#000', '#fff', '#c8a0ff', '#ffe14a', '#c8a0ff'], debuff: { name: 'MAREO', text: 'el Ki no se regenera durante 7 s', t: 7, noki: true } },
+    portrait: { sheet: 'gotenks', frame: 0 },
+    forms: [
+      form('BASE', 1, 'gotenks', A_HD, 1.0, 1.0, 0xc8a0ff, 0, 0xffffff),
+      form('DESPERTAR', 10, 'gotenks', A_HD, 1.4, 1.1, 0xc8a0ff, 0xc8a0ff, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'gotenks', A_HD, 1.9, 1.2, 0xc8a0ff, 0xc8a0ff, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'gotenks', A_HD, 2.5, 1.3, 0xc8a0ff, 0xc8a0ff, 0xffffff)
+    ]
+  },
+  {
+    id: 'trunksarm', name: 'TRUNKS ARMADURA', role: 'Espadachín blindado', cost: 5000,
+    hp: 115, ki: 110, spd: 1.05, dmg: 1.1, start: ['trunksarm_1'], unique: ['trunksarm_1', 'trunksarm_2', 'trunksarm_3', 'trunksarm_4'],
+    passive: { name: 'Armadura del futuro', desc: '+8% de esquiva.', stat: { dodge: 0.08 } },
+    ult: { name: 'ESPADA DEL FUTURO', key: 'Q', cost: 100, type: 'slash', dmg: 45, r: 14, fx: ['#000', '#fff', '#9fe0ff', '#6fb8ff', '#ffd040'], debuff: { name: 'BRAZOS CANSADOS', text: '-25% de daño durante 8 s', t: 8, dmg: 0.25 } },
+    portrait: { sheet: 'trunksarm', frame: 0 },
+    forms: [
+      form('BASE', 1, 'trunksarm', A_HD, 1.0, 1.0, 0x6fb8ff, 0, 0xffffff),
+      form('DESPERTAR', 10, 'trunksarm', A_HD, 1.4, 1.1, 0x6fb8ff, 0x6fb8ff, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'trunksarm', A_HD, 1.9, 1.2, 0x6fb8ff, 0x6fb8ff, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'trunksarm', A_HD, 2.5, 1.3, 0x6fb8ff, 0x6fb8ff, 0xffffff)
+    ]
+  },
+  {
+    id: 'caulifla', name: 'CAULIFLA', role: 'Potencia salvaje · Ki rosa', cost: 3500,
+    hp: 100, ki: 120, spd: 1.15, dmg: 1.0, start: ['caulifla_1'], unique: ['caulifla_1', 'caulifla_2', 'caulifla_3', 'caulifla_4'],
+    passive: { name: 'Salvaje', desc: '+8% de daño.', stat: { dmg: 0.08 } },
+    ult: { name: 'GALICK SALVAJE', key: 'Q', cost: 100, type: 'beam', dmg: 9, len: 44, hw: 2.5, life: 1.5, col: 0xff6aa0, fx: ['#000', '#fff', '#ff6aa0', '#ffd0e0', '#ff6aa0'], debuff: { name: 'AGOTADA', text: '-25% de daño durante 7 s', t: 7, dmg: 0.25 } },
+    portrait: { sheet: 'caulifla', frame: 0 },
+    forms: [
+      form('BASE', 1, 'caulifla', A_HD, 1.0, 1.0, 0xff6aa0, 0, 0xffffff),
+      form('DESPERTAR', 10, 'caulifla', A_HD, 1.4, 1.1, 0xff6aa0, 0xff6aa0, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'caulifla', A_HD, 1.9, 1.2, 0xff6aa0, 0xff6aa0, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'caulifla', A_HD, 2.5, 1.3, 0xff6aa0, 0xff6aa0, 0xffffff)
+    ]
+  },
+  {
+    id: 'kale', name: 'KALE SSJ', role: 'Berserker · Golpes pesados', cost: 5000,
+    hp: 130, ki: 100, spd: 1.0, dmg: 1.15, start: ['kale_1'], unique: ['kale_1', 'kale_2', 'kale_3', 'kale_4'],
+    passive: { name: 'Furia berserker', desc: '+12% de daño y -5% de velocidad.', stat: { dmg: 0.12, spd: -0.05 } },
+    ult: { name: 'ALARIDO KALE', key: 'Q', cost: 100, type: 'bomb', dmg: 120, r: 20, sty: 'genki', col: 0xffd040, fx: ['#000', '#fff', '#ffd040', '#ff7a2a', '#ffd040'], debuff: { name: 'RESACA', text: '-15% de velocidad durante 8 s', t: 8, spd: 0.15 } },
+    portrait: { sheet: 'kale', frame: 0 },
+    forms: [
+      form('BASE', 1, 'kale', A_HD, 1.0, 1.0, 0xffd040, 0, 0xffffff),
+      form('DESPERTAR', 10, 'kale', A_HD, 1.4, 1.1, 0xffd040, 0xffd040, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'kale', A_HD, 1.9, 1.2, 0xffd040, 0xffd040, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'kale', A_HD, 2.5, 1.3, 0xffd040, 0xffd040, 0xffffff)
+    ]
+  },
+  {
+    id: 'kyabe', name: 'KYABE SSJ', role: 'Ki atómico · Discos', cost: 4000,
+    hp: 100, ki: 125, spd: 1.1, dmg: 1.0, start: ['kyabe_1'], unique: ['kyabe_1', 'kyabe_2', 'kyabe_3', 'kyabe_4'],
+    passive: { name: 'Ki atómico', desc: '+4% de daño y +4% de velocidad.', stat: { spd: 0.04, dmg: 0.04 } },
+    ult: { name: 'LLUVIA DE DISCOS', key: 'Q', cost: 100, type: 'discs', dmg: 55, n: 14, fx: ['#000', '#fff', '#ffe86a', '#fff', '#ffb040'], debuff: { name: 'SIN ALIENTO', text: 'sin dash durante 5 s', t: 5, nodash: true } },
+    portrait: { sheet: 'kyabe', frame: 0 },
+    forms: [
+      form('BASE', 1, 'kyabe', A_HD, 1.0, 1.0, 0xffe86a, 0, 0xffffff),
+      form('DESPERTAR', 10, 'kyabe', A_HD, 1.4, 1.1, 0xffe86a, 0xffe86a, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'kyabe', A_HD, 1.9, 1.2, 0xffe86a, 0xffe86a, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'kyabe', A_HD, 2.5, 1.3, 0xffe86a, 0xffe86a, 0xffffff)
+    ]
+  },
+  {
+    id: 'toppo', name: 'TOPPO', role: 'Justicia de Pride · Esferas', cost: 6000,
+    hp: 125, ki: 115, spd: 1.0, dmg: 1.1, start: ['toppo_1'], unique: ['toppo_1', 'toppo_2', 'toppo_3', 'toppo_4'],
+    passive: { name: 'Orgullo de Pride', desc: '+5% de daño y +4% de esquiva.', stat: { dmg: 0.05, dodge: 0.04 } },
+    ult: { name: 'JUSTICIA DE PRIDE', key: 'Q', cost: 100, type: 'storm', dmg: 36, n: 22, r: 32, fx: ['#000', '#fff', '#ff4a4a', '#ffe14a', '#ff4a4a'], debuff: { name: 'TENSIÓN', text: 'recibes un 20% más de daño durante 6 s', t: 6, take: 0.2 } },
+    portrait: { sheet: 'toppo', frame: 0 },
+    forms: [
+      form('BASE', 1, 'toppo', A_HD, 1.0, 1.0, 0xff4a4a, 0, 0xffffff),
+      form('DESPERTAR', 10, 'toppo', A_HD, 1.4, 1.1, 0xff4a4a, 0xff4a4a, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'toppo', A_HD, 1.9, 1.2, 0xff4a4a, 0xff4a4a, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'toppo', A_HD, 2.5, 1.3, 0xff4a4a, 0xff4a4a, 0xffffff)
+    ]
+  },
+  {
+    id: 'janemba', name: 'JANEMBA', role: 'Demonio del caos · Rupturas', cost: 6500,
+    hp: 115, ki: 120, spd: 1.05, dmg: 1.15, start: ['janemba_1'], unique: ['janemba_1', 'janemba_2', 'janemba_3', 'janemba_4'],
+    passive: { name: 'Caos', desc: '+15% de daño.', stat: { dmg: 0.15 } },
+    ult: { name: 'RUPTURA DEL CAOS', key: 'Q', cost: 100, type: 'slash', dmg: 50, r: 15, fx: ['#000', '#fff', '#ff3a3a', '#7a4aff', '#ff3a3a'], debuff: { name: 'CUERPO CORRUPTO', text: 'pierdes un 2% de vida por segundo durante 5 s', t: 5, bleed: 0.02 } },
+    portrait: { sheet: 'janemba', frame: 0 },
+    forms: [
+      form('BASE', 1, 'janemba', A_HD, 1.0, 1.0, 0xff3a3a, 0, 0xffffff),
+      form('DESPERTAR', 10, 'janemba', A_HD, 1.4, 1.1, 0xff3a3a, 0xff3a3a, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'janemba', A_HD, 1.9, 1.2, 0xff3a3a, 0xff3a3a, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'janemba', A_HD, 2.5, 1.3, 0xff3a3a, 0xff3a3a, 0xffffff)
+    ]
+  },
+  {
+    id: 'jiren', name: 'JIREN', role: 'Guerrero del Torneo · Golpes', cost: 8000,
+    hp: 130, ki: 120, spd: 1.0, dmg: 1.2, start: ['jiren_1'], unique: ['jiren_1', 'jiren_2', 'jiren_3', 'jiren_4'],
+    passive: { name: 'Poder del Torneo', desc: '+12% de daño y +6% de esquiva.', stat: { dmg: 0.12, dodge: 0.06 } },
+    ult: { name: 'GOLPE DEL TORNEO', key: 'Q', cost: 100, type: 'beam', dmg: 12, len: 50, hw: 3.0, life: 1.7, col: 0xd0d0d8, fx: ['#000', '#fff', '#d0d0d8', '#ff3a3a', '#d0d0d8'], debuff: { name: 'ESFUERZO', text: '-15% de velocidad durante 7 s', t: 7, spd: 0.15 } },
+    portrait: { sheet: 'jiren', frame: 0 },
+    forms: [
+      form('BASE', 1, 'jiren', A_HD, 1.0, 1.0, 0xd0d0d8, 0, 0xffffff),
+      form('DESPERTAR', 10, 'jiren', A_HD, 1.4, 1.1, 0xd0d0d8, 0xd0d0d8, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'jiren', A_HD, 1.9, 1.2, 0xd0d0d8, 0xd0d0d8, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'jiren', A_HD, 2.5, 1.3, 0xd0d0d8, 0xd0d0d8, 0xffffff)
+    ]
+  },
+  {
+    id: 'turles', name: 'TURLES', role: 'Saiyajin ambicioso · Discos', cost: 5500,
+    hp: 110, ki: 120, spd: 1.1, dmg: 1.05, start: ['turles_1'], unique: ['turles_1', 'turles_2', 'turles_3', 'turles_4'],
+    passive: { name: 'Ambición', desc: '+10% de velocidad.', stat: { spd: 0.1 } },
+    ult: { name: 'DISCO DE TURLES', key: 'Q', cost: 100, type: 'discs', dmg: 60, n: 12, fx: ['#000', '#fff', '#c8c8ff', '#fff', '#ffb040'], debuff: { name: 'ENTRENAMIENTO', text: 'sin dash durante 5 s', t: 5, nodash: true } },
+    portrait: { sheet: 'turles', frame: 0 },
+    forms: [
+      form('BASE', 1, 'turles', A_HD, 1.0, 1.0, 0xc8c8ff, 0, 0xffffff),
+      form('DESPERTAR', 10, 'turles', A_HD, 1.4, 1.1, 0xc8c8ff, 0xc8c8ff, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'turles', A_HD, 1.9, 1.2, 0xc8c8ff, 0xc8c8ff, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'turles', A_HD, 2.5, 1.3, 0xc8c8ff, 0xc8c8ff, 0xffffff)
+    ]
+  },
+  {
+    id: 'saibaman', name: 'SAIBAMAN', role: 'Explosivo · Enjambre', cost: 2500,
+    hp: 90, ki: 110, spd: 1.15, dmg: 0.95, start: ['saibaman_1'], unique: ['saibaman_1', 'saibaman_2', 'saibaman_3', 'saibaman_4'],
+    passive: { name: 'Explosivo', desc: '+10% de velocidad.', stat: { spd: 0.1 } },
+    ult: { name: 'ENJAMBRE SAIBAMAN', key: 'Q', cost: 100, type: 'storm', dmg: 28, n: 24, r: 30, fx: ['#000', '#fff', '#9ad040', '#ffe14a', '#9ad040'], debuff: { name: 'AGOTADO', text: '-15% de daño durante 6 s', t: 6, dmg: 0.15 } },
+    portrait: { sheet: 'saibaman', frame: 0 },
+    forms: [
+      form('BASE', 1, 'saibaman', A_HD, 1.0, 1.0, 0x9ad040, 0, 0xffffff),
+      form('DESPERTAR', 10, 'saibaman', A_HD, 1.4, 1.1, 0x9ad040, 0x9ad040, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'saibaman', A_HD, 1.9, 1.2, 0x9ad040, 0x9ad040, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'saibaman', A_HD, 2.5, 1.3, 0x9ad040, 0x9ad040, 0xffffff)
+    ]
+  },
+  {
+    id: 'bills', name: 'BILLS', role: 'Dios de la destrucción · Esferas', cost: 8000,
+    hp: 120, ki: 130, spd: 1.05, dmg: 1.15, start: ['bills_1'], unique: ['bills_1', 'bills_2', 'bills_3', 'bills_4'],
+    passive: { name: 'Dios de la destrucción', desc: '+5% de daño y +5% de esquiva.', stat: { dmg: 0.05, dodge: 0.05 } },
+    ult: { name: 'DESTRUCCIÓN DE BILLS', key: 'Q', cost: 100, type: 'bomb', dmg: 150, r: 22, sty: 'db', col: 0xb08aff, fx: ['#000', '#fff', '#8a2aff', '#ff3fa0', '#2a0040'], debuff: { name: 'PEREZA DIVINA', text: '-20% de velocidad durante 7 s', t: 7, spd: 0.2 } },
+    portrait: { sheet: 'bills', frame: 0 },
+    forms: [
+      form('BASE', 1, 'bills', A_HD, 1.0, 1.0, 0xb08aff, 0, 0xffffff),
+      form('DESPERTAR', 10, 'bills', A_HD, 1.4, 1.1, 0xb08aff, 0xb08aff, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'bills', A_HD, 1.9, 1.2, 0xb08aff, 0xb08aff, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'bills', A_HD, 2.5, 1.3, 0xb08aff, 0xb08aff, 0xffffff)
+    ]
+  },
+  {
+    id: 'cooler', name: 'COOLER', role: 'Hermano del tirano · Rayos', cost: 7000,
+    hp: 115, ki: 125, spd: 1.05, dmg: 1.1, start: ['cooler_1'], unique: ['cooler_1', 'cooler_2', 'cooler_3', 'cooler_4'],
+    passive: { name: 'Linaje del tirano', desc: '+10% de daño.', stat: { dmg: 0.1 } },
+    ult: { name: 'RAYO DEL TIRANO', key: 'Q', cost: 100, type: 'beam', dmg: 11, len: 52, hw: 3.2, life: 1.7, col: 0xd080ff, fx: ['#000', '#fff', '#d080ff', '#ffe14a', '#d080ff'], debuff: { name: 'SIN KI', text: 'el Ki no se regenera durante 6 s', t: 6, noki: true } },
+    portrait: { sheet: 'cooler', frame: 0 },
+    forms: [
+      form('BASE', 1, 'cooler', A_HD, 1.0, 1.0, 0xd080ff, 0, 0xffffff),
+      form('DESPERTAR', 10, 'cooler', A_HD, 1.4, 1.1, 0xd080ff, 0xd080ff, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'cooler', A_HD, 1.9, 1.2, 0xd080ff, 0xd080ff, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'cooler', A_HD, 2.5, 1.3, 0xd080ff, 0xd080ff, 0xffffff)
+    ]
+  },
+  {
+    id: 'hitto', name: 'HIT', role: 'Asesino del tiempo · Prisiones', cost: 7500,
+    hp: 110, ki: 120, spd: 1.1, dmg: 1.1, start: ['hitto_1'], unique: ['hitto_1', 'hitto_2', 'hitto_3', 'hitto_4'],
+    passive: { name: 'Pausa del tiempo', desc: '+10% de velocidad al atacar.', stat: { spd: 0.1 } },
+    ult: { name: 'CORTE TEMPORAL', key: 'Q', cost: 100, type: 'slash', dmg: 48, r: 15, fx: ['#000', '#fff', '#8a6aff', '#c8a0ff', '#8a6aff'], debuff: { name: 'TIEMPO ROTO', text: '-20% de daño durante 6 s', t: 6, dmg: 0.2 } },
+    portrait: { sheet: 'hitto', frame: 0 },
+    forms: [
+      form('BASE', 1, 'hitto', A_HD, 1.0, 1.0, 0x8a6aff, 0, 0xffffff),
+      form('DESPERTAR', 10, 'hitto', A_HD, 1.4, 1.1, 0x8a6aff, 0x8a6aff, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'hitto', A_HD, 1.9, 1.2, 0x8a6aff, 0x8a6aff, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'hitto', A_HD, 2.5, 1.3, 0x8a6aff, 0x8a6aff, 0xffffff)
+    ]
+  },
+  {
+    id: 'raditz', name: 'RADITZ', role: 'Saiyajin de la Tierra · Ráfagas', cost: 3000,
+    hp: 105, ki: 115, spd: 1.1, dmg: 1.0, start: ['raditz_1'], unique: ['raditz_1', 'raditz_2', 'raditz_3', 'raditz_4'],
+    passive: { name: 'Hermano mayor', desc: '+8% de daño.', stat: { dmg: 0.08 } },
+    ult: { name: 'DISCO DE RADITZ', key: 'Q', cost: 100, type: 'discs', dmg: 50, n: 12, fx: ['#000', '#fff', '#c8ff8a', '#fff', '#ffb040'], debuff: { name: 'CANSANCIO', text: '-15% de velocidad durante 6 s', t: 6, spd: 0.15 } },
+    portrait: { sheet: 'raditz', frame: 0 },
+    forms: [
+      form('BASE', 1, 'raditz', A_HD, 1.0, 1.0, 0xc8ff8a, 0, 0xffffff),
+      form('DESPERTAR', 10, 'raditz', A_HD, 1.4, 1.1, 0xc8ff8a, 0xc8ff8a, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'raditz', A_HD, 1.9, 1.2, 0xc8ff8a, 0xc8ff8a, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'raditz', A_HD, 2.5, 1.3, 0xc8ff8a, 0xc8ff8a, 0xffffff)
+    ]
+  },
+  {
+    id: 'andro16', name: 'ANDROIDE 16', role: 'Androide de combate · Ki', cost: 6000,
+    hp: 125, ki: 120, spd: 1.0, dmg: 1.05, start: ['andro16_1'], unique: ['andro16_1', 'andro16_2', 'andro16_3', 'andro16_4'],
+    passive: { name: 'Bioandroide', desc: '+5% de daño y +4% de esquiva.', stat: { dmg: 0.05, dodge: 0.04 } },
+    ult: { name: 'RAYO DEL ANDROIDE', key: 'Q', cost: 100, type: 'beam', dmg: 10, len: 46, hw: 2.8, life: 1.6, col: 0x7dff5a, fx: ['#000', '#fff', '#7dff5a', '#ffe14a', '#7dff5a'], debuff: { name: 'SOBRECARGA', text: '-20% de velocidad durante 6 s', t: 6, spd: 0.2 } },
+    portrait: { sheet: 'andro16', frame: 0 },
+    forms: [
+      form('BASE', 1, 'andro16', A_HD, 1.0, 1.0, 0x7dff5a, 0, 0xffffff),
+      form('DESPERTAR', 10, 'andro16', A_HD, 1.4, 1.1, 0x7dff5a, 0x7dff5a, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'andro16', A_HD, 1.9, 1.2, 0x7dff5a, 0x7dff5a, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'andro16', A_HD, 2.5, 1.3, 0x7dff5a, 0x7dff5a, 0xffffff)
+    ]
+  },
+  {
+    id: 'andro17', name: 'ANDROIDE 17', role: 'Androide infinito · Discos', cost: 6500,
+    hp: 115, ki: 125, spd: 1.1, dmg: 1.0, start: ['andro17_1'], unique: ['andro17_1', 'andro17_2', 'andro17_3', 'andro17_4'],
+    passive: { name: 'Energía infinita', desc: '+12% de esquiva.', stat: { dodge: 0.12 } },
+    ult: { name: 'DISCO INFINITO', key: 'Q', cost: 100, type: 'discs', dmg: 55, n: 12, fx: ['#000', '#fff', '#6ab8ff', '#fff', '#9fe0ff'], debuff: { name: 'REPOSO', text: 'sin dash durante 5 s', t: 5, nodash: true } },
+    portrait: { sheet: 'andro17', frame: 0 },
+    forms: [
+      form('BASE', 1, 'andro17', A_HD, 1.0, 1.0, 0x6ab8ff, 0, 0xffffff),
+      form('DESPERTAR', 10, 'andro17', A_HD, 1.4, 1.1, 0x6ab8ff, 0x6ab8ff, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'andro17', A_HD, 1.9, 1.2, 0x6ab8ff, 0x6ab8ff, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'andro17', A_HD, 2.5, 1.3, 0x6ab8ff, 0x6ab8ff, 0xffffff)
+    ]
+  },
+  {
+    id: 'andro18', name: 'ANDROIDE 18', role: 'Androide sigiloso · Esquiva', cost: 6000,
+    hp: 105, ki: 120, spd: 1.15, dmg: 1.0, start: ['andro18_1'], unique: ['andro18_1', 'andro18_2', 'andro18_3', 'andro18_4'],
+    passive: { name: 'Sigilo', desc: '+12% de esquiva y +5% de velocidad.', stat: { dodge: 0.12, spd: 0.05 } },
+    ult: { name: 'TORMENTA DEL 18', key: 'Q', cost: 100, type: 'storm', dmg: 30, n: 20, r: 28, fx: ['#000', '#fff', '#ffe86a', '#fff', '#ffb040'], debuff: { name: 'SIN KI', text: 'el Ki no se regenera durante 6 s', t: 6, noki: true } },
+    portrait: { sheet: 'andro18', frame: 0 },
+    forms: [
+      form('BASE', 1, 'andro18', A_HD, 1.0, 1.0, 0xffe86a, 0, 0xffffff),
+      form('DESPERTAR', 10, 'andro18', A_HD, 1.4, 1.1, 0xffe86a, 0xffe86a, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'andro18', A_HD, 1.9, 1.2, 0xffe86a, 0xffe86a, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'andro18', A_HD, 2.5, 1.3, 0xffe86a, 0xffe86a, 0xffffff)
+    ]
+  },
+  {
+    id: 'majin', name: 'MAJIN BUU', role: 'Mago rosa · Ataques de boca', cost: 7000,
+    hp: 130, ki: 115, spd: 0.95, dmg: 1.1, start: ['majin_1'], unique: ['majin_1', 'majin_2', 'majin_3', 'majin_4'],
+    passive: { name: 'Regeneración de Buu', desc: '+4% de daño y +2% de esquiva.', stat: { dmg: 0.04, dodge: 0.02 } },
+    ult: { name: 'CARAMELO DE BUU', key: 'Q', cost: 100, type: 'bomb', dmg: 130, r: 20, sty: 'genki', col: 0xff9ad0, fx: ['#000', '#fff', '#ff9ad0', '#ffd0ec', '#ff9ad0'], debuff: { name: 'PESO', text: '-20% de velocidad durante 7 s', t: 7, spd: 0.2 } },
+    portrait: { sheet: 'majin', frame: 0 },
+    forms: [
+      form('BASE', 1, 'majin', A_HD, 1.0, 1.0, 0xff9ad0, 0, 0xffffff),
+      form('DESPERTAR', 10, 'majin', A_HD, 1.4, 1.1, 0xff9ad0, 0xff9ad0, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'majin', A_HD, 1.9, 1.2, 0xff9ad0, 0xff9ad0, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'majin', A_HD, 2.5, 1.3, 0xff9ad0, 0xff9ad0, 0xffffff)
+    ]
+  },
+  {
+    id: 'superbuu', name: 'SUPER BUU', role: 'Buu evolucionado · Rayos', cost: 7500,
+    hp: 125, ki: 125, spd: 1.05, dmg: 1.15, start: ['superbuu_1'], unique: ['superbuu_1', 'superbuu_2', 'superbuu_3', 'superbuu_4'],
+    passive: { name: 'Evolución', desc: '+15% de daño.', stat: { dmg: 0.15 } },
+    ult: { name: 'GALAXIA DE BUU', key: 'Q', cost: 100, type: 'beam', dmg: 11, len: 52, hw: 3.2, life: 1.7, col: 0xff7ac8, fx: ['#000', '#fff', '#ff7ac8', '#ffe14a', '#ff7ac8'], debuff: { name: 'AGOTADO', text: '-20% de daño durante 7 s', t: 7, dmg: 0.2 } },
+    portrait: { sheet: 'superbuu', frame: 0 },
+    forms: [
+      form('BASE', 1, 'superbuu', A_HD, 1.0, 1.0, 0xff7ac8, 0, 0xffffff),
+      form('DESPERTAR', 10, 'superbuu', A_HD, 1.4, 1.1, 0xff7ac8, 0xff7ac8, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'superbuu', A_HD, 1.9, 1.2, 0xff7ac8, 0xff7ac8, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'superbuu', A_HD, 2.5, 1.3, 0xff7ac8, 0xff7ac8, 0xffffff)
+    ]
+  },
+  {
+    id: 'zamasu', name: 'ZAMASU', role: 'Dios inmortal · Cuchillas', cost: 7500,
+    hp: 110, ki: 125, spd: 1.1, dmg: 1.1, start: ['zamasu_1'], unique: ['zamasu_1', 'zamasu_2', 'zamasu_3', 'zamasu_4'],
+    passive: { name: 'Inmortal', desc: '+10% de esquiva.', stat: { dodge: 0.1 } },
+    ult: { name: 'CUCHILLA DIVINA', key: 'Q', cost: 100, type: 'slash', dmg: 50, r: 16, fx: ['#000', '#fff', '#a890ff', '#c8b8ff', '#a890ff'], debuff: { name: 'DESPRECIO', text: '-20% de daño durante 6 s', t: 6, dmg: 0.2 } },
+    portrait: { sheet: 'zamasu', frame: 0 },
+    forms: [
+      form('BASE', 1, 'zamasu', A_HD, 1.0, 1.0, 0xa890ff, 0, 0xffffff),
+      form('DESPERTAR', 10, 'zamasu', A_HD, 1.4, 1.1, 0xa890ff, 0xa890ff, 0xfff8e8),
+      form('MODO GUERRERO', 22, 'zamasu', A_HD, 1.9, 1.2, 0xa890ff, 0xa890ff, 0xffeedd),
+      form('PODER MÁXIMO', 34, 'zamasu', A_HD, 2.5, 1.3, 0xa890ff, 0xa890ff, 0xffffff)
+    ]
+  },
 ];
 const ULT_KI = 0.25;   // la Ultimate cuesta un 25% del Ki máximo, además de tener la barra llena
 const charById = (id) => CHARACTERS.find((c) => c.id === id);
@@ -365,7 +638,91 @@ const WEAPONS = {
   rebelfinal: { name: 'Rebelión Final', icon: '✸', ico: 'tp', kind: 'meteor', unique: 'bardock', fusion: ['saiyanrage', 'rebellion'], color: 0xff6a3a, cfg: { n: 10, dmg: 70, cd: 3 }, down: { text: '-5% de vida máxima', m: { maxHp: -0.05 } }, lv: ['Fusión: el último ataque de Bardock contra todo el ejército de Freezer.'] },
   vrain: { name: 'Lluvia Final', icon: '✦', kind: 'barrage', unique: 'vegito', fusion: ['vhoming', 'vkame'], color: 0x9fe0ff, cfg: { n: 16, dmg: 26, cd: 2, aoe: 2.2 }, down: { text: '-5% de armadura', m: { armor: -0.05 } }, lv: ['Fusión: una lluvia de esferas fusionadas que explotan en cadena.'] },
   legendwrath: { name: 'Cólera Legendaria', icon: '⚡', kind: 'thunder', unique: 'broly', fusion: ['blaster', 'gigaroar'], color: 0x7dff5a, cfg: { n: 12, dmg: 66, cd: 1.8, r: 3.4 }, down: { text: '-10% de experiencia', m: { xp: -0.1 } }, lv: ['Fusión: el rugido de Broly hace caer rayos verdes sobre la horda.'] },
-  meteorstorm: { down: { text: '-3% de crítico', m: { crit: -0.03 } },  name: 'Tormenta de Meteoros', icon: '☄', kind: 'rain', fusion: ['rain', 'mines'], color: 0xff9a3a, mul: { n: 2, dmg: 1.8, cd: 0.7 }, lv: ['Fusión: el cielo entero cae sobre tus enemigos.'] }
+  meteorstorm: { down: { text: '-3% de crítico', m: { crit: -0.03 } },  name: 'Tormenta de Meteoros', icon: '☄', kind: 'rain', fusion: ['rain', 'mines'], color: 0xff9a3a, mul: { n: 2, dmg: 1.8, cd: 0.7 }, lv: ['Fusión: el cielo entero cae sobre tus enemigos.'] },
+  kefla_1: { name: 'Esferas de Kefla', icon: '✦', kind: 'blast', unique: 'kefla', color: 0xb8ff5a, lv: ['Kefla lanza esferas de ki verde que explotan al impactar.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kefla_2: { name: 'Ráfagas Teledirigidas de Kefla', icon: '✦', kind: 'homing', unique: 'kefla', minLv: 3, color: 0xff8ad8, cfg: { n: 4, dmg: 18, cd: 2.0 }, lv: ['Esferas rosas que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kefla_3: { name: 'Kamehameha de Kefla', icon: '✦', kind: 'bigbeam', unique: 'kefla', minLv: 6, shop: 0x000bb8, color: 0xff8ad8, cfg: { cd: 9, dmg: 14, len: 36, hw: 2.6, life: 1.2, cost: 20 }, lv: ['Rayo rosa potente en línea recta.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kefla_4: { name: 'Ráfaga de Kefla', icon: '✦', kind: 'barrage', unique: 'kefla', minLv: 7, color: 0xb8ff5a, cfg: { n: 9, dmg: 12, cd: 2.2 }, lv: ['Ráfaga continua de esferas verdes.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  gotenks_1: { name: 'Ráfagas de Gotenks', icon: '✦', kind: 'bullet', unique: 'gotenks', color: 0xc8a0ff, lv: ['Gotenks lanza ráfagas de ki al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  gotenks_2: { name: 'Esferas Fantasma', icon: '✦', kind: 'homing', unique: 'gotenks', minLv: 3, color: 0xffe14a, cfg: { n: 5, dmg: 16, cd: 2.2 }, lv: ['Esferas que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  gotenks_3: { name: 'Kamehameha Infantil', icon: '✦', kind: 'bigbeam', unique: 'gotenks', minLv: 6, shop: 0x000bb8, color: 0xc8a0ff, cfg: { cd: 10, dmg: 13, len: 34, hw: 2.4, life: 1.1, cost: 18 }, lv: ['Rayo ligero y rápido.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  gotenks_4: { name: 'Discos Gemelos', icon: '✦', kind: 'discs', unique: 'gotenks', minLv: 7, color: 0xffe14a, cfg: { cd: 1.8, n: 3, dmg: 16, spd: 20, life: 1.4 }, lv: ['Discos de ki que cortan a su paso.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  trunksarm_1: { name: 'Esferas de la Armadura', icon: '✦', kind: 'blast', unique: 'trunksarm', color: 0x6fb8ff, lv: ['Trunks lanza esferas de ki que explotan al impactar.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  trunksarm_2: { name: 'Rayos Guiados', icon: '✦', kind: 'homing', unique: 'trunksarm', minLv: 3, color: 0x9fe0ff, cfg: { n: 4, dmg: 20, cd: 2.1 }, lv: ['Rayos que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  trunksarm_3: { name: 'Rayo de la Espada', icon: '✦', kind: 'bigbeam', unique: 'trunksarm', minLv: 6, shop: 0x000dac, color: 0x6fb8ff, cfg: { cd: 10, dmg: 15, len: 38, hw: 2.8, life: 1.2, cost: 22 }, lv: ['Rayo azul concentrado en la espada.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  trunksarm_4: { name: 'Destello Futuro', icon: '✦', kind: 'flare', unique: 'trunksarm', minLv: 7, color: 0x9fe0ff, cfg: { r: 12, stun: 2, dmg: 40, cd: 5 }, lv: ['Destello que aturde a los enemigos cercanos.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  caulifla_1: { name: 'Ráfagas de Caulifla', icon: '✦', kind: 'bullet', unique: 'caulifla', color: 0xff6aa0, lv: ['Caulifla lanza bolas de ki rosas al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  caulifla_2: { name: 'Bombardeo de Caulifla', icon: '✦', kind: 'barrage', unique: 'caulifla', minLv: 3, color: 0xffd0e0, cfg: { n: 8, dmg: 13, cd: 2.3 }, lv: ['Una lluvia de ki continua sobre la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  caulifla_3: { name: 'Galick Salvaje', icon: '✦', kind: 'bigbeam', unique: 'caulifla', minLv: 6, shop: 0x000c80, color: 0xff6aa0, cfg: { cd: 10, dmg: 14, len: 36, hw: 2.6, life: 1.2, cost: 20 }, lv: ['Rayo rosa directo.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  caulifla_4: { name: 'Explosión de Caulifla', icon: '✦', kind: 'bigbang', unique: 'caulifla', minLv: 7, color: 0xffd0e0, lv: ['Esfera lenta que explota con gran área.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kale_1: { name: 'Golpe Berserker', icon: '✦', kind: 'blast', unique: 'kale', color: 0xffd040, lv: ['Kale lanza esferas amarillas que explotan.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kale_2: { name: 'Esferas de Kale', icon: '✦', kind: 'orbit', unique: 'kale', minLv: 3, color: 0xff7a2a, lv: ['Dos esferas que giran a su alrededor.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kale_3: { name: 'Rayo de Kale', icon: '✦', kind: 'bigbeam', unique: 'kale', minLv: 6, shop: 0x000e10, color: 0xffd040, cfg: { cd: 11, dmg: 16, len: 34, hw: 3.0, life: 1.1, cost: 24 }, lv: ['Un rayo amarillo ancho y lento.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kale_4: { name: 'Discos de Kale', icon: '✦', kind: 'discs', unique: 'kale', minLv: 7, color: 0xff7a2a, cfg: { cd: 1.8, n: 4, dmg: 20, spd: 18, life: 1.4 }, lv: ['Discos que cortan a todo lo que tocan.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kyabe_1: { name: 'Discos de Kyabe', icon: '✦', kind: 'discs', unique: 'kyabe', color: 0xffe86a, cfg: { cd: 1.5, n: 1, dmg: 15, spd: 20, life: 1.3 }, lv: ['Kyabe lanza un disco que atraviesa a todos.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kyabe_2: { name: 'Esferas de Kyabe', icon: '✦', kind: 'homing', unique: 'kyabe', minLv: 3, color: 0xffb040, cfg: { n: 4, dmg: 18, cd: 2.1 }, lv: ['Esferas que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kyabe_3: { name: 'Rayo de Kyabe', icon: '✦', kind: 'bigbeam', unique: 'kyabe', minLv: 6, shop: 0x000c80, color: 0xffe86a, cfg: { cd: 10, dmg: 14, len: 36, hw: 2.6, life: 1.2, cost: 20 }, lv: ['Rayo amarillo directo.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  kyabe_4: { name: 'Destello de Kyabe', icon: '✦', kind: 'flare', unique: 'kyabe', minLv: 7, color: 0xfff0a0, cfg: { r: 13, stun: 2.5, dmg: 50, cd: 5 }, lv: ['Destello que aturde a los cercanos.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  toppo_1: { name: 'Ráfagas de Toppo', icon: '✦', kind: 'bullet', unique: 'toppo', color: 0xff4a4a, lv: ['Toppo lanza esferas rojas al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  toppo_2: { name: 'Bombardeo de Pride', icon: '✦', kind: 'barrage', unique: 'toppo', minLv: 3, color: 0xffe14a, cfg: { n: 8, dmg: 14, cd: 2.4 }, lv: ['Ráfaga de esferas que caen sobre la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  toppo_3: { name: 'Esfera de Toppo', icon: '✦', kind: 'bigbang', unique: 'toppo', minLv: 6, shop: 0x000e10, color: 0xff4a4a, lv: ['Esfera lenta que explota con gran área.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  toppo_4: { name: 'Persecución de Toppo', icon: '✦', kind: 'homing', unique: 'toppo', minLv: 7, color: 0xff9a4a, cfg: { n: 5, dmg: 20, cd: 2.2 }, lv: ['Esferas que persiguen al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  janemba_1: { name: 'Llamas de Janemba', icon: '✦', kind: 'bullet', unique: 'janemba', color: 0xff3a3a, lv: ['Janemba lanza bolas de fuego al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  janemba_2: { name: 'Almas Errantes', icon: '✦', kind: 'homing', unique: 'janemba', minLv: 3, color: 0xb07aff, cfg: { n: 5, dmg: 20, cd: 2.2 }, lv: ['Esferas que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  janemba_3: { name: 'Rayo del Caos', icon: '✦', kind: 'bigbeam', unique: 'janemba', minLv: 6, shop: 0x000ed8, color: 0xff3a3a, cfg: { cd: 10, dmg: 16, len: 38, hw: 2.8, life: 1.2, cost: 22 }, lv: ['Un rayo rojo que atraviesa la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  janemba_4: { name: 'Esferas del Caos', icon: '✦', kind: 'orbit', unique: 'janemba', minLv: 7, color: 0xb07aff, lv: ['Esferas oscuras que giran a su alrededor.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  jiren_1: { name: 'Esferas de Jiren', icon: '✦', kind: 'blast', unique: 'jiren', color: 0xd0d0d8, lv: ['Jiren lanza esferas de ki gris que explotan.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  jiren_2: { name: 'Ráfaga del Torneo', icon: '✦', kind: 'barrage', unique: 'jiren', minLv: 3, color: 0xff3a3a, cfg: { n: 9, dmg: 14, cd: 2.2 }, lv: ['Una ráfaga continua de golpes de ki.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  jiren_3: { name: 'Rayo de Jiren', icon: '✦', kind: 'bigbeam', unique: 'jiren', minLv: 6, shop: 0x000fa0, color: 0xd0d0d8, cfg: { cd: 11, dmg: 18, len: 40, hw: 3.0, life: 1.3, cost: 24 }, lv: ['Rayo gris de gran alcance.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  jiren_4: { name: 'Esfera del Torneo', icon: '✦', kind: 'bigbang', unique: 'jiren', minLv: 7, color: 0xff3a3a, lv: ['Esfera que explota con gran área.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  turles_1: { name: 'Esferas de Turles', icon: '✦', kind: 'blast', unique: 'turles', color: 0xc8c8ff, lv: ['Turles lanza esferas que explotan al impactar.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  turles_2: { name: 'Esferas de Turles', icon: '✦', kind: 'orbit', unique: 'turles', minLv: 3, color: 0xffb040, lv: ['Dos esferas giran a su alrededor.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  turles_3: { name: 'Rayo de Turles', icon: '✦', kind: 'bigbeam', unique: 'turles', minLv: 6, shop: 0x000d48, color: 0xc8c8ff, cfg: { cd: 10, dmg: 15, len: 36, hw: 2.6, life: 1.2, cost: 20 }, lv: ['Rayo blanco concentrado.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  turles_4: { name: 'Discos de Turles', icon: '✦', kind: 'discs', unique: 'turles', minLv: 7, color: 0xffb040, cfg: { cd: 1.7, n: 3, dmg: 18, spd: 20, life: 1.4 }, lv: ['Discos que cortan la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  saibaman_1: { name: 'Ráfagas de Saibaman', icon: '✦', kind: 'bullet', unique: 'saibaman', color: 0x9ad040, lv: ['Saibaman lanza bolas de ki verdes al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  saibaman_2: { name: 'Enjambre Verde', icon: '✦', kind: 'homing', unique: 'saibaman', minLv: 3, color: 0xc8ff6a, cfg: { n: 4, dmg: 16, cd: 2.0 }, lv: ['Esferas que persiguen al enemigo.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  saibaman_3: { name: 'Explosión Saibaman', icon: '✦', kind: 'bigbang', unique: 'saibaman', minLv: 6, shop: 0x000960, color: 0x9ad040, lv: ['Esfera que explota con gran área.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  saibaman_4: { name: 'Lluvia Saibaman', icon: '✦', kind: 'barrage', unique: 'saibaman', minLv: 7, color: 0xc8ff6a, cfg: { n: 8, dmg: 11, cd: 2.2 }, lv: ['Ráfaga continua de esferas.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  bills_1: { name: 'Ráfagas de Bills', icon: '✦', kind: 'bullet', unique: 'bills', color: 0xb08aff, lv: ['Bills lanza esferas de ki moradas al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  bills_2: { name: 'Esferas de Bills', icon: '✦', kind: 'homing', unique: 'bills', minLv: 3, color: 0xffe14a, cfg: { n: 5, dmg: 20, cd: 2.2 }, lv: ['Esferas que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  bills_3: { name: 'Rayo de la Destrucción', icon: '✦', kind: 'bigbeam', unique: 'bills', minLv: 6, shop: 0x001068, color: 0xb08aff, cfg: { cd: 10, dmg: 16, len: 40, hw: 2.8, life: 1.2, cost: 24 }, lv: ['Rayo morado de gran alcance.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  bills_4: { name: 'Esfera de Bills', icon: '✦', kind: 'bigbang', unique: 'bills', minLv: 7, color: 0xffe14a, lv: ['Esfera que explota con gran área.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  cooler_1: { name: 'Ráfagas de Cooler', icon: '✦', kind: 'bullet', unique: 'cooler', color: 0xd080ff, lv: ['Cooler lanza ráfagas de ki morado al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  cooler_2: { name: 'Ráfaga del Tirano', icon: '✦', kind: 'barrage', unique: 'cooler', minLv: 3, color: 0xffe14a, cfg: { n: 8, dmg: 14, cd: 2.3 }, lv: ['Ráfaga continua de esferas.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  cooler_3: { name: 'Rayo de Cooler', icon: '✦', kind: 'bigbeam', unique: 'cooler', minLv: 6, shop: 0x000ed8, color: 0xd080ff, cfg: { cd: 10, dmg: 16, len: 40, hw: 2.8, life: 1.2, cost: 22 }, lv: ['Rayo morado concentrado.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  cooler_4: { name: 'Destello de Cooler', icon: '✦', kind: 'flare', unique: 'cooler', minLv: 7, color: 0xffe14a, cfg: { r: 14, stun: 2.5, dmg: 55, cd: 5 }, lv: ['Destello que aturde a los enemigos.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  hitto_1: { name: 'Esferas de Hit', icon: '✦', kind: 'blast', unique: 'hitto', color: 0x8a6aff, lv: ['Hit lanza esferas moradas que explotan.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  hitto_2: { name: 'Persecución Temporal', icon: '✦', kind: 'homing', unique: 'hitto', minLv: 3, color: 0xc8a0ff, cfg: { n: 4, dmg: 20, cd: 2.1 }, lv: ['Esferas que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  hitto_3: { name: 'Rayo de Hit', icon: '✦', kind: 'bigbeam', unique: 'hitto', minLv: 6, shop: 0x000ed8, color: 0x8a6aff, cfg: { cd: 10, dmg: 15, len: 38, hw: 2.6, life: 1.2, cost: 22 }, lv: ['Rayo morado rápido.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  hitto_4: { name: 'Discos Temporales', icon: '✦', kind: 'discs', unique: 'hitto', minLv: 7, color: 0xc8a0ff, cfg: { cd: 1.8, n: 3, dmg: 18, spd: 20, life: 1.4 }, lv: ['Discos que cortan a su paso.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  raditz_1: { name: 'Ráfagas de Raditz', icon: '✦', kind: 'bullet', unique: 'raditz', color: 0xc8ff8a, lv: ['Raditz lanza ráfagas de ki al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  raditz_2: { name: 'Ráfagas Guiadas', icon: '✦', kind: 'homing', unique: 'raditz', minLv: 3, color: 0xffe14a, cfg: { n: 4, dmg: 17, cd: 2.1 }, lv: ['Esferas que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  raditz_3: { name: 'Rayo de Raditz', icon: '✦', kind: 'bigbeam', unique: 'raditz', minLv: 6, shop: 0x000bb8, color: 0xc8ff8a, cfg: { cd: 10, dmg: 14, len: 36, hw: 2.6, life: 1.2, cost: 20 }, lv: ['Rayo verde directo.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  raditz_4: { name: 'Ráfaga de Raditz', icon: '✦', kind: 'barrage', unique: 'raditz', minLv: 7, color: 0xffe14a, cfg: { n: 8, dmg: 12, cd: 2.2 }, lv: ['Ráfaga continua de ki.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro16_1: { name: 'Esferas del 16', icon: '✦', kind: 'blast', unique: 'andro16', color: 0x7dff5a, lv: ['El Androide 16 lanza esferas verdes que explotan.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro16_2: { name: 'Esferas del Androide', icon: '✦', kind: 'orbit', unique: 'andro16', minLv: 3, color: 0xffe14a, lv: ['Dos esferas giran a su alrededor.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro16_3: { name: 'Rayo Androide', icon: '✦', kind: 'bigbeam', unique: 'andro16', minLv: 6, shop: 0x000fa0, color: 0x7dff5a, cfg: { cd: 10, dmg: 15, len: 38, hw: 2.8, life: 1.2, cost: 22 }, lv: ['Rayo verde directo.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro16_4: { name: 'Esfera Androide', icon: '✦', kind: 'bigbang', unique: 'andro16', minLv: 7, color: 0xffe14a, lv: ['Esfera que explota con gran área.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro17_1: { name: 'Esferas del 17', icon: '✦', kind: 'blast', unique: 'andro17', color: 0x6ab8ff, lv: ['El Androide 17 lanza esferas azules que explotan.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro17_2: { name: 'Persecución Infinita', icon: '✦', kind: 'homing', unique: 'andro17', minLv: 3, color: 0x9fe0ff, cfg: { n: 4, dmg: 18, cd: 2.1 }, lv: ['Esferas que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro17_3: { name: 'Rayo del 17', icon: '✦', kind: 'bigbeam', unique: 'andro17', minLv: 6, shop: 0x000fa0, color: 0x6ab8ff, cfg: { cd: 10, dmg: 15, len: 38, hw: 2.6, life: 1.2, cost: 20 }, lv: ['Rayo azul concentrado.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro17_4: { name: 'Discos del 17', icon: '✦', kind: 'discs', unique: 'andro17', minLv: 7, color: 0x9fe0ff, cfg: { cd: 1.6, n: 3, dmg: 19, spd: 20, life: 1.4 }, lv: ['Discos que cortan la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro18_1: { name: 'Balas de Ki del 18', icon: '✦', kind: 'bullet', unique: 'andro18', color: 0xffe86a, lv: ['La Androide 18 lanza ráfagas al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro18_2: { name: 'Ráfaga del 18', icon: '✦', kind: 'barrage', unique: 'andro18', minLv: 3, color: 0xffb040, cfg: { n: 8, dmg: 13, cd: 2.2 }, lv: ['Ráfaga continua de ki.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro18_3: { name: 'Rayo del 18', icon: '✦', kind: 'bigbeam', unique: 'andro18', minLv: 6, shop: 0x000ed8, color: 0xffe86a, cfg: { cd: 10, dmg: 15, len: 36, hw: 2.6, life: 1.2, cost: 20 }, lv: ['Rayo amarillo directo.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  andro18_4: { name: 'Destello del 18', icon: '✦', kind: 'flare', unique: 'andro18', minLv: 7, color: 0xfff0a0, cfg: { r: 12, stun: 2, dmg: 45, cd: 5 }, lv: ['Destello que aturde a los cercanos.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  majin_1: { name: 'Caramelos de Buu', icon: '✦', kind: 'blast', unique: 'majin', color: 0xff9ad0, lv: ['Buu lanza caramelos rosas que explotan.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  majin_2: { name: 'Caramelos Teledirigidos', icon: '✦', kind: 'homing', unique: 'majin', minLv: 3, color: 0xffd0ec, cfg: { n: 5, dmg: 18, cd: 2.2 }, lv: ['Caramelos que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  majin_3: { name: 'Rayo Rosa de Buu', icon: '✦', kind: 'bigbeam', unique: 'majin', minLv: 6, shop: 0x000fa0, color: 0xff9ad0, cfg: { cd: 11, dmg: 15, len: 36, hw: 2.8, life: 1.2, cost: 22 }, lv: ['Rayo rosa directo.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  majin_4: { name: 'Explosión de Buu', icon: '✦', kind: 'bigbang', unique: 'majin', minLv: 7, color: 0xffd0ec, lv: ['Esfera que explota con gran área.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  superbuu_1: { name: 'Ráfagas de Super Buu', icon: '✦', kind: 'bullet', unique: 'superbuu', color: 0xff7ac8, lv: ['Super Buu lanza esferas rosas al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  superbuu_2: { name: 'Ráfaga Evolucionada', icon: '✦', kind: 'barrage', unique: 'superbuu', minLv: 3, color: 0xffe14a, cfg: { n: 8, dmg: 14, cd: 2.3 }, lv: ['Ráfaga continua de esferas.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  superbuu_3: { name: 'Rayo de Super Buu', icon: '✦', kind: 'bigbeam', unique: 'superbuu', minLv: 6, shop: 0x001068, color: 0xff7ac8, cfg: { cd: 10, dmg: 16, len: 40, hw: 2.8, life: 1.2, cost: 22 }, lv: ['Rayo rosa concentrado.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  superbuu_4: { name: 'Esfera de Super Buu', icon: '✦', kind: 'bigbang', unique: 'superbuu', minLv: 7, color: 0xffe14a, lv: ['Esfera que explota con gran área.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  zamasu_1: { name: 'Esferas de Zamasu', icon: '✦', kind: 'blast', unique: 'zamasu', color: 0xa890ff, lv: ['Zamasu lanza esferas moradas que explotan.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  zamasu_2: { name: 'Almas de Zamasu', icon: '✦', kind: 'homing', unique: 'zamasu', minLv: 3, color: 0xc8b8ff, cfg: { n: 5, dmg: 19, cd: 2.2 }, lv: ['Esferas que persiguen a la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  zamasu_3: { name: 'Rayo Inmortal', icon: '✦', kind: 'bigbeam', unique: 'zamasu', minLv: 6, shop: 0x000fa0, color: 0xa890ff, cfg: { cd: 10, dmg: 16, len: 38, hw: 2.6, life: 1.2, cost: 22 }, lv: ['Rayo morado concentrado.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  zamasu_4: { name: 'Cuchillas de Zamasu', icon: '✦', kind: 'discs', unique: 'zamasu', minLv: 7, color: 0xc8b8ff, cfg: { cd: 1.7, n: 3, dmg: 18, spd: 20, life: 1.4 }, lv: ['Cuchillas que cortan la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
 };
 const MAX_WEAPON_LEVEL = 5, MAX_WEAPONS = 6;
 
@@ -925,10 +1282,10 @@ const formChg = (ch, idx) => (FORM_CHG[ch.id] || [])[idx] || null;
 
 /* ---------- Créditos: autores de los sprites del pack «Dragon Ball Sagas» (archivo «Hecho por …» de cada carpeta) ---------- */
 const SPRITE_CREDITS = [
-  { author: "qsab101", what: ["Broly Segunda Forma", "Cooler", "Gogeta", "Janemba", "Goku Black", "Goku Black Rose", "Goku Instinto Superior", "Goku Instinto Superior Completo", "Goku SSJ 2", "Goku kaioken", "Golden Freeza", "Kuririn", "Mirai Trunks", "Vegeta SSJ 4", "Vegeta Ssj Grade"] },
-  { author: "LukasAhl1", what: ["Bardock", "Bardock Ssj", "Freeza Forma Final", "Goku God", "Goku SSJ 1", "Goku SSJ 3", "Majin Vegeta", "Piccolo", "Super Mirai Trunks", "Teen Gohan SSJ", "Teen Gohan SSJ2", "cell Perfeito"] },
-  { author: "MV95", what: ["Hitto", "Raditz", "Vegito", "Vegito SSJ Blue", "Cell Imperfeito", "Freeza Full Power", "Freeza Primeira Forma", "Goku Blue Kaioken Whis Gi", "Vegeta Blue"] },
-  { author: "thekrillmaster", what: ["Broly Full Power", "Toppo", "Turles", "Cell Semi Perfeito", "Goku Black SSJ", "Saibaman"] },
+  { author: "qsab101", what: ["Broly Segunda Forma", "Cooler", "Gogeta", "Janemba", "Goku Black", "Goku Black Rose", "Goku Instinto Superior", "Goku Instinto Superior Completo", "Goku SSJ 2", "Goku kaioken", "Golden Freeza", "Kuririn", "Mirai Trunks", "Vegeta SSJ 4", "Vegeta Ssj Grade", "Gotenks", "Kefla"] },
+  { author: "LukasAhl1", what: ["Bardock", "Bardock Ssj", "Freeza Forma Final", "Goku God", "Goku SSJ 1", "Goku SSJ 3", "Majin Vegeta", "Piccolo", "Super Mirai Trunks", "Teen Gohan SSJ", "Teen Gohan SSJ2", "cell Perfeito", "Androide 18"] },
+  { author: "MV95", what: ["Hitto", "Raditz", "Vegito", "Vegito SSJ Blue", "Cell Imperfeito", "Freeza Full Power", "Freeza Primeira Forma", "Goku Blue Kaioken Whis Gi", "Vegeta Blue", "Bills", "Kyabe SSJ"] },
+  { author: "thekrillmaster", what: ["Broly Full Power", "Toppo", "Turles", "Cell Semi Perfeito", "Goku Black SSJ", "Saibaman", "Majin Buu", "Zamasu"] },
   { author: "PeculiarDoc", what: ["Gohan Adulto", "Goku Blue"] },
   { author: "gogeta68", what: ["Vegeta Saga Buu SSJ"] },
   { author: "JuanGomezgg", what: ["Goku SSJ 4"] },
@@ -937,13 +1294,16 @@ const SPRITE_CREDITS = [
   { author: "YoloKing777", what: ["Androide 16"] },
   { author: "whytemonster", what: ["Super Buu"] },
   { author: "Manikdx2000", what: ["Vegeta Sayajin Saga", "Vegito Ssj1"] },
-  { author: "Mangal666", what: ["Vegito Ssj2"] },
+  { author: "Mangal666", what: ["Vegito Ssj2", "Trunks Armadura"] },
   { author: "agustin902", what: ["Broly Ssj4"] },
   { author: "SonicGoku2", what: ["Broly Terceira forma (50%)"] },
   { author: "vida_nostalgica", what: ["Bardock SSJ4"] },
   { author: "papurotekikujimo", what: ["Gohan Mistico"] },
   { author: "Vsouza", what: ["Vegeta Ssj God"] },
-  { author: "Woothrad", what: ["Vegeta Blue Full Power"] }
+  { author: "Woothrad", what: ["Vegeta Blue Full Power"] },
+  { author: "reeck495", what: ["Caulifla"] },
+  { author: "KEEGIXE", what: ["Jiren"] },
+  { author: "Bite035", what: ["Kale SSJ"] },
 ];
 /** Aplica los cambios de estadísticas de un rasgo (lo llama Player.recompute) */
 function applyTraitStats(p, T) {
