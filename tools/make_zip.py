@@ -78,27 +78,27 @@ SHEETS = {
  'cell': F(CE + 'cell Perfeito', 1, (2, 3), 10, 34, 16, 27, 7, (27, 29, 31)),
  'piccolo': F('Piccolo', 3, (4, 5), 21, 117, 30, 44, 15, (44, 45, 51)),
  'krilin': F('Kuririn', 15, (16, 17), 29, 69, 31, 47, 19, (48, 49, 50)),
- 'kefla': F('Kefla Super Sayajin', 42, (63, 64), 77, 54, 48, 58, 78, (62, 62, 62)),
- 'gotenks': F('Gotenks Base', 12, (12, 20), 14, 22, 21, 19, 17, (19, 19, 19)),
+ 'kefla': F('Kefla Super Sayajin', 42, (63, 64), 77, 54, 80, 58, 78, (62, 62, 62)),
+ 'gotenks': F('Gotenks Base', 30, (31, 33), 42, 100, 51, 53, 36, (79, 79, 79)),
  'trunksarm': F('Trunks Armadura', 0, (1, 2), 5, 13, 9, 8, 17, (30, 30, 30)),
- 'caulifla': F('Caulifla', 1, (2, 4), 9, 8, 96, 35, 19, (36, 36, 36)),
- 'kale': F('KALE fases/Kale Ssj', 1, (2, 3), 28, 51, 33, 25, 3, (25, 25, 25)),
- 'kyabe': F('KYABE fases/Kyabe ssj', 3, (4, 5), 17, 24, 59, 55, 18, (55, 55, 55)),
+ 'caulifla': F('Caulifla', 1, (2, 4), 9, 8, 54, 35, 19, (36, 36, 36)),
+ 'kale': F('KALE fases/Kale Ssj', 1, (2, 3), 28, 51, 17, 25, 3, (25, 25, 25)),
+ 'kyabe': F('KYABE fases/Kyabe ssj', 3, (4, 5), 17, 24, 34, 55, 18, (55, 55, 55)),
  'toppo': F('Toppo', 1, (3, 4), 9, 62, 76, 42, 11, (42, 42, 42)),
- 'janemba': F('Janemba', 1, (2, 3), 9, 35, 33, 14, 20, (24, 24, 24)),
- 'jiren': F('Jiren', 26, (27, 28), 5, 37, 75, 20, 22, (21, 21, 21)),
- 'turles': F('Turles', 1, (2, 3), 5, 14, 51, 39, 40, (39, 39, 39)),
- 'saibaman': F('Saibaman', 1, (3, 4), 10, 35, 30, 25, 16, (25, 25, 25)),
- 'bills': F('Bills', 3, (4, 8), 37, 47, 73, 67, 40, (67, 67, 67)),
- 'cooler': F('Cooler', 15, (16, 17), 29, 84, 79, 74, 30, (74, 74, 74)),
- 'hitto': F('HITTO/Hitto', 3, (4, 5), 8, 116, 71, 65, 39, (65, 65, 65)),
- 'raditz': F('RADITZ fases/Raditz', 3, (4, 5), 6, 24, 60, 44, 23, (44, 44, 44)),
+ 'janemba': F('Janemba', 1, (2, 3), 9, 35, 16, 14, 20, (24, 24, 24)),
+ 'jiren': F('Jiren', 26, (27, 28), 5, 37, 53, 20, 22, (21, 21, 21)),
+ 'turles': F('Turles', 1, (2, 3), 5, 14, 23, 39, 40, (39, 39, 39)),
+ 'saibaman': F('Saibaman', 1, (3, 4), 10, 35, 14, 25, 16, (25, 25, 25)),
+ 'bills': F('Bills', 3, (4, 8), 37, 47, 42, 67, 40, (67, 67, 67)),
+ 'cooler': F('Cooler', 15, (16, 17), 29, 84, 53, 74, 30, (74, 74, 74)),
+ 'hitto': F('HITTO/Hitto', 3, (4, 5), 8, 116, 45, 65, 39, (65, 65, 65)),
+ 'raditz': F('RADITZ fases/Raditz', 3, (4, 5), 6, 24, 33, 44, 23, (44, 44, 44)),
  'andro16': F('ANDROIDES/Androide 16', 1, (2, 3), 8, 43, 61, 37, 8, (37, 37, 37)),
- 'andro17': F('ANDROIDES/Androide 17', 1, (2, 3), 8, 20, 37, 25, 12, (25, 25, 25)),
+ 'andro17': F('ANDROIDES/Androide 17', 1, (2, 3), 8, 20, 10, 25, 12, (25, 25, 25)),
  'andro18': F('ANDROIDES/Androide 18', 1, (2, 3), 10, 39, 31, 36, 26, (36, 36, 36)),
- 'majin': F('MAJIN BUU formas/Majin Buu', 1, (2, 3), 9, 45, 42, 34, 38, (34, 34, 34)),
- 'superbuu': F('MAJIN BUU formas/Super Buu', 1, (2, 3), 12, 50, 41, 4, 20, (4, 4, 4)),
- 'zamasu': F('ZAMASU formas/Zamasu', 2, (3, 4), 9, 43, 46, 65, 32, (65, 65, 65)),   # Kefla SSJ (el pack mezcla Kale en la misma carpeta: se omiten sus fotogramas)
+ 'majin': F('MAJIN BUU formas/Majin Buu', 1, (2, 3), 9, 45, 16, 34, 38, (34, 34, 34)),
+ 'superbuu': F('MAJIN BUU formas/Super Buu', 1, (2, 3), 12, 50, 18, 4, 20, (4, 4, 4)),
+ 'zamasu': F('ZAMASU formas/Zamasu', 2, (3, 4), 9, 43, 43, 65, 32, (65, 65, 65)),   # Kefla SSJ (el pack mezcla Kale en la misma carpeta: se omiten sus fotogramas)
  # Zamasu fusionado: fusión, medio corrompido (golpes y caída en la subcarpeta Damage) y fusión divina (versión lila)
  'zamasuf': F(ZF, 34, (45, 46), 103, 102, 63, 62, 65, (79, 80, 81)),
  'zamasuf_cor': F(ZC, 3, (5, 6), 47, 185, 74, (ZC + '/Damage', 5), 73, ((ZC + '/Damage', 9), (ZC + '/Damage', 14), (ZC + '/Damage', 15))),
@@ -156,6 +156,24 @@ CHG = {
  'bardock_chg': [(BD + 'Bardock', 60), (BD + 'Bardock', 61), (BD + 'Bardock', 62), (BD + 'Bardock Ssj', 3), (BD + 'Bardock Ssj', 6),
                  (BD + 'Bardock SSJ4', 44), (BD + 'Bardock SSJ4', 45), (BD + 'Bardock SSJ4', 46)],
 }
+# Personajes nuevos: poses de cargar del pack (todas sus formas usan la misma tira)
+def _c(folder, *ns): return [(folder, n) for n in ns]
+# Aura generada (el pack no trae pose de cargar): (carpeta, nº, recoloreado, (color del aura, fase 0-2))
+def _ga(folder, n, color): return [(folder, n, None, (color, p)) for p in range(3)]
+CHG.update({
+ 'krilin_chg': _c('Kuririn', 5, 6, 7), 'kefla_chg': _ga('Kefla Super Sayajin', 48, (180, 240, 50)),
+ 'gotenks_chg': _c('Gotenks Base', 86, 87, 88), 'trunksarm_chg': _c('Trunks Armadura', 61, 62, 63),
+ 'caulifla_chg': _c('Caulifla', 60, 61, 62), 'kale_chg': _c('KALE fases/Kale Ssj', 33, 34, 35),
+ 'kyabe_chg': _c('KYABE fases/Kyabe ssj', 59, 61), 'toppo_chg': _c('Toppo', 54, 55, 56),
+ 'janemba_chg': _c('Janemba', 31, 32, 33), 'jiren_chg': _c('Jiren', 82, 83, 84), 'turles_chg': _c('Turles', 51, 52, 53),
+ 'saibaman_chg': _c('Saibaman', 30, 31, 32), 'bills_chg': _c('Bills', 73, 75, 77), 'cooler_chg': _c('Cooler', 79, 80, 81),
+ 'hitto_chg': _c('HITTO/Hitto', 70, 71, 72), 'raditz_chg': _c('RADITZ fases/Raditz', 59, 60, 61),
+ 'andro16_chg': _ga('ANDROIDES/Androide 16', 32, (110, 220, 80)), 'andro17_chg': _ga('ANDROIDES/Androide 17', 35, (120, 200, 255)),
+ 'andro18_chg': _ga('ANDROIDES/Androide 18', 32, (140, 190, 255)), 'majin_chg': _c('MAJIN BUU formas/Majin Buu', 40, 41, 42),
+ 'superbuu_chg': _c('MAJIN BUU formas/Super Buu', 41, 42, 43), 'zamasu_chg': _c('ZAMASU formas/Zamasu', 46, 47),
+ # Zamasu fusionado: 0-2 forma normal · 3-5 corrupto · 6-8 divino
+ 'zamasuf_chg': _c(ZF, 84, 85, 86) + _ga(ZC, 161, (190, 80, 210)) + _c(ZD, 83, 84, 85),
+})
 # Intros de las fusiones (hoja <personaje>_intro, pies abajo): Goku y Vegeta se fusionan antes de empezar la partida
 # vegito_intro: 0 Goku · 1 Vegeta · 2-3 vuelan · 4-7 Vegetto aparece · 8-10 aura
 # gogeta_intro: 0-10 baile de Goku · 11-21 baile de Vegeta · 22 silueta · 23 Gogeta · 24-26 aura · 27 los dedos se tocan
@@ -197,6 +215,37 @@ def load(folder, n):
     border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     rem = np.isin(lab, list(border))
     return trim(np.dstack([a, np.where(rem, 0, 255)]).astype(np.uint8))
+def aura(r, color, phase, pad=24):
+    """Aura de ki en pixel art alrededor del sprite: 3 capas de color sólido con lenguas de fuego hacia arriba
+    (phase 0-2 cambia la posición de las llamas para que parpadee como las auras del pack)"""
+    h, w = r.shape[:2]; P = pad
+    out = np.zeros((h + P * 2, w + P * 2, 4), np.uint8); out[P:P + h, P:P + w] = r
+    m = out[:, :, 3] > 0; H, W = m.shape
+    dist = nd.distance_transform_edt(~m)
+    ys = np.arange(H)[:, None]
+    t = np.clip((P + h - ys) / h, 0, 1)                         # 0 en los pies, 1 en la cabeza
+    rng = np.random.default_rng(11 + phase * 37)
+    R = 2.5 + 7 * t ** 1.2                                        # el aura es más ancha arriba que en los pies
+    # lenguas de fuego: picos triangulares repartidos a lo ancho
+    spike = np.zeros(W); xs = np.arange(W)
+    base = np.arange(rng.integers(2, 6), W, 7)
+    for cx in base + rng.integers(-2, 3, size=len(base)):
+        hgt = rng.uniform(6, 16); wd = rng.uniform(2.5, 4.5)
+        spike = np.maximum(spike, hgt * np.clip(1 - abs(xs - cx) / wd, 0, 1))
+    col = np.array(color, float)
+    for k, c in [(1.0, col * 0.5), (0.66, col), (0.36, col * 0.35 + 255 * 0.65)]:   # capa oscura, media y clara
+        A = (dist <= R * k) & (dist > 0)
+        cols = A.any(0); topA = np.where(cols, A.argmax(0), H)
+        for x in np.nonzero(cols)[0]:
+            T = int(spike[x] * k * (0.6 + 0.4 * (topA[x] < P + h * 0.5)))
+            A[max(0, topA[x] - T):topA[x], x] = True
+        A &= ~m
+        out[A, :3] = np.clip(c, 0, 255).astype(np.uint8); out[A, 3] = 255
+    return trim(out)
+def chg_frame(e):
+    """Fotograma de una tira de carga: (carpeta, nº[, recoloreado[, (color, fase) del aura generada]])"""
+    r = recolor(load(e[0], e[1]), e[2] if len(e) > 2 else None)
+    return aura(r, *e[3]) if len(e) > 3 else r
 def clean_lines(r):
     """Quita rayas sueltas (1-3 píxeles de alto, separadas del cuerpo) que traen algunos fotogramas del pack"""
     lab, k = nd.label(r[:, :, 3] > 0)
@@ -252,7 +301,7 @@ if __name__ == '__main__':
         meta[name] = {'cols': 4, 'rows': rows, 'w': CW, 'h': CH, 'hs': round(CH / REF, 4), 'anc': round(2 / CH, 4), 'px': 1}
         print(name, CW, 'x', CH)
     for name, L in CHG.items():
-        fr = {i: recolor(load(e[0], e[1]), e[2] if len(e) > 2 else None) for i, e in enumerate(L)}; used |= {e[0] for e in L}
+        fr = {i: chg_frame(e) for i, e in enumerate(L)}; used |= {e[0] for e in L}
         cols = min(8, len(L)); sh, CW, CH, rows = build(fr, cols=cols, center='box')
         sh.save(os.path.join(out, name + '.png'))
         meta[name] = {'cols': cols, 'rows': rows, 'w': CW, 'h': CH, 'hs': round(CH / REF, 4), 'anc': round(2 / CH, 4), 'px': 1}

@@ -12,7 +12,8 @@ const SHEET_NAMES = ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku
   'black', 'black_ss', 'black_rose', 'black_boss', 'gohan', 'gohan_ss', 'gohan_ss2', 'gohan_ul',
   'freezer1', 'freezer3', 'freezer', 'freezer_fp', 'freezer_gold', 'trunks', 'trunks_ss', 'cell_imp', 'cell_semi', 'cell', 'piccolo', 'krilin',
   'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4', 'gogeta_base', 'gogeta', 'gogeta_ss2', 'gogeta_blue',
-  'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg', 'gogeta_chg', 'vegito_intro', 'gogeta_intro',
+  'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg', 'gogeta_chg', 'krilin_chg', 'kefla_chg', 'gotenks_chg', 'trunksarm_chg', 'caulifla_chg', 'kale_chg', 'kyabe_chg', 'toppo_chg', 'janemba_chg', 'jiren_chg', 'turles_chg', 'saibaman_chg', 'bills_chg', 'cooler_chg', 'hitto_chg', 'raditz_chg', 'andro16_chg', 'andro17_chg', 'andro18_chg', 'majin_chg', 'superbuu_chg', 'zamasu_chg', 'zamasuf_chg',
+  'vegito_intro', 'gogeta_intro',
   'enemies', 'bosses', 'fx', 'fxbig', 'fxzip', 'kefla', 'gotenks', 'trunksarm', 'caulifla', 'kale', 'kyabe', 'toppo', 'janemba', 'jiren', 'turles', 'saibaman', 'bills', 'cooler', 'hitto', 'raditz', 'andro16', 'andro17', 'andro18', 'majin', 'superbuu', 'zamasu', 'zamasuf', 'zamasuf_cor', 'zamasuf_div', 'zamasuf_intro', 'props', 'tall', 'icons', 'tiles'];
 
 /* ---------- Animaciones: índices de fotograma de cada hoja (4 columnas, fila*4+columna) ---------- */
@@ -1289,6 +1290,7 @@ const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;
 /* ---------- Pose de CARGAR KI de cada forma (hojas <personaje>_chg, tools/make_zip.py) ----------
    [primer fotograma, nº de fotogramas] de la hoja de carga (mismo índice que forms; la animación va en bucle);
    null = sin pose propia (se usa la de quieto con el aura del juego). La pose ya trae el aura de la forma */
+const SAME4 = n => [[0, n], [0, n], [0, n], [0, n]];
 const FORM_CHG = {
   goku: [[0, 3], [3, 3], [6, 3], [9, 3], [12, 3], [15, 3], [18, 2], [20, 3], [23, 2], [25, 2], [27, 2]],
   vegeta: [[0, 3], [3, 3], [6, 3], [9, 3], [12, 3], [15, 2], [17, 3], [20, 2]],
@@ -1301,7 +1303,32 @@ const FORM_CHG = {
   vegito: [[0, 3], [3, 3], [6, 3], [9, 3]],
   broly: [[0, 3], [3, 2], [5, 3], [8, 3]],
   bardock: [[0, 3], [3, 2], [5, 3]],
-  gogeta: [[0, 3], [3, 3], [6, 3], [9, 3]]
+  gogeta: [[0, 3], [3, 3], [6, 3], [9, 3]],
+  // Zamasu fusionado: una tira de 3 fotogramas por forma
+  zamasuf: [[0, 3], [3, 3], [6, 3]],
+  // Personajes con una sola hoja: sus 4 formas usan la misma pose de cargar
+  krilin: SAME4(3),
+  kefla: SAME4(3),
+  gotenks: SAME4(3),
+  trunksarm: SAME4(3),
+  caulifla: SAME4(3),
+  kale: SAME4(3),
+  kyabe: SAME4(2),
+  toppo: SAME4(3),
+  janemba: SAME4(3),
+  jiren: SAME4(3),
+  turles: SAME4(3),
+  saibaman: SAME4(3),
+  bills: SAME4(3),
+  cooler: SAME4(3),
+  hitto: SAME4(3),
+  raditz: SAME4(3),
+  andro16: SAME4(3),
+  andro17: SAME4(3),
+  andro18: SAME4(3),
+  majin: SAME4(3),
+  superbuu: SAME4(3),
+  zamasu: SAME4(2)
 };
 const formChg = (ch, idx) => (FORM_CHG[ch.id] || [])[idx] || null;
 
