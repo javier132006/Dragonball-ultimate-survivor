@@ -571,7 +571,7 @@ class HordeManager {
     R.byW[DMG_SRC] = (R.byW[DMG_SRC] || 0) + real;
     SFX.play('hit');
     this.hp[i] -= dmg; this.hitT[i] = 0.12;
-    const m = this.type[i] === 3 ? 0.15 : 1;
+    const m = game.tourney && this.uid[i] === game.tourney.uid ? 2.6 : this.type[i] === 3 ? 0.15 : 1;   // torneo: el rival sale despedido
     this.kx[i] += kx * m; this.kz[i] += kz * m;
     game.fx.burst(game.fx.sparks, this.x[i], 1.2, this.z[i], 2, 5, 0.25, 0.25, 6);
   }

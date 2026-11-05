@@ -451,7 +451,7 @@ class Game {
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
     this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
-    this.bossWeak = false; this.ballDist = 1e9; this.radarT = 0; this.roomT = 0; const rmEl = document.getElementById('roomFx'); if (rmEl) rmEl.classList.remove('show');
+    this.bossWeak = false; this.ballDist = 1e9; this.radarT = 0; this.roomT = 0; this.tourney = null; const rmEl = document.getElementById('roomFx'); if (rmEl) rmEl.classList.remove('show');
     this.camFocus = null; const bcEl = document.getElementById('bossCine'); if (bcEl) bcEl.classList.remove('show');   // por si acabó en mitad de una cinemática
     this.practice = !!practice; this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = rand(90, 130); this.rivalUid = 0; this.achT = 1;
     this.allies.reset(); this.setStorm(0);
@@ -846,6 +846,51 @@ class Game {
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
 
+  /* ---------- Torneo de las Artes Marciales: ring, tres rivales seguidos, salir del ring decide ---------- */
+  updateTourney(dt) {
+    const T = this.tourney, L = this.ui.el.tourLbl || (this.ui.el.tourLbl = document.getElementById('tourLbl'));
+    if (!T) { if (L && L.classList.contains('show')) L.classList.remove('show'); return; }
+    const p = this.player, h = this.horde;
+    T.fxT -= dt;
+    if (T.fxT <= 0) {                                                // el borde del ring: un círculo de luz dorada
+      T.fxT = 0.07; T.rot = (T.rot || 0) + 0.05;
+      for (let k = 0; k < 40; k++) { const a = T.rot + k * 0.15708; this.fx.trail.emit(T.x + Math.cos(a) * T.r, 0.12, T.z + Math.sin(a) * T.r, 0, 0.9, 0, 0.6, 0.42, 0, 0xffd060); }   // 40 puntos repartidos que giran
+    }
+    const F = TOUR_FIGHTERS[Math.min(T.wins, 2)];
+    if (L) { L.classList.add('show'); L.textContent = '♛ TORNEO · COMBATE ' + Math.min(T.wins + 1, 3) + '/3 · ' + F.name + ' · ¡NO SALGAS DEL RING!'; }
+    if (Math.hypot(p.x - T.x, p.z - T.z) > T.r + 0.6) { this.endTourney(false); return; }
+    if (!T.uid) { T.next -= dt; if (T.next <= 0) this.tourneyFight(); return; }
+    const i = h.indexOfUid(T.uid);
+    if (i < 0 || h.hp[i] <= 0) { T.uid = 0; this.tourneyWin(false); return; }
+    if (Math.hypot(h.x[i] - T.x, h.z[i] - T.z) > T.r + 0.6) {        // ¡fuera del ring!
+      DMG_SRC = 'otros'; h.hurt(i, h.hp[i] + 1, 0, 0, this, true); T.uid = 0; this.tourneyWin(true);
+    }
+  }
+  tourneyFight() {
+    const T = this.tourney, F = TOUR_FIGHTERS[T.wins], p = this.player;
+    const dx = T.x - p.x, dz = T.z - p.z, d = Math.hypot(dx, dz) || 1;   // aparece al otro lado del ring
+    const x = T.x + (dx / d) * 6, z = T.z + (dz / d) * 6;
+    const hp = (14 + this.pressure() * 0.25) * ENEMY_TYPES[F.type].hp * this.diff.hp * this.stage.hp * this.timeMul() * F.mul;
+    const i = this.horde.spawn(x, z, hp, F.type);
+    if (i >= 0) T.uid = this.horde.uid[i];
+    this.fx.ring(this.fx.aura, x, 0.5, z, 40, 14, 0.6, 0.4, 0xffd060); SFX.play('stinger');
+    this.ui.toast('COMBATE ' + (T.wins + 1) + ' / 3: ' + F.name);
+  }
+  tourneyWin(out) {
+    const T = this.tourney; T.wins++;
+    this.ui.toast(out ? '¡FUERA DEL RING! · COMBATE GANADO' : '¡COMBATE GANADO!', true); SFX.play('combo');
+    if (T.wins >= 3) this.endTourney(true); else T.next = 2.2;
+  }
+  endTourney(win) {
+    const T = this.tourney, p = this.player; if (!T) return;
+    this.tourney = null;
+    if (win) {
+      this.capsules.add(T.x + 1.5, T.z, 1, this.world); this.capsules.add(T.x - 1.5, T.z, 1, this.world);
+      this.gainCash(400); p.hp = p.maxHp; this.track('torneos', 1);
+      this.ui.toast('♛ ¡CAMPEÓN DEL TORNEO!'); this.ui.toast('Premio: 2 cápsulas doradas, 400 Zeni y vida al máximo', true); SFX.play('win');
+      this.fx.ring(this.fx.aura, T.x, 0.5, T.z, 90, 26, 0.9, 0.5, 0xffd060); this.shake(0.6);
+    } else { this.ui.toast('¡HAS SALIDO DEL RING!'); this.ui.toast('Pierdes el torneo · la horda vuelve', true); SFX.play('lose'); }
+  }
   /* ---------- Radar del Dragón: distancia a la esfera más cercana y pitidos más rápidos al acercarte ---------- */
   updateRadar(dt) {
     const pk = this.pickups, p = this.player; let d = 1e9;
@@ -989,6 +1034,14 @@ class Game {
     if (k === 'senzu') {
       for (let i = 0; i < 12; i++) { const a = rand(0, 6.28), r = rand(6, 18); this.pickups.drop(clamp(p.x + Math.cos(a) * r, -CFG.ARENA, CFG.ARENA), clamp(p.z + Math.sin(a) * r, -CFG.ARENA, CFG.ARENA)); }
       ui.toast('¡LLUVIA DE SENZUS!'); ui.toast('Recoge las semillas para curarte', true);
+    } else if (k === 'torneo') {                                         // Torneo de las Artes Marciales
+      if ((this.bossUid && this.horde.indexOfUid(this.bossUid) >= 0) || this.roomT > 0 || this.tourney) { this.startEvent('ally'); return; }
+      this.horde.reset(); this.rivalUid = 0;                          // la horda se retira: solo tú y tus rivales
+      this.tourney = { x: p.x, z: p.z, r: TOUR_R, uid: 0, next: 2, wins: 0, fxT: 0 };
+      this.fx.ring(this.fx.aura, p.x, 0.3, p.z, 90, TOUR_R * 1.6, 0.9, 0.5, 0xffd060); this.shake(0.5);
+      ui.toast('♛ TORNEO DE LAS ARTES MARCIALES');
+      ui.toast('3 combates · saca al rival del ring y ganas · si sales tú, pierdes', true);
+      return;
     } else if (k === 'rival') {
       const M = Save.d.rival || (Save.d.rival = { lvl: 0, counter: '', topW: '', beatMe: false });   // memoria entre partidas
       this.rivalMem = Object.assign({}, M); this.rivalDmg = {}; this.rivalByW = {}; this.rivalShotT = 2;
@@ -1294,6 +1347,7 @@ class Game {
     this._sx = x; this._sz = z;
   }
   spawnEnemy() {
+    if (this.tourney) return;                                         // torneo: sin horda
     const r = Math.random(), t0 = this.pressure(), sw = this.swarmLvl();
     let t;
     if (sw > 0) t = r < 0.04 + sw * 0.015 ? 4 : r < 0.25 + sw * 0.04 ? 2 : r < 0.55 ? 1 : 0;          // el enjambre trae más élites y brutos
@@ -2042,7 +2096,7 @@ class Game {
   /* ---------- Un paso de simulación (dt ya incluye el hitstop) ---------- */
   update(dt) {
     const p = this.player, h = this.horde;
-    const clk = this.roomT > 0 ? 1 / 6 : 1;                         // Sala del Tiempo: fuera el tiempo pasa 6 veces más lento
+    const clk = this.tourney ? 0 : this.roomT > 0 ? 1 / 6 : 1;      // torneo: el reloj se para · Sala del Tiempo: fuera pasa 6 veces más lento
     this.time += dt * clk; this.stageTime += dt * clk;
     this.updateTimeRoom(dt);
     p.update(dt, this);
@@ -2079,7 +2133,7 @@ class Game {
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) { this.combo = 0; p.comboMul = 1; } }
     this.impCd -= dt; this.impCd2 -= dt;
     // Eventos aleatorios (no en el mapa final)
-    if (!S.final && S.fx !== 'time') { this.eventT -= dt; if (this.eventT <= 0) { this.eventT = rand(110, 160); this.startEvent(pick(['senzu', 'rival', 'storm', 'ally'])); } }
+    if (!S.final && S.fx !== 'time') { this.eventT -= dt; if (this.eventT <= 0 && !this.tourney) { this.eventT = rand(110, 160); this.startEvent(pick(['senzu', 'rival', 'storm', 'ally'].concat(S.fx !== 'ring' ? ['torneo'] : []))); } }
     // Día y noche (Tierra y Planeta Vegeta): ciclo de 4 minutos
     if (S.night) this.updateNight(dt);
     if (this.storm > 0) {
@@ -2155,6 +2209,7 @@ class Game {
     this.allies.update(dt, this);
     this.updateFusion(dt);
     this.updateRadar(dt);
+    this.updateTourney(dt);
     this.updateRival(dt);
     if (this.world.follow(p.x, p.z)) this.shadowDirty = true;
 
