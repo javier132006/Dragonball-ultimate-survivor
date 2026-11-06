@@ -124,6 +124,34 @@ function makeTextures() {
 }
 
 /** Carga un spritesheet desde window.SPRITE_DATA (assets/sprites.js en base64: funciona con doble clic) */
+/** Rectángulo útil (con píxeles visibles) de cada fotograma de una hoja, en una textura de 1 fila (RGBA = x0, y0, x1, y1
+    en 1/255 de la casilla; y desde abajo). Los sprites se dibujan solo sobre ese rectángulo: la GPU no pinta el relleno
+    transparente de cada casilla (los enemigos usan un 30% de su casilla; con 450 en pantalla era casi todo el trabajo) */
+function sheetRects(img, cols, rows) {
+  const W = img.width, H = img.height, cw = W / cols, ch = H / rows, n = cols * rows;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0);
+  const px = cx.getImageData(0, 0, W, H).data, out = new Uint8Array(n * 4);
+  for (let f = 0; f < n; f++) {
+    const c = f % cols, r = (f / cols) | 0, X0 = Math.round(c * cw), Y0 = Math.round(r * ch), X1 = Math.round((c + 1) * cw), Y1 = Math.round((r + 1) * ch);
+    let x0 = X1, y0 = Y1, x1 = X0 - 1, y1 = Y0 - 1;
+    for (let y = Y0; y < Y1; y++) {
+      const row = y * W * 4;
+      for (let x = X0; x < X1; x++) if (px[row + x * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; y1 = y; }
+    }
+    const o = f * 4;
+    if (x1 < x0) { out[o] = out[o + 1] = 0; out[o + 2] = out[o + 3] = 255; continue; }   // casilla vacía: se deja entera
+    // 1 píxel de margen y redondeo hacia fuera (que nunca se recorte nada visible)
+    const fx0 = (x0 - 1 - X0) / (X1 - X0), fx1 = (x1 + 2 - X0) / (X1 - X0), fy0 = (Y1 - (y1 + 2)) / (Y1 - Y0), fy1 = (Y1 - (y0 - 1)) / (Y1 - Y0);
+    out[o] = Math.max(0, Math.floor(fx0 * 255)); out[o + 1] = Math.max(0, Math.floor(fy0 * 255));
+    out[o + 2] = Math.min(255, Math.ceil(fx1 * 255)); out[o + 3] = Math.min(255, Math.ceil(fy1 * 255));
+  }
+  const t = new THREE.DataTexture(out, n, 1, THREE.RGBAFormat);
+  t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true;
+  return { tex: t, n };
+}
+const NO_RECTS = new THREE.DataTexture(new Uint8Array([0, 0, 255, 255]), 1, 1, THREE.RGBAFormat);
+NO_RECTS.needsUpdate = true;
 function loadSheet(name) {
   return new Promise((resolve) => {
     const d = window.SPRITE_DATA && window.SPRITE_DATA[name];
@@ -134,6 +162,7 @@ function loadSheet(name) {
       tex.magFilter = tex.minFilter = THREE.NearestFilter;
       tex.generateMipmaps = false;
       tex.needsUpdate = true;
+      if (d.cols * d.rows > 1) tex.rects = sheetRects(img, d.cols, d.rows);
       resolve({ tex, cols: d.cols, rows: d.rows, w: d.w, h: d.h, hs: d.hs, anc: d.anc });   // hs/anc: hojas de carga (celda más alta)
     };
     img.onerror = () => resolve(null);
@@ -169,12 +198,17 @@ attribute vec3 iCol;    // tinte por instancia
 attribute float iRot;   // giro en el plano del sprite (radianes): rayos, tajos y grietas orientados
 uniform vec2 uGrid; uniform vec2 uSize; uniform float uAnchor; uniform float uFlat;
 uniform sampler2D uHMap; uniform vec2 uHO; uniform float uHS; uniform vec2 uHR;
+uniform sampler2D uRects; uniform float uRectN;
 varying vec2 vUv; varying float vFlash; varying float vAlpha; varying vec3 vCol;
 void main() {
   float col = mod(iData.x, uGrid.x);
   float row = floor(iData.x / uGrid.x);
-  float fx = mix(uv.x, 1.0 - uv.x, iData.y);
-  vUv = vec2((col + fx) / uGrid.x, 1.0 - (row + 1.0 - uv.y) / uGrid.y);
+  // Recorte al rectángulo útil del fotograma (u, v: posición dentro de la casilla, v desde abajo)
+  vec4 rc = vec4(0.0, 0.0, 1.0, 1.0);
+  if (uRectN > 0.5) rc = texture2D(uRects, vec2((clamp(iData.x, 0.0, uRectN - 1.0) + 0.5) / uRectN, 0.5));
+  float u = mix(rc.x, rc.z, uv.x), v = mix(rc.y, rc.w, uv.y);
+  float su = mix(u, 1.0 - u, iData.y);                  // volteado: el quad se refleja, la textura no
+  vUv = vec2((col + u) / uGrid.x, 1.0 - (row + 1.0 - v) / uGrid.y);
   vFlash = iData.z; vAlpha = iPos.w; vCol = iCol;
   vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
   vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
@@ -182,7 +216,7 @@ void main() {
   float s = iData.w;
   // Altura del terreno bajo el sprite (mapa de alturas en la GPU)
   float ground = texture2D(uHMap, clamp((iPos.xz - uHO) / uHS, 0.0, 1.0)).r * uHR.y + uHR.x;
-  vec2 o = vec2(position.x * uSize.x, (position.y + 0.5 - uAnchor) * uSize.y) * s;
+  vec2 o = vec2((su - 0.5) * uSize.x, (v - uAnchor) * uSize.y) * s;
   float cr = cos(iRot), sr = sin(iRot);
   o = vec2(o.x * cr - o.y * sr, o.x * sr + o.y * cr);
   vec3 wp = iPos.xyz + vec3(0.0, ground, 0.0) + right * o.x + up * o.y;
@@ -224,15 +258,24 @@ class SpriteBatch {
         uAnchor: { value: o.anchor || 0 }, uFlat: { value: o.flat ? 1 : 0 },
         uTint: { value: new THREE.Color(o.tint !== undefined ? o.tint : 0xffffff) },
         uAlpha: { value: o.alpha !== undefined ? o.alpha : 1 }, uCut: { value: o.cut !== undefined ? o.cut : 0.5 },
+        uRects: { value: NO_RECTS }, uRectN: { value: 0 },
         ...HM_UNIFORMS
       },
       transparent: soft, depthWrite: !soft, side: THREE.DoubleSide,
       blending: o.additive ? THREE.AdditiveBlending : THREE.NormalBlending
     });
+    this.setSheet(o.texture, o.cols || 1, o.rows || 1);
     this.mesh = new THREE.Mesh(this.geo, this.mat);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = o.renderOrder || 0;
     scene.add(this.mesh);
+  }
+  /** Cambia la hoja del lote (textura y rejilla); usa sus rectángulos útiles si los tiene */
+  setSheet(tex, cols, rows) {
+    const u = this.mat.uniforms, R = tex && tex.rects;
+    u.uMap.value = tex; u.uGrid.value.set(cols, rows);
+    const ok = R && R.n === cols * rows;
+    u.uRects.value = ok ? R.tex : NO_RECTS; u.uRectN.value = ok ? R.n : 0;
   }
   setTint(hex) { this.mat.uniforms.uTint.value.setHex(hex); }
   begin() { this.count = 0; }
@@ -246,8 +289,15 @@ class SpriteBatch {
     else { this.col[c] = ((tint >> 16) & 255) / 255; this.col[c + 1] = ((tint >> 8) & 255) / 255; this.col[c + 2] = (tint & 255) / 255; }
   }
   end() {
-    this.geo.instanceCount = this.count; this.aPos.needsUpdate = this.aData.needsUpdate = this.aCol.needsUpdate = true;
-    if (this.rotUsed) { this.aRot.needsUpdate = true; this.rotUsed = false; }
+    const n = this.count;
+    this.geo.instanceCount = n;
+    // Lote vacío: no se dibuja nada, no hay nada que subir a la GPU
+    // (ojo: en WebGL2 un rango de longitud 0 significa «hasta el final», así que ni se intenta)
+    if (n === 0) { this.rotUsed = false; return; }
+    // Solo se suben a la GPU las instancias usadas (antes se subía el buffer entero, hasta 1200 sprites por lote, cada cuadro)
+    this.aPos.updateRange.count = this.aData.updateRange.count = n * 4; this.aCol.updateRange.count = n * 3;
+    this.aPos.needsUpdate = this.aData.needsUpdate = this.aCol.needsUpdate = true;
+    if (this.rotUsed) { this.aRot.updateRange.count = n; this.aRot.needsUpdate = true; this.rotUsed = false; }
   }
   reset() { this.count = 0; this.geo.instanceCount = 0; }
 }

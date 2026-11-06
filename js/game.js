@@ -174,18 +174,21 @@ class Game {
   autoQuality(rawDt) {
     const P = this.perf;
     if (Save.d.opt.quality !== 'auto') return;
-    P.acc += rawDt; P.n++;
-    if (P.acc < 2) return;
+    P.acc += rawDt; P.n++; P.capT = Math.max(0, (P.capT || 0) - rawDt);
+    if (P.acc < 1) return;                                          // se mide cada segundo (antes cada 2: tardaba ~12 s en reaccionar)
     const ft = P.acc / P.n; P.acc = 0; P.n = 0;
+    const setPr = (v) => { P.pr = v; this.renderer.setPixelRatio(v); this.renderer.setSize(window.innerWidth, window.innerHeight, false); };
     if (ft > 1 / 48) {
-      P.good = 0;
-      // Primero lo que menos se nota: menos partículas, después sin sombras del sol y, como último recurso, menos resolución
-      if (!P.lowFx) { P.lowFx = true; this.fx.q = this.qualityCfg().fx * 0.6; }
+      P.good = 0; P.cap = P.pr; P.capT = 40;                      // no vuelve a subir hasta aquí en 40 s (así no va y viene)
+      // Lo que más alivia a la GPU es la resolución (la horda y los efectos llenan la pantalla de sprites):
+      // 1) resolución hasta 1 y menos partículas · 2) sin sombras del sol · 3) resolución hasta 0,6
+      if (P.pr > 1.05 || !P.lowFx) { P.lowFx = true; this.fx.q = this.qualityCfg().fx * 0.6; if (P.pr > 1.05) setPr(Math.max(1, P.pr - 0.25)); }
       else if (!P.noShadow) { P.noShadow = true; this.applyShadow(); }
-      else if (P.pr > 0.62) { P.pr = Math.max(0.6, P.pr - 0.15); this.renderer.setPixelRatio(P.pr); this.renderer.setSize(window.innerWidth, window.innerHeight, false); }
-    } else if (ft < 1 / 57 && ++P.good >= 3 && P.pr < P.max) {
-      P.good = 0; P.pr = Math.min(P.max, P.pr + 0.1);
-      this.renderer.setPixelRatio(P.pr); this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+      else if (P.pr > 0.62) setPr(Math.max(0.6, P.pr - 0.15));
+    } else if (ft < 1 / 57 && ++P.good >= 4) {
+      P.good = 0;
+      const top = P.capT > 0 ? Math.min(P.max, P.cap - 0.1) : P.max;
+      if (P.pr < top - 0.01) setPr(Math.min(top, P.pr + 0.1));
     }
   }
 
@@ -451,7 +454,7 @@ class Game {
     this.player.reset(ch); this.weapons.reset(ch);
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
-    this.hitstop = 0; this.shakeAmt = 0; this.ui.flash = 0;
+    this.hitstop = 0; this.hsCd = 0; this.shakeAmt = 0; this.ui.flash = 0;
     this.bossWeak = false; this.ballDist = 1e9; this.radarT = 0; this.roomT = 0; this.tourney = null; const tkEl = document.getElementById('talk'); if (tkEl) tkEl.classList.remove('show'); const rmEl = document.getElementById('roomFx'); if (rmEl) rmEl.classList.remove('show');
     this.camFocus = null; const bcEl = document.getElementById('bossCine'); if (bcEl) bcEl.classList.remove('show');   // por si acabó en mitad de una cinemática
     this.practice = !!practice; this.combo = 0; this.comboT = 0; this.impT = 0; this.impCd = 0; this.eventT = rand(90, 130); this.rivalUid = 0; this.achT = 1;
@@ -846,6 +849,12 @@ class Game {
     this.impT = Math.max(this.impT, t); this.hitstop = Math.max(this.hitstop, t * 0.5);
   }
   /** Impact frame en los críticos grandes (con enfriamiento para no saturar) */
+  /** Micro-parón de impacto (críticos de las ráfagas, golpes que recibes): como mucho uno cada 1,2 s.
+      Antes cada crítico congelaba el juego 0,04 s: al final de la partida eran ~2 parones por segundo y se notaba como lag */
+  microStop(t) {
+    if (this.hsCd > 0) return;
+    this.hsCd = 1.2; this.hitstop = Math.max(this.hitstop, t);
+  }
   onCrit(dmg) {
     if (this.impCd > 0 || this.state !== 'play' || dmg < 30 * this.player.damageMul()) return;
     this.impCd = 2.5; this.impT = 0.14;
@@ -2315,6 +2324,7 @@ class Game {
     if (s === 'play') {
       this.updateUlt(rawDt);                                   // la secuencia de la Ultimate va en tiempo real (no se para con el hitstop)
       let dt = 0;
+      if (this.hsCd > 0) this.hsCd -= rawDt;
       if (this.hitstop > 0) this.hitstop -= rawDt; else dt = rawDt;
       if (dt > 0) this.update(dt);
       // Impact frame de crítico: negativo en B/N y luego destello de contraste

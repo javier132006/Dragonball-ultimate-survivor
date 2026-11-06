@@ -162,7 +162,7 @@ class Player {
     game.run.taken += real;
     game.ui.flash = 1;
     game.shake(0.45);
-    game.hitstop = 0.04;
+    game.microStop(0.04);
     game.fx.burst(game.fx.sparks, this.x, 1.3, this.z, 8, 7, 0.4, 0.35, 8);
     return true;
   }
@@ -591,7 +591,7 @@ class HordeManager {
           if (b.ign.indexOf(u) >= 0) continue;
           this.hurt(j, b.dmg, b.vx * 0.22, b.vz * 0.22, game);
           game.fx.burst(game.fx.sparks, b.x, 1.2, b.z, b.crit ? 8 : 3, b.crit ? 9 : 5, 0.3, b.crit ? 0.4 : 0.25, 6, b.tint);
-          if (b.crit) { game.hitstop = 0.04; game.shake(0.3); game.onCrit(b.dmg); } else game.shake(0.05);
+          if (b.crit) { game.microStop(0.04); game.shake(0.3); game.onCrit(b.dmg); } else game.shake(0.05);
           if (b.pierce > 0) { b.pierce--; b.ign[b.ni++ % b.ign.length] = u; return false; }
           return true;
         }
@@ -705,7 +705,7 @@ class KiPool {
     this.sb = new SpriteBatch(scene, { max, texture: tex.ki, w: 1, h: 1, anchor: 0.5, additive: true, cut: 0.05, renderOrder: 5 });
   }
   /** Con el atlas de efectos, cada ráfaga es una esfera de su color (y los Kienzan, discos que giran) */
-  useFx(sh) { const u = this.sb.mat.uniforms; u.uMap.value = sh.tex; u.uGrid.value.set(sh.cols, sh.rows); this.fx = true; }
+  useFx(sh) { this.sb.setSheet(sh.tex, sh.cols, sh.rows); this.fx = true; }
   fire(x, z, dx, dz, speed, dmg, r, crit, life, pierce, aoe, tint, size, look) {
     const base = dmg; dmg = base * ((window.game && window.game.player && window.game.player.kiMul) || 1);   // técnicas de ki: Entrenamiento de Ki
     for (let i = 0; i < this.max; i++) {
@@ -817,7 +817,7 @@ class Pickups {
     this.balls = new SpriteBatch(scene, { max: 7, texture: tex.dball, cols: 7, rows: 1, w: 1.8, h: 1.8, anchor: 0.5, renderOrder: 1 });
   }  /** Esferas del dragón y semillas senzu con los sprites del atlas de objetos */
   useFx(sh) {
-    for (const b of [this.senzu, this.balls]) { const u = b.mat.uniforms; u.uMap.value = sh.tex; u.uGrid.value.set(sh.cols, sh.rows); }
+    for (const b of [this.senzu, this.balls]) b.setSheet(sh.tex, sh.cols, sh.rows);
     this.fx = true;
   }
 
@@ -962,7 +962,7 @@ class EnemyShots {
     }
     return null;
   }
-  useFx(sh) { const u = this.sb.mat.uniforms; u.uMap.value = sh.tex; u.uGrid.value.set(sh.cols, sh.rows); this.fx = true; }
+  useFx(sh) { this.sb.setSheet(sh.tex, sh.cols, sh.rows); this.fx = true; }
   /** Anillo de n disparos (con un ángulo inicial) */
   ring(x, z, n, speed, dmg, off, o) { for (let i = 0; i < n; i++) { const a = off + (i / n) * 6.2832; this.fire(x, z, Math.cos(a), Math.sin(a), speed, dmg, o); } }
   /** Bola gigante (Supernova, Cañón Eraser...): viaja visible hasta el punto y allí estalla como zona marcada */
