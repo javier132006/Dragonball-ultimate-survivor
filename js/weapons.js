@@ -6,6 +6,17 @@
    ===================================================================== */
 
 const BASE_DMG = 10;
+// Ki de las técnicas propias de cada personaje: de media gastan KI_DRAIN por segundo cada una (la regeneración base
+// es 4 Ki/s); cada lanzamiento cuesta entre KI_MIN y KI_MAX según lo que tarda en recargar
+const KI_DRAIN = 0.8, KI_MIN = 2, KI_MAX = 20;
+/** Aviso de gasto de Ki para la carta de una técnica (vacío si es gratis) */
+function kiNote(id, p) {
+  const D = WEAPONS[id]; if (!D || !p) return '';
+  if (D.kind === 'bigbeam' && D.cfg && D.cfg.cost) return '<br><span class="kin">⚡ Gasta ' + D.cfg.cost + ' de Ki</span>';
+  if (D.kind === 'beam') return '<br><span class="kin">⚡ Gasta 10 de Ki</span>';
+  if (D.unique !== p.ch.id || p.ch.start.includes(id)) return '';
+  return '<br><span class="kin">⚡ ' + (D.kind === 'orbit' ? 'Gasta Ki mientras está activa' : 'Gasta Ki al lanzarse') + '</span>';
+}
 
 /* Capas de los rayos: tamaño relativo al ancho y opacidad base (ver updateBeams) */
 const BEAM_K = [2.6, 1.5, 0.7], BEAM_A = [0.10, 0.16, 0.22];
@@ -154,10 +165,36 @@ class WeaponSystem {
     SFX.play('charge');
   }
 
+  /** Gasto de Ki de una técnica: 0 = gratis · 1 = gasta al lanzarse · 2 = gasta mientras está activa (orbes).
+      Gastan Ki las técnicas propias del personaje (las que tiene en «unique», también sus fusiones), menos el ataque
+      básico con el que empieza y las que ya cobran su propio Ki (los rayos) */
+  kiMode(w, p) {
+    if (w.kiMode !== undefined && w.kiCh === p.ch.id) return w.kiMode;
+    const D = WEAPONS[w.id];
+    w.kiCh = p.ch.id;
+    w.kiMode = (D.unique !== p.ch.id || p.ch.start.includes(w.id) || w.kind === 'beam' || w.kind === 'bigbeam') ? 0 : (w.kind === 'orbit' ? 2 : 1);
+    return w.kiMode;
+  }
+
   update(dt, g) {
     const p = g.player;
     this.orbB.begin();
-    for (const w of this.list) { DMG_SRC = w.id; (w.kind === 'beam' ? this.beamW : this[w.kind]).call(this, w, dt, g, p); }
+    for (const w of this.list) {
+      DMG_SRC = w.id;
+      const km = this.kiMode(w, p), fn = w.kind === 'beam' ? this.beamW : this[w.kind];
+      if (km === 2) {                                           // orbes: KI_DRAIN por segundo; sin Ki se apagan
+        if (p.ki < KI_DRAIN * dt) continue;
+        p.ki -= KI_DRAIN * dt;
+      } else if (km === 1 && w.cd <= 0 && p.ki < (w.kiCost || KI_MIN)) continue;   // lista pero sin Ki: espera
+      const cd0 = w.cd;
+      fn.call(this, w, dt, g, p);
+      // Se ha lanzado (la recarga vuelve a empezar): cobra según lo que tarda en recargar,
+      // así todas gastan lo mismo por segundo (KI_DRAIN) sea cual sea su ritmo
+      if (km === 1 && cd0 <= 0 && w.cd > 0) {
+        w.kiCost = Math.round(Math.min(KI_MAX, Math.max(KI_MIN, KI_DRAIN * w.cd / p.rateMul)));
+        p.ki = Math.max(0, p.ki - w.kiCost);
+      }
+    }
     this.orbB.end();
     DMG_SRC = 'mines'; this.updateMines(dt, g);
     this.updateStrikes(dt, g);
@@ -467,7 +504,7 @@ class WeaponSystem {
     g.fx.burst(g.fx.aura, p.x, 2, p.z, 40, 12, 0.4, 0.6, 0, 0xfff8d0);
     if (!Save.d.opt.flash) g.ui.flash = Math.max(g.ui.flash, 0.4);
     if (g.vfx) { g.vfx.flash(p.x, 2.2, p.z, 10, 0xffe060, { pri: 1 }); g.vfx.play('kameStar', p.x, 2.2, p.z, { size: 14, fps: 14, pri: 1 }); }
-    g.ui.toast('¡TAIYOKEN!', true); SFX.play('crit');
+    g.ui.toast('¡' + WEAPONS[w.id].name.toUpperCase() + '!', true); SFX.play('crit');   // cada destello con su nombre (antes todos decían TAIYOKEN)
   }
 
   /* ----- Pulso de Poder: onda circular ----- */

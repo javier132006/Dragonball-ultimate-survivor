@@ -2023,12 +2023,12 @@ class Game {
   cardOf(c, W, p) {
     if (c.t === 'fusion') {
       const F = WEAPONS[c.id];
-      return { type: 'fusion', id: c.id, icon: F.icon, tag: '⚭ FUSIÓN', title: F.name, text: F.lv[0] + ' (' + F.fusion.map((f) => WEAPONS[f].name).join(' + ') + ')' + (F.down ? '<br><span class="trb">✖ ' + F.down.text + '</span>' : ''), max: 0, lv: 0 };
+      return { type: 'fusion', id: c.id, icon: F.icon, tag: '⚭ FUSIÓN', title: F.name, text: F.lv[0] + ' (' + F.fusion.map((f) => WEAPONS[f].name).join(' + ') + ')' + kiNote(c.id, p) + (F.down ? '<br><span class="trb">✖ ' + F.down.text + '</span>' : ''), max: 0, lv: 0 };
     }
     if (c.t === 'weapon') {
       const d = WEAPONS[c.id], cur = W.levelOf(c.id), nl = cur + 1;
       const hint = this.fusionHint(c.id);
-      return { type: 'weapon', id: c.id, icon: d.icon, tag: cur ? 'MEJORA · NV ' + nl : d.unique ? 'TÉCNICA' : 'NUEVA ARMA', title: d.name, text: d.lv[nl - 1] + (hint ? '<br><span class="fh">' + hint + '</span>' : ''), max: MAX_WEAPON_LEVEL, lv: nl };
+      return { type: 'weapon', id: c.id, icon: d.icon, tag: cur ? 'MEJORA · NV ' + nl : d.unique ? 'TÉCNICA' : 'NUEVA ARMA', title: d.name, text: d.lv[nl - 1] + kiNote(c.id, p) + (hint ? '<br><span class="fh">' + hint + '</span>' : ''), max: MAX_WEAPON_LEVEL, lv: nl };
     }
     const s = STATS.find((x) => x.id === c.id), n = (p.stacks[c.id] || 0) + 1;
     return { type: 'stat', id: c.id, icon: s.icon, tag: 'VITAMINA · ' + n + '/' + s.max, title: s.name, text: s.text, max: s.max, lv: n };
