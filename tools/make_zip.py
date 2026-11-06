@@ -214,6 +214,19 @@ def load(folder, n):
     lab, k = nd.label(m)
     border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     rem = np.isin(lab, list(border))
+    # Huecos encerrados (entre el brazo y el cuerpo, entre las piernas, dentro del puño): también son fondo si miden
+    # 4 px o más y los rodea sobre todo el contorno oscuro del sprite. Se conservan los blancos del propio sprite
+    # (guantes, armadura: los rodean tonos medios), el núcleo blanco de las auras y, si el fondo es blanco, los ojos
+    # (huecos pequeños en la mitad de arriba, donde está la cabeza)
+    sz = nd.sum(m, lab, range(1, k + 1))
+    ys0 = np.nonzero((~m).any(1))[0]; top, hgt = ys0.min(), ys0.max() - ys0.min() + 1   # alto del sprite
+    light = bg.min() > 200
+    for i in range(1, k + 1):
+        if i in border or sz[i - 1] < 4: continue
+        h = lab == i
+        if light and sz[i - 1] < 10 and np.nonzero(h)[0].mean() < top + 0.5 * hgt: continue
+        ring = nd.binary_dilation(h) & ~h
+        if (a[ring].max(1) < 100).mean() >= 0.5: rem |= h
     return trim(np.dstack([a, np.where(rem, 0, 255)]).astype(np.uint8))
 def aura(r, color, phase, pad=24):
     """Aura de ki en pixel art alrededor del sprite: 3 capas de color sólido con lenguas de fuego hacia arriba
