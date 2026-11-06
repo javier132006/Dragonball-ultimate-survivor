@@ -63,6 +63,10 @@ class Player {
     this.takeMul = 1; this.noSenzu = false; this.noRegen = false;              // debilidades de los pactos de Kami
     this.ballSight = false;                                                    // Radar de Bulma: ves las esferas en el radar
     this.kiMul = 1 + 0.05 * L('kidmg');                                        // Entrenamiento de Ki: daño de las técnicas de ki
+    // Control del Ki (vitaminas, objetos y laboratorio):
+    // chargeMul: velocidad al cargar con [C] · chargeHeal: curación mientras cargas · kiUse: lo que gastan técnicas,
+    // rayos, Ultimate y transformaciones (mínimo 0,4) · formRegen: parte de la regeneración que sigue transformado · kiOnKill
+    this.chargeMul = 1 + 0.1 * L('chg'); this.chargeHeal = 1; this.kiUse = 1 - 0.04 * L('kisave'); this.formRegen = 0; this.kiOnKill = 0;
     // Gravedad Extra: +10% de vida máxima
     this.maxHp = Math.round(ch.hp * (1 + 0.08 * L('hp')) * (1 + 0.1 * L('gravx'))); this.maxKi = ch.ki; this.kiRegen = 4 * (1 + 0.08 * L('ki'));
     this.statDmg = 1 + 0.04 * L('dmg'); this.speedMul = ch.spd * (1 + 0.03 * L('spd')); this.magnet = 5 * (1 + 0.1 * L('mag'));
@@ -95,6 +99,7 @@ class Player {
     if (this.trait) applyTraitStats(this, this.trait);                 // rasgo de la transformación actual
     for (const id of this.fused) if (WEAPONS[id].down) applyTraitStats(this, WEAPONS[id].down);   // desventaja de cada fusión
     this.maxHp = Math.max(20, Math.round(this.maxHp));
+    this.kiUse = Math.max(0.4, this.kiUse); this.formRegen = Math.min(1, this.formRegen);
     this.hp = Math.min(this.maxHp, oh + Math.max(0, this.maxHp - om));
     this.ki = Math.min(this.maxKi, this.ki + Math.max(0, this.maxKi - ok));
   }
@@ -110,9 +115,11 @@ class Player {
     return i < this.ch.forms.length && this.level >= this.ch.forms[i].lvl ? [i] : [];
   }
   /** Ki que cuesta transformarse a la forma idx (se gasta al transformarte): de la mitad al 90% del Ki máximo */
-  tfCost(idx) { return Math.round(this.maxKi * Math.min(0.9, 0.5 + 0.045 * idx)); }
+  tfCost(idx) { return Math.round(this.maxKi * Math.min(0.9, 0.5 + 0.045 * idx) * this.kiUse); }
   /** Ki por segundo que consume mantener la forma actual (sube con cada forma) */
   formUpkeep() { return this.formIdx > 0 ? 0.6 + 0.3 * this.formIdx : 0; }
+  /** Gasta Ki con el ahorro de Control del Ki aplicado; devuelve lo gastado */
+  spendKi(n) { const c = n * this.kiUse; this.ki = Math.max(0, this.ki - c); return c; }
 
   xpFor(level) { return Math.floor(6 + level * 3 + level * level * 0.35); }
 
@@ -254,8 +261,8 @@ class Player {
     if (!game.mods.noregen && !this.noRegen) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
     this.traitTick(dt, game);
     if (this.charging) {
-      this.ki = Math.min(this.maxKi, this.ki + 35 * dt);
-      if (!game.mods.noregen) this.hp = Math.min(this.maxHp, this.hp + 6 * dt);
+      this.ki = Math.min(this.maxKi, this.ki + 35 * this.chargeMul * dt);
+      if (!game.mods.noregen) this.hp = Math.min(this.maxHp, this.hp + 6 * this.chargeHeal * dt);
       const n = Math.max(1, Math.round(dt * 130)), ac = this.form.aura || 0xfff2b0;
       for (let i = 0; i < n; i++) {
         const a = rand(0, 6.28), r = rand(0.9, 1.6);
@@ -268,7 +275,11 @@ class Player {
         game.fx.ring(game.fx.aura, this.x, 0.5, this.z, 40, 15, 0.45, 0.3, ac);
         game.shake(0.14);
       }
-    } else { if (!this.tr.kiDrain && !(this.udT > 0 && this.ud.noki)) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * dt); this.shockT = 0; }   // las formas que gastan Ki no lo regeneran solas
+    } else {
+      // Las formas que gastan Ki no lo regeneran solas, salvo la parte que da formRegen
+      if (!(this.udT > 0 && this.ud.noki)) { const rf = this.tr.kiDrain ? this.formRegen : 1; if (rf > 0) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * rf * dt); }
+      this.shockT = 0;
+    }
 
     // --- Aura continua de la transformación (el Kaio-ken la tiñe de rojo) ---
     if (this.form.aura || this.buffT > 0) {
@@ -283,7 +294,7 @@ class Player {
 
   /** Efectos continuos del rasgo de la forma: gasto de Ki o vida, aura que quema y rayos */
   traitTick(dt, game) {
-    const T = this.tr, drain = (T.kiDrain || 0) + this.formUpkeep();      // mantener la forma gasta Ki
+    const T = this.tr, drain = ((T.kiDrain || 0) + this.formUpkeep()) * this.kiUse;      // mantener la forma gasta Ki
     if (drain > 0) {
       this.ki = Math.max(0, this.ki - drain * dt);
       if (this.ki <= 0 && this.formIdx > 0) { game.revertForm('¡SIN KI! PIERDES LA TRANSFORMACIÓN'); return; }

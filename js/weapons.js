@@ -183,16 +183,16 @@ class WeaponSystem {
       DMG_SRC = w.id;
       const km = this.kiMode(w, p), fn = w.kind === 'beam' ? this.beamW : this[w.kind];
       if (km === 2) {                                           // orbes: KI_DRAIN por segundo; sin Ki se apagan
-        if (p.ki < KI_DRAIN * dt) continue;
-        p.ki -= KI_DRAIN * dt;
-      } else if (km === 1 && w.cd <= 0 && p.ki < (w.kiCost || KI_MIN)) continue;   // lista pero sin Ki: espera
+        if (p.ki < KI_DRAIN * p.kiUse * dt) continue;
+        p.spendKi(KI_DRAIN * dt);
+      } else if (km === 1 && w.cd <= 0 && p.ki < (w.kiCost || KI_MIN) * p.kiUse) continue;   // lista pero sin Ki: espera
       const cd0 = w.cd;
       fn.call(this, w, dt, g, p);
       // Se ha lanzado (la recarga vuelve a empezar): cobra según lo que tarda en recargar,
       // así todas gastan lo mismo por segundo (KI_DRAIN) sea cual sea su ritmo
       if (km === 1 && cd0 <= 0 && w.cd > 0) {
         w.kiCost = Math.round(Math.min(KI_MAX, Math.max(KI_MIN, KI_DRAIN * w.cd / p.rateMul)));
-        p.ki = Math.max(0, p.ki - w.kiCost);
+        p.spendKi(w.kiCost);
       }
     }
     this.orbB.end();
@@ -426,9 +426,9 @@ class WeaponSystem {
   bigbeam(w, dt, g, p) {
     if (!this.ready(w, dt, p)) return;
     const D = WEAPONS[w.id], c = D.cfg, lv = w.lv, a = this.aim(g, p, 36); if (!a) return;
-    if (p.ki < c.cost) return;
+    if (p.ki < c.cost * p.kiUse) return;
     if (c.hpCost && p.hp <= p.maxHp * (c.hpCost + 0.05)) return;
-    p.ki -= c.cost; if (c.hpCost) p.hp -= p.maxHp * c.hpCost;
+    p.spendKi(c.cost); if (c.hpCost) p.hp -= p.maxHp * c.hpCost;
     w.cd = c.cd * (lv >= 4 ? 0.8 : 1) * (lv >= 5 ? 0.9 : 1);
     const crit = Math.random() < p.crit, dm = c.dmg * (1 + 0.4 * (lv - 1)) * p.damageMul() * (crit ? p.critDmg : 1);
     this.beam(p.x, p.z, a.dx, a.dz, c.len * (lv >= 3 ? 1.2 : 1), c.hw * (lv >= 2 ? 1.1 : 1) * (lv >= 5 ? 1.2 : 1), dm, c.life, 0.1, D.color, true);
@@ -532,10 +532,10 @@ class WeaponSystem {
   beamW(w, dt, g, p) {
     if (!this.ready(w, dt, p)) return;
     const a = this.aim(g, p, 40); if (!a) return;
-    if (p.ki < 10) return;
+    if (p.ki < 10 * p.kiUse) return;
     const lv = w.lv, big = lv >= 3 ? 1.4 : 1, dm = 30 * (1 + 0.55 * (lv >= 2)) * (lv >= 5 ? 1.4 : 1), crit = Math.random() < p.crit;
     w.cd = lv >= 5 ? 3.5 : lv >= 4 ? 4 : 5;
-    p.ki -= 10;
+    p.spendKi(10);
     this.beam(p.x, p.z, a.dx, a.dz, 26 * big, 1.3 * big * (lv >= 5 ? 1.3 : 1), dm * p.damageMul() * (crit ? p.critDmg : 1) * 0.35, 0.75, 0.1, this.col(w, p), true);
     if (crit) g.onCrit(dm * p.damageMul() * p.critDmg);
     SFX.play('beam');

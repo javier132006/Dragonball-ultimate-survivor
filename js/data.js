@@ -755,7 +755,12 @@ const STATS = [
   { id: 'crit', name: 'Instinto Letal', icon: '✚', max: 5, text: '+6% de probabilidad de crítico.', apply: (p, k = 1) => { p.crit += 0.06 * k; } },
   { id: 'senzu', name: 'Semilla Senzu', icon: '❖', max: 5, text: 'Regeneras 0,6 de vida por segundo.', apply: (p, k = 1) => { p.regen += 0.6 * k; } },
   { id: 'ki', name: 'Cápsula de Ki', icon: '⚡', max: 5, text: '+25 de Ki máximo y +1,5 Ki/s.', apply: (p, k = 1) => { p.maxKi += 25 * k; p.kiRegen += 1.5 * k; } },
-  { id: 'armor', name: 'Gi de Entrenamiento', icon: '▣', max: 5, text: 'Recibes un 7% menos de daño.', apply: (p, k = 1) => { p.armor = Math.min(0.5, p.armor + 0.07 * k); } }
+  { id: 'armor', name: 'Gi de Entrenamiento', icon: '▣', max: 5, text: 'Recibes un 7% menos de daño.', apply: (p, k = 1) => { p.armor = Math.min(0.5, p.armor + 0.07 * k); } },
+  // Control del Ki: cargar más rápido, gastar menos y aguantar transformado
+  { id: 'carga', name: 'Concentración Total', icon: '✺', max: 5, text: 'Cargas Ki con [C] un 30% más rápido.', apply: (p, k = 1) => { p.chargeMul += 0.3 * k; } },
+  { id: 'ahorro', name: 'Control del Ki', icon: '◐', max: 5, text: 'Técnicas, rayos, Ultimate y transformaciones gastan un 7% menos de Ki.', apply: (p, k = 1) => { kiSave(p, 1 - 0.07 * k); } },
+  { id: 'sereno', name: 'Ki Sereno', icon: '☯', max: 5, text: 'Transformado sigues regenerando un 20% de tu Ki por segundo.', apply: (p, k = 1) => { kiForm(p, 0.2 * k); } },
+  { id: 'absorber', name: 'Absorción de Energía', icon: '⇲', max: 5, text: '+0,4 de Ki por cada enemigo derrotado.', apply: (p, k = 1) => { p.kiOnKill += 0.4 * k; } }
 ];
 /* ---------- Rarezas de las cartas al subir de nivel ----------
    Vitaminas: multiplican su efecto (mul). Técnicas: además de subir de nivel, ganan daño propio (dmg, se acumula).
@@ -835,6 +840,9 @@ const RARITIES = [
   { name: 'ULTRA LEGENDARIO', color: '#ff4d78', cost: 13000 }
 ];
 const hp = (p, n) => { p.maxHp += n; p.hp += n; };
+// Ahorro de Ki (como mucho se gasta un 60% menos) y regeneración transformado (como mucho el 100%)
+const kiSave = (p, f) => { p.kiUse = Math.max(0.4, p.kiUse * f); };
+const kiForm = (p, n) => { p.formRegen = Math.min(1, p.formRegen + n); };
 const ITEMS = [
   { id: 'cinta', icon: '⚑', name: 'Cinta de Entrenamiento', rarity: 0, text: '+6% de daño.', apply: (p) => { p.statDmg += 0.06; } },
   { id: 'botas', icon: '»', name: 'Botas Pesadas', rarity: 0, text: '+5% de velocidad.', apply: (p) => { p.speedMul += 0.05; } },
@@ -881,6 +889,16 @@ const ITEMS = [
   { id: 'potara', icon: '◈', name: 'Pendientes Pothala', rarity: 3, text: '+15% de daño, +10% de cadencia y +5% de velocidad.', apply: (p) => { p.statDmg += 0.15; p.rateMul += 0.1; p.speedMul += 0.05; } },
   { id: 'traje_bardock', icon: '▼', name: 'Armadura de Bardock', rarity: 3, text: 'Recibes un 10% menos de daño y +1,5 de vida/s.', apply: (p) => { p.armor = Math.min(0.6, p.armor + 0.1); p.regen += 1.5; } },
   { id: 'reloj_whis', icon: '⌚', name: 'Báculo de Whis', rarity: 4, text: '+25% de cadencia, +3 Ki/s y dash un 15% más rápido.', apply: (p) => { p.rateMul += 0.25; p.kiRegen += 3; p.dashMul *= 0.85; } },
+  /* ---- Objetos de Ki: cargar, ahorrar y aguantar las transformaciones ---- */
+  { id: 'pergamino_med', icon: '✺', name: 'Pergamino de Meditación', rarity: 0, text: 'Cargas Ki con [C] un 20% más rápido.', apply: (p) => { p.chargeMul += 0.2; } },
+  { id: 'cinturon_kaio', icon: '◐', name: 'Cinturón del Rey Kaio', rarity: 1, text: 'Técnicas, rayos y transformaciones gastan un 8% menos de Ki.', apply: (p) => { kiSave(p, 0.92); } },
+  { id: 'bebida_cc', icon: '⚡', name: 'Bebida Energética Capsule Corp.', rarity: 1, text: '+20 de Ki máximo y +0,3 de Ki por enemigo derrotado.', apply: (p) => { p.maxKi += 20; p.kiOnKill += 0.3; } },
+  { id: 'cristal_namek', icon: '◆', name: 'Cristal de Namek', rarity: 2, text: '+30 de Ki máximo y cargas Ki un 40% más rápido.', apply: (p) => { p.maxKi += 30; p.chargeMul += 0.4; } },
+  { id: 'brazal_ki', icon: '☯', name: 'Brazalete de Ki Contenido', rarity: 2, text: 'Transformado sigues regenerando un 35% de tu Ki por segundo.', apply: (p) => { kiForm(p, 0.35); } },
+  { id: 'yardrat', icon: '✧', name: 'Técnica de Yardrat', rarity: 3, text: 'Cargas Ki un 60% más rápido y te curas el doble mientras cargas.', apply: (p) => { p.chargeMul += 0.6; p.chargeHeal += 1; } },
+  { id: 'mente_serena', icon: '◑', name: 'Mente Serena', rarity: 3, text: 'Gastas un 15% menos de Ki y +2 Ki/s.', apply: (p) => { kiSave(p, 0.85); p.kiRegen += 2; } },
+  { id: 'pendiente_kaioshin', icon: '◈', name: 'Pendiente del Kaioshin', rarity: 4, text: 'Gastas un 25% menos de Ki, +50 de Ki máximo y transformado regeneras la mitad de tu Ki.', apply: (p) => { kiSave(p, 0.75); p.maxKi += 50; kiForm(p, 0.5); } },
+  { id: 'ki_divino', icon: '✹', name: 'Ki Divino', rarity: 5, text: 'Gastas un 35% menos de Ki, cargas el doble de rápido, +1 Ki por enemigo y transformado regeneras todo tu Ki.', apply: (p) => { kiSave(p, 0.65); p.chargeMul += 1; p.kiOnKill += 1; kiForm(p, 1); } },
   { id: 'agua_ultra', icon: '≈', name: 'Agua Ultra Divina', rarity: 5, text: '+40% de daño, +60 de vida máxima, +15% de velocidad y +3 de suerte.', apply: (p) => { p.statDmg += 0.4; hp(p, 60); p.speedMul += 0.15; p.luck += 3; } }
 ];
 /* ---------- Mejoras temporales de la partida: santuarios, deseos y maldiciones ---------- */
@@ -1040,6 +1058,8 @@ const LAB = [
   { id: 'luck', name: 'Bendición de Shenron', desc: '+1 de suerte (más rareza en las cápsulas)', max: 6, cost: 400 },
   { id: 'tp', name: 'Shunkan Ido', desc: 'La Transmisión Instantánea se recarga un 8% antes', max: 5, cost: 350 },
   { id: 'kidmg', name: 'Entrenamiento de Ki', desc: '+5% de daño de las técnicas de ki', max: 6, cost: 350 },
+  { id: 'chg', name: 'Meditación en la Cascada', desc: 'Cargas Ki un 10% más rápido', max: 5, cost: 300 },
+  { id: 'kisave', name: 'Respiración del Kaioshin', desc: 'Gastas un 4% menos de Ki', max: 5, cost: 450 },
   { id: 'gravx', name: 'Gravedad Extra', desc: '+10% de vida máxima', max: 1, cost: 1200 },
   { id: 'revive', name: 'Esfera de Reserva', desc: 'Revives una vez por partida con el 50% de vida', max: 1, cost: 3000 }
 ];

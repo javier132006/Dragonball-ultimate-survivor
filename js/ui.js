@@ -158,7 +158,7 @@ class UIManager {
     if (p.ultD) {
       if (e.abUlt.style.display !== '') e.abUlt.style.display = '';
       sc(e.ultFill, p.ult / p.ultD.cost);
-      this.setC(e.abUlt, 'ab' + (p.ult >= p.ultD.cost && p.ki >= p.maxKi * ULT_KI ? ' on' : ''));
+      this.setC(e.abUlt, 'ab' + (p.ult >= p.ultD.cost && p.ki >= Math.round(p.maxKi * ULT_KI * p.kiUse) ? ' on' : ''));
     } else if (e.abUlt.style.display !== 'none') e.abUlt.style.display = 'none';
     // FPS suavizado
     this.fpsAcc += dt; this.fpsN++;

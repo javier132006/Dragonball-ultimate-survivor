@@ -1770,7 +1770,7 @@ class Game {
   ultimate() {
     const p = this.player, U = p.ultD;
     if (!U || this.state !== 'play' || this.ultT >= 0 || p.ult < U.cost || p.dying) return;
-    const kc = Math.round(p.maxKi * ULT_KI);
+    const kc = Math.round(p.maxKi * ULT_KI * p.kiUse);
     if (p.ki < kc) { this.ui.toast('NECESITAS ' + kc + ' DE KI PARA LA ULTIMATE · CARGA CON [C]', true); SFX.play('warn'); return; }
     p.ki -= kc; p.ult = 0; p.iframes = Math.max(p.iframes, 1.2);
     // Ataque combinado: el aliado más cercano (a menos de COMBO_R) ataca contigo y la Ultimate hace +50% de daño
@@ -1900,6 +1900,7 @@ class Game {
   }
   onEnemyKilled(x, z, type, uid) {
     this.kills++; this.track('kills', 1);
+    if (this.player.kiOnKill && !this.player.dying) { const q = this.player; q.ki = Math.min(q.maxKi, q.ki + q.kiOnKill); }   // Absorción de Energía
     if (this.player.pluma && this.kills % 20 === 0 && !this.player.dying) {       // Pluma Sagrada
       const q = this.player; q.hp = Math.min(q.maxHp, q.hp + q.maxHp * 0.05); this.ui.toast('✿ PLUMA SAGRADA · +5% DE VIDA', true);
     }
