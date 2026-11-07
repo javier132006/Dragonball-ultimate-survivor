@@ -1158,12 +1158,13 @@ const todayStr = () => { const t = new Date(); return t.getFullYear() + '-' + St
 /* ---------- Guardado local ---------- */
 const Save = {
   d: { zeni: 0, unlocked: ['goku'], sel: 'goku', up: {}, best: {}, items: [], techs: [], stats: {}, claimed: {}, clears: {}, diff: 'easy', daily: null, login: { last: '', streak: 0 }, ach: {}, vol: { mus: 0.5, sfx: 0.75 },
-    opt: { quality: 'auto', flash: false, shake: 1 }, rank: [], day: null, dayHist: [] },
+    opt: { quality: 'auto', flash: false, shake: 1 }, rank: [], day: null, dayHist: [], story: {} },
   load() {
     try { const s = JSON.parse(localStorage.getItem('dbus_save_v1')); if (s) Object.assign(this.d, s); } catch (e) { /* sin guardado */ }
     this.d.opt = Object.assign({ quality: 'auto', flash: false, shake: 1 }, this.d.opt || {});
     if (!Array.isArray(this.d.rank)) this.d.rank = [];
     if (!Array.isArray(this.d.dayHist)) this.d.dayHist = [];
+    if (!this.d.story || typeof this.d.story !== 'object') this.d.story = {};
     for (const c of ['krilin', 'trunks']) if (this.d.sel === c && !this.d.unlocked.includes(c)) this.d.sel = 'goku';
   },
   /** Copia de seguridad: el guardado completo en texto (base64) para llevarlo a otro navegador */
@@ -1445,50 +1446,7 @@ const PACTS = [
   { id: 'horda', icon: '☠', name: 'Pacto de la Horda', good: '+40% de experiencia y de Zeni', bad: 'Los enemigos van un 25% más rápido', apply: (p) => { p.xpMul *= 1.4; p.zeniMul *= 1.4; }, game: (g) => { g.mods.fast = true; } },
   { id: 'instinto', icon: '◎', name: 'Pacto del Instinto', good: '+15% de crítico y +50% de daño crítico', bad: '-15% de velocidad', apply: (p) => { p.crit += 0.15; p.critDmg += 0.5; p.speedMul *= 0.85; } }
 ];
-/* ---------- Modo Leyenda: sagas con personaje, mapa y jefe fijos, diálogos y un objetivo que invoca al jefe ----------
-   goal.type: 'kills' (derrota N enemigos), 'balls' (reúne las 7 esferas), 'survive' (aguanta N segundos) o 'boss' (el jefe ya espera).
-   Diálogos: [quién (id de personaje), texto]. Se desbloquean en orden; la primera victoria da `reward` monedas. */
-const SAGAS = [
-  { id: 'saiyan', name: 'SAGA SAIYAJIN', ch: 'goku', stage: 0, boss: 'raditz', reward: 800,
-    desc: 'Un guerrero del espacio aterriza en la Tierra buscando a su hermano.',
-    goal: { type: 'kills', n: 200, text: 'Derrota a 200 enemigos para atraer a Raditz' },
-    intro: [['goku', '¿Quién eres tú? ¿Y por qué tienes cola?'], ['raditz', 'Soy Raditz, tu hermano mayor, Kakarotto. Has olvidado tu misión.'], ['goku', '¡Me llamo Goku! Y la Tierra es mi hogar.']],
-    bossTalk: [['raditz', 'Basta de juegos. ¡Te enseñaré el poder de un saiyajin de verdad!'], ['goku', '¡No pienso rendirme!']],
-    win: [['goku', 'Ha sido muy duro… pero la Tierra está a salvo. Por ahora.']] },
-  { id: 'freezer', name: 'SAGA DE FREEZER', ch: 'goku', stage: 1, boss: 'freezer', reward: 1200,
-    desc: 'Namek esconde unas esferas que conceden la inmortalidad. Freezer las quiere todas.',
-    goal: { type: 'balls', n: 7, text: 'Reúne las 7 Esferas del Dragón antes que Freezer' },
-    intro: [['goku', 'Las esferas de Namek… si Freezer las consigue, nadie podrá pararlo.'], ['freezer', '¿Otro mono más? Qué molestia. Ríndete y quizá te deje vivir.']],
-    bossTalk: [['freezer', '¿Cómo te atreves a tocar MIS esferas? ¡Te convertiré en polvo!'], ['goku', '¡Por Krilin y por todos los que has hecho sufrir!']],
-    win: [['goku', 'Se acabó, Freezer. Ya no harás daño a nadie más.']] },
-  { id: 'cell', name: 'SAGA DE CELL', ch: 'gohan', stage: 0, boss: 'cell', reward: 1500,
-    desc: 'Los Juegos de Cell: aguanta todo lo que te eche y despierta tu poder oculto.',
-    goal: { type: 'survive', n: 180, text: 'Sobrevive 3 minutos a los Juegos de Cell' },
-    intro: [['cell', 'Bienvenidos a los Juegos de Cell. Veamos de qué está hecho el hijo de Goku.'], ['gohan', 'No quiero pelear… pero no dejaré que hagas daño a nadie.']],
-    bossTalk: [['cell', '¡Se acabó la paciencia! ¡Muéstrame tu verdadero poder!'], ['gohan', 'Tú lo has querido, Cell.']],
-    win: [['gohan', 'Papá… lo he conseguido.']] },
-  { id: 'buu', name: 'SAGA DE BUU', ch: 'gotenks', stage: 3, boss: 'superbuu', reward: 1800,
-    desc: 'Majin Buu ha despertado. En la Cámara del Tiempo, cada segundo cuenta.',
-    goal: { type: 'kills', n: 300, text: 'Derrota a 300 enemigos en la Cámara del Tiempo' },
-    intro: [['gotenks', '¡El gran Gotenks está aquí! Super Buu, prepárate para perder.'], ['superbuu', 'Je, je… Buu tiene hambre.']],
-    bossTalk: [['superbuu', '¡Buu te convertirá en caramelo!'], ['gotenks', '¡Ataque de los fantasmas kamikaze!']],
-    win: [['gotenks', '¡Ja! ¡Nadie puede con el gran Gotenks!']] },
-  { id: 'black', name: 'SAGA DE GOKU BLACK', ch: 'trunks', stage: 4, boss: 'zamasu', reward: 2500,
-    desc: 'Un futuro en ruinas. Black y Zamasu se han fusionado para borrar a los mortales.',
-    goal: { type: 'boss', text: 'Derrota a Zamasu fusionado' },
-    intro: [['trunks', 'Este es mi futuro… no dejaré que siga así.'], ['zamasuf', 'Mortal insignificante. La justicia de los dioses es absoluta.']],
-    bossTalk: [],
-    win: [['trunks', 'Se acabó, Zamasu. Este futuro vuelve a ser nuestro.']] },
-  { id: 'poder', name: 'TORNEO DEL PODER', ch: 'goku', stage: 5, boss: 'jiren', reward: 3000,
-    desc: 'El destino del Universo 7 está en juego. Aguanta en el ring hasta que llegue Jiren.',
-    goal: { type: 'survive', n: 120, text: 'Aguanta 2 minutos sin caer del ring' },
-    intro: [['goku', '¡Esto es increíble! Los guerreros más fuertes de todos los universos.'], ['jiren', 'La fuerza lo es todo. Confiar en los demás es una debilidad.']],
-    bossTalk: [['jiren', 'Te enseñaré lo que es el poder absoluto.'], ['goku', 'Mi cuerpo… se mueve solo.']],
-    win: [['goku', 'Jiren… ha sido el mejor combate de mi vida.']] }
-];
-const sagaById = (id) => SAGAS.find((s) => s.id === id);
-/** Una saga está disponible si es la primera o si completaste la anterior */
-const sagaOpen = (i) => i === 0 || !!(Save.d.sagas || {})[SAGAS[i - 1].id];
+/* Modo Historia (libros y capítulos): js/story.js */
 /* Torneo de las Artes Marciales: radio del ring y los tres rivales (tipo de enemigo y multiplicador de vida) */
 const TOUR_R = 13;
 const TOUR_FIGHTERS = [{ type: T_FAST, name: 'APPULE', mul: 3 }, { type: T_BRUTE, name: 'NAPPA', mul: 4 }, { type: T_ELITE, name: 'CAPITÁN GINYU', mul: 6 }];

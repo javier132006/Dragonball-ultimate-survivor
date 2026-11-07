@@ -212,7 +212,8 @@ class Game {
       if (this.ui.el.modal.classList.contains('show') || this.ui.el.exit.classList.contains('show')) return;
       const s = this.state;
       if (s === 'menu' && e.code === 'Enter') this.startLoad(false);
-      else if (s === 'over' && (e.code === 'Enter' || e.code === 'KeyR')) this.startLoad(this.practice, this.daily);
+      else if (s === 'over' && (e.code === 'Enter' || e.code === 'KeyR')) this.again();
+      else if (s === 'chapcard') this.endChapCard();
       else if (s === 'play' && this.practice && e.code === 'KeyL') this.practiceLevel();
       else if (s === 'play' && this.practice && e.code === 'KeyK') this.practiceClear();
       else if (s === 'play' && this.practice && e.code === 'KeyJ') { this.cash += 500; SFX.play('coin'); }
@@ -253,7 +254,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -268,12 +269,14 @@ class Game {
       else if (D.tech) this.buyTech(D.tech);
       else if (D.claim) this.claimMission(D.claim);
       else if (D.diff) { Save.d.diff = D.diff; Save.write(); ui.renderMenu(); }
-      else if (D.start !== undefined) { this.saga = D.start.startsWith('saga:') ? sagaById(D.start.slice(5)) : null; this.startLoad(D.start === 'practice', D.start === 'daily'); }
+      else if (D.start !== undefined) { this.saga = D.start.startsWith('chap:') ? chapById(D.start.slice(5)) : null; this.startLoad(D.start === 'practice', D.start === 'daily'); }
       else if (D.exit !== undefined) ui.showExit(true);
       else if (D.rtab) { ui.rtab = D.rtab; ui.renderMenu(); }
       else if (D.otab) { ui.otab = D.otab; ui.renderMenu(); }
       else if (D.ctab) { ui.ctab = D.ctab; ui.renderMenu(); }
       else if (D.lsel !== undefined) { ui.lsel = +D.lsel; ui.renderMenu(); }
+      else if (D.book !== undefined) { ui.book = +D.book < 0 ? null : +D.book; ui.lchap = null; ui.renderMenu(); }
+      else if (D.lchap !== undefined) { ui.lchap = +D.lchap; ui.renderMenu(); }
       else if (D.atab) { ui.atab = D.atab; ui.renderMenu(); }
       else if (D.rtabGo) { ui.rtab = D.rtabGo; this.go('records'); }
       else if (D.acct === 'out') this.online.signOut().then(() => { ui.atab = 'login'; ui.renderMenu(); });
@@ -332,11 +335,16 @@ class Game {
     ui.el.modal.addEventListener('click', (e) => { if (e.target.closest('[data-login]')) this.claimLogin(); else if (e.target.closest('[data-close]')) ui.hideModal(); });
     ui.el.cardRow.addEventListener('click', (e) => { const c = e.target.closest('.card'); if (c) ui.pickCard(+c.dataset.i); });
     ui.el.cardFoot.addEventListener('click', (e) => { if (e.target.closest('[data-reroll]')) this.reroll(); });
-    ui.el.scrA.onclick = () => { ui.el.scrA.blur(); if (this.state === 'pause') this.togglePause(); else this.startLoad(this.practice, this.daily); };
+    ui.el.scrA.onclick = () => { ui.el.scrA.blur(); if (this.state === 'pause') this.togglePause(); else this.again(); };
     ui.el.scrB.onclick = () => { ui.el.scrB.blur(); if (this.state === 'pause') this.abandon(); else this.toMenu(); };
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'play') this.togglePause(); });
   }
 
+  /** Volver a jugar: en el Modo Historia, tras ganar, pasa al siguiente capítulo (o al primero del libro siguiente) */
+  again() {
+    if (this.saga && this.won && this.nextChap) this.saga = this.nextChap;
+    this.startLoad(this.practice, this.daily);
+  }
   locked() { return document.pointerLockElement === this.renderer.domElement; }
   grabMouse() { if (IS_TOUCH) return; try { const r = this.renderer.domElement.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* sin pointer lock */ } }
   releaseMouse() { try { if (this.locked()) document.exitPointerLock(); } catch (e) { /* nada */ } }
@@ -351,6 +359,7 @@ class Game {
   /** Cambia de pantalla del menú (inicio, jugar, tienda, misiones) */
   go(screen) {
     if (screen === 'ach' || screen === 'missions') { this.ui.mtab = screen === 'ach' ? 'ach' : 'missions'; screen = 'missions'; }
+    if (screen === 'legend') { this.ui.book = null; this.ui.lchap = null; }
     this.ui.screen = screen; this.ui.renderMenu(); this.applyView();
   }
   /** En la pantalla de inicio el personaje se desplaza a la derecha para dejar sitio a los botones */
@@ -456,7 +465,9 @@ class Game {
     this.previewPlayer();
     this.camYaw = 0.5; this.camPitch = 0.75; this.camDistT = 20; this.camDist = 20;
     this.camLook.set(0, 0, 0);
-    this.ui.screen = 'home';
+    if (this.saga) { this.ui.screen = 'legend'; this.ui.book = this.saga.book.idx; this.ui.lchap = this.won && this.nextChap && this.nextChap.book === this.saga.book ? this.nextChap.idx : this.saga.idx; }
+    else this.ui.screen = 'home';
+    this.saga = null; this.won = false;
     this.allies.reset(); this.setStorm(0);
     SFX.music('menu');
     this.ui.showMenu(this);
@@ -509,12 +520,9 @@ class Game {
     if (IS_TOUCH) { goFullscreen(); this.camDistT = 22; }
     this.step = 0; this.booms.length = 0; this.rerolls = 2; this.sigOffered = {}; this.wMul = {};
     this.loadStage(this.saga ? this.saga.stage : (this.daily ? dailySeed() % 2 === 1 : Math.random() < 0.5) ? 7 : 0);
-    if (this.saga) {                                                   // Modo Leyenda: jefe fijo y objetivo
-      const SG = this.saga; this.stage.boss = Object.assign({}, BOSSES[SG.boss], { hp: this.stage.bossHp, id: SG.boss });
-      this.sagaGoal = SG.goal.type === 'boss'; this.sagaT = 0; this.sagaTalked = false;
-    }   // se empieza en la Tierra o en la Isla Kame
+    if (this.saga) this.storySetup();   // se empieza en la Tierra o en la Isla Kame
     this.applyForm();
-    for (let i = 0; i < 14; i++) this.spawnEnemy();
+    for (let i = 0; i < (this.saga && this.saga.goal.type === 'tourney' ? 0 : 14); i++) this.spawnEnemy();
     this.horde.buildGrid();
     this.camYaw = 0; this.camPitch = 0.6; this.camDist = this.camDistT = 19;
     this.camLook.set(0, 1.4, 0);
@@ -525,7 +533,7 @@ class Game {
     if (ch.portrait) this.ui.drawFrame(this.ui.el.portrait, ch.portrait.sheet, ch.portrait.frame, ch.portrait.tint);
     this.state = 'play';
     this.clock.getDelta();
-    this.ui.toast(this.practice ? 'ENTRENAMIENTO' : this.daily ? 'DESAFÍO DIARIO' : ch.name);
+    if (!this.saga) this.ui.toast(this.practice ? 'ENTRENAMIENTO' : this.daily ? 'DESAFÍO DIARIO' : ch.name);
     if (this.practice) this.ui.toast('L: subir de nivel · K: limpiar la horda · J: +500 Zeni', true);
     for (const m of this.modList) this.ui.toast(m.icon + ' ' + m.name + ': ' + m.text, true);
     SFX.music('battle');
@@ -539,7 +547,7 @@ class Game {
   /** Oráculo de Kami: 3 pactos al azar (ventaja + debilidad) o jugar sin pacto. No sale en el entrenamiento */
   openOracle() {
     if (this.practice || this.state !== 'play') return;
-    if (this.saga) { this.talk(this.saga.intro); return; }      // Modo Leyenda: diálogo de inicio en vez del Oráculo
+    if (this.saga) { this.showChapCard(); return; }             // Modo Historia: portada del capítulo y diálogo en vez del Oráculo
     this.state = 'wish'; this.releaseMouse(); this.cardT = 0;
     const pool = PACTS.slice(), list = [];
     while (list.length < 3) list.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
@@ -697,7 +705,7 @@ class Game {
     }
     if (pts.near >= 0) {
       const o = pts.list[pts.near];
-      if (o.type === 'boss') { if (this.saga && !this.sagaGoal) return { t: 'OBJETIVO PENDIENTE: ' + this.saga.goal.text.toUpperCase(), ok: false };
+      if (o.type === 'boss') { if (this.saga) return { t: 'MODO HISTORIA · EL RIVAL LLEGA AL CUMPLIR EL OBJETIVO', ok: false };
         return { t: this.bossUid ? 'EL JEFE YA ESTÁ AQUÍ' : '[E] INVOCAR A ' + this.stage.boss.name, ok: !this.bossUid }; }
       if (o.type === 'temple') return { t: '[E] ACEPTAR EL DESAFÍO · ENEMIGOS MÁS FUERTES, MÁS RECOMPENSA', ok: true };
       if (o.type === 'merchant') return { t: '[E] HABLAR CON BULMA', ok: true };
@@ -710,7 +718,7 @@ class Game {
     const ui = this.ui;
     if (o.type === 'boss') {
       if (this.bossUid || o.used) return;
-      if (this.saga && !this.sagaGoal) { ui.toast('Primero cumple el objetivo: ' + this.saga.goal.text, true); return; }
+      if (this.saga) { ui.toast('Cumple el objetivo: ' + this.saga.goal.text, true); return; }
       o.used = true;
       const a = rand(0, 6.28);
       this.spawnBoss(o.x + Math.cos(a) * 12, o.z + Math.sin(a) * 12);
@@ -923,22 +931,161 @@ class Game {
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
 
-  /* ---------- Modo Leyenda: objetivo del mapa (invoca al jefe) y diálogos con retrato ---------- */
+  /* ---------- Modo Historia: capítulo con objetivo, rival, portada, diálogos y estrellas ---------- */
+  /** Prepara el capítulo tras cargar el mapa: rival, dificultad del libro, nivel inicial y contadores */
+  storySetup() {
+    const SG = this.saga, p = this.player, B = chapBoss(SG);
+    this.step = Math.min(1, SG.book.tier);                            // los libros avanzados empiezan con enemigos algo más duros
+    // El mapa se usa como escenario: su daño se limita según el libro y siempre hay horda (la Dimensión Fracturada normalmente no tiene)
+    const S0 = this.stage;
+    this.stage = Object.assign({}, S0, { dmg: Math.min(S0.dmg, 1.1 + SG.book.tier * 0.1), hp: Math.min(S0.hp, 1.2 + SG.book.tier * 0.25), spawn: S0.spawn || 1.1 });
+    if (B) {
+      const sh = B.fighter && this.ui.sheets ? this.ui.sheets[B.sheet] : null;
+      const scaleW = B.fighter ? B.scale * (3.6 / 2.9) * ((sh && sh.hs) || 1) : B.scale;   // luchador: tamaño relativo al jugador
+      this.stage.boss = Object.assign({}, B, { hp: 4000 * (1 + SG.book.idx * 0.5 + SG.idx * 0.08) * (SG.hp || 1),   // vida según el punto de la historia, no según el mapa
+        id: typeof SG.boss === 'string' ? SG.boss : 'chap', scaleW });
+      const T = ENEMY_TYPES[T_BOSS];
+      T.name = B.name; T.tint = B.tints[0]; T.scale = scaleW; T.r = B.r; this.horde.tints[T_BOSS] = B.tints[0];
+      this.ui.el.bossName.textContent = B.name;
+    }
+    if (SG.lvl > 1) {                                                 // el capítulo empieza a cierto nivel (y algunas mejoras para elegir)
+      p.level = SG.lvl; p.xp = 0; p.xpNext = p.xpFor(SG.lvl);
+      // Vida acorde al nivel (en una partida normal ya habrías cogido mejoras de vida por el camino)
+      p.maxHp = Math.round(p.maxHp * (1 + (SG.lvl - 1) * 0.025)); p.hp = p.maxHp;
+      this.pendingLevels = Math.min(4, Math.floor((SG.lvl - 1) / 3));
+      // Equipo inicial acorde al nivel (como si vinieras de una partida): sus técnicas propias ya aprendidas
+      const C = p.ch, lv = SG.lvl;
+      for (let k = 0; k < Math.min(3, Math.floor(lv / 10)); k++) this.weapons.add(C.start[0]);
+      for (const id of C.unique || []) {
+        const W = WEAPONS[id], m = (W && W.minLv) || 2;
+        if (!W || id === C.start[0] || W.fusion || W.shop || m > lv) continue;
+        for (let k = 0, n = clamp(1 + Math.floor((lv - m) / 8), 1, 3); k < n; k++) this.weapons.add(id);
+      }
+      this.checkTransformation();
+    }
+    this.sagaGoal = false; this.sagaBegun = false; this.sagaT = 0; this.sagaTalked = false; this.sagaHunt = 0; this.sagaHuntT = 3;
+    this.sagaTour = false; this.sagaTourT = 0; this.nextChap = null;
+  }
+  /** Portada del capítulo (libro, número, título y el «VS»); se salta con cualquier tecla o clic */
+  showChapCard() {
+    const SG = this.saga, el = document.getElementById('chapCard'), B = chapBoss(SG), ui = this.ui;
+    if (!el) { this.talk(SG.intro, () => this.sagaBegin()); return; }
+    el.style.setProperty('--b1', SG.book.col); el.style.setProperty('--b2', SG.book.col2);
+    el.innerHTML = '<div class="cc"><small>Libro ' + (SG.book.idx + 1) + ' · ' + nice(SG.book.name) + '</small><em>Capítulo ' + (SG.idx + 1) + '</em><b>' + SG.name + '</b>' +
+      '<div class="ccvs"><span class="cvl">' + ui.storyPic(charById(SG.ch)) + '</span><i>VS</i><span class="cvr">' + (B ? ui.bossPic(B) : '<u>☠</u>') + '</span></div>' +
+      '<p>◎ ' + SG.goal.text + '</p><span class="ccs">' + STAGES[SG.stage].name + '</span></div><span class="cck">' + (document.documentElement.classList.contains('touch') ? 'Toca la pantalla para continuar' : 'Pulsa cualquier tecla para continuar') + '</span>';
+    ui.drawPics(el);
+    el.classList.remove('out'); el.classList.add('show');
+    this.state = 'chapcard'; this.releaseMouse(); SFX.play('event');
+    this.chapCardT = setTimeout(() => this.endChapCard(), 3600);
+    el.onclick = () => this.endChapCard();
+  }
+  endChapCard() {
+    if (this.state !== 'chapcard') return;
+    clearTimeout(this.chapCardT);
+    const el = document.getElementById('chapCard');
+    el.classList.add('out'); setTimeout(() => el.classList.remove('show', 'out'), 350);
+    this.state = 'play';
+    this.talk(this.saga.intro, () => this.sagaBegin());
+  }
+  /** Empieza el objetivo: el rival aparece ya en los capítulos de combate; luego las mejoras del nivel inicial */
+  sagaBegin() {
+    const SG = this.saga, G = SG.goal;
+    this.sagaBegun = true; this.clock.getDelta();
+    this.ui.toast(SG.name.toUpperCase()); this.ui.toast('◎ ' + G.text, true);
+    if (G.type === 'boss' || G.type === 'hold') { if (G.type === 'boss') this.sagaGoal = true; this.spawnBoss(); }
+    if (this.pendingLevels > 0) this.openLevelUp(); else this.resume();
+  }
+  /** Valor actual del objetivo (para el marcador y para saber si se cumplió) */
+  sagaValue() {
+    const G = this.saga.goal;
+    return G.type === 'kills' ? this.kills : G.type === 'balls' ? this.pickups.collected : G.type === 'survive' || G.type === 'hold' ? this.sagaT
+      : G.type === 'hunt' ? this.sagaHunt : G.type === 'level' ? this.player.level : G.type === 'tourney' ? (this.sagaTour ? 1 : 0) : 0;
+  }
+  /** Progreso del objetivo en texto corto (marcador de arriba y fila del HUD) */
+  sagaProg() {
+    const G = this.saga.goal, v = this.sagaValue(), n = G.n || 1;
+    if (this.sagaGoal && G.type !== 'hold') return this.bossUid ? '¡DERROTA A ' + this.stage.boss.name + '!' : '¡CUMPLIDO!';
+    return G.type === 'survive' || G.type === 'hold' ? fmtTime(Math.max(0, n - v)) : G.type === 'tourney' ? 'COMBATE ' + Math.min((this.tourney ? this.tourney.wins : 0) + 1, 3) + '/3' : Math.min(v, n) + ' / ' + n;
+  }
   updateSaga(dt) {
     const SG = this.saga, L = this.ui.el.sagaLbl || (this.ui.el.sagaLbl = document.getElementById('sagaLbl'));
     if (!SG) { if (L && L.classList.contains('show')) L.classList.remove('show'); return; }
+    if (!this.sagaBegun) return;
     this.sagaT += dt;
-    const G = SG.goal, v = G.type === 'kills' ? this.kills : G.type === 'balls' ? this.pickups.collected : G.type === 'survive' ? this.sagaT : 0;
-    if (L) {
-      L.classList.add('show');
-      L.textContent = '☆ ' + SG.name + ' · ' + (this.sagaGoal ? '¡DERROTA A ' + this.stage.boss.name + '!' : G.text + ' · ' +
-        (G.type === 'survive' ? fmtTime(Math.max(0, G.n - v)) : Math.min(v, G.n) + '/' + G.n));
+    const G = SG.goal, v = this.sagaValue(), n = G.n || 1;
+    if (L) {                                                          // el objetivo arriba (con el jefe en pantalla, su barra ya lo dice)
+      const show = !this.bossUid || this.horde.indexOfUid(this.bossUid) < 0;
+      L.classList.toggle('show', show);
+      const txt = '☆ ' + G.text.toUpperCase() + ' · ' + this.sagaProg();
+      if (show && L._t !== txt) { L._t = txt; L.textContent = txt; }
     }
-    if (!this.sagaGoal && v >= G.n) {
+    if (this.sagaGoal) return;
+    if (G.type === 'hunt') {                                          // los objetivos de caza aparecen poco a poco (hasta 2 a la vez)
+      this.sagaHuntT -= dt;
+      if (this.sagaHuntT <= 0) {
+        this.sagaHuntT = G.every || 7;
+        let alive = 0; for (let i = 0; i < this.horde.n; i++) if (this.horde.type[i] === G.t) alive++;
+        if (alive < 2) {
+          this.spawnPos(16, 24);
+          const i = this.horde.spawn(this._sx, this._sz, (14 + this.pressure() * 0.25) * ENEMY_TYPES[G.t].hp * this.diff.hp * this.stage.hp * this.timeMul() * (G.hp || 2), G.t);
+          if (i >= 0) { this.fx.ring(this.fx.aura, this._sx, 0.4, this._sz, 30, 8, 0.5, 0.4, 0xff5a3a); this.ui.toast('¡OBJETIVO A LA VISTA!', true); }
+        }
+      }
+    }
+    if (G.type === 'tourney' && !this.tourney && !this.sagaTour) {     // el torneo empieza solo (y se repite si te sacan del ring)
+      this.sagaTourT -= dt;
+      if (this.sagaTourT <= 0) { this.sagaTourT = 4; if (this.sagaT > 1) this.ui.toast('¡OTRA VEZ AL RING!', true); this.startEvent('torneo'); }
+    }
+    if (v >= n && G.type !== 'boss') {
       this.sagaGoal = true; this.ui.toast('¡OBJETIVO CUMPLIDO!'); SFX.play('achieve');
+      if (G.type === 'hold' || !SG.boss) { this.victory(); return; }
       const go = () => { if (!this.bossSpawned) this.spawnBoss(); };
       if (SG.bossTalk.length) this.talk(SG.bossTalk, go); else go();
     }
+  }
+  /** Estrellas conseguidas: completar, acabar con la mitad de la vida y la marca del capítulo */
+  storyStars() {
+    const SG = this.saga, p = this.player;
+    const s = [true, p.hp >= p.maxHp * 0.5, SG.star3.kills ? this.kills >= SG.star3.kills : this.time <= SG.star3.time];
+    return s;
+  }
+  storyStarsHtml(st, newOnes) {
+    return '<div class="sstars">' + st.map((ok, i) => '<span class="' + (ok ? 'on' : '') + (newOnes && newOnes[i] ? ' nw' : '') + '" style="--d:' + (0.25 + i * 0.3) + 's">★</span>').join('') + '</div>' +
+      '<div class="sconds">' + starTexts(this.saga).map((t, i) => '<div class="' + (st[i] ? 'ok' : '') + '"><i>' + (st[i] ? '✓' : '✗') + '</i>' + t + '</div>').join('') + '</div>';
+  }
+  /** Capítulo ganado: guarda estrellas, da los premios y abre el siguiente (o el libro siguiente) */
+  storyWin() {
+    const SG = this.saga, B = SG.book, st = this.storyStars(), n = st.filter(Boolean).length;
+    const S = Save.d.story || (Save.d.story = {}), prev = S[SG.id] || { stars: 0, best: 0, mask: 0 };
+    const wasBook = bookDone(B.idx), first = !prev.stars;
+    let mask = prev.mask || 0; const newOnes = st.map((ok, i) => ok && !(mask & (1 << i)));
+    st.forEach((ok, i) => { if (ok) mask |= 1 << i; });
+    const nStars = [0, 1, 2].filter((i) => mask & (1 << i)).length, gained = nStars - (prev.stars || 0);
+    let coins = (first ? SG.reward : 0) + Math.max(0, gained) * 50, prize = '';
+    S[SG.id] = { stars: nStars, mask, best: prev.best ? Math.min(prev.best, Math.floor(this.time)) : Math.floor(this.time) };
+    if (!wasBook && bookDone(B.idx)) {                                // ¡libro completado!: premio grande
+      (Save.d.sagas || (Save.d.sagas = {}))[B.id] = true;
+      const C = charById(B.prize);
+      if (C && !Save.d.unlocked.includes(C.id)) { Save.d.unlocked.push(C.id); prize = '¡Desbloqueas a ' + nice(C.name) + '!'; }
+      else { coins += 1500; prize = '+1500 monedas extra'; }
+    }
+    Save.d.zeni += coins;
+    const r = this.finishRun(true);
+    this.nextChap = SG.idx + 1 < B.chapters.length ? B.chapters[SG.idx + 1] : B.idx + 1 < BOOKS.length && bookDone(B.idx) ? BOOKS[B.idx + 1].chapters[0] : null;
+    let h = this.storyStarsHtml(st, newOnes);
+    if (prize) h += '<div class="sbook" style="--b1:' + B.col + ';--b2:' + B.col2 + '"><small>¡Libro completado!</small><b>' + nice(B.name) + '</b><span>' + prize + '</span></div>';
+    h += '<div class="reward">+' + (coins + r.coins) + ' MONEDAS<small>' + (first ? SG.reward + ' por completar el capítulo · ' : '') + (gained > 0 ? gained * 50 + ' por estrellas nuevas · ' : '') + r.coins + ' de la partida</small></div>';
+    h += '<div class="sum">' + [['ENEMIGOS', this.kills], ['TIEMPO', fmtTime(this.time)], ['NIVEL', this.player.level], ['DAÑO TOTAL', Math.floor(this.run.damage)]].map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
+    const nx = this.nextChap, aT = nx ? (nx.book === B ? 'SIGUIENTE CAPÍTULO [R]' : 'SIGUIENTE LIBRO [R]') : 'REPETIR [R]';
+    this.ui.showScreen(prize ? '¡LIBRO COMPLETADO!' : '¡CAPÍTULO COMPLETADO!', nice(B.name) + ' · Capítulo ' + (SG.idx + 1) + ': ' + SG.name, h, aT, 'VOLVER AL LIBRO [M]', 'win story');
+  }
+  storyLoseHtml(r) {
+    const SG = this.saga, G = SG.goal, v = this.sagaValue(), n = G.n || 1;
+    const prog = G.type === 'boss' || (this.sagaGoal && SG.boss) ? '¡Casi! El rival seguía en pie' : G.text + ' · ' + (G.type === 'survive' || G.type === 'hold' ? fmtTime(Math.min(v, n)) + ' de ' + fmtTime(n) : Math.min(v, n) + ' de ' + n);
+    return '<div class="sbook lose"><small>Objetivo</small><b>' + prog + '</b><span>Consejo: sube de nivel con las cartas y usa [G] para transformarte</span></div>' +
+      '<div class="reward">+' + r.coins + ' MONEDAS<small>las monedas de la partida se quedan</small></div>' +
+      '<div class="sum">' + [['ENEMIGOS', this.kills], ['TIEMPO', fmtTime(this.time)], ['NIVEL', this.player.level], ['DAÑO TOTAL', Math.floor(this.run.damage)]].map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
   }
   /** Diálogo: líneas [quién, texto]. El mundo se congela; E, Espacio, Intro, clic o el mando para avanzar */
   talk(lines, cb) {
@@ -950,9 +1097,14 @@ class Game {
     this.talkLine();
   }
   talkLine() {
-    const [who, text] = this.talkQ[0], c = charById(who);
-    document.getElementById('talkName').textContent = c ? c.name : who.toUpperCase();
-    const cv = document.getElementById('talkPic'); if (c && c.portrait) this.ui.drawFrame(cv, c.portrait.sheet, c.portrait.frame, c.portrait.tint);
+    const [who, text] = this.talkQ[0], c = charById(who), N = !c && typeof TALK_NPC !== 'undefined' ? TALK_NPC[who] : null;
+    // Tu personaje habla a la izquierda; los demás, a la derecha. Sin retrato (Kaiosama, Bulma, el narrador…) va un emblema
+    const el = document.getElementById('talk'), me = this.saga ? this.saga.ch : this.player.ch.id;
+    el.classList.toggle('r', who !== me); el.classList.toggle('np', !c); el.classList.toggle('nr', who === 'narr');
+    document.getElementById('talkName').textContent = c ? c.name : N ? N.name : who.toUpperCase();
+    document.getElementById('talkIco').textContent = N ? N.ico : '?';
+    const cv = document.getElementById('talkPic'), g2 = cv.getContext && cv.getContext('2d');
+    if (c && c.portrait) this.ui.drawFrame(cv, c.portrait.sheet, c.portrait.frame, c.portrait.tint); else if (g2) g2.clearRect(0, 0, cv.width, cv.height);
     this.talkText = text; this.talkT = 0; document.getElementById('talkText').textContent = '';
   }
   talkNext() {
@@ -1013,7 +1165,7 @@ class Game {
     this.tourney = null;
     if (win) {
       this.capsules.add(T.x + 1.5, T.z, 1, this.world); this.capsules.add(T.x - 1.5, T.z, 1, this.world);
-      this.gainCash(400); p.hp = p.maxHp; this.track('torneos', 1);
+      this.gainCash(400); p.hp = p.maxHp; this.track('torneos', 1); if (this.saga) this.sagaTour = true;
       this.ui.toast('♛ ¡CAMPEÓN DEL TORNEO!'); this.ui.toast('Premio: 2 cápsulas doradas, 400 Zeni y vida al máximo', true); SFX.play('win');
       this.fx.ring(this.fx.aura, T.x, 0.5, T.z, 90, 26, 0.9, 0.5, 0xffd060); this.shake(0.6);
     } else { this.ui.toast('¡HAS SALIDO DEL RING!'); this.ui.toast('Pierdes el torneo · la horda vuelve', true); SFX.play('lose'); }
@@ -1222,6 +1374,13 @@ class Game {
     const p = this.player, id = p.ch.id, d = this.diff;
     if (this.practice) return { coins: 0, bonus: 0, score: 0 };    // el entrenamiento no da recompensas
     let coins = Math.floor(this.zeniRun * d.coins), bonus = 0;
+    if (this.saga) {                              // Modo Historia: monedas de la partida (los premios del capítulo van aparte); sin ranking
+      Save.d.zeni += coins; this.track('runs', 1); this.track('time', Math.floor(this.time)); this.trackMax('maxLevel', p.level);
+      if (win) this.track('wins', 1);
+      this.track('damage', Math.floor(this.run.damage)); this.track('taken', Math.floor(this.run.taken)); this.track('dashes', this.run.dashes); this.trackMax('maxCombo', this.run.maxCombo); this.trackMax('bestHit', Math.floor(this.run.best));
+      this.checkAch(); Save.write();
+      return { coins, bonus: 0, score: 0 };
+    }
     if (win) {                                    // primera victoria con ese personaje y dificultad = premio completo; después, un 20%
       const key = id + ':' + d.id, first = !Save.d.clears[key];
       bonus = first ? d.reward : Math.round(d.reward * 0.2);
@@ -1282,19 +1441,16 @@ class Game {
   }
   gameOver() {
     this.state = 'over'; this.releaseMouse(); SFX.music(''); SFX.play('lose');
+    if (this.saga) { const r = this.finishRun(false); this.ui.showScreen('DERROTA', nice(this.saga.book.name) + ' · Capítulo ' + (this.saga.idx + 1) + ': ' + this.saga.name, this.storyLoseHtml(r), 'REINTENTAR [R]', 'VOLVER AL LIBRO [M]', 'lose'); return; }
     this.ui.showScreen('DERROTA', 'HAS CAÍDO EN COMBATE', this.runSummary(this.finishRun(false)), 'REINTENTAR [R]', 'MENÚ [M]', 'lose');
   }
   victory() {
     if (this.saga && !this.sagaTalked) { this.sagaTalked = true; this.talk(this.saga.win, () => this.victory()); return; }
     this.won = true; this.state = 'over'; this.releaseMouse(); SFX.music(''); SFX.play('win');
     this.fx.ring(this.fx.aura, this.player.x, 0.5, this.player.z, 70, 24, 0.9, 0.5, 0xffd24a);
-    let sub = 'HAS DERROTADO A ' + this.stage.boss.name + ' · ' + this.diff.name;
-    if (this.saga) {                                                   // Modo Leyenda: saga completada (y recompensa la primera vez)
-      const SG = this.saga, done = Save.d.sagas || (Save.d.sagas = {}), first = !done[SG.id];
-      done[SG.id] = true; if (first) Save.d.zeni += SG.reward; Save.write();
-      sub = SG.name + ' COMPLETADA' + (first ? ' · +' + SG.reward + ' MONEDAS' : '');
-    }
-    this.ui.showScreen('¡VICTORIA!', sub, this.runSummary(this.finishRun(true)), this.saga ? 'REPETIR LA SAGA [R]' : 'JUGAR OTRA VEZ [R]', 'MENÚ [M]', 'win');
+    if (this.saga) { this.storyWin(); return; }
+    const sub = 'HAS DERROTADO A ' + this.stage.boss.name + ' · ' + this.diff.name;
+    this.ui.showScreen('¡VICTORIA!', sub, this.runSummary(this.finishRun(true)), 'JUGAR OTRA VEZ [R]', 'MENÚ [M]', 'win');
   }
 
   /* ---------- Formas y efectos ---------- */
@@ -1524,7 +1680,7 @@ class Game {
       this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = 0.62; this.horde.tints[T_BOSS] = B.tints[0];
       // Cada jefe se dibuja con sus sprites: fila propia en la hoja "bosses" (o una fila por forma en la de Goku Black)
       const sh = this.ui.sheets && this.ui.sheets[B.sheet];
-      this.horde.setBossSheet(sh || null, B.rows ? B.rows[0] : B.row, BOSS_ANIM[B.sheet], B.sheet);
+      this.horde.setBossSheet(sh || null, B.rows ? B.rows[0] : B.row, B.anim || BOSS_ANIM[B.sheet], B.sheet);
       this.horde.bossTint = B.tintSprite !== false;
       this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
       if (B.moves) this.ui.toast(B.moves, true);                       // sus técnicas, para saber qué esperar
@@ -1770,8 +1926,9 @@ class Game {
     const col = B.tintSprite === false ? B.tints[ph] : (B.col || B.tints[ph]);   // color del aura de la nueva forma
     this.bossInv = 1.2; ENEMY_TYPES[T_BOSS].spd = 0.62 + ph * 0.12;
     this.horde.tints[T_BOSS] = B.tints[ph];
-    ENEMY_TYPES[T_BOSS].scale = B.scale * (1 + ph * 0.04);             // el jefe crece con cada transformación
+    ENEMY_TYPES[T_BOSS].scale = (B.scaleW || B.scale) * (1 + ph * 0.04);   // el jefe crece con cada transformación
     if (B.rows) this.horde.bossRow = B.rows[ph];                       // cambia a la fila de su nueva forma
+    if (B.sheets && this.ui.sheets && this.ui.sheets[B.sheets[ph]]) this.horde.setBossSheet(this.ui.sheets[B.sheets[ph]], 0, B.anim, B.sheets[ph]);   // luchador: hoja de su nueva forma
     this.horde.posBoss('cast', 1.2);
     const dx = p.x - bx, dz = p.z - bz, d = Math.hypot(dx, dz) || 1;
     if (d < 14) { p.kbx = dx / d * 22; p.kbz = dz / d * 22; }
@@ -1961,6 +2118,7 @@ class Game {
   }
   onEnemyKilled(x, z, type, uid) {
     this.kills++; this.track('kills', 1);
+    if (this.saga && this.saga.goal.type === 'hunt' && type === this.saga.goal.t) this.sagaHunt++;
     if (this.player.kiOnKill && !this.player.dying) { const q = this.player; q.ki = Math.min(q.maxKi, q.ki + q.kiOnKill); }   // Absorción de Energía
     if (this.player.pluma && this.kills % 20 === 0 && !this.player.dying) {       // Pluma Sagrada
       const q = this.player; q.hp = Math.min(q.maxHp, q.hp + q.maxHp * 0.05); this.ui.toast('✿ PLUMA SAGRADA · +5% DE VIDA', true);
@@ -2240,7 +2398,7 @@ class Game {
     this.updateTimers(dt);
 
     const S = this.stage, t0 = this.pressure();
-    if (S.final) {                                                  // mapa final: solo el jefe (y sus refuerzos)
+    if (S.final && !this.saga) {                                    // mapa final: solo el jefe (y sus refuerzos)
       if (!this.bossSpawned && this.stageTime > 2) this.spawnBoss(0, -22);
     } else {
       if (S.bossAt && !this.bossSpawned && !this.saga && this.stageTime >= S.bossAt) this.spawnBoss();   // Cámara del Tiempo: el jefe llega solo
@@ -2269,7 +2427,7 @@ class Game {
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) { this.combo = 0; p.comboMul = 1; } }
     this.impCd -= dt; this.impCd2 -= dt;
     // Eventos aleatorios (no en el mapa final)
-    if (!S.final && S.fx !== 'time') { this.eventT -= dt; if (this.eventT <= 0 && !this.tourney) { this.eventT = rand(110, 160); this.startEvent(pick(['senzu', 'rival', 'storm', 'ally'].concat(S.fx !== 'ring' ? ['torneo'] : []))); } }
+    if (!S.final && S.fx !== 'time' && !this.saga) { this.eventT -= dt; if (this.eventT <= 0 && !this.tourney) { this.eventT = rand(110, 160); this.startEvent(pick(['senzu', 'rival', 'storm', 'ally'].concat(S.fx !== 'ring' ? ['torneo'] : []))); } }
     // Día y noche (Tierra y Planeta Vegeta): ciclo de 4 minutos
     if (S.night) this.updateNight(dt);
     if (this.storm > 0) {

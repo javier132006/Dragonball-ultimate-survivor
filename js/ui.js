@@ -138,9 +138,10 @@ class UIManager {
       T(e.kills, String(game.kills)); T(e.time, fmtTime(game.stageTime)); T(e.horde, String(game.horde.n));
       T(e.zeniHud, String(Math.floor(game.cash)));
       const S = game.stage;
-      T(e.stageName, (game.step + 1) + '/' + ROUTE_LEN + ' · ' + S.name);
+      T(e.stageName, game.saga ? S.name : (game.step + 1) + '/' + ROUTE_LEN + ' · ' + S.name);
       let gl, gv, gc = '';
-      if (game.practice) { gl = 'MODO'; gv = 'ENTRENAMIENTO'; gc = '#7fe07a'; }
+      if (game.saga && game.sagaBegun) { gl = 'CAP. ' + (game.saga.idx + 1); gv = game.sagaProg(); gc = '#ffc531'; }
+      else if (game.practice) { gl = 'MODO'; gv = 'ENTRENAMIENTO'; gc = '#7fe07a'; }
       else if (S.final) { gl = 'OBJETIVO'; gv = 'DERROTA AL JEFE'; gc = '#ff6a8a'; }
       else if (S.bossAt && !game.bossSpawned) { gl = 'JEFE EN'; gv = fmtTime(Math.max(0, S.bossAt - game.stageTime)); gc = '#ff9ad8'; }
       else if (game.swarm) { gl = 'ENJAMBRE'; gv = '¡ACTIVO! +' + fmtTime(game.stageTime - game.swarmAt()); gc = '#ff4d5e'; }
@@ -421,7 +422,7 @@ class UIManager {
     (R[s] || this.renderMissions).call(this);
     const H = this.hdr;
     e.menuNav.innerHTML = s === 'home' ? this.profileBar()
-      : '<button class="back" data-go="home">Volver</button><div class="bnr ' + H.c + '"><h3>' + H.t + '</h3>' + (H.s ? '<span>' + H.s + '</span>' : '') + '</div>' + (H.tabs ? '<div class="seg nav">' + H.tabs + '</div>' : '');
+      : '<button class="back" ' + (H.back || 'data-go="home"') + '>Volver</button><div class="bnr ' + H.c + '"' + (H.st ? ' style="' + H.st + '"' : '') + '><h3>' + H.t + '</h3>' + (H.s ? '<span>' + H.s + '</span>' : '') + '</div>' + (H.tabs ? '<div class="seg nav">' + H.tabs + '</div>' : '');
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menu.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
   }
@@ -441,7 +442,7 @@ class UIManager {
   profileBar() {
     const sel = charById(Save.d.sel), done = Save.d.sagas || {};
     return '<div class="pbar"><div class="pav">' + this.pic(sel) + '</div><span class="pst">' + nice(sel.name) + '</span>' +
-      '<span class="pst" title="Sagas completadas"><span class="dball"></span>' + SAGAS.filter((g) => done[g.id]).length + '/' + SAGAS.length + '</span>' +
+      '<span class="pst" title="Libros del Modo Leyenda completados"><span class="dball"></span>' + storyDone() + '/' + BOOKS.length + '</span>' +
       '<span class="pst" title="Días seguidos"><i>🔥</i>' + Save.d.login.streak + '</span>' +
       '<button class="pacc" data-go="account">' + this.accountLabel() + '</button></div>';
   }
@@ -465,7 +466,7 @@ class UIManager {
       '<div class="logo"><span class="dball"></span><h1>DRAGON<br> BALL</h1><div class="lsub"><span class="rib">ULTIMATE SURVIVOR</span><span class="vtag">v2.0</span></div></div>' +
       '<div class="hgrid">' +
         '<button class="hplay" data-go="play"><span class="dball"></span><div><b>Jugar</b><small>' + nice(sel.name) + ' · ' + nice(d.name) + '</small></div></button>' +
-        '<button class="hmode c-pur" data-go="legend"><span class="mi">' + iconHtml('map') + '</span><div><b>Modo Leyenda</b><small>' + SAGAS.filter((g) => done[g.id]).length + ' / ' + SAGAS.length + ' sagas</small></div></button>' +
+        '<button class="hmode c-pur" data-go="legend"><span class="mi">' + iconHtml('map') + '</span><div><b>Modo Leyenda</b><small>' + storyDone() + ' / ' + BOOKS.length + ' libros · ★ ' + BOOKS.reduce((s, B) => s + bookStars(B.idx), 0) + '</small></div></button>' +
         '<button class="hday" data-start="daily"><span class="medal">☀</span><small>Desafío del día</small><b>' + mods[0].name + '</b><em>+ ' + mods[1].name + (D ? '<br>Hoy: ' + D.best.toLocaleString('es-ES') : '<br>+300 monedas') + '</em></button>' +
         '<button class="hmode c-grn" data-start="practice"><span class="mi">' + iconHtml('power') + '</span><div><b>Entrenamiento</b><small>Prueba técnicas sin presión</small></div></button>' +
       '</div>' +
@@ -489,24 +490,65 @@ class UIManager {
       '</div></div></div></div>';
   }
 
-  /* ---------- Modo Leyenda: medallón del guerrero, título enorme y la ruta de sagas ---------- */
+  /* ---------- Modo Leyenda: biblioteca de libros (sagas) y cada libro con sus capítulos ---------- */
+  /** Retrato de un personaje para el Modo Leyenda (canvas cuadrado; la forma puede ser otra hoja) */
+  storyPic(c, sheet, w) { return c ? '<canvas width="' + (w || 96) + '" height="' + (w || 96) + '" data-sheet="' + (sheet || c.portrait.sheet) + '" data-frame="' + (sheet ? 0 : c.portrait.frame) + '"></canvas>' : ''; }
+  /** Retrato de un rival: luchador (hoja de su forma) o jefe (su fila de la hoja de jefes) */
+  bossPic(B, w) {
+    if (!B) return '';
+    if (B.fighter) return this.storyPic(charById(B.fighter), B.sheet, w);
+    const s = this.sheets && this.sheets[B.sheet];
+    return s ? '<canvas width="' + (w || 96) + '" height="' + (w || 96) + '" data-sheet="' + B.sheet + '" data-frame="' + ((B.rows ? B.rows[0] : B.row) * s.cols) + '"></canvas>' : '';
+  }
+  drawPics(el) { for (const cv of el.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0)); }
+  starsHtml(n, max) { let h = ''; for (let i = 0; i < (max || 3); i++) h += '<i class="' + (i < n ? 'on' : '') + '">★</i>'; return h; }
   renderLegend() {
-    const done = Save.d.sagas || {}, nDone = SAGAS.filter((g) => done[g.id]).length;
-    if (this.lsel == null || !SAGAS[this.lsel]) { let k = SAGAS.findIndex((g, i) => sagaOpen(i) && !done[g.id]); if (k < 0) k = 0; this.lsel = k; }
-    const i = this.lsel, g = SAGAS[i], c = charById(g.ch), B = BOSSES[g.boss], S = STAGES[g.stage], open = sagaOpen(i), ok = !!done[g.id];
-    this.hdr = { t: 'Modo Leyenda', s: nDone + ' de ' + SAGAS.length + ' sagas completadas', c: 'c-pur' };
-    const nodes = SAGAS.map((x, k) => { const o = sagaOpen(k), cc = charById(x.ch);
-      return '<button class="tn' + (done[x.id] ? ' done' : '') + (k === i ? ' on' : '') + (o ? '' : ' locked') + '" data-lsel="' + k + '"><span class="tc">' + (o ? this.pic(cc, 72, 72) : '🔒') + '</span><small>' + (k + 1) + '. ' + nice(x.name.replace(/^SAGA (DE )?/, '')) + '</small></button>'; }).join('');
-    const list = SAGAS.map((x, k) => { const cc = charById(x.ch), o = sagaOpen(k);
-      return '<div class="rr' + (k === i ? ' me' : '') + '" data-lsel="' + k + '" style="cursor:pointer"><em style="background:' + (done[x.id] ? '#22b86f' : o ? '#7a5cf0' : '#59617e') + '">' + (done[x.id] ? '✓' : k + 1) + '</em><div class="rav">' + (o ? this.pic(cc, 72, 72) : '') + '</div><div class="rn"><b>' + nice(x.name) + '</b><small>' + nice(cc.name) + ' · ' + nice(BOSSES[x.boss].name) + '</small></div><b style="color:' + (done[x.id] ? '#3fe08a' : o ? '#ffc531' : '#8e97b5') + '">' + (done[x.id] ? 'Hecha' : o ? '+' + x.reward : '🔒') + '</b></div>'; }).join('');
-    this.el.menuBody.innerHTML = '<div class="lg"><div class="lgl">' +
-      '<div class="lgh"><div class="lmed">' + this.pic(c, 120, 120) + '</div><div class="lgi">' +
-        '<div class="lgc"><span class="rd"></span>Saga ' + (i + 1) + ' de ' + SAGAS.length + '<span class="chip y">Jefe: ' + nice(B.name) + '</span><span class="chip o">' + nice(S.name) + '</span>' + (ok ? '<span class="chip g">✓ Completada</span>' : '') + '</div>' +
-        '<h2>' + nice(g.name) + '</h2><p>' + g.desc + '</p><p class="goal">◎ ' + g.goal.text + '</p></div></div>' +
-      '<div class="ltr">' + nodes + '</div>' +
-      '<div class="lgo">' + (open ? '<button class="go" data-start="saga:' + g.id + '"><span class="dball"></span>' + (ok ? 'Repetir' : 'Jugar') + '</button><p>' + (ok ? 'Ya la completaste: sin recompensa' : 'Recompensa: +' + g.reward + ' monedas') + ' · con ' + nice(c.name) + '</p>'
-        : '<button class="go" disabled>🔒 Bloqueada</button><p>Completa la saga anterior para abrirla</p>') + '</div>' +
-      '</div><div class="pnl lgr"><h4>Sagas</h4><div class="lgrb"><div class="rk">' + list + '</div></div></div></div>';
+    if (this.book != null && BOOKS[this.book] && bookOpen(this.book)) return this.renderBook(BOOKS[this.book]);
+    this.book = null;
+    const all = STORY_CHAPTERS.length, st = BOOKS.reduce((s, B) => s + bookStars(B.idx), 0);
+    this.hdr = { t: 'Modo Leyenda', s: storyDone() + ' de ' + BOOKS.length + ' libros · ★ ' + st + ' / ' + all * 3, c: 'c-pur' };
+    const covers = BOOKS.map((B, i) => {
+      const open = bookOpen(i), done = bookDone(i), n = B.chapters.length, nd = B.chapters.filter(chapDone).length, s = bookStars(i);
+      return '<button class="bk' + (open ? '' : ' lk') + (done ? ' dn' : '') + '" data-book="' + i + '" style="--b1:' + B.col + ';--b2:' + B.col2 + '"' + (open ? '' : ' disabled') + '>' +
+        '<span class="bkn">Libro ' + (i + 1) + '</span>' +
+        '<span class="bkart"><span class="bkh">' + this.storyPic(charById(B.cover[0])) + '</span><span class="bkv">' + this.storyPic(charById(B.cover[1])) + '</span></span>' +
+        '<span class="bkt"><b>' + nice(B.name) + '</b><small>' + B.sub + '</small></span>' +
+        '<span class="bkp"><i style="width:' + (nd / n * 100) + '%"></i></span>' +
+        '<span class="bkf"><span>' + nd + '/' + n + ' capítulos</span><span class="bks">★ ' + s + '/' + n * 3 + '</span></span>' +
+        (done ? '<span class="bkr">Completado</span>' : '') + (open ? '' : '<span class="bkl">🔒<small>Completa el libro ' + i + '</small></span>') + '</button>';
+    }).join('');
+    this.el.menuBody.innerHTML = '<div class="lib"><div class="shelf">' + covers + '</div></div>';
+  }
+  /** Un libro abierto: portada, premio y capítulos a la izquierda; el capítulo elegido a la derecha con su «VS» */
+  renderBook(B) {
+    const n = B.chapters.length, nd = B.chapters.filter(chapDone).length;
+    if (this.lchap == null || !B.chapters[this.lchap] || !chapOpen(B.chapters[this.lchap])) {
+      const k = B.chapters.findIndex((C) => chapOpen(C) && !chapDone(C)); this.lchap = k < 0 ? 0 : k;
+    }
+    const C = B.chapters[this.lchap], hero = charById(C.ch), boss = chapBoss(C), sv = chapSave(C), mask = sv ? sv.mask || 0 : 0, prize = charById(B.prize);
+    const dark = (hx) => '#' + hx.slice(1).match(/../g).map((x) => Math.round(parseInt(x, 16) * 0.62).toString(16).padStart(2, '0')).join('');
+    this.hdr = { t: nice(B.name), s: B.sub, c: '', st: '--bg:linear-gradient(100deg,' + B.col + ',' + B.col2 + ');--be:' + dark(B.col), back: 'data-book="-1"' };
+    const GI = { kills: '☠', survive: '⏱', balls: '<span class="dball"></span>', hunt: '◎', level: '⬆', tourney: '♛', boss: '⚔', hold: '⏱' };
+    const rows = B.chapters.map((X, j) => {
+      const o = chapOpen(X), d = chapDone(X);
+      return '<button class="chr' + (j === this.lchap ? ' on' : '') + (d ? ' dn' : '') + (o ? '' : ' lk') + '" data-lchap="' + j + '"' + (o ? '' : ' disabled') + '><em>' + (d ? '✓' : j + 1) + '</em>' +
+        '<span class="chp">' + (o ? this.storyPic(charById(X.ch), null, 72) : '🔒') + '</span><span class="cht"><b>' + (o ? X.name : '???') + '</b><small>' + (o ? GI[X.goal.type] + ' ' + X.goal.text : 'Completa el capítulo anterior') + '</small></span>' +
+        '<span class="chs">' + this.starsHtml(chapStars(X)) + '</span></button>';
+    }).join('');
+    const vsR = boss ? this.bossPic(boss, 160) : '<u class="vsh">' + GI[C.goal.type] + '</u>';
+    const vsRn = boss ? nice(boss.name) : { kills: 'La horda', survive: 'Supervivencia', balls: 'Las esferas', hunt: 'Cacería', level: 'Entrenamiento', tourney: 'El torneo' }[C.goal.type];
+    const conds = starTexts(C).map((t, i) => '<div class="' + (mask & (1 << i) ? 'ok' : '') + '"><i>★</i>' + t + '</div>').join('');
+    this.el.menuBody.innerHTML = '<div class="bv" style="--b1:' + B.col + ';--b2:' + B.col2 + '">' +
+      '<div class="pnl bvl"><div class="bvh"><span class="bkart"><span class="bkh">' + this.storyPic(charById(B.cover[0])) + '</span><span class="bkv">' + this.storyPic(charById(B.cover[1])) + '</span></span>' +
+        '<div class="bvi"><span class="k2">Libro ' + (B.idx + 1) + ' de ' + BOOKS.length + '</span><b>' + nd + ' / ' + n + ' capítulos</b><span class="bkp"><i style="width:' + (nd / n * 100) + '%"></i></span><span class="bks">★ ' + bookStars(B.idx) + ' / ' + n * 3 + '</span></div></div>' +
+        '<p class="bvd">' + B.desc + '</p>' +
+        '<div class="bvz"><span class="bzp">' + this.storyPic(prize, null, 72) + '</span><div><span class="k2">Premio del libro</span><b>' + (bookDone(B.idx) ? '✓ Conseguido' : 'Desbloquea a ' + nice(prize.name)) + '</b><small>' + (Save.d.unlocked.includes(prize.id) && !bookDone(B.idx) ? 'Ya lo tienes: te darán 1500 monedas' : 'Completa todos los capítulos') + '</small></div></div>' +
+        '<div class="chl">' + rows + '</div></div>' +
+      '<div class="pnl bvr"><div class="vs"><div class="vsl">' + this.storyPic(hero, null, 160) + '<b>' + nice(hero.name) + '</b></div><div class="vsx">VS</div><div class="vsr">' + vsR + '<b>' + vsRn + '</b></div></div>' +
+        '<div class="cdt"><span class="k2">Capítulo ' + (C.idx + 1) + ' de ' + n + ' · ' + nice(STAGES[C.stage].name) + '</span><h2>' + C.name + '</h2><p>' + C.story + '</p>' +
+        '<div class="cch"><span class="chip p">' + GI[C.goal.type] + ' ' + C.goal.text + '</span>' + (C.lvl > 1 ? '<span class="chip b">Empiezas en NV ' + C.lvl + '</span>' : '') + '<span class="chip y"><span class="coin"></span> ' + (sv ? 'Completado' : '+' + C.reward) + '</span>' + (Save.d.unlocked.includes(hero.id) ? '' : '<span class="chip o">Solo en este capítulo</span>') + '</div>' +
+        '<div class="cst">' + conds + '</div>' +
+        '<div class="cgo"><button class="go" data-start="chap:' + C.id + '"><span class="dball"></span>' + (sv ? 'Volver a jugar' : 'Jugar capítulo') + '</button><span>' + (sv && sv.best ? 'Mejor tiempo ' + fmtTime(sv.best) : '+50 monedas por cada estrella nueva') + '</span></div></div></div></div>';
   }
   /** Tarjeta del desafío diario: modificadores de hoy, tu mejor puntuación y botón para jugar */
   dailyCard() {
