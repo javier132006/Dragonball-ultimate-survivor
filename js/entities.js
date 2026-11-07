@@ -376,7 +376,7 @@ class Player {
       else if (this.moving) y = Math.abs(Math.sin(this.animT * 9)) * 0.12;
       flash = this.hurtT > 0.22 ? 1 : 0;
       if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;
-      if (this.introHide) alpha = 0;                               // intro de la fusión: aún no ha aparecido
+      if (this.introHide || this.menuHide) alpha = 0;            // menuHide: en las pantallas del menú (menos el inicio) no se ve                               // intro de la fusión: aún no ha aparecido
     }
     // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
     const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.form.tint;
@@ -385,7 +385,7 @@ class Player {
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
     // Aura de fuego (sprites): forma transformada, carga de ki o Kaio-ken. En las formas altas, rayos sueltos alrededor
     const V = this.vfx, useFx = !!(V && V.ok);
-    if (useFx && !this.dying && !this.introHide) {
+    if (useFx && !this.dying && !this.introHide && !this.menuHide) {
       const ka = this.buffT > 0, au = this.form.aura || 0, F = formFx(this.ch, this.formIdx);
       if ((au || this.charging || ka) && !this.chgPose) {
         const big = this.charging ? 1.3 : 1, name = ka || !F || !F.a ? 'auraSS1' : F.a, own = name === 'auraSS2' || name === 'auraSS3';

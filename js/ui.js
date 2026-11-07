@@ -5,6 +5,9 @@
    ===================================================================== */
 
 const $ = (id) => document.getElementById(id);
+/** Nombre en mayúsculas → «Tipo Título» para el menú (SON GOKU → Son Goku) */
+const NICE_LOW = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'en', 'a', 'al']);
+const nice = (t) => String(t).toLowerCase().replace(/(^|[\s\-·(«/])(\p{L}[\p{L}']*)/gu, (m, a, w, i) => a + (i > 0 && NICE_LOW.has(w) ? w : w[0].toUpperCase() + w.slice(1)));
 const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
 class UIManager {
@@ -325,12 +328,12 @@ class UIManager {
       else if (o.type === 'temple') { g.moveTo(cx, cy - s); g.lineTo(cx + s, cy + s * 0.8); g.lineTo(cx - s, cy + s * 0.8); g.closePath(); }
       else g.rect(cx - s * 0.7, cy - s * 0.7, s * 1.4, s * 1.4);
       g.fill(); g.stroke();
-      if (big) { g.fillStyle = '#fff'; g.font = '700 11px "M PLUS Rounded 1c",sans-serif'; g.fillText(o.type === 'merchant' ? 'BULMA' : o.type === 'swapper' ? 'ROSHI' : o.type === 'gacha' ? 'GACHAPÓN' : o.type === 'boss' ? 'ALTAR' : o.type === 'time' ? 'TIEMPO' : 'TEMPLO', cx + s + 3, cy + 3); }
+      if (big) { g.fillStyle = '#fff'; g.font = '800 12px "Baloo 2",sans-serif'; g.fillText(o.type === 'merchant' ? 'BULMA' : o.type === 'swapper' ? 'ROSHI' : o.type === 'gacha' ? 'GACHAPÓN' : o.type === 'boss' ? 'ALTAR' : o.type === 'time' ? 'TIEMPO' : 'TEMPLO', cx + s + 3, cy + 3); }
     }
     for (const r of game.points.rifts) {
       const pulse = 5 * k + Math.sin(t * 6) * 2;
       g.fillStyle = '#' + r.col.toString(16).padStart(6, '0'); g.strokeStyle = '#fff'; g.beginPath(); g.arc(X(r.x), X(r.z), pulse, 0, 6.3); g.fill(); g.stroke();
-      if (big) { g.fillStyle = '#fff'; g.font = '700 12px "M PLUS Rounded 1c",sans-serif'; g.fillText('GRIETA · ' + STAGES[r.to].name, X(r.x) + pulse + 3, X(r.z) + 3); }
+      if (big) { g.fillStyle = '#fff'; g.font = '800 13px "Baloo 2",sans-serif'; g.fillText('GRIETA · ' + STAGES[r.to].name, X(r.x) + pulse + 3, X(r.z) + 3); }
     }
     if (bossIdx >= 0) sq(game.horde.x[bossIdx], game.horde.z[bossIdx], 7 * k, '#ff3050');
     const ri = game.rivalUid ? game.horde.indexOfUid(game.rivalUid) : -1;
@@ -389,7 +392,7 @@ class UIManager {
   hideCards() { this.el.cards.classList.remove('show'); this.cardHandlers = []; }
   cardsOpen() { return this.el.cards.classList.contains('show'); }
 
-  /* ---------- Menú principal (pantallas: inicio, jugar, tienda, misiones) ---------- */
+  /* ---------- Menú principal (estilo PokéBonk: cabecera de color, paneles azul noche y el mundo 3D detrás) ---------- */
   showMenu(game) {
     this.game = game;
     this.view = Save.d.sel;
@@ -407,190 +410,255 @@ class UIManager {
     return n;
   }
 
+  /** Cada pantalla rellena this.hdr = { t: título, s: subtítulo, c: color de la cabecera, tabs: pestañas } y su cuerpo */
   renderMenu() {
-    const e = this.el, s = this.screen, TITLES = { legend: 'MODO LEYENDA', play: 'ELIGE A TU GUERRERO', shop: 'TIENDA', missions: 'MISIONES Y LOGROS', stats: 'ESTADÍSTICAS', options: 'OPCIONES', records: 'RÉCORDS', account: 'CUENTA', credits: 'CRÉDITOS' };
-    e.zeniMenu.textContent = Save.d.zeni;
+    const e = this.el, s = this.screen;
+    e.zeniMenu.textContent = Save.d.zeni.toLocaleString('es-ES');
     e.menu.classList.toggle('ishome', s === 'home');
-    e.menuNav.innerHTML = s === 'home' ? '' : '<button class="back" data-go="home">◂ VOLVER</button><h3>' + TITLES[s] + '</h3>';
-    if (s === 'home') this.renderHome(); else if (s === 'legend') this.renderLegend(); else if (s === 'play') this.renderPlay(); else if (s === 'shop') this.renderShopScreen(); else if (s === 'stats') this.renderStatsScreen(); else if (s === 'options') this.renderOptions(); else if (s === 'records') this.renderRecords(); else if (s === 'account') this.renderAccount(); else if (s === 'credits') this.renderCredits(); else this.renderMissions();
+    this.hdr = { t: '', s: '', c: '', tabs: '' };
+    const R = { home: this.renderHome, legend: this.renderLegend, play: this.renderPlay, shop: this.renderShopScreen, stats: this.renderStatsScreen, options: this.renderOptions,
+      records: this.renderRecords, account: this.renderAccount, credits: this.renderCredits, missions: this.renderMissions };
+    (R[s] || this.renderMissions).call(this);
+    const H = this.hdr;
+    e.menuNav.innerHTML = s === 'home' ? this.profileBar()
+      : '<button class="back" data-go="home">Volver</button><div class="bnr ' + H.c + '"><h3>' + H.t + '</h3>' + (H.s ? '<span>' + H.s + '</span>' : '') + '</div>' + (H.tabs ? '<div class="seg nav">' + H.tabs + '</div>' : '');
     // Retratos: se dibujan después de generar el HTML
-    for (const cv of e.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
+    for (const cv of e.menu.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
+  }
+  /** Botones de pestaña dentro de un selector .seg */
+  segTabs(list, cur, attr) { return list.map((x) => '<button class="tab' + (cur === x[0] ? ' on' : '') + '" data-' + attr + '="' + x[0] + '">' + x[1] + '</button>').join(''); }
+  /** Canvas con el retrato de un personaje (se dibuja en renderMenu) */
+  pic(c, w, h) { return c && c.portrait ? '<canvas width="' + (w || 108) + '" height="' + (h || 79) + '" data-sheet="' + c.portrait.sheet + '" data-frame="' + c.portrait.frame + '" data-tint="' + (c.portrait.tint || 0) + '"></canvas>' : ''; }
+  /** Tiempo que falta para que se renueven las misiones diarias (medianoche) */
+  untilReset() {
+    const now = new Date(), m = new Date(now); m.setHours(24, 0, 0, 0);
+    const min = Math.max(0, Math.round((m - now) / 60000));
+    return Math.floor(min / 60) + ' h ' + (min % 60) + ' min';
+  }
+  /** Tipo de combate del personaje según su ataque físico y de ki: 'f' físico, 'k' ki, 'e' equilibrado */
+  charType(c) { const f = c.atkF || 1, k = c.atkK || 1; return f > k + 0.04 ? 'f' : k > f + 0.04 ? 'k' : 'e'; }
+  /** Barra superior del inicio: guerrero equipado, sagas, racha y cuenta */
+  profileBar() {
+    const sel = charById(Save.d.sel), done = Save.d.sagas || {};
+    return '<div class="pbar"><div class="pav">' + this.pic(sel) + '</div><span class="pst">' + nice(sel.name) + '</span>' +
+      '<span class="pst" title="Sagas completadas"><span class="dball"></span>' + SAGAS.filter((g) => done[g.id]).length + '/' + SAGAS.length + '</span>' +
+      '<span class="pst" title="Días seguidos"><i>🔥</i>' + Save.d.login.streak + '</span>' +
+      '<button class="pacc" data-go="account">' + this.accountLabel() + '</button></div>';
+  }
+  /** Fila de clasificación: puesto, retrato, nombre (con etiqueta) y puntuación */
+  rankRow(i, c, name, sub, score, me, chip) {
+    return '<div class="rr' + (i < 3 ? ' top' + i : '') + (me ? ' me' : '') + '"><em>' + (i + 1) + '</em><div class="rav">' + this.pic(c, 72, 72) + '</div>' +
+      '<div class="rn"><b>' + (chip || '') + name + '</b><small>' + sub + '</small></div><b>' + score + '</b></div>';
   }
 
+  /* ---------- Inicio ---------- */
   renderHome() {
-    const sel = charById(Save.d.sel), d = diffById(Save.d.diff), n = this.claimable();
-    const daily = Save.d.daily.ids.map((id) => missionById(id)).map((m) => {
-      const pr = Math.min(m.goal, Save.progress(m)), done = Save.isClaimed(m);
-      return '<div class="dm' + (done ? ' done' : '') + '"><span>' + m.desc + '</span><div class="mb"><i style="width:' + (pr / m.goal * 100) + '%"></i></div></div>';
-    }).join('');
+    const sel = charById(Save.d.sel), d = diffById(Save.d.diff), n = this.claimable(), done = Save.d.sagas || {}, l = Save.d.login;
+    const daily = Save.d.daily.ids.map((id) => missionById(id));
+    const dots = daily.map((m) => '<u class="' + (Save.isClaimed(m) ? 'ok' : Save.progress(m) >= m.goal ? 'go' : '') + '"></u>').join('');
+    const mods = dailyMods(), D = Save.d.day && Save.d.day.date === todayStr() ? Save.d.day : null;
+    const own = CHARACTERS.filter((c) => !c.soon && Save.d.unlocked.includes(c.id)).length, tot = CHARACTERS.filter((c) => !c.soon).length;
+    const achN = ACHIEVEMENTS.filter((a) => Save.d.ach[a.id]).length, rank = Save.d.rank;
+    const tile = (go, ico, name, sub, col, badge) => '<button class="htile" data-go="' + go + '" style="--tc:' + col + '"><span class="ti2">' + ico + '</span><b>' + name + '</b><small>' + sub + '</small>' + (badge ? '<span class="badge">' + badge + '</span>' : '') + '</button>';
+    const best = rank.slice(0, 5).map((r, i) => { const c = charById(r.ch); return this.rankRow(i, c, c ? nice(c.name) : r.ch, r.kills.toLocaleString('es-ES') + ' bajas · NV ' + r.level + (r.win ? ' · Victoria' : ''), r.score.toLocaleString('es-ES')); }).join('');
     this.el.menuBody.innerHTML = '<div class="home"><div class="hl">' +
-      '<div class="titlebox"><div class="logo-db"><span class="dball"></span><h1>DRAGON <br>BALL</h1></div><div class="ribbon">ULTIMATE SURVIVOR</div><p>SOBREVIVE · TRANSFÓRMATE · REÚNE LAS 7 ESFERAS</p></div>' +
-      '<div class="hbtns"><button class="big play" data-go="play">▶ JUGAR<small>' + sel.name + ' · ' + d.name + '</small></button>' +
-      '<button class="big" data-go="legend">☆ MODO LEYENDA<small>' + SAGAS.filter((g) => (Save.d.sagas || {})[g.id]).length + ' / ' + SAGAS.length + ' SAGAS</small></button>' +
-      '<button class="big" data-go="shop">TIENDA</button>' +
-      '<button class="big" data-go="missions">MISIONES' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +
-      '<button class="big" data-go="records">RÉCORDS</button>' +
-      '<button class="big" data-go="account">CUENTA<small>' + this.accountLabel() + '</small></button>' +
-      '<button class="big" data-go="stats">ESTADÍSTICAS</button>' +
-      '<button class="big" data-go="options">OPCIONES</button>' +
-      '<button class="big" data-go="credits">CRÉDITOS</button>' +
-      '<button class="big ghost" data-exit>SALIR</button></div></div>' +
-      '<div class="hr">' + this.dailyCard() + '<div class="hcard"><h4>MISIONES DIARIAS</h4>' + daily + '<h4 style="margin-top:12px">RACHA</h4><p>' + Save.d.login.streak + ' día(s) seguidos</p></div></div></div>';
+      '<div class="logo"><span class="dball"></span><h1>DRAGON<br> BALL</h1><div class="lsub"><span class="rib">ULTIMATE SURVIVOR</span><span class="vtag">v2.0</span></div></div>' +
+      '<div class="hgrid">' +
+        '<button class="hplay" data-go="play"><span class="dball"></span><div><b>Jugar</b><small>' + nice(sel.name) + ' · ' + nice(d.name) + '</small></div></button>' +
+        '<button class="hmode c-pur" data-go="legend"><span class="mi">' + iconHtml('map') + '</span><div><b>Modo Leyenda</b><small>' + SAGAS.filter((g) => done[g.id]).length + ' / ' + SAGAS.length + ' sagas</small></div></button>' +
+        '<button class="hday" data-start="daily"><span class="medal">☀</span><small>Desafío del día</small><b>' + mods[0].name + '</b><em>+ ' + mods[1].name + (D ? '<br>Hoy: ' + D.best.toLocaleString('es-ES') : '<br>+300 monedas') + '</em></button>' +
+        '<button class="hmode c-grn" data-start="practice"><span class="mi">' + iconHtml('power') + '</span><div><b>Entrenamiento</b><small>Prueba técnicas sin presión</small></div></button>' +
+      '</div>' +
+      '<div class="hrow">' +
+        '<button class="hwd" data-go="missions"><span class="mi"><span class="dball"></span></span><div><b>Misiones diarias</b><div class="dots">' + dots + '</div><small>Nuevas en ' + this.untilReset() + '</small></div>' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +
+        '<button class="hwd dk" data-go="missions"><span class="mi">🔥</span><div><b>Racha de ' + l.streak + ' día' + (l.streak === 1 ? '' : 's') + '</b><small>Entra cada día: premio mayor</small></div></button>' +
+      '</div>' +
+      '<div class="htiles">' +
+        tile('play', iconHtml('gear'), 'Guerreros', own + ' / ' + tot, '#ff7a2a') +
+        tile('shop', iconHtml('capsule'), 'Tienda', 'Mejoras', '#22b86f') +
+        tile('ach', iconHtml('dball'), 'Logros', achN + ' / ' + ACHIEVEMENTS.length, '#ffb21e') +
+        tile('records', '🏆', 'Récords', rank.length ? rank[0].score.toLocaleString('es-ES') : 'Sin marcas', '#ff4d5e') +
+        tile('stats', iconHtml('stats'), 'Estadísticas', Math.floor(Save.d.stats.runs || 0) + ' partidas', '#3f7cf5') +
+        tile('account', '👤', 'Cuenta', this.accountLabel(), '#a487ff') +
+      '</div>' +
+      '<div class="hbot"><button data-go="options"><i>' + iconHtml('system') + '</i>Opciones</button><button data-go="credits"><i>★</i>Créditos</button><button class="ex" data-exit><i>⏻</i>Salir</button></div>' +
+      '</div>' +
+      '<div class="hr"><div class="pnl hrp"><div class="hrh"><span class="mi">🏆</span><div><b>Tus récords</b><small>Las mejores partidas en este navegador</small></div></div><div class="hrb">' +
+        (best ? '<div class="rk">' + best + '</div>' : '<p class="dim">Aún no hay partidas: tu mejor puntuación aparecerá aquí.</p>') +
+        '<div class="myb"><span class="k2">Desafío de hoy</span><b>' + (D ? D.best.toLocaleString('es-ES') + ' puntos' : 'Aún sin jugar hoy') + '</b><p>' + mods.map((m) => m.icon + ' ' + m.name).join(' · ') + '</p></div>' +
+      '</div></div></div></div>';
   }
-  /** Modo Leyenda: las sagas en orden, con su personaje, objetivo y recompensa (cada una se abre al completar la anterior) */
+
+  /* ---------- Modo Leyenda: medallón del guerrero, título enorme y la ruta de sagas ---------- */
   renderLegend() {
-    const done = Save.d.sagas || {};
-    const cards = SAGAS.map((g, i) => {
-      const c = charById(g.ch), open = sagaOpen(i), ok = !!done[g.id], B = BOSSES[g.boss], S = STAGES[g.stage];
-      return '<div class="saga' + (open ? '' : ' locked') + (ok ? ' done' : '') + '">' +
-        '<canvas width="72" height="72" data-sheet="' + c.portrait.sheet + '" data-frame="' + c.portrait.frame + '"></canvas>' +
-        '<div class="sg"><h4>' + (i + 1) + '. ' + g.name + (ok ? ' <em>✔ COMPLETADA</em>' : '') + '</h4>' +
-        '<p>' + g.desc + '</p>' +
-        '<p class="dim">' + c.name + ' · ' + S.name + ' · Jefe: ' + B.name + '</p>' +
-        '<p class="goal">◎ ' + g.goal.text + '</p></div>' +
-        (open ? '<button class="start" data-start="saga:' + g.id + '">' + (ok ? 'REPETIR' : 'JUGAR') + '<small>' + (ok ? 'sin recompensa' : '+' + g.reward + ' monedas') + '</small></button>'
-              : '<button class="start" disabled>🔒<small>Completa la saga anterior</small></button>') + '</div>';
-    }).join('');
-    this.el.menuBody.innerHTML = '<div class="legendList"><p class="dim">Revive las sagas de Dragon Ball con un guerrero y un objetivo especial en cada mapa. Cumple el objetivo para que aparezca el jefe.</p>' + cards + '</div>';
+    const done = Save.d.sagas || {}, nDone = SAGAS.filter((g) => done[g.id]).length;
+    if (this.lsel == null || !SAGAS[this.lsel]) { let k = SAGAS.findIndex((g, i) => sagaOpen(i) && !done[g.id]); if (k < 0) k = 0; this.lsel = k; }
+    const i = this.lsel, g = SAGAS[i], c = charById(g.ch), B = BOSSES[g.boss], S = STAGES[g.stage], open = sagaOpen(i), ok = !!done[g.id];
+    this.hdr = { t: 'Modo Leyenda', s: nDone + ' de ' + SAGAS.length + ' sagas completadas', c: 'c-pur' };
+    const nodes = SAGAS.map((x, k) => { const o = sagaOpen(k), cc = charById(x.ch);
+      return '<button class="tn' + (done[x.id] ? ' done' : '') + (k === i ? ' on' : '') + (o ? '' : ' locked') + '" data-lsel="' + k + '"><span class="tc">' + (o ? this.pic(cc, 72, 72) : '🔒') + '</span><small>' + (k + 1) + '. ' + nice(x.name.replace(/^SAGA (DE )?/, '')) + '</small></button>'; }).join('');
+    const list = SAGAS.map((x, k) => { const cc = charById(x.ch), o = sagaOpen(k);
+      return '<div class="rr' + (k === i ? ' me' : '') + '" data-lsel="' + k + '" style="cursor:pointer"><em style="background:' + (done[x.id] ? '#22b86f' : o ? '#7a5cf0' : '#59617e') + '">' + (done[x.id] ? '✓' : k + 1) + '</em><div class="rav">' + (o ? this.pic(cc, 72, 72) : '') + '</div><div class="rn"><b>' + nice(x.name) + '</b><small>' + nice(cc.name) + ' · ' + nice(BOSSES[x.boss].name) + '</small></div><b style="color:' + (done[x.id] ? '#3fe08a' : o ? '#ffc531' : '#8e97b5') + '">' + (done[x.id] ? 'Hecha' : o ? '+' + x.reward : '🔒') + '</b></div>'; }).join('');
+    this.el.menuBody.innerHTML = '<div class="lg"><div class="lgl">' +
+      '<div class="lgh"><div class="lmed">' + this.pic(c, 120, 120) + '</div><div class="lgi">' +
+        '<div class="lgc"><span class="rd"></span>Saga ' + (i + 1) + ' de ' + SAGAS.length + '<span class="chip y">Jefe: ' + nice(B.name) + '</span><span class="chip o">' + nice(S.name) + '</span>' + (ok ? '<span class="chip g">✓ Completada</span>' : '') + '</div>' +
+        '<h2>' + nice(g.name) + '</h2><p>' + g.desc + '</p><p class="goal">◎ ' + g.goal.text + '</p></div></div>' +
+      '<div class="ltr">' + nodes + '</div>' +
+      '<div class="lgo">' + (open ? '<button class="go" data-start="saga:' + g.id + '"><span class="dball"></span>' + (ok ? 'Repetir' : 'Jugar') + '</button><p>' + (ok ? 'Ya la completaste: sin recompensa' : 'Recompensa: +' + g.reward + ' monedas') + ' · con ' + nice(c.name) + '</p>'
+        : '<button class="go" disabled>🔒 Bloqueada</button><p>Completa la saga anterior para abrirla</p>') + '</div>' +
+      '</div><div class="pnl lgr"><h4>Sagas</h4><div class="lgrb"><div class="rk">' + list + '</div></div></div></div>';
   }
   /** Tarjeta del desafío diario: modificadores de hoy, tu mejor puntuación y botón para jugar */
   dailyCard() {
     const mods = dailyMods(), D = Save.d.day && Save.d.day.date === todayStr() ? Save.d.day : null, sel = charById(Save.d.sel);
-    return '<div class="hcard daily"><h4>☀ DESAFÍO DIARIO · ' + todayStr().split('-').reverse().join('/') + '</h4>' +
+    return '<div class="hcard"><h4>☀ Desafío diario · ' + todayStr().split('-').reverse().join('/') + '</h4>' +
       mods.map((m) => '<div class="mod"><i>' + m.icon + '</i><div><b>' + m.name + '</b><small>' + m.text + '</small></div></div>').join('') +
       '<p class="dim">Mapa del día, dificultad NORMAL. ' + (D ? 'Tu mejor marca hoy: <b>' + D.best.toLocaleString('es-ES') + '</b> (' + D.tries + ' intento' + (D.tries > 1 ? 's' : '') + ')' : 'Termínalo hoy: +300 monedas') + '</p>' +
-      '<button class="start" data-start="daily">JUGAR CON ' + sel.name + '</button></div>';
+      '<button class="start c-yel" data-start="daily" style="width:100%;margin-top:10px">Jugar con ' + nice(sel.name) + '</button></div>';
   }
 
   /** Créditos: autores de los sprites (pack «Dragon Ball Sagas») */
   renderCredits() {
     const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    this.el.menuBody.innerHTML = '<div class="hcard"><h4>SPRITES DE PERSONAJES</h4><p class="dim">Sprites del pack «Dragon Ball Sagas», hechos por la comunidad. Gracias a sus autores:</p>' +
+    this.hdr = { t: 'Créditos', s: 'Gracias a quienes hicieron los sprites', c: 'c-pur' };
+    this.el.menuBody.innerHTML = '<div class="pnl cpnl"><h4 class="sec">Sprites de personajes</h4><p class="dim" style="margin-bottom:12px">Sprites del pack «Dragon Ball Sagas», hechos por la comunidad. Gracias a sus autores:</p>' +
       SPRITE_CREDITS.map((c) => '<div class="mod"><i>★</i><div><b>' + esc(c.author) + '</b><small>' + c.what.map(esc).join(' · ') + '</small></div></div>').join('') +
-      '<h4 style="margin-top:12px">DRAGON BALL</h4><p class="dim">Dragon Ball es una obra de Akira Toriyama. Juego de fans sin ánimo de lucro.</p></div>';
+      '<h4 class="sec" style="margin-top:16px">Dragon Ball</h4><p class="dim">Dragon Ball es una obra de Akira Toriyama. Juego de fans sin ánimo de lucro.</p></div>';
   }
 
+  /* ---------- Elige guerrero (como «La Liga»): ficha a la izquierda y lista a la derecha ---------- */
   renderPlay() {
-    this.renderChars();
-    const d = Save.d.diff;
-    const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '"><b>' + x.name + '</b><small>' + 'x' + x.coins + ' monedas · +' + x.reward + ' al ganar</small></button>').join('');
-    const sel = charById(Save.d.sel);
-    this.el.menuBody.innerHTML += '<div class="rules">4 mapas por partida. Derrota al jefe para abrir la grieta y elegir camino; a los 10 minutos llega el enjambre final.</div><div class="playbar"><div class="diffs">' + diffs + '</div><button class="start alt" data-start="practice">ENTRENAMIENTO</button><button class="start alt" data-start="daily">☀ DESAFÍO DIARIO</button><button class="start" data-start>¡A LUCHAR!<small>con ' + sel.name + '</small><span class="k">ENTER</span></button></div>';
-    for (const cv of this.el.menuBody.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
-  }
-
-  renderChars() {
-    const v = charById(this.view), owned = Save.d.unlocked.includes(v.id);
+    const v = charById(this.view), owned = Save.d.unlocked.includes(v.id), d = Save.d.diff;
+    const real = CHARACTERS.filter((c) => !c.soon), own = real.filter((c) => Save.d.unlocked.includes(c.id)).length;
+    this.hdr = { t: 'Elige guerrero', s: own + ' de ' + real.length + ' desbloqueados', c: '' };
+    const COL = { f: '#ff7a2a', k: '#3f7cf5', e: '#22b86f' }, TN = { f: 'Físico', k: 'Ki', e: 'Equilibrado' };
+    // Lista de guerreros (con filtro)
+    const ct = this.ctab || 'all';
     let grid = '';
     for (const c of CHARACTERS) {
-      const own = Save.d.unlocked.includes(c.id), sel = Save.d.sel === c.id;
-      const cls = 'ch' + (sel ? ' sel' : '') + (own ? '' : ' locked') + (c.soon ? ' soon' : '') + (this.view === c.id ? ' view' : '');
-      const tag = c.soon ? 'PRÓXIMAMENTE' : sel ? 'EQUIPADO' : own ? 'DESBLOQUEADO' : '🔒 ' + c.cost + ' ●';
-      grid += '<div class="' + cls + '" data-ch="' + c.id + '">' +
-        (c.portrait ? '<canvas width="108" height="79" data-sheet="' + c.portrait.sheet + '" data-frame="' + c.portrait.frame + '" data-tint="' + (c.portrait.tint || 0) + '"></canvas>' : '<div class="qm">?</div>') +
-        '<b>' + c.name + '</b><small>' + c.role + '</small><span class="tag">' + tag + '</span>' + (c.provisional ? '<span class="prov">SPRITE PROVISIONAL</span>' : '') + '</div>';
+      const has = Save.d.unlocked.includes(c.id);
+      if ((ct === 'own' && !has) || (ct === 'lock' && (has || c.soon))) continue;
+      const cls = 'ch' + (Save.d.sel === c.id ? ' sel' : '') + (has ? '' : ' locked') + (c.soon ? ' soon' : '') + (this.view === c.id ? ' view' : '');
+      grid += '<div class="' + cls + '" data-ch="' + c.id + '" style="--cc:' + COL[this.charType(c)] + '" title="' + nice(c.name) + '">' + (c.portrait ? this.pic(c) : '<div class="qm">?</div>') +
+        (c.soon ? '<span class="lk">PRONTO</span>' : has ? '' : '<span class="lk">🔒 ' + c.cost + '</span>') + '<b>' + nice(c.name) + '</b></div>';
     }
-    let det = '';
-    if (v.soon) det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p><p>Este guerrero llegará en una próxima actualización.</p>';
+    // Ficha
+    let det;
+    if (v.soon) det = '<div class="lsc"><div class="lin"><span class="k2">' + v.role + '</span><h3>' + nice(v.name) + '</h3><p class="dim">Este guerrero llegará en una próxima actualización.</p></div></div>';
     else {
+      const t = this.charType(v), hex = (n) => '#' + (n || 0xffd84a).toString(16).padStart(6, '0'), best = Save.d.best[v.id], idx = real.indexOf(v) + 1;
       const bar = (n, val, max, cls) => '<div class="sb' + (cls ? ' ' + cls : '') + '"><span>' + n + '</span><div><i style="width:' + Math.min(100, (val / max) * 100) + '%"></i></div><b>' + val + '</b></div>';
       const chip = (id) => WEAPONS[id].cat === 'fis' ? '<span class="tcat tf">✊ FÍS</span>' : '<span class="tcat tk">✺ KI</span>';
-      const best = Save.d.best[v.id];
       const techs = v.unique.filter((id) => id !== v.start[0]).concat(Object.keys(WEAPONS).filter((id) => WEAPONS[id].shop && !WEAPONS[id].unique)).filter((id) => !WEAPONS[id].unique || WEAPONS[id].unique === v.id);
-      det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p>' +
-        bar('VIDA', v.hp, 160) + bar('KI', v.ki, 160) + bar('VEL', Math.round(v.spd * 100), 150) + bar('ATQ FÍS', Math.round(v.atkF * 100), 140, 'sf') + bar('ATQ KI', Math.round(v.atkK * 100), 140, 'sk') +
-        '<h4>PASIVA · ' + v.passive.name + '</h4><p>' + v.passive.desc + '</p>' +
-        (v.ult ? '<h4>ULTIMATE [Q] · ' + v.ult.name + '</h4><p>Se carga derrotando enemigos. ' + ULT_DESC[v.ult.type || 'rift'] + ' Cuesta un ' + Math.round(ULT_KI * 100) + '% del Ki máximo.' + (v.ult.debuff ? '<br><span class="trb">✖ Después: ' + v.ult.debuff.name.toLowerCase() + ', ' + v.ult.debuff.text + '.</span>' : '') + '</p>' : '') +
-        '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> ' + chip(v.start[0]) + ' · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +
-        '<h4>TÉCNICAS (al subir de nivel)</h4>' + techs.map((id) => { const W = WEAPONS[id], lock = W.shop && !Save.d.techs.includes(id); return '<p class="' + (lock ? 'lockt' : '') + '"><i>' + W.icon + '</i> <b>' + W.name + '</b> ' + chip(id) + ' · NV ' + (W.minLv || 2) + (lock ? ' · 🔒 en la tienda' : '') + '</p>'; }).join('') +
-        '<h4>FUSIONES (las dos técnicas al nivel 5)</h4>' + fusionsFor(v.id).map((f) => { const F = WEAPONS[f], lock = F.fusion.some((x) => !techOwned(x)); return '<p class="' + (lock ? 'lockt' : '') + '"><i>⚭</i> <b>' + F.name + '</b> · ' + F.fusion.map((x) => WEAPONS[x].name).join(' + ') + (lock ? ' · 🔒 requiere técnica de la tienda' : '') + (F.down ? ' · <span class="trb">✖ ' + F.down.text + '</span>' : '') + '</p>'; }).join('') +
-        '<h4>TRANSFORMACIONES</h4><div class="forms ftl">' + v.forms.map((f, i) => { const T = traitOf(v, i); return '<span>' + f.name + ' <em>NV ' + f.lvl + '</em>' + (T ? '<small class="trg">✚ ' + T.good + '</small><small class="trb">✖ ' + T.bad + '</small>' : '') + '</span>'; }).join('') + '</div>' +
-        (best ? '<h4>MEJOR PARTIDA</h4><p>' + fmtTime(best.time) + ' · ' + best.kills + ' enemigos · NV ' + best.level + '</p>' : '');
-      if (!owned) det += '<button class="buy" data-buy="' + v.id + '"' + (Save.d.zeni < v.cost ? ' disabled' : '') + '>DESBLOQUEAR · ' + v.cost + ' ●</button>';
+      const evo = v.forms.map((f, i) => (i ? '<div class="ar">NV ' + f.lvl + '<i>›</i></div>' : '') + '<div class="ev" style="--ec:' + hex(f.ki) + '" title="' + nice(f.name) + '"><div class="eci"><canvas width="72" height="72" data-sheet="' + f.sheet + '" data-frame="0"></canvas></div><small>' + nice(f.name) + '</small></div>').join('');
+      const fF = Math.round(v.atkF * 100), fK = Math.round(v.atkK * 100);
+      const typs = (fF >= fK ? ['f', 'k'] : ['k', 'f']).map((x) => '<span class="typ ' + x + '">' + (x === 'f' ? 'Físico' : 'Ki') + '<small>' + (x === 'f' ? fF : fK) + '</small></span>').join('') + (t === 'e' ? '<span class="typ e">Equilibrado</span>' : '');
+      const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '" title="x' + x.coins + ' monedas · +' + x.reward + ' al ganar">' + nice(x.name) + '</button>').join('');
+      const W0 = WEAPONS[v.start[0]];
+      det = '<div class="lsc"><div class="lhd"><div class="pbox" style="--c1:' + (t === 'k' ? '#7ab8ff' : t === 'e' ? '#7ae0a8' : '#ffb25a') + ';--c2:' + COL[t] + '">' + this.pic(v, 120, 120) + '<span class="pc2">' + (best ? 'Récord NV ' + best.level : owned ? 'Sin jugar' : '🔒 ' + v.cost) + '</span></div>' +
+        '<div class="lin"><div class="lnum"><span class="k2">#' + String(idx).padStart(2, '0') + ' · ' + v.role + '</span><span class="chip ' + (Save.d.sel === v.id ? 'g' : owned ? 'd' : 'y') + '">' + (Save.d.sel === v.id ? 'Equipado' : owned ? 'Desbloqueado' : 'Bloqueado') + '</span></div>' +
+          '<h3>' + nice(v.name) + '</h3><div class="typs">' + typs + '</div>' +
+          '<span class="k2">Se transforma durante la partida</span><div class="evo">' + evo + '</div>' +
+          '<div class="dfs"><span class="k2">Dificultad</span>' + diffs + '</div></div></div>' +
+        '<div class="lcl"><div><span class="k2">Estadísticas</span>' + bar('Vida', v.hp, 160) + bar('Ki', v.ki, 160) + bar('Velocidad', Math.round(v.spd * 100), 150) + bar('Atq. físico', fF, 140, 'sf') + bar('Atq. ki', fK, 140, 'sk') + '</div>' +
+          '<div><span class="k2">En partida</span><div class="kv"><span>Pasiva</span><b>' + v.passive.name + '</b></div>' + (v.ult ? '<div class="kv"><span>Ultimate [Q]</span><b>' + nice(v.ult.name) + '</b></div>' : '') +
+          '<div class="kv"><span>Ataque básico</span><b>' + W0.name + '</b></div><div class="kv"><span>Técnicas</span><b>' + techs.length + '</b></div><div class="kv"><span>Transformaciones</span><b>' + (v.forms.length - 1) + '</b></div>' +
+          '<div class="kv"><span>Mejor partida</span><b>' + (best ? fmtTime(best.time) + ' · ' + best.kills + ' bajas' : '—') + '</b></div></div></div>' +
+        '<div class="lsec"><span class="k2">Pasiva · ' + v.passive.name + '</span><p>' + v.passive.desc + '</p></div>' +
+        (v.ult ? '<div class="lsec"><span class="k2">Ultimate [Q] · ' + v.ult.name + '</span><p>Se carga derrotando enemigos. ' + ULT_DESC[v.ult.type || 'rift'] + ' Cuesta un ' + Math.round(ULT_KI * 100) + '% del Ki máximo.' + (v.ult.debuff ? '<br><span class="trb">✖ Después: ' + v.ult.debuff.name.toLowerCase() + ', ' + v.ult.debuff.text + '.</span>' : '') + '</p></div>' : '') +
+        '<div class="lsec"><span class="k2">Ataque básico</span><div class="tli"><p><i>' + W0.icon + '</i><span><b>' + W0.name + '</b> ' + chip(v.start[0]) + '<br>' + W0.lv[0] + '</span></p></div></div>' +
+        '<div class="lsec"><span class="k2">Técnicas (al subir de nivel)</span><div class="tli">' + techs.map((id) => { const W = WEAPONS[id], lock = W.shop && !Save.d.techs.includes(id); return '<p class="' + (lock ? 'lockt' : '') + '"><i>' + W.icon + '</i><span><b>' + W.name + '</b> ' + chip(id) + '<br>NV ' + (W.minLv || 2) + (lock ? ' · 🔒 en la tienda' : '') + '</span></p>'; }).join('') + '</div></div>' +
+        '<div class="lsec"><span class="k2">Fusiones (las dos técnicas al nivel 5)</span><div class="tli">' + fusionsFor(v.id).map((f) => { const F = WEAPONS[f], lock = F.fusion.some((x) => !techOwned(x)); return '<p class="' + (lock ? 'lockt' : '') + '"><i>⚭</i><span><b>' + F.name + '</b><br>' + F.fusion.map((x) => WEAPONS[x].name).join(' + ') + (lock ? ' · 🔒 requiere técnica de la tienda' : '') + (F.down ? ' · <span class="trb">✖ ' + F.down.text + '</span>' : '') + '</span></p>'; }).join('') + '</div></div>' +
+        '<div class="lsec"><span class="k2">Transformaciones</span><div class="forms ftl">' + v.forms.map((f, i) => { const T = traitOf(v, i); return '<span>' + nice(f.name) + ' <em>NV ' + f.lvl + '</em>' + (T ? '<small class="trg">✚ ' + T.good + '</small><small class="trb">✖ ' + T.bad + '</small>' : '') + '</span>'; }).join('') + '</div></div>' +
+        '</div>';
     }
-    this.el.menuBody.innerHTML = '<div class="split"><div class="roster">' + grid + '</div><div class="detail">' + det + '</div></div>';
+    const act = v.soon ? '' : owned ? '<button class="pill" data-start="practice">' + iconHtml('power') + 'Entrenar</button><button class="pill" data-start="daily">☀ Diario</button><button class="go" data-start><span class="dball"></span>¡A luchar!<small>ENTER</small></button>'
+      : '<button class="buy c-yel" data-buy="' + v.id + '"' + (Save.d.zeni < v.cost ? ' disabled' : '') + '>Desbloquear · <span class="coin"></span> ' + v.cost.toLocaleString('es-ES') + '</button>';
+    this.el.menuBody.innerHTML = '<div class="liga"><div class="pnl lp">' + det + (act ? '<div class="lact">' + act + '</div>' : '') + '</div>' +
+      '<div class="pnl lr"><div class="seg dk">' + this.segTabs([['all', 'Todos'], ['own', 'Tuyos'], ['lock', 'Por desbloquear']], ct, 'ctab') + '</div>' +
+      '<div class="lcount"><span>Guerreros</span><b>' + own + ' / ' + real.length + '</b></div><div class="roster">' + (grid || '<p class="dim">No hay guerreros en esta lista.</p>') + '</div></div></div>';
   }
 
   /* ---------- Tienda: mejoras permanentes, objetos y técnicas ---------- */
   renderShopScreen() {
-    const tabs = [['upgrades', 'MEJORAS'], ['items', 'OBJETOS'], ['techs', 'TÉCNICAS']];
-    const t = tabs.map((x) => '<button class="tab ' + (this.tab === x[0] ? 'on' : '') + '" data-tab="' + x[0] + '">' + x[1] + '</button>').join('');
-    const body = this.tab === 'items' ? this.htmlItems() : this.tab === 'techs' ? this.htmlTechs() : this.htmlUpgrades();
-    this.el.menuBody.innerHTML = '<div class="tabs">' + t + '</div>' + body;
+    this.hdr = { t: 'Tienda', s: 'Gasta tus monedas entre partidas', c: 'c-grn', tabs: this.segTabs([['upgrades', 'Mejoras'], ['items', 'Objetos'], ['techs', 'Técnicas']], this.tab, 'tab') };
+    this.el.menuBody.innerHTML = this.tab === 'items' ? this.htmlItems() : this.tab === 'techs' ? this.htmlTechs() : this.htmlUpgrades();
   }
+  price(n) { return '<span class="coin"></span> ' + n.toLocaleString('es-ES'); }
   htmlUpgrades() {
-    let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>MEJORAS PERMANENTES</b><p>Se aplican solas al personaje al empezar cada partida.</p></div></div>';
+    let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>Mejoras permanentes</b><p>Se aplican solas al personaje al empezar cada partida.</p></div></div>';
     for (const l of LAB) {
       const lvl = Save.lab(l.id), maxed = lvl >= l.max, cost = labCost(l, lvl);
       let pips = ''; for (let k = 0; k < l.max; k++) pips += '<u class="' + (k < lvl ? 'on' : '') + '"></u>';
-      h += '<div class="item"><div><b>' + l.name + '</b><p>' + l.desc + '</p><div class="pips">' + pips + '</div></div>' +
-        '<button data-lab="' + l.id + '"' + (maxed || Save.d.zeni < cost ? ' disabled' : '') + '>' + (maxed ? 'MÁXIMO' : cost + ' ●') + '</button></div>';
+      h += '<div class="item"><div><b>' + l.name + '</b><p>' + l.desc + '</p><div class="pips" style="justify-content:flex-start">' + pips + '</div></div>' +
+        '<button class="c-grn" data-lab="' + l.id + '"' + (maxed || Save.d.zeni < cost ? ' disabled' : '') + '>' + (maxed ? 'Máximo' : this.price(cost)) + '</button></div>';
     }
     return h + '</div>';
   }
   htmlItems() {
-    let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>OBJETOS DE LAS CÁPSULAS</b><p>Las cápsulas del mapa dan un objeto aleatorio que dura solo esa partida. Aquí desbloqueas cuáles pueden tocarte: los más raros solo aparecen si los compras.</p></div></div>';
+    let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>Objetos de las cápsulas</b><p>Las cápsulas del mapa dan un objeto aleatorio que dura solo esa partida. Aquí desbloqueas cuáles pueden tocarte: los más raros solo aparecen si los compras.</p></div></div>';
     for (let r = 0; r < 6; r++) {
       for (const it of ITEMS) {
         if (it.rarity !== r) continue;
         const rar = RARITIES[r], own = itemAvailable(it);
-        h += '<div class="item" style="border-left:4px solid ' + rar.color + '"><div class="ic" style="color:' + rar.color + '">' + it.icon + '</div><div><small style="color:' + rar.color + '">' + rar.name + '</small><br><b>' + it.name + '</b><p>' + it.text + '</p></div>' +
-          (own ? '<button disabled>' + (rar.cost ? 'DESBLOQUEADO' : 'DISPONIBLE') + '</button>' : '<button data-item="' + it.id + '"' + (Save.d.zeni < rar.cost ? ' disabled' : '') + '>' + rar.cost + ' ●</button>') + '</div>';
+        h += '<div class="item" style="box-shadow:inset 5px 0 0 ' + rar.color + ',var(--sh)"><div class="ic" style="color:' + rar.color + ';box-shadow:inset 0 0 0 3px ' + rar.color + '">' + it.icon + '</div><div><span class="chip" style="background:' + rar.color + ';color:#141826">' + nice(rar.name) + '</span><br><b>' + it.name + '</b><p>' + it.text + '</p></div>' +
+          (own ? '<button disabled>' + (rar.cost ? 'Tuyo' : 'Disponible') + '</button>' : '<button class="c-grn" data-item="' + it.id + '"' + (Save.d.zeni < rar.cost ? ' disabled' : '') + '>' + this.price(rar.cost) + '</button>') + '</div>';
       }
     }
     return h + '</div>';
   }
   htmlTechs() {
-    let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>TÉCNICAS DE DRAGON BALL</b><p>Una vez compradas, pueden aparecer como carta al subir de nivel (a partir de su nivel mínimo). Las exclusivas solo salen con su personaje.</p></div></div>';
+    let h = '<div class="shop"><div class="item info" style="grid-column:1/-1"><div><b>Técnicas de Dragon Ball</b><p>Una vez compradas, pueden aparecer como carta al subir de nivel (a partir de su nivel mínimo). Las exclusivas solo salen con su personaje.</p></div></div>';
     // Técnicas propias de cada personaje: no se compran, vienen incluidas
     for (const c of CHARACTERS) for (const id of c.unique || []) {               // los personajes «próximamente» no tienen técnicas
       const W = WEAPONS[id];
       if (!W || W.shop || W.fusion || id === (c.start || [])[0]) continue;
-      h += '<div class="item"><div class="ic" style="color:#' + W.color.toString(16).padStart(6, '0') + '">' + W.icon + '</div><div><small style="color:var(--xp)">' + c.name + ' · NV ' + (W.minLv || 2) + ' · TÉCNICA PROPIA</small><br><b>' + W.name + '</b><p>' + W.lv[0] + ' Sale seguro la primera vez que llegas a su nivel.</p></div><button disabled>INCLUIDA</button></div>';
+      h += '<div class="item"><div class="ic" style="color:#' + W.color.toString(16).padStart(6, '0') + '">' + W.icon + '</div><div><span class="chip p">' + nice(c.name) + ' · NV ' + (W.minLv || 2) + '</span><br><b>' + W.name + '</b><p>' + W.lv[0] + ' Sale seguro la primera vez que llegas a su nivel.</p></div><button disabled>Incluida</button></div>';
     }
     for (const id in WEAPONS) {
       const W = WEAPONS[id];
       if (!W.shop) continue;
-      const own = Save.d.techs.includes(id), who = W.unique ? charById(W.unique).name : 'TODOS';
-      h += '<div class="item"><div class="ic" style="color:#' + W.color.toString(16).padStart(6, '0') + '">' + W.icon + '</div><div><small style="color:var(--xp)">' + who + ' · NV ' + W.minLv + '</small><br><b>' + W.name + '</b><p>' + W.lv[0] + '</p></div>' +
-        (own ? '<button disabled>COMPRADA</button>' : '<button data-tech="' + id + '"' + (Save.d.zeni < W.shop ? ' disabled' : '') + '>' + W.shop + ' ●</button>') + '</div>';
+      const own = Save.d.techs.includes(id), who = W.unique ? nice(charById(W.unique).name) : 'Todos';
+      h += '<div class="item"><div class="ic" style="color:#' + W.color.toString(16).padStart(6, '0') + '">' + W.icon + '</div><div><span class="chip b">' + who + ' · NV ' + W.minLv + '</span><br><b>' + W.name + '</b><p>' + W.lv[0] + '</p></div>' +
+        (own ? '<button disabled>Comprada</button>' : '<button class="c-grn" data-tech="' + id + '"' + (Save.d.zeni < W.shop ? ' disabled' : '') + '>' + this.price(W.shop) + '</button>') + '</div>';
     }
     return h + '</div>';
   }
 
   /* ---------- Opciones: volumen ---------- */
   renderOptions() {
+    this.hdr = { t: 'Opciones', s: 'Sonido, gráficos y copia de seguridad', c: 'c-blu' };
     const v = Save.d.vol || { mus: 0.5, sfx: 0.75 }, O = Save.d.opt, sl = (k, name, val) => '<div class="item opt"><div><b>' + name + '</b><input type="range" min="0" max="100" value="' + Math.round(val * 100) + '" data-vol="' + k + '"></div><b>' + Math.round(val * 100) + '%</b></div>';
-    const qb = [['auto', 'AUTO'], ['high', 'ALTA'], ['medium', 'MEDIA'], ['low', 'BAJA']].map((q) => '<button class="qb' + (O.quality === q[0] ? ' on' : '') + '" data-q="' + q[0] + '">' + q[1] + '</button>').join('');
+    const qb = [['auto', 'Auto'], ['high', 'Alta'], ['medium', 'Media'], ['low', 'Baja']].map((q) => '<button class="qb' + (O.quality === q[0] ? ' on' : '') + '" data-q="' + q[0] + '">' + q[1] + '</button>').join('');
     const pr = this.game && this.game.perf ? this.game.perf.pr : 1;
-    this.el.menuBody.innerHTML = '<div class="shop">' + sl('mus', 'MÚSICA', v.mus) + sl('sfx', 'EFECTOS DE SONIDO', v.sfx) +
-      '<div class="item opt wide"><div><b>CALIDAD GRÁFICA</b><div class="qbs">' + qb + '</div><p>AUTO ajusta la resolución sola para mantener 60 FPS y quita las sombras si hace falta. BAJA: sin sombras, menos partículas y sin suavizado de bordes (este último, al recargar la página). Resolución actual: x' + pr.toFixed(2) + '</p></div></div>' +
-      '<div class="item opt"><div><b>REDUCIR DESTELLOS</b><p>Quita los fogonazos blancos/negros y los negativos de los impact frames.</p></div><button class="tgl' + (O.flash ? ' on' : '') + '" data-flash>' + (O.flash ? 'ACTIVADO' : 'DESACTIVADO') + '</button></div>' +
-      '<div class="item opt"><div><b>TEMBLOR DE PANTALLA</b><input type="range" min="0" max="100" value="' + Math.round(O.shake * 100) + '" data-shake></div><b>' + Math.round(O.shake * 100) + '%</b></div>' +
-      '<div class="item opt wide"><div><b>COPIA DE SEGURIDAD</b><p>Exporta tu progreso (se descarga un archivo y se copia el texto) o importa una copia pegando el texto o eligiendo el archivo.</p>' +
+    this.el.menuBody.innerHTML = '<div class="shop">' + sl('mus', 'Música', v.mus) + sl('sfx', 'Efectos de sonido', v.sfx) +
+      '<div class="item opt wide"><div><b>Calidad gráfica</b><div class="qbs">' + qb + '</div><p>AUTO ajusta la resolución sola para mantener 60 FPS y quita las sombras si hace falta. BAJA: sin sombras, menos partículas y sin suavizado de bordes (este último, al recargar la página). Resolución actual: x' + pr.toFixed(2) + '</p></div></div>' +
+      '<div class="item opt"><div><b>Reducir destellos</b><p>Quita los fogonazos blancos/negros y los negativos de los impact frames.</p></div><button class="tgl' + (O.flash ? ' on' : '') + '" data-flash>' + (O.flash ? 'Activado' : 'Desactivado') + '</button></div>' +
+      '<div class="item opt"><div><b>Temblor de pantalla</b><input type="range" min="0" max="100" value="' + Math.round(O.shake * 100) + '" data-shake></div><b>' + Math.round(O.shake * 100) + '%</b></div>' +
+      '<div class="item opt wide"><div><b>Copia de seguridad</b><p>Exporta tu progreso (se descarga un archivo y se copia el texto) o importa una copia pegando el texto o eligiendo el archivo.</p>' +
       '<textarea id="saveTxt" spellcheck="false" placeholder="Aquí aparecerá el texto de la copia, o pega aquí una copia para importarla"></textarea>' +
-      '<div class="qbs"><button class="qb" data-exp>EXPORTAR</button><button class="qb" data-imp>IMPORTAR' + (this.impArmed ? ' (CONFIRMAR)' : '') + '</button><button class="qb" data-impfile>ELEGIR ARCHIVO…</button><input type="file" id="impFile" accept=".json,.txt,application/json" style="display:none"></div>' +
+      '<div class="qbs"><button class="qb" data-exp>Exportar</button><button class="qb" data-imp>Importar' + (this.impArmed ? ' (confirmar)' : '') + '</button><button class="qb" data-impfile>Elegir archivo…</button><input type="file" id="impFile" accept=".json,.txt,application/json" style="display:none"></div>' +
       (this.optMsg ? '<p class="omsg">' + this.optMsg + '</p>' : '') + '</div></div>' +
-      '<div class="item info wide"><div><b>CONTROLES</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · F Transmisión Instantánea · G transformarse (sube de una en una: cuesta Ki, y mantener la forma también) · H volver a la forma base · F11 o el botón de la esquina: pantalla completa · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
+      '<div class="item info wide"><div><b>Controles</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · F Transmisión Instantánea · G transformarse (sube de una en una: cuesta Ki, y mantener la forma también) · H volver a la forma base · F11 o el botón de la esquina: pantalla completa · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
       'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · RB/RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir, A para confirmar y X para cambiar las cartas.</p></div></div>' +
-      '<div class="item info"><div><b>SONIDO SINTETIZADO</b><p>Toda la música y los efectos se generan en el momento con Web Audio (sin archivos). En el móvil, el sonido se activa al tocar la pantalla por primera vez.</p></div></div></div>';
+      '<div class="item"><div><b>Sonido sintetizado</b><p>Toda la música y los efectos se generan en el momento con Web Audio (sin archivos). En el móvil, el sonido se activa al tocar la pantalla por primera vez.</p></div></div></div>';
     this.optMsg = '';
   }
 
   /* ---------- Récords: ranking local y desafíos diarios ---------- */
   renderRecords() {
-    const tabs = '<div class="tabs"><button class="tab ' + (this.rtab === 'all' ? 'on' : '') + '" data-rtab="all">MEJORES PARTIDAS</button><button class="tab ' + (this.rtab === 'daily' ? 'on' : '') + '" data-rtab="daily">DESAFÍO DIARIO</button><button class="tab ' + (this.rtab === 'online' ? 'on' : '') + '" data-rtab="online">RANKING MUNDIAL</button></div>';
+    this.hdr = { t: 'Récords', s: 'Tus mejores partidas y el ranking mundial', c: 'c-yel', tabs: this.segTabs([['all', 'Mejores partidas'], ['daily', 'Desafío diario'], ['online', 'Ranking mundial']], this.rtab, 'rtab') };
     let h = '';
     if (this.rtab === 'daily') {
       const list = Save.d.rank.filter((r) => r.daily);
-      h = '<div class="msplit"><div>' + this.dailyCard() + '</div><div><h4 class="sec">HISTORIAL (MEJOR MARCA DE CADA DÍA)</h4>' +
-        (Save.d.dayHist.length ? '<div class="rank">' + Save.d.dayHist.map((d) => '<div class="rr"><span>' + d.date.split('-').reverse().join('/') + '</span><span class="dim">' + (d.mods || []).join(' · ') + '</span><b>' + d.best.toLocaleString('es-ES') + '</b></div>').join('') + '</div>' : '<p class="dim">Aún no has jugado ningún desafío diario.</p>') +
-        (list.length ? '<h4 class="sec">TUS MEJORES DESAFÍOS</h4>' + this.rankTable(list) : '') + '</div></div>';
+      h = '<div class="msplit"><div>' + this.dailyCard() + '</div><div class="pnl" style="padding:16px 18px;overflow-y:auto"><h4 class="sec">Historial (mejor marca de cada día)</h4>' +
+        (Save.d.dayHist.length ? '<div class="rk">' + Save.d.dayHist.map((d, i) => '<div class="rr"><em>☀</em><div class="rav"></div><div class="rn"><b>' + d.date.split('-').reverse().join('/') + '</b><small>' + (d.mods || []).join(' · ') + '</small></div><b>' + d.best.toLocaleString('es-ES') + '</b></div>').join('') + '</div>' : '<p class="dim">Aún no has jugado ningún desafío diario.</p>') +
+        (list.length ? '<h4 class="sec" style="margin-top:14px">Tus mejores desafíos</h4>' + this.rankTable(list) : '') + '</div></div>';
     } else if (this.rtab === 'online') {
-      h = '<div class="tabs sub"><button class="tab ' + (this.otab === 'global' ? 'on' : '') + '" data-otab="global">GENERAL</button><button class="tab ' + (this.otab === 'daily' ? 'on' : '') + '" data-otab="daily">DESAFÍO DE HOY</button></div>' +
-        '<div id="onRank"><p class="dim" style="text-align:center">Cargando ranking…</p></div>';
-    } else h = Save.d.rank.length ? this.rankTable(Save.d.rank) : '<div class="empty"><b>Aún no hay partidas</b><p>Tu mejor puntuación aparecerá aquí en cuanto termines una partida.</p><button data-go="play">ELEGIR GUERRERO</button></div>';
-    this.el.menuBody.innerHTML = tabs + h;
+      h = '<div class="pnl" style="flex:1;min-height:0;display:flex;flex-direction:column;padding:14px 16px;gap:10px"><div class="seg dk" style="align-self:flex-start">' + this.segTabs([['global', 'General'], ['daily', 'Desafío de hoy']], this.otab, 'otab') + '</div>' +
+        '<div id="onRank" style="flex:1;min-height:0;overflow-y:auto"><p class="dim" style="text-align:center">Cargando ranking…</p></div></div>';
+    } else h = Save.d.rank.length ? '<div class="pnl" style="min-height:0;overflow-y:auto;padding:14px 16px">' + this.rankTable(Save.d.rank) + '</div>' : '<div class="empty"><b>Aún no hay partidas</b><p>Tu mejor puntuación aparecerá aquí en cuanto termines una partida.</p><button data-go="play">Elegir guerrero</button></div>';
+    this.el.menuBody.innerHTML = h;
     if (this.rtab === 'online') this.loadOnlineRank();
   }
   /** Rellena el ranking mundial (general o del desafío de hoy) cuando llegan los datos */
@@ -601,11 +669,12 @@ class UIManager {
       const list = tab === 'daily' ? await on.topDaily(50) : await on.topGlobal(50);
       if (this.screen !== 'records' || this.rtab !== 'online' || this.otab !== tab || !box()) return;   // el jugador ya cambió de pantalla
       const me = on.user ? on.user.id : '';
-      box().innerHTML = (list.length ? '<div class="rank">' + list.map((r, i) => {
+      box().innerHTML = (list.length ? '<div class="rk">' + list.map((r, i) => {
         const c = charById(r.ch);
-        return '<div class="rr' + (i < 3 ? ' top' + i : '') + (r.user_id === me ? ' me' : '') + '"><em>' + (i + 1) + '</em><span><b>' + escHtml(r.name) + '</b> · ' + (c ? c.name : escHtml(r.ch)) + (r.win ? ' · ★ VICTORIA' : '') + '</span><span class="dim">' + r.kills + ' enemigos · NV ' + r.level + ' · mapa ' + (r.step + 1) + '/' + ROUTE_LEN + ' · ' + fmtTime(r.time) + ' · ' + diffById(r.diff).name + '</span><b>' + Number(r.score).toLocaleString('es-ES') + '</b></div>';
+        return this.rankRow(i, c, escHtml(r.name), (c ? nice(c.name) : escHtml(r.ch)) + ' · ' + r.kills + ' bajas · NV ' + r.level + ' · mapa ' + (r.step + 1) + '/' + ROUTE_LEN + ' · ' + fmtTime(r.time) + ' · ' + nice(diffById(r.diff).name), Number(r.score).toLocaleString('es-ES'), r.user_id === me, r.win ? '<span class="chip g">Victoria</span>' : '');
       }).join('') + '</div>' : '<p class="dim" style="text-align:center">Todavía no hay partidas. ¡Sé el primero!</p>') +
-        (on.logged ? '' : '<p class="dim" style="text-align:center">Inicia sesión en CUENTA para aparecer en el ranking.</p>');
+        (on.logged ? '' : '<p class="dim" style="text-align:center;margin-top:10px">Inicia sesión en CUENTA para aparecer en el ranking.</p>');
+      for (const cv of box().querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
     } catch (e) { if (box()) box().innerHTML = '<p class="dim" style="text-align:center">' + escHtml(on.errText(e)) + '</p>'; }
   }
 
@@ -617,67 +686,81 @@ class UIManager {
   }
   renderAccount() {
     const on = this.game && this.game.online;
+    this.hdr = { t: 'Cuenta', s: 'Para aparecer en el ranking mundial', c: 'c-blu' };
     let h;
     if (!on || !on.ready) {
-      h = '<div class="acct"><h4 class="sec">RANKING MUNDIAL NO CONFIGURADO</h4><p class="dim">Falta conectar el juego con Supabase: ejecuta <b>supabase/ranking.sql</b> en el SQL Editor de tu proyecto y pon su URL y su clave pública en <b>js/online.js</b>.</p><p class="dim">Mientras tanto puedes jugar con normalidad y tus récords se guardan en este navegador.</p></div>';
+      h = '<div class="acct"><h4 class="sec">Ranking mundial no configurado</h4><p class="dim">Falta conectar el juego con Supabase: ejecuta <b>supabase/ranking.sql</b> en el SQL Editor de tu proyecto y pon su URL y su clave pública en <b>js/online.js</b>.</p><p class="dim">Mientras tanto puedes jugar con normalidad y tus récords se guardan en este navegador.</p></div>';
     } else if (on.logged) {
-      h = '<div class="acct"><h4 class="sec">SESIÓN INICIADA</h4><p class="who">' + escHtml(on.name) + '</p><p class="dim">' + escHtml(on.user.email || '') + '</p>' +
+      h = '<div class="acct"><h4 class="sec">Sesión iniciada</h4><p class="who">' + escHtml(on.name) + '</p><p class="dim">' + escHtml(on.user.email || '') + '</p>' +
         '<p>Tus partidas se suben solas al ranking mundial al terminar (el modo entrenamiento no cuenta).</p>' +
-        '<div class="arow"><button class="abtn" data-rtab-go="online">VER RANKING MUNDIAL</button><button class="abtn alt" data-acct="out">CERRAR SESIÓN</button></div></div>';
+        '<div class="arow"><button class="abtn" data-rtab-go="online">Ver ranking mundial</button><button class="abtn alt" data-acct="out">Cerrar sesión</button></div></div>';
     } else {
       const reg = this.atab === 'signup';
-      h = '<div class="tabs"><button class="tab ' + (!reg ? 'on' : '') + '" data-atab="login">INICIAR SESIÓN</button><button class="tab ' + (reg ? 'on' : '') + '" data-atab="signup">CREAR CUENTA</button></div>' +
-        '<form class="acct" data-acct-form="' + (reg ? 'signup' : 'login') + '" novalidate>' +
-        (reg ? '<label>NOMBRE DE JUGADOR<input id="acName" maxlength="16" autocomplete="nickname" placeholder="De 3 a 16 caracteres"></label>' : '') +
-        '<label>CORREO<input id="acMail" type="email" autocomplete="email"></label>' +
-        '<label>CONTRASEÑA<input id="acPass" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" placeholder="Mínimo 6 caracteres"></label>' +
-        '<button class="abtn" type="submit">' + (reg ? 'CREAR CUENTA' : 'ENTRAR') + '</button><p class="msg" id="acMsg"></p>' +
+      this.hdr.tabs = this.segTabs([['login', 'Iniciar sesión'], ['signup', 'Crear cuenta']], reg ? 'signup' : 'login', 'atab');
+      h = '<form class="acct" data-acct-form="' + (reg ? 'signup' : 'login') + '" novalidate>' +
+        (reg ? '<label>Nombre de jugador<input id="acName" maxlength="16" autocomplete="nickname" placeholder="De 3 a 16 caracteres"></label>' : '') +
+        '<label>Correo<input id="acMail" type="email" autocomplete="email"></label>' +
+        '<label>Contraseña<input id="acPass" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" placeholder="Mínimo 6 caracteres"></label>' +
+        '<button class="abtn" type="submit">' + (reg ? 'Crear cuenta' : 'Entrar') + '</button><p class="msg" id="acMsg"></p>' +
         '<p class="dim">Sin cuenta puedes jugar igual; solo no apareces en el ranking mundial.</p></form>';
     }
     this.el.menuBody.innerHTML = h;
   }
   rankTable(list) {
-    return '<div class="rank">' + list.slice(0, 15).map((r, i) => {
+    return '<div class="rk">' + list.slice(0, 15).map((r, i) => {
       const c = charById(r.ch);
-      return '<div class="rr' + (i < 3 ? ' top' + i : '') + '"><em>' + (i + 1) + '</em><span><b>' + (c ? c.name : r.ch) + '</b> · ' + r.date.split('-').reverse().join('/') + (r.daily ? ' · ☀' : '') + (r.win ? ' · ★ VICTORIA' : '') + '</span><span class="dim">' + r.kills + ' enemigos · NV ' + r.level + ' · mapa ' + r.step + '/' + ROUTE_LEN + ' · ' + fmtTime(r.time) + '</span><b>' + r.score.toLocaleString('es-ES') + '</b></div>';
+      return this.rankRow(i, c, c ? nice(c.name) : r.ch, r.date.split('-').reverse().join('/') + ' · ' + r.kills + ' bajas · NV ' + r.level + ' · mapa ' + r.step + '/' + ROUTE_LEN + ' · ' + fmtTime(r.time), r.score.toLocaleString('es-ES'), false,
+        (r.win ? '<span class="chip g">Victoria</span>' : '') + (r.daily ? '<span class="chip y">☀ Diario</span>' : ''));
     }).join('') + '</div>';
   }
 
   /* ---------- Estadísticas acumuladas ---------- */
   renderStatsScreen() {
-    const st = Save.d.stats, n = (k) => Math.floor(st[k] || 0);
-    const rows = [['PARTIDAS', n('runs')], ['VICTORIAS', n('wins')], ['TIEMPO JUGADO', fmtTime(n('time'))], ['MAPA MÁS LEJANO', n('maxStage') + ' / ' + ROUTE_LEN], ['NIVEL MÁXIMO', n('maxLevel')],
-      ['ENEMIGOS DERROTADOS', n('kills')], ['ÉLITES', n('elites')], ['JEFES', n('bosses')], ['DAÑO TOTAL', n('damage')], ['DAÑO RECIBIDO', n('taken')], ['DASHES', n('dashes')],
-      ['CÁPSULAS ABIERTAS', n('capsules')], ['MALDICIONES', n('curses')], ['DESAFÍOS ACEPTADOS', n('temples')], ['HABITACIONES DEL TIEMPO', n('rooms')], ['DESEOS A SHENRON', n('wishes')], ['COMBO MÁXIMO', n('maxCombo')], ['GOLPE MÁS FUERTE', n('bestHit')], ['TRANSFORMACIONES', n('transforms')], ['FUSIONES', n('fusions')], ['EVENTOS', n('events')], ['RIVALES DERROTADOS', n('rivals')], , ['TELETRANSPORTES', n('tps')], ['DESAFÍOS DIARIOS', n('dailies')]];
-    const best = CHARACTERS.filter((c) => Save.d.best[c.id]).map((c) => { const b = Save.d.best[c.id]; return '<div class="dm"><span>' + c.name + ' · ' + fmtTime(b.time) + ' · ' + b.kills + ' enemigos · NV ' + b.level + '</span></div>'; }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
-    this.el.menuBody.innerHTML = '<div class="msplit"><div><div class="sec">TOTALES</div><div class="sum">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div></div><div><div class="sec">MEJORES PARTIDAS</div>' + best + '</div></div>';
+    this.hdr = { t: 'Estadísticas', s: 'Todo lo que has hecho hasta ahora', c: 'c-blu' };
+    const st = Save.d.stats, n = (k) => Math.floor(st[k] || 0), f = (k) => n(k).toLocaleString('es-ES');
+    const rows = [['Partidas', f('runs')], ['Victorias', f('wins')], ['Tiempo jugado', fmtTime(n('time'))], ['Mapa más lejano', n('maxStage') + ' / ' + ROUTE_LEN], ['Nivel máximo', n('maxLevel')],
+      ['Enemigos derrotados', f('kills')], ['Élites', f('elites')], ['Jefes', f('bosses')], ['Daño total', f('damage')], ['Daño recibido', f('taken')], ['Dashes', f('dashes')],
+      ['Cápsulas abiertas', f('capsules')], ['Maldiciones', f('curses')], ['Desafíos aceptados', f('temples')], ['Habitaciones del Tiempo', f('rooms')], ['Deseos a Shenron', f('wishes')], ['Combo máximo', f('maxCombo')], ['Golpe más fuerte', f('bestHit')], ['Transformaciones', f('transforms')], ['Fusiones', f('fusions')], ['Eventos', f('events')], ['Rivales derrotados', f('rivals')], ['Teletransportes', f('tps')], ['Desafíos diarios', f('dailies')]];
+    const best = CHARACTERS.filter((c) => Save.d.best[c.id]).sort((a, b) => Save.d.best[b.id].time - Save.d.best[a.id].time)
+      .map((c, i) => { const b = Save.d.best[c.id]; return this.rankRow(i, c, nice(c.name), b.kills + ' bajas · NV ' + b.level, fmtTime(b.time)); }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
+    this.el.menuBody.innerHTML = '<div class="msplit"><div><div class="stt">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div></div>' +
+      '<div class="pnl" style="padding:16px 18px;overflow-y:auto"><h4 class="sec">Mejor partida de cada guerrero</h4><div class="rk">' + best + '</div></div></div>';
   }
 
-  /* ---------- Misiones ---------- */
-  htmlMission(m) {
+  /* ---------- Misiones (como los «Encargos»): las del día y las permanentes ---------- */
+  missionRow(m) {
     const pr = Math.min(m.goal, Save.progress(m)), done = Save.isClaimed(m), ok = pr >= m.goal;
-    return '<div class="item mi' + (done ? ' done' : '') + '"><div><b>' + m.name + '</b><p>' + m.desc + '</p><div class="mb"><i style="width:' + (pr / m.goal * 100) + '%"></i><em>' + Math.floor(pr) + ' / ' + m.goal + '</em></div></div>' +
-      (done ? '<button disabled>COBRADA</button>' : '<button data-claim="' + m.id + '"' + (ok ? '' : ' disabled') + '>' + (ok ? 'COBRAR ' : '') + '+' + m.reward + ' ●</button>') + '</div>';
+    const T = m.daily ? (m.reward <= 100 ? ['g', 'Fácil', '#22b86f'] : m.reward <= 120 ? ['b', 'Media', '#3f7cf5'] : ['r', 'Difícil', '#f0455d'])
+      : (m.reward < 400 ? ['t', 'Constancia', '#2a9d8f'] : m.reward < 900 ? ['b', 'Hazaña', '#3f7cf5'] : ['r', 'Reto', '#f0455d']);
+    return '<div class="er" style="--ec:' + T[2] + '"><div class="eic">' + (m.daily ? '<span class="dball"></span>' : '★') + (done ? '<span class="ok">✓</span>' : '') + '</div>' +
+      '<div class="et"><b><span class="chip ' + T[0] + '">' + T[1] + '</span>' + m.name + '</b><p>' + m.desc + '.</p>' +
+      (done ? '<div class="done">Completada y cobrada</div>' : '<div class="mb"><i style="width:' + (pr / m.goal * 100) + '%"></i><em>' + fmtK(Math.floor(pr)) + ' / ' + fmtK(m.goal) + '</em></div>') + '</div>' +
+      '<div class="ea">' + (done ? '<span class="hecho">¡Hecho!</span>' : '<span class="rwd"><span class="coin"></span>+' + m.reward + '</span>' + (ok ? '<button class="c-grn" data-claim="' + m.id + '">Cobrar</button>' : '')) + '</div></div>';
   }
   renderMissions() {
-    const tabs = '<div class="tabs"><button class="tab ' + (this.mtab === 'missions' ? 'on' : '') + '" data-mtab="missions">MISIONES</button><button class="tab ' + (this.mtab === 'ach' ? 'on' : '') + '" data-mtab="ach">LOGROS · ' + ACHIEVEMENTS.filter((a) => Save.d.ach[a.id]).length + '/' + ACHIEVEMENTS.length + '</button></div>';
+    const achN = ACHIEVEMENTS.filter((a) => Save.d.ach[a.id]).length;
+    this.hdr = { t: 'Misiones', s: 'Vuelve cada día: se renuevan a las 00:00', c: '', tabs: this.segTabs([['missions', 'Misiones'], ['ach', 'Logros · ' + achN + '/' + ACHIEVEMENTS.length]], this.mtab, 'mtab') };
     if (this.mtab === 'ach') {
       const st = Save.d.stats;
-      this.el.menuBody.innerHTML = tabs + '<div class="shop">' + ACHIEVEMENTS.map((a) => {
+      this.el.menuBody.innerHTML = '<div class="shop">' + ACHIEVEMENTS.map((a) => {
         const done = !!Save.d.ach[a.id], pr = Math.min(a.goal, st[a.stat] || 0);
-        return '<div class="item ach' + (done ? ' done' : '') + '"><div class="ic">' + a.icon + '</div><div><b>' + a.name + '</b><p>' + a.desc + '</p><div class="mb"><i style="width:' + (pr / a.goal * 100) + '%"></i><em>' + fmtK(pr) + ' / ' + fmtK(a.goal) + '</em></div></div><span class="arw">' + (done ? '✔' : '+' + a.reward + ' ●') + '</span></div>';
+        return '<div class="item ach' + (done ? ' done' : '') + '"><div class="ic">' + a.icon + '</div><div><b>' + a.name + '</b><p>' + a.desc + '</p><div class="mb"><i style="width:' + (pr / a.goal * 100) + '%"></i><em>' + fmtK(pr) + ' / ' + fmtK(a.goal) + '</em></div></div><span class="arw">' + (done ? '✔' : '+' + a.reward) + '</span></div>';
       }).join('') + '</div>';
       return;
     }
-    this.renderMissionsList(tabs);
-  }
-  renderMissionsList(tabs) {
-    const l = Save.d.login, next = Save.checkLogin();
+    const l = Save.d.login, next = Save.checkLogin(), daily = Save.d.daily.ids.map((id) => missionById(id)), perm = MISSIONS.filter((m) => !m.daily);
+    let trk = '';
+    daily.forEach((m, i) => { const c = Save.isClaimed(m); trk += (i ? '<i class="' + (c ? 'on' : '') + '"></i>' : '') + '<u class="' + (c ? 'ok' : '') + '">' + (c ? '✓' : i + 1) + '</u>'; });
+    trk += '<i class="' + (daily.every((m) => Save.isClaimed(m)) ? 'on' : '') + '"></i><u class="end"><span class="dball"></span></u>';
     let days = '';
     for (let i = 1; i <= 7; i++) days += '<span class="' + (i <= l.streak ? 'on' : '') + '"><b>' + i + '</b>+' + (100 + 50 * (i - 1)) + '</span>';
-    this.el.menuBody.innerHTML = tabs + '<div class="msplit"><div><h4 class="sec">RACHA DE INICIO DE SESIÓN</h4><div class="streak">' + days + '</div>' + (next ? '' : '<p class="dim">Ya cobraste la recompensa de hoy. ¡Vuelve mañana!</p>') +
-      '<h4 class="sec">DIARIAS · se renuevan cada día</h4><div class="mlist">' + Save.d.daily.ids.map((id) => this.htmlMission(missionById(id))).join('') + '</div></div>' +
-      '<div><h4 class="sec">PERMANENTES</h4><div class="mlist">' + MISSIONS.filter((m) => !m.daily).map((m) => this.htmlMission(m)).join('') + '</div></div></div>';
+    const pDone = perm.filter((m) => Save.isClaimed(m)).length;
+    this.el.menuBody.innerHTML = '<div class="enc">' +
+      '<div class="pnl ep"><div class="eh" style="--ehc:var(--yel)"><span class="k2">Misiones del día</span><h4>Hoy</h4><small>Nuevas misiones en ' + this.untilReset() + '</small><span class="rch">Racha: ' + l.streak + ' día' + (l.streak === 1 ? '' : 's') + '</span><div class="etr">' + trk + '</div></div>' +
+        '<div class="lgn" title="Recompensa diaria por entrar">' + days + '</div>' + (next ? '' : '<p class="dim" style="padding:2px 20px 0">Ya cobraste la recompensa de hoy. ¡Vuelve mañana!</p>') +
+        '<div class="eb">' + daily.map((m) => this.missionRow(m)).join('') + '</div></div>' +
+      '<div class="pnl ep"><div class="eh" style="--ehc:var(--pur)"><span class="k2">Misiones permanentes</span><h4>Para siempre</h4><small>' + pDone + ' de ' + perm.length + ' completadas</small></div>' +
+        '<div class="eb">' + perm.map((m) => this.missionRow(m)).join('') + '</div></div></div>';
   }
 
   /* ---------- Ventana de recompensa diaria y salida ---------- */

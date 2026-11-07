@@ -253,7 +253,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -272,6 +272,8 @@ class Game {
       else if (D.exit !== undefined) ui.showExit(true);
       else if (D.rtab) { ui.rtab = D.rtab; ui.renderMenu(); }
       else if (D.otab) { ui.otab = D.otab; ui.renderMenu(); }
+      else if (D.ctab) { ui.ctab = D.ctab; ui.renderMenu(); }
+      else if (D.lsel !== undefined) { ui.lsel = +D.lsel; ui.renderMenu(); }
       else if (D.atab) { ui.atab = D.atab; ui.renderMenu(); }
       else if (D.rtabGo) { ui.rtab = D.rtabGo; this.go('records'); }
       else if (D.acct === 'out') this.online.signOut().then(() => { ui.atab = 'login'; ui.renderMenu(); });
@@ -347,12 +349,50 @@ class Game {
     ui.renderMenu();
   }
   /** Cambia de pantalla del menú (inicio, jugar, tienda, misiones) */
-  go(screen) { this.ui.screen = screen; this.ui.renderMenu(); this.applyView(); }
+  go(screen) {
+    if (screen === 'ach' || screen === 'missions') { this.ui.mtab = screen === 'ach' ? 'ach' : 'missions'; screen = 'missions'; }
+    this.ui.screen = screen; this.ui.renderMenu(); this.applyView();
+  }
   /** En la pantalla de inicio el personaje se desplaza a la derecha para dejar sitio a los botones */
   applyView() {
     const w = window.innerWidth, h = window.innerHeight;
-    if (this.state === 'menu' && this.ui.screen === 'home' && w > 900) this.camera.setViewOffset(w, h, -w * 0.2, 0, w, h);
-    else this.camera.clearViewOffset();
+    if (this.state === 'menu' && this.ui.screen === 'home') {
+      // El personaje queda centrado en el hueco libre entre la columna de botones y el panel de récords
+      const hl = document.querySelector('#menu .hl'), hr = document.querySelector('#menu .hr');
+      const L = hl ? hl.getBoundingClientRect().right : 0, R = hr && hr.offsetWidth ? hr.getBoundingClientRect().left : w;
+      this.camera.setViewOffset(w, h, -((L + R) / 2 - w / 2), 0, w, h);
+    } else this.camera.clearViewOffset();
+  }
+  /** Fondo vivo del menú: unos cuantos enemigos que pasean por el mapa (no atacan) */
+  menuCrowd() {
+    const h = this.horde, types = [T_BASIC, T_BASIC, T_BASIC, T_FAST, T_FAST, T_BRUTE, T_ELITE, T_FLY, T_SHIELD];
+    for (let k = 0; k < 26; k++) {
+      const a = rand(0, 6.283), r = rand(7, 26);
+      this.world.push(Math.cos(a) * r, Math.sin(a) * r, 0.8);
+      const i = h.spawn(this.world.px, this.world.pz, 1, types[k % types.length]);
+      if (i >= 0) { h.aux[i] = rand(0, 2); h.kx[i] = 0; h.kz[i] = 0; }
+    }
+  }
+  menuLife(dt) {
+    const h = this.horde, w = this.world, cc = this.camCos, cs = this.camSin;
+    for (let i = 0; i < h.n; i++) {
+      const T = ENEMY_TYPES[h.type[i]];
+      h.aux[i] -= dt;
+      if (h.aux[i] <= 0) {                                         // nuevo rumbo (o un descanso); vuelven si se alejan o se acercan demasiado
+        h.aux[i] = rand(1.8, 4.5);
+        const x = h.x[i], z = h.z[i], r = Math.hypot(x, z);
+        if (Math.random() < 0.3 && r > 7 && r < 26) { h.kx[i] = 0; h.kz[i] = 0; }
+        else {
+          const a = r > 26 ? Math.atan2(-z, -x) + rand(-0.6, 0.6) : r < 7 ? Math.atan2(z, x) + rand(-0.6, 0.6) : rand(0, 6.283), sp = 1.7 * T.spd;
+          h.kx[i] = Math.cos(a) * sp; h.kz[i] = Math.sin(a) * sp;
+        }
+      }
+      const vx = h.kx[i], vz = h.kz[i];
+      if (vx * vx + vz * vz > 0.01) {
+        w.push(h.x[i] + vx * dt, h.z[i] + vz * dt, T.r * 0.8); h.x[i] = w.px; h.z[i] = w.pz;
+        h.phase[i] += dt * 7 * (0.6 + T.spd * 0.4); h.flip[i] = vx * cc - vz * cs < 0 ? 1 : 0;
+      } else h.phase[i] = 0;
+    }
   }
   buyChar(id) {
     const c = charById(id);
@@ -410,6 +450,7 @@ class Game {
     this.world.setNight(0); this.night = 0;
     this.points.reset(); this.shots.reset(); this.showMap = false; this.ui.el.bigmap.style.display = 'none'; this.ui.el.fade.style.opacity = 0; this.ui.hideTrade();
     this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.weapons.reset(charById(Save.d.sel));
+    this.menuCrowd();
     this.pickups.senzu.reset(); this.pickups.balls.reset(); this.capsules.n = 0; this.capsules.spr.reset(); this.capsules.glow.reset();
     this.ui.hideScreen(); this.ui.hideCards();
     this.previewPlayer();
@@ -455,7 +496,7 @@ class Game {
     // Relieve: cada partida tiene colinas distintas; el desafío diario usa siempre el relieve del día
     RELIEF_SEED = this.daily ? (dailySeed() % 1000003) + 17 : Math.floor(Math.random() * 1000003);
     this.timers = []; this.ultT = -1; const uf = this.ultFx || (this.ultFx = document.getElementById('ultFx')); if (uf) uf.style.opacity = 0;
-    this.player.reset(ch); this.weapons.reset(ch);
+    this.player.reset(ch); this.weapons.reset(ch); this.player.menuHide = false;
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
     this.hitstop = 0; this.hsCd = 0; this.shakeAmt = 0; this.ui.flash = 0;
@@ -2394,6 +2435,8 @@ class Game {
       this.updateCamera(rawDt, rawDt, false);
       this.ui.update(this, rawDt);
     } else if (s === 'menu') {
+      this.menuLife(rawDt);
+      this.player.menuHide = this.ui.screen !== 'home';
       this.player.animT += rawDt;
       this.player.pose();
       this.syncSprites();

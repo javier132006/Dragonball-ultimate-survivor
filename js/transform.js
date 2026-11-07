@@ -450,7 +450,7 @@ class TransformScene {
     const x = this.ctx, n = Math.ceil(text.length * clamp(k * 1.6, 0, 1));
     if (!n) return;
     const s = text.slice(0, n), size = Math.round(Math.max(18, S * 0.045));
-    x.font = size + 'px "Dela Gothic One", Impact, sans-serif';
+    x.font = "800 " + size + "px \"Baloo 2\", Impact, sans-serif";
     x.textAlign = 'center'; x.lineJoin = 'round';
     const jx = (Math.random() - 0.5) * 4 * k, jy = (Math.random() - 0.5) * 4 * k, y = H * 0.84;
     x.lineWidth = size * 0.22; x.strokeStyle = '#000'; x.strokeText(s, W / 2 + jx, y + jy);
