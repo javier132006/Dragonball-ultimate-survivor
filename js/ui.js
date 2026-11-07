@@ -92,7 +92,7 @@ class UIManager {
     let o = this.fl[0];
     for (const f of this.fl) if (f.t < o.t) o = f;                          // la más vieja (o una libre)
     o.t = 0.8; o.x = x; o.y = y; o.z = z;
-    o.d.textContent = text; o.d.style.color = color; o.d.classList.toggle('big', !!big); o.d.style.display = 'block';
+    o.d.textContent = text; o.d.style.color = color; o.d.classList.toggle('fbig', !!big); o.d.style.display = 'block';
   }
   updateFloat(game, dt) {
     if (!this.fl) return;
@@ -494,11 +494,11 @@ class UIManager {
     if (v.soon) det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p><p>Este guerrero llegará en una próxima actualización.</p>';
     else {
       const bar = (n, val, max, cls) => '<div class="sb' + (cls ? ' ' + cls : '') + '"><span>' + n + '</span><div><i style="width:' + Math.min(100, (val / max) * 100) + '%"></i></div><b>' + val + '</b></div>';
-      const chip = (id) => WEAPONS[id].cat === 'fis' ? '<span class="tcat fis">✊ FÍS</span>' : '<span class="tcat ki">✺ KI</span>';
+      const chip = (id) => WEAPONS[id].cat === 'fis' ? '<span class="tcat tf">✊ FÍS</span>' : '<span class="tcat tk">✺ KI</span>';
       const best = Save.d.best[v.id];
       const techs = v.unique.filter((id) => id !== v.start[0]).concat(Object.keys(WEAPONS).filter((id) => WEAPONS[id].shop && !WEAPONS[id].unique)).filter((id) => !WEAPONS[id].unique || WEAPONS[id].unique === v.id);
       det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p>' +
-        bar('VIDA', v.hp, 160) + bar('KI', v.ki, 160) + bar('VEL', Math.round(v.spd * 100), 150) + bar('ATQ FÍS', Math.round(v.atkF * 100), 140, 'fis') + bar('ATQ KI', Math.round(v.atkK * 100), 140, 'ki') +
+        bar('VIDA', v.hp, 160) + bar('KI', v.ki, 160) + bar('VEL', Math.round(v.spd * 100), 150) + bar('ATQ FÍS', Math.round(v.atkF * 100), 140, 'sf') + bar('ATQ KI', Math.round(v.atkK * 100), 140, 'sk') +
         '<h4>PASIVA · ' + v.passive.name + '</h4><p>' + v.passive.desc + '</p>' +
         (v.ult ? '<h4>ULTIMATE [Q] · ' + v.ult.name + '</h4><p>Se carga derrotando enemigos. ' + ULT_DESC[v.ult.type || 'rift'] + ' Cuesta un ' + Math.round(ULT_KI * 100) + '% del Ki máximo.' + (v.ult.debuff ? '<br><span class="trb">✖ Después: ' + v.ult.debuff.name.toLowerCase() + ', ' + v.ult.debuff.text + '.</span>' : '') + '</p>' : '') +
         '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> ' + chip(v.start[0]) + ' · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +

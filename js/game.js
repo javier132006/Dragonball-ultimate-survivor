@@ -836,7 +836,7 @@ class Game {
     let f = 0, k = 0;
     for (const id in by) { const c = srcCat(id); if (c === 'fis') f += by[id]; else if (c === 'ki') k += by[id]; }
     if (!f && !k) return '';
-    return '<p class="dcat"><span class="tcat fis">✊ FÍSICO ' + fmtK(f) + ' · ' + Math.round(f / tot * 100) + '%</span> <span class="tcat ki">✺ KI ' + fmtK(k) + ' · ' + Math.round(k / tot * 100) + '%</span></p>';
+    return '<p class="dcat"><span class="tcat tf">✊ FÍSICO ' + fmtK(f) + ' · ' + Math.round(f / tot * 100) + '%</span> <span class="tcat tk">✺ KI ' + fmtK(k) + ' · ' + Math.round(k / tot * 100) + '%</span></p>';
   }
 
   /* ---------- Combos ---------- */

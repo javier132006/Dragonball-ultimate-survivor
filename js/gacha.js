@@ -3,7 +3,7 @@
    gacha.js · Gachapón de Shenron (máquina del mapa)
    1) Enseña los 7 premios (uno legendario, uno épico, uno muy raro, uno raro,
       dos normales y uno muy malo), cada uno sobre una esfera del dragón.
-   2) Las esferas se dan la vuelta, se mezclan muy deprisa y eliges una.
+   2) Las tapan 7 esferas iguales (las cuatro estrellas: no se distinguen), se mezclan muy deprisa y eliges una.
    3) Te quedas con lo que hay debajo. La primera tirada de cada máquina es
       gratis; volver a tirar cuesta mucho Zeni (y más cada vez).
    ===================================================================== */
@@ -101,7 +101,12 @@ class Gacha {
     this.later(550, () => { this.phase = 'mix'; this.render(); this.swap(0); });
   }
   swap(k) {
-    if (k >= GACHA_SWAPS) { this.phase = 'pick'; this.render(); SFX.play('event'); return; }
+    if (k >= GACHA_SWAPS) {
+      // todas a su casilla y quietas antes de poder elegir (que no quede ninguna a medio camino)
+      for (let i = 0; i < 7; i++) this.place(i, 0, 180);
+      this.later(260, () => { this.phase = 'pick'; this.render(); SFX.play('event'); });
+      return;
+    }
     // dos esferas al azar intercambian su casilla con un salto (una por arriba y otra por abajo)
     const a = (Math.random() * 7) | 0; let b = (Math.random() * 7) | 0; while (b === a) b = (Math.random() * 7) | 0;
     const ia = this.pos.indexOf(a), ib = this.pos.indexOf(b);
@@ -162,7 +167,7 @@ class Gacha {
     const rebuild = !this.balls || ph === 'show';
     if (rebuild) {
       h += '<div class="grow">';
-      for (let i = 0; i < 7; i++) h += '<button class="gb" data-i="' + i + '" style="--x:' + this.pos[i] + ';--y:0"><div class="gin"><div class="gfront">' + this.face(this.prizes[i]) + '</div><div class="gback"><i class="gdb n' + (i + 1) + '">' + '<u>★</u>'.repeat(i + 1) + '</i></div></div></button>';
+      for (let i = 0; i < 7; i++) h += '<button class="gb" data-i="' + i + '" style="--x:' + this.pos[i] + ';--y:0"><div class="gin"><div class="gfront">' + this.face(this.prizes[i]) + '</div><div class="gback"><i class="gdb">' + '<u>★</u>'.repeat(4) + '</i></div></div></button>';
       h += '</div><p class="gdet">Pasa por encima de un premio para ver qué hace</p><div class="gfoot"></div>';
       this.el.innerHTML = '<div class="gbox">' + h + '</div>';
       this.balls = [...this.el.querySelectorAll('.gb')];

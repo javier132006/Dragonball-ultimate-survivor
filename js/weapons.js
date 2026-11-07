@@ -12,8 +12,8 @@ const KI_DRAIN = 0.8, KI_MIN = 2, KI_MAX = 20;
 /** Tipo de la técnica (física o de ki) y su gasto de Ki, para su carta */
 function kiNote(id, p) {
   const D = WEAPONS[id]; if (!D || !p) return '';
-  if (D.cat === 'fis') return '<br><span class="tcat fis">✊ FÍSICA · no gasta Ki</span>';
-  const tag = '<br><span class="tcat ki">✺ DE KI</span>';
+  if (D.cat === 'fis') return '<br><span class="tcat tf">✊ FÍSICA · no gasta Ki</span>';
+  const tag = '<br><span class="tcat tk">✺ DE KI</span>';
   if (D.kind === 'bigbeam' && D.cfg && D.cfg.cost) return tag + ' <span class="kin">⚡ Gasta ' + D.cfg.cost + ' de Ki</span>';
   if (D.kind === 'beam') return tag + ' <span class="kin">⚡ Gasta 10 de Ki</span>';
   if (D.unique !== p.ch.id || p.ch.start.includes(id)) return tag;
