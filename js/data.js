@@ -695,7 +695,7 @@ const WEAPONS = {
   jiren_3: { name: 'Rayo de Jiren', icon: '✦', kind: 'bigbeam', unique: 'jiren', minLv: 6, shop: 0x000fa0, color: 0xd0d0d8, cfg: { cd: 11, dmg: 18, len: 40, hw: 3.0, life: 1.3, cost: 24 }, lv: ['Rayo gris de gran alcance.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
   jiren_4: { name: 'Esfera del Torneo', icon: '✦', kind: 'bigbang', unique: 'jiren', minLv: 7, color: 0xff3a3a, lv: ['Esfera que explota con gran área.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
   turles_1: { name: 'Esferas de Turles', icon: '✦', kind: 'blast', unique: 'turles', color: 0xc8c8ff, lv: ['Turles lanza esferas que explotan al impactar.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
-  turles_2: { name: 'Esferas de Turles', icon: '✦', kind: 'orbit', unique: 'turles', minLv: 3, color: 0xffb040, lv: ['Dos esferas giran a su alrededor.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
+  turles_2: { name: 'Esferas del Árbol Sagrado', icon: '✦', kind: 'orbit', unique: 'turles', minLv: 3, color: 0xffb040, lv: ['Dos esferas giran a su alrededor.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
   turles_3: { name: 'Rayo de Turles', icon: '✦', kind: 'bigbeam', unique: 'turles', minLv: 6, shop: 0x000d48, color: 0xc8c8ff, cfg: { cd: 10, dmg: 15, len: 36, hw: 2.6, life: 1.2, cost: 20 }, lv: ['Rayo blanco concentrado.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
   turles_4: { name: 'Discos de Turles', icon: '✦', kind: 'discs', unique: 'turles', minLv: 7, color: 0xffb040, cfg: { cd: 1.7, n: 3, dmg: 18, spd: 20, life: 1.4 }, lv: ['Discos que cortan la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
   saibaman_1: { name: 'Ráfagas de Saibaman', icon: '✦', kind: 'bullet', unique: 'saibaman', color: 0x9ad040, lv: ['Saibaman lanza bolas de ki verdes al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
@@ -756,6 +756,9 @@ const STATS = [
   { id: 'senzu', name: 'Semilla Senzu', icon: '❖', max: 5, text: 'Regeneras 0,6 de vida por segundo.', apply: (p, k = 1) => { p.regen += 0.6 * k; } },
   { id: 'ki', name: 'Cápsula de Ki', icon: '⚡', max: 5, text: '+25 de Ki máximo y +1,5 Ki/s.', apply: (p, k = 1) => { p.maxKi += 25 * k; p.kiRegen += 1.5 * k; } },
   { id: 'armor', name: 'Gi de Entrenamiento', icon: '▣', max: 5, text: 'Recibes un 7% menos de daño.', apply: (p, k = 1) => { p.armor = Math.min(0.5, p.armor + 0.07 * k); } },
+  // Ataque físico y ataque de ki por separado
+  { id: 'fuerza', name: 'Fuerza Bruta', icon: '✊', max: 5, text: '+12% de ataque físico (golpes, espadas, combos).', apply: (p, k = 1) => { p.atkF += 0.12 * k; } },
+  { id: 'energia', name: 'Energía Concentrada', icon: '✺', max: 5, text: '+12% de ataque de ki (ráfagas, rayos, esferas).', apply: (p, k = 1) => { p.atkK += 0.12 * k; } },
   // Control del Ki: cargar más rápido, gastar menos y aguantar transformado
   { id: 'carga', name: 'Concentración Total', icon: '✺', max: 5, text: 'Cargas Ki con [C] un 30% más rápido.', apply: (p, k = 1) => { p.chargeMul += 0.3 * k; } },
   { id: 'ahorro', name: 'Control del Ki', icon: '◐', max: 5, text: 'Técnicas, rayos, Ultimate y transformaciones gastan un 7% menos de Ki.', apply: (p, k = 1) => { kiSave(p, 1 - 0.07 * k); } },
@@ -889,6 +892,18 @@ const ITEMS = [
   { id: 'potara', icon: '◈', name: 'Pendientes Pothala', rarity: 3, text: '+15% de daño, +10% de cadencia y +5% de velocidad.', apply: (p) => { p.statDmg += 0.15; p.rateMul += 0.1; p.speedMul += 0.05; } },
   { id: 'traje_bardock', icon: '▼', name: 'Armadura de Bardock', rarity: 3, text: 'Recibes un 10% menos de daño y +1,5 de vida/s.', apply: (p) => { p.armor = Math.min(0.6, p.armor + 0.1); p.regen += 1.5; } },
   { id: 'reloj_whis', icon: '⌚', name: 'Báculo de Whis', rarity: 4, text: '+25% de cadencia, +3 Ki/s y dash un 15% más rápido.', apply: (p) => { p.rateMul += 0.25; p.kiRegen += 3; p.dashMul *= 0.85; } },
+  /* ---- Objetos de ataque físico y de ataque de ki ---- */
+  { id: 'guantes_lucha', icon: '✊', name: 'Guantes de Lucha', rarity: 0, text: '+8% de ataque físico.', apply: (p) => { p.atkF += 0.08; } },
+  { id: 'amuleto_ki', icon: '✺', name: 'Amuleto de Ki', rarity: 0, text: '+8% de ataque de ki.', apply: (p) => { p.atkK += 0.08; } },
+  { id: 'cinta_roja', icon: '✊', name: 'Cinta Roja de Combate', rarity: 1, text: '+12% de ataque físico.', apply: (p) => { p.atkF += 0.12; } },
+  { id: 'pergamino_kame', icon: '✺', name: 'Pergamino del Kamehameha', rarity: 1, text: '+12% de ataque de ki.', apply: (p) => { p.atkK += 0.12; } },
+  { id: 'gi_pesado', icon: '▣', name: 'Gi Pesado de la Tortuga', rarity: 2, text: '+18% de ataque físico y recibes un 5% menos de daño.', apply: (p) => { p.atkF += 0.18; p.armor = Math.min(0.6, p.armor + 0.05); } },
+  { id: 'orbe_kami', icon: '◉', name: 'Orbe de Ki de Kami', rarity: 2, text: '+18% de ataque de ki y +15 de Ki máximo.', apply: (p) => { p.atkK += 0.18; p.maxKi += 15; } },
+  { id: 'brazaletes_z', icon: '✊', name: 'Brazaletes del Guerrero Z', rarity: 3, text: '+28% de ataque físico y +8% de crítico.', apply: (p) => { p.atkF += 0.28; p.crit += 0.08; } },
+  { id: 'sabiduria_kaioshin', icon: '✺', name: 'Sabiduría del Kaioshin', rarity: 3, text: '+28% de ataque de ki y gastas un 8% menos de Ki.', apply: (p) => { p.atkK += 0.28; kiSave(p, 0.92); } },
+  { id: 'cinturon_campeon', icon: '✪', name: 'Cinturón del Campeón', rarity: 4, text: '+40% de ataque físico y +10% de velocidad.', apply: (p) => { p.atkF += 0.4; p.speedMul += 0.1; } },
+  { id: 'corona_kaio', icon: '♛', name: 'Corona del Gran Kaio', rarity: 4, text: '+40% de ataque de ki y +2 Ki/s.', apply: (p) => { p.atkK += 0.4; p.kiRegen += 2; } },
+  { id: 'ultra_instinto', icon: '☯', name: 'Ultra Instinto', rarity: 5, text: '+50% de ataque físico y de ki, y +10% de esquiva.', apply: (p) => { p.atkF += 0.5; p.atkK += 0.5; p.dodge = Math.min(0.5, p.dodge + 0.1); } },
   /* ---- Objetos de Ki: cargar, ahorrar y aguantar las transformaciones ---- */
   { id: 'pergamino_med', icon: '✺', name: 'Pergamino de Meditación', rarity: 0, text: 'Cargas Ki con [C] un 20% más rápido.', apply: (p) => { p.chargeMul += 0.2; } },
   { id: 'cinturon_kaio', icon: '◐', name: 'Cinturón del Rey Kaio', rarity: 1, text: 'Técnicas, rayos y transformaciones gastan un 8% menos de Ki.', apply: (p) => { kiSave(p, 0.92); } },
@@ -1035,6 +1050,15 @@ const STAGES = [
 ];
 /** Elige el jefe de un mapa para esta partida y le pone la vida del mapa */
 const pickBoss = (S) => Object.assign({ id: '' }, BOSSES[S.bosses[(Math.random() * S.bosses.length) | 0]], { hp: S.bossHp });
+/* Defensas: qué tipo de ataque resiste cada enemigo y cada jefe (como la defensa y la defensa especial de Pokémon).
+   Lo que resiste le hace RES_MUL; el otro tipo, WEAK_MUL. Sin `res`, los dos tipos le hacen lo normal */
+const RES_MUL = 0.7, WEAK_MUL = 1.25;
+const ENEMY_RES = { 2: 'fis', 4: 'ki', 6: 'fis', 7: 'ki', 8: 'ki', 9: 'fis', 10: 'ki', 11: 'fis', 12: 'ki', 13: 'fis', 16: 'fis', 17: 'ki' };
+for (const t in ENEMY_RES) ENEMY_TYPES[t].res = ENEMY_RES[t];
+const BOSS_RES = { freezer: 'ki', cell: 'ki', broly: 'fis', buu: 'fis', omega: 'ki', jiren: 'fis', beerus: 'ki', zamasu: 'fis', cooler: 'ki',
+  janemba: 'fis', superbuu: 'fis', hit: 'fis', toppo: 'ki', a16: 'fis', raditz: '', turles: 'ki', black: 'ki' };
+for (const k in BOSSES) BOSSES[k].res = BOSS_RES[k] || '';
+const RES_TXT = { fis: 'RESISTE LOS GOLPES · DÉBIL AL KI', ki: 'RESISTE EL KI · DÉBIL A LOS GOLPES' };
 for (const S of STAGES) S.boss = Object.assign({}, BOSSES[S.bosses[0]], { hp: S.bossHp });   // valor por defecto (menú, pruebas)
 for (const k in BOSSES) BOSSES[k].id = k;
 const ROUTE_LEN = 4;      // mapas por partida: Tierra o Isla Kame -> Namek, Planeta Vegeta o Infierno -> Cámara del Tiempo o Torneo -> Dimensión
@@ -1057,7 +1081,8 @@ const LAB = [
   { id: 'xp', name: 'Pergaminos de Kami', desc: '+5% de experiencia', max: 6, cost: 350 },
   { id: 'luck', name: 'Bendición de Shenron', desc: '+1 de suerte (más rareza en las cápsulas)', max: 6, cost: 400 },
   { id: 'tp', name: 'Shunkan Ido', desc: 'La Transmisión Instantánea se recarga un 8% antes', max: 5, cost: 350 },
-  { id: 'kidmg', name: 'Entrenamiento de Ki', desc: '+5% de daño de las técnicas de ki', max: 6, cost: 350 },
+  { id: 'kidmg', name: 'Entrenamiento de Ki', desc: '+5% de ataque de ki', max: 6, cost: 350 },
+  { id: 'fdmg', name: 'Entrenamiento de Combate', desc: '+5% de ataque físico', max: 6, cost: 350 },
   { id: 'chg', name: 'Meditación en la Cascada', desc: 'Cargas Ki un 10% más rápido', max: 5, cost: 300 },
   { id: 'kisave', name: 'Respiración del Kaioshin', desc: 'Gastas un 4% menos de Ki', max: 5, cost: 450 },
   { id: 'gravx', name: 'Gravedad Extra', desc: '+10% de vida máxima', max: 1, cost: 1200 },
@@ -1502,3 +1527,117 @@ const iconHtml = (name) => {
   for (const it of ITEMS) conv(it, I[it.id]);
 })();
 
+
+/* ---------- Ataque físico y ataque de ki (como el ataque y el ataque especial de Pokémon) ----------
+   Cada técnica es física (golpes, espadas, guadañas, combos) o de ki (ráfagas, rayos, esferas, discos...).
+   Las físicas usan el ATQ FÍSICO del personaje y no gastan Ki; las de ki usan el ATQ KI y gastan Ki */
+const PHYS_KINDS = new Set(['scythe', 'godslash', 'meteor', 'rush', 'quake', 'whirl']);
+/* ---------- Técnicas nuevas: una física y una de ki para cada personaje ----------
+   [personaje, nombre, tipo, color, cfg, descripción]. La física sale a partir del nivel 4 y la de ki del 8 */
+const LV_TXT = {
+  rush: ['+30% de daño.', 'Embestida más larga.', 'Recarga reducida.', '+2 golpes y +35% de daño.'],
+  quake: ['+30% de daño.', 'Réplica: una segunda onda más amplia.', 'Más alcance y recarga reducida.', '+35% de daño.'],
+  whirl: ['+30% de daño.', 'Más alcance.', 'Recarga reducida.', '+3 patadas y +30% de daño.'],
+  meteor: ['+1 golpe.', '+35% de daño.', 'Recarga reducida.', '+2 golpes.'],
+  scythe: ['+40% de daño.', 'Doble tajo.', 'Mayor alcance.', 'Tajo circular completo.'],
+  godslash: ['+30% de daño.', 'Tajo más grande.', 'Recarga reducida.', '+30% de daño: tajo definitivo.'],
+  zshot: ['+30% de daño.', '+1 proyectil.', 'Recarga reducida.', '+1 proyectil y +30% de daño.'],
+  bigbeam: ['+40% de daño y rayo más ancho.', '+40% de daño y rayo más largo.', '+40% de daño y recarga reducida.', '+40% de daño: rayo definitivo.'],
+  nova: ['+40% de daño.', 'Más alcance.', 'Segunda onda.', '+40% de daño y recarga reducida.'],
+  discs: ['+30% de daño.', '+1 disco.', 'Recarga reducida.', '+2 discos.'],
+  thunder: ['+1 rayo.', '+35% de daño.', '+2 rayos y más área.', '+2 rayos y recarga reducida.'],
+  pbolt: ['+20% de daño.', '+1 rayo.', 'Rayo más largo.', '+1 rayo y recarga reducida.']
+};
+const KIND_ICO = { rush: 'tp', quake: 'power', whirl: 'kaioken', meteor: 'tp', scythe: 'pole', godslash: 'pole', zshot: 'homing', bigbeam: 'kame', nova: 'explode', discs: 'disc', thunder: 'flash', pbolt: 'sbc' };
+const NEW_TECH = {
+  goku_f: ['goku', 'Dragon Rush', 'rush', 0xffb040, { len: 13, n: 5, dmg: 33, cd: 3.2 }, 'Goku cruza la horda con una lluvia de golpes y remata con un puñetazo que la aturde.'],
+  goku_k: ['goku', 'Super Kamehameha', 'bigbeam', 0x5ac8ff, { cd: 10, dmg: 14, len: 40, hw: 3, life: 1.3, cost: 24 }, 'Un Kamehameha enorme cargado a tope.'],
+  vegeta_f: ['vegeta', 'Combo del Príncipe', 'meteor', 0x7ab0ff, { dmg: 21, cd: 5 }, 'Vegeta aparece junto a varios enemigos y los golpea uno tras otro.'],
+  vegeta_k: ['vegeta', 'Final Impact', 'zshot', 0x9ad8ff, { n: 1, spd: 24, dmg: 14, cd: 3.2, size: 3.4, look: 'zsphereB', aoe: 3.5, life: 1.4 }, 'Una esfera de ki gigante que estalla al impactar.'],
+  black_f: ['black', 'Embestida Divina', 'rush', 0xff6ac8, { len: 12, n: 4, dmg: 25, cd: 3 }, 'Black atraviesa la horda a toda velocidad golpeando todo a su paso.'],
+  black_k: ['black', 'Lluvia de Ki Rosa', 'zshot', 0xff7ad8, { n: 6, spd: 22, dmg: 50, cd: 2.4, size: 1.6, look: 'zpink', ring: true }, 'Esferas de ki rosa en todas direcciones.'],
+  piccolo_f: ['piccolo', 'Patada Namekiana', 'whirl', 0x7aff7a, { n: 6, r: 3.8, dmg: 4.0, cd: 2.6 }, 'Piccolo gira dando patadas a todo lo que le rodea.'],
+  piccolo_k: ['piccolo', 'Bakuriki Maha', 'nova', 0xb8ff8a, { r: 8.5, dmg: 35, cd: 4 }, 'Piccolo libera una onda de ki que arrasa todo alrededor.'],
+  gohan_f: ['gohan', 'Puño de la Ira', 'quake', 0xffd84a, { r: 6.5, dmg: 27, cd: 4.5 }, 'Gohan golpea el suelo con toda su rabia: daña, empuja y aturde alrededor.'],
+  gohan_k: ['gohan', 'Masenko Dorado', 'bigbeam', 0xffe45a, { cd: 8, dmg: 6.1, len: 34, hw: 2.4, life: 1.1, cost: 18 }, 'Un Masenko dorado que atraviesa a la horda.'],
+  freezer_f: ['freezer', 'Nova Strike', 'rush', 0xd070ff, { len: 14, n: 4, dmg: 32, cd: 3.4 }, 'Freezer se lanza envuelto en ki y arrolla todo lo que encuentra.'],
+  freezer_k: ['freezer', 'Supernova de Freezer', 'zshot', 0xffa040, { n: 1, spd: 14, dmg: 21, cd: 4.5, size: 4.2, look: 'zsunX', aoe: 5, life: 1.8 }, 'Un sol en miniatura que estalla sobre la horda.'],
+  krilin_f: ['krilin', 'Patada de la Grulla', 'whirl', 0xffa040, { n: 7, r: 3.4, dmg: 2.7, cd: 2.2 }, 'Krilin encadena patadas rapidísimas girando sobre sí mismo.'],
+  krilin_k: ['krilin', 'Kamehameha de Krilin', 'bigbeam', 0x7ad0ff, { cd: 8, dmg: 6.6, len: 32, hw: 2.2, life: 1, cost: 16 }, 'El Kamehameha que aprendió del Maestro Roshi.'],
+  trunks_f: ['trunks', 'Burning Slash', 'godslash', 0xffc84a, { r: 8, dmg: 7.2, cd: 2.2 }, 'Un tajo enorme con la espada cargada de ki ardiente.'],
+  trunks_k: ['trunks', 'Masenko del Futuro', 'zshot', 0xffe06a, { n: 1, spd: 20, dmg: 17, cd: 3.6, size: 3.6, look: 'zblastY', aoe: 4, life: 1.5 }, 'Trunks lanza una esfera de ki que revienta en el impacto.'],
+  cell_f: ['cell', 'Combo Perfecto', 'meteor', 0x8aff7a, { dmg: 24, cd: 5 }, 'Cell golpea en un instante a varios enemigos y los deja aturdidos.'],
+  cell_k: ['cell', 'Kamehameha Solar', 'bigbeam', 0x66d8ff, { cd: 11, dmg: 12, len: 44, hw: 3.2, life: 1.4, cost: 26 }, 'El Kamehameha capaz de destruir el sistema solar.'],
+  bardock_f: ['bardock', 'Asalto de Clase Baja', 'rush', 0xff7a4a, { len: 12, n: 5, dmg: 25, cd: 3 }, 'Bardock carga contra la horda a puñetazos.'],
+  bardock_k: ['bardock', 'Espíritu Saiyajin', 'bigbeam', 0x7ab8ff, { cd: 9, dmg: 6.0, len: 36, hw: 2.6, life: 1.2, cost: 20 }, 'Un rayo con todo el orgullo de la clase baja.'],
+  vegito_f: ['vegito', 'Combo Potara', 'whirl', 0x9ae0ff, { n: 8, r: 4, dmg: 2.5, cd: 2.4 }, 'Vegito gira repartiendo golpes y patadas a toda la horda.'],
+  vegito_k: ['vegito', 'Ráfaga Espiritual', 'zshot', 0x9ae0ff, { n: 3, spd: 26, dmg: 64, cd: 1.8, size: 2, look: 'zkiY', spread: 0.2, home: 6 }, 'Tres esferas de ki que persiguen a los enemigos.'],
+  gogeta_f: ['gogeta', 'Danza Final', 'whirl', 0xffd060, { n: 8, r: 4, dmg: 2.7, cd: 2.4 }, 'Gogeta gira en una danza de golpes imparable.'],
+  gogeta_k: ['gogeta', 'Ráfaga Arcoíris', 'zshot', 0xc8a8ff, { n: 1, spd: 16, dmg: 16, cd: 4.2, size: 3.8, look: 'zsphereB', aoe: 5, life: 1.8 }, 'Una esfera de ki arcoíris que lo desintegra todo.'],
+  zamasuf_f: ['zamasuf', 'Juicio Inmortal', 'quake', 0xc8a0ff, { r: 7, dmg: 26, cd: 4.2 }, 'Zamasu golpea el suelo con la fuerza de un dios.'],
+  zamasuf_k: ['zamasuf', 'Ira Santa', 'bigbeam', 0xd8b0ff, { cd: 10, dmg: 12, len: 42, hw: 3, life: 1.3, cost: 24 }, 'Un rayo de luz divina que purifica a los mortales.'],
+  broly_f: ['broly', 'Martillo Gigante', 'quake', 0x7dff5a, { r: 7.5, dmg: 43, cd: 5 }, 'Broly aplasta el suelo con los dos puños.'],
+  broly_k: ['broly', 'Eraser Cannon', 'zshot', 0x9aff6a, { n: 1, spd: 15, dmg: 39, cd: 5, size: 4.4, look: 'zblastG', aoe: 5.5, life: 1.8 }, 'Una esfera verde descomunal que arrasa la zona.'],
+  kefla_f: ['kefla', 'Patada Salvaje', 'whirl', 0xb8ff5a, { n: 7, r: 3.8, dmg: 3.0, cd: 2.4 }, 'Kefla gira repartiendo patadas salvajes.'],
+  kefla_k: ['kefla', 'Gigantic Ray', 'pbolt', 0x9aff6a, { len: 26, dmg: 20, cd: 2.2, hw: 1 }, 'Rayos verdes que atraviesan a la horda.'],
+  gotenks_f: ['gotenks', 'Combo Ultra Gotenks', 'meteor', 0xffb0d0, { dmg: 23, cd: 4.8 }, 'Gotenks golpea a varios enemigos sin que lo vean venir.'],
+  gotenks_k: ['gotenks', 'Donut Galáctico', 'discs', 0xffe08a, { n: 3, dmg: 22, cd: 3.4, spd: 18, life: 1.6 }, 'Anillos de ki que cortan a la horda.'],
+  trunksarm_f: ['trunksarm', 'Tajo del Futuro', 'scythe', 0xa8e0ff, { cd: 1.1, r: 5.5, dmg: 13 }, 'Tajos rapidísimos con la espada.'],
+  trunksarm_k: ['trunksarm', 'Lluvia Armada', 'zshot', 0xa8e0ff, { n: 5, spd: 24, dmg: 45, cd: 2.2, size: 1.6, look: 'zkiY', spread: 0.25 }, 'Un abanico de ráfagas de ki.'],
+  caulifla_f: ['caulifla', 'Embestida Rosa', 'rush', 0xff7ab0, { len: 12, n: 4, dmg: 21, cd: 3 }, 'Caulifla se lanza a puñetazos contra la horda.'],
+  caulifla_k: ['caulifla', 'Crush Cannon', 'zshot', 0xff7ab0, { n: 2, spd: 22, dmg: 7.7, cd: 2.6, size: 2.6, look: 'zpinkB', aoe: 3, spread: 0.15 }, 'Dos cañonazos de ki rosa que explotan.'],
+  kale_f: ['kale', 'Puño Berserker', 'quake', 0x7dff5a, { r: 6.5, dmg: 27, cd: 4.6 }, 'Kale descarga su furia contra el suelo.'],
+  kale_k: ['kale', 'Ola Berserker', 'nova', 0x9aff6a, { r: 8.5, dmg: 28, cd: 4 }, 'Una onda de ki verde que lo arrasa todo alrededor.'],
+  kyabe_f: ['kyabe', 'Patada de Sadala', 'whirl', 0x7ac0ff, { n: 6, r: 3.6, dmg: 3.4, cd: 2.4 }, 'Kyabe gira dando patadas al estilo de Sadala.'],
+  kyabe_k: ['kyabe', 'Lluvia Atómica', 'thunder', 0x8ad8ff, { n: 4, r: 2.2, dmg: 10, cd: 3 }, 'Rayos de ki que caen sobre la horda.'],
+  toppo_f: ['toppo', 'Puño de la Justicia', 'quake', 0xffd84a, { r: 6.5, dmg: 23, cd: 4.6 }, 'Toppo golpea el suelo en nombre de la justicia.'],
+  toppo_k: ['toppo', 'Destrucción de Toppo', 'nova', 0xc070ff, { r: 9, dmg: 24, cd: 4.2 }, 'El poder de un dios de la destrucción, liberado a su alrededor.'],
+  janemba_f: ['janemba', 'Garra Demoníaca', 'scythe', 0xff4a5a, { cd: 1, r: 6, dmg: 15 }, 'Zarpazos con las garras del demonio.'],
+  janemba_k: ['janemba', 'Lluvia Demoníaca', 'zshot', 0xff6a3a, { n: 6, spd: 20, dmg: 54, cd: 2.6, size: 1.8, look: 'zhellF', ring: true }, 'Llamas del infierno en todas direcciones.'],
+  jiren_f: ['jiren', 'Power Impact', 'quake', 0xff4a4a, { r: 7, dmg: 21, cd: 4.8 }, 'Jiren golpea el suelo con una fuerza abrumadora.'],
+  jiren_k: ['jiren', 'Zona de Poder', 'nova', 0xff6a4a, { r: 9, dmg: 23, cd: 4 }, 'Jiren libera su ki y aparta a toda la horda.'],
+  turles_f: ['turles', 'Embestida de Turles', 'rush', 0xb07aff, { len: 12, n: 4, dmg: 38, cd: 3.2 }, 'Turles carga contra la horda a golpes.'],
+  turles_k: ['turles', 'Meteor Burst', 'zshot', 0xd07aff, { n: 3, spd: 22, dmg: 4.5, cd: 2.4, size: 2.2, look: 'zburstP', aoe: 2.5, spread: 0.22 }, 'Tres ráfagas de ki que estallan al impactar.'],
+  saibaman_f: ['saibaman', 'Garras de Saibaman', 'scythe', 0x7aff5a, { cd: 0.9, r: 4.5, dmg: 15 }, 'Zarpazos rápidos con las garras.'],
+  saibaman_k: ['saibaman', 'Lluvia Ácida', 'thunder', 0x9aff4a, { n: 4, r: 2, dmg: 10, cd: 2.8 }, 'Gotas de ácido que caen sobre la horda.'],
+  bills_f: ['bills', 'Toque de Destrucción', 'quake', 0xb070ff, { r: 7, dmg: 36, cd: 5 }, 'Bills toca el suelo con un dedo y lo hace temblar todo.'],
+  bills_k: ['bills', 'Hakai', 'nova', 0xc080ff, { r: 9.5, dmg: 26, cd: 4.4 }, 'La técnica del dios de la destrucción: borra lo que tiene alrededor.'],
+  cooler_f: ['cooler', 'Látigo del Tirano', 'whirl', 0xb07aff, { n: 6, r: 4, dmg: 3.1, cd: 2.6 }, 'Cooler gira golpeando con la cola.'],
+  cooler_k: ['cooler', 'Supernova de Cooler', 'zshot', 0xffc04a, { n: 1, spd: 14, dmg: 22, cd: 4.5, size: 4.2, look: 'zsun', aoe: 5, life: 1.8 }, 'Una supernova dorada que estalla sobre la horda.'],
+  hitto_f: ['hitto', 'Salto Temporal', 'meteor', 0x9a7aff, { dmg: 15, cd: 4.6 }, 'Hit detiene el tiempo y golpea a varios enemigos.'],
+  hitto_k: ['hitto', 'Disparo del Asesino', 'zshot', 0xb08aff, { n: 1, spd: 34, dmg: 56, cd: 1.8, size: 1.6, look: 'zkiP', pierce: 6, life: 1.2 }, 'Un disparo de ki rapidísimo que atraviesa enemigos.'],
+  raditz_f: ['raditz', 'Doble Embestida', 'rush', 0xb070ff, { len: 12, n: 5, dmg: 23, cd: 3 }, 'Raditz arrolla a la horda a golpes.'],
+  raditz_k: ['raditz', 'Saturday Crush', 'zshot', 0xc07aff, { n: 2, spd: 22, dmg: 8.1, cd: 2.6, size: 2.4, look: 'zkiP', aoe: 3, spread: 0.18 }, 'Dos esferas de ki que explotan al impactar.'],
+  andro16_f: ['andro16', 'Puño Cohete', 'rush', 0xff9a4a, { len: 15, n: 3, dmg: 30, cd: 3.6 }, 'El 16 dispara su puño y arrasa todo a su paso.'],
+  andro16_k: ['andro16', "Hell's Flash", 'bigbeam', 0xffb04a, { cd: 10, dmg: 8.3, len: 40, hw: 3, life: 1.3, cost: 24 }, 'El cañón de los brazos del 16 a máxima potencia.'],
+  andro17_f: ['andro17', 'Patada Infinita', 'whirl', 0x7ac8ff, { n: 7, r: 3.6, dmg: 3.1, cd: 2.3 }, 'El 17 gira dando patadas sin cansarse nunca.'],
+  andro17_k: ['andro17', 'Power Blitz', 'zshot', 0x8aff8a, { n: 4, spd: 24, dmg: 72, cd: 2, size: 1.8, look: 'zkiG', spread: 0.2, home: 5 }, 'Esferas de ki que persiguen a los enemigos.'],
+  andro18_f: ['andro18', 'Combo Gemelo', 'meteor', 0x7ad0ff, { dmg: 14, cd: 4.4 }, 'La 18 golpea a varios enemigos en un instante.'],
+  andro18_k: ['andro18', 'Disco del 18', 'discs', 0xffd84a, { n: 2, dmg: 23, cd: 3.2, spd: 20, life: 1.5 }, 'Discos de ki que cortan a la horda.'],
+  majin_f: ['majin', 'Panzazo de Buu', 'quake', 0xff8ad8, { r: 6, dmg: 30, cd: 4.4 }, 'Buu se deja caer con la barriga y aplasta a todos alrededor.'],
+  majin_k: ['majin', 'Ira Majin', 'nova', 0xff7ad0, { r: 8.5, dmg: 30, cd: 4 }, 'Buu se enfada y suelta vapor de ki por todo el cuerpo.'],
+  superbuu_f: ['superbuu', 'Torbellino de Buu', 'whirl', 0xff8ad8, { n: 7, r: 4, dmg: 2.6, cd: 2.5 }, 'Super Buu gira golpeando con sus brazos elásticos.'],
+  superbuu_k: ['superbuu', 'Exterminio Humano', 'zshot', 0xff7ad8, { n: 8, spd: 20, dmg: 38, cd: 3, size: 1.6, look: 'zpink', ring: true }, 'Una lluvia de ki rosa en todas direcciones.'],
+  zamasu_f: ['zamasu', 'Embestida Inmortal', 'rush', 0xc8b8ff, { len: 12, n: 4, dmg: 33, cd: 3.2 }, 'Zamasu se lanza contra la horda golpeando a su paso.'],
+  zamasu_k: ['zamasu', 'Rayo Sagrado', 'thunder', 0xd8c8ff, { n: 4, r: 2.4, dmg: 17, cd: 3 }, 'Rayos de luz divina caen sobre los mortales.']
+};
+for (const id in NEW_TECH) {
+  const [ch, name, kind, color, cfg, desc] = NEW_TECH[id], phys = PHYS_KINDS.has(kind);
+  WEAPONS[id] = { name, icon: phys ? '✊' : '✺', kind, unique: ch, minLv: phys ? 4 : 8, color, cfg, lv: [desc].concat(LV_TXT[kind]) };
+  WEAPONS[id].glyph = WEAPONS[id].icon; WEAPONS[id].icon = iconHtml(KIND_ICO[kind]);
+  const C = CHARACTERS.find((c) => c.id === ch); if (C && !C.unique.includes(id)) C.unique.push(id);
+}
+for (const id in WEAPONS) { const W = WEAPONS[id]; if (!W.cat) W.cat = PHYS_KINDS.has(W.kind) ? 'fis' : 'ki'; }
+// Fuentes de daño que no son técnicas: teletransporte y contraataque son golpes; aura, rayos y explosiones, ki
+const SRC_CAT = { tp: 'fis', counter: 'fis', aura: 'ki', bolt: 'ki', chain: 'ki', transform: 'ki', boombarrier: 'ki', ult: 'mix' };
+const srcCat = (src) => (WEAPONS[src] && WEAPONS[src].cat) || SRC_CAT[src] || null;
+// [ATQ FÍSICO, ATQ KI] de cada personaje: 1 = normal
+const CHAR_ATK = {
+  goku: [1.1, 1.1], vegeta: [1.0, 1.2], black: [1.15, 1.05], piccolo: [0.95, 1.1], gohan: [1.0, 1.2], freezer: [0.9, 1.25],
+  krilin: [1.05, 1.0], trunks: [1.2, 1.0], cell: [1.05, 1.2], bardock: [1.15, 1.0], vegito: [1.2, 1.15], gogeta: [1.2, 1.15],
+  zamasuf: [1.2, 1.2], broly: [1.3, 1.0], kefla: [1.1, 1.15], gotenks: [1.05, 1.05], trunksarm: [1.2, 0.95], caulifla: [1.0, 1.15],
+  kale: [1.3, 0.9], kyabe: [1.0, 1.05], toppo: [1.15, 1.1], janemba: [1.15, 1.1], jiren: [1.3, 1.05], turles: [1.05, 1.1],
+  saibaman: [0.95, 0.95], bills: [1.15, 1.25], cooler: [1.0, 1.2], hitto: [1.3, 0.95], raditz: [1.1, 0.95], andro16: [1.2, 1.0],
+  andro17: [1.05, 1.1], andro18: [1.1, 1.0], majin: [1.05, 1.15], superbuu: [1.15, 1.15], zamasu: [1.05, 1.15]
+};
+for (const c of CHARACTERS) { const a = CHAR_ATK[c.id] || [1, 1]; c.atkF = a[0]; c.atkK = a[1]; }

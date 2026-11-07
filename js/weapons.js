@@ -9,13 +9,15 @@ const BASE_DMG = 10;
 // Ki de las técnicas propias de cada personaje: de media gastan KI_DRAIN por segundo cada una (la regeneración base
 // es 4 Ki/s); cada lanzamiento cuesta entre KI_MIN y KI_MAX según lo que tarda en recargar
 const KI_DRAIN = 0.8, KI_MIN = 2, KI_MAX = 20;
-/** Aviso de gasto de Ki para la carta de una técnica (vacío si es gratis) */
+/** Tipo de la técnica (física o de ki) y su gasto de Ki, para su carta */
 function kiNote(id, p) {
   const D = WEAPONS[id]; if (!D || !p) return '';
-  if (D.kind === 'bigbeam' && D.cfg && D.cfg.cost) return '<br><span class="kin">⚡ Gasta ' + D.cfg.cost + ' de Ki</span>';
-  if (D.kind === 'beam') return '<br><span class="kin">⚡ Gasta 10 de Ki</span>';
-  if (D.unique !== p.ch.id || p.ch.start.includes(id)) return '';
-  return '<br><span class="kin">⚡ ' + (D.kind === 'orbit' ? 'Gasta Ki mientras está activa' : 'Gasta Ki al lanzarse') + '</span>';
+  if (D.cat === 'fis') return '<br><span class="tcat fis">✊ FÍSICA · no gasta Ki</span>';
+  const tag = '<br><span class="tcat ki">✺ DE KI</span>';
+  if (D.kind === 'bigbeam' && D.cfg && D.cfg.cost) return tag + ' <span class="kin">⚡ Gasta ' + D.cfg.cost + ' de Ki</span>';
+  if (D.kind === 'beam') return tag + ' <span class="kin">⚡ Gasta 10 de Ki</span>';
+  if (D.unique !== p.ch.id || p.ch.start.includes(id)) return tag;
+  return tag + ' <span class="kin">⚡ ' + (D.kind === 'orbit' ? 'Gasta Ki mientras está activa' : 'Gasta Ki al lanzarse') + '</span>';
 }
 
 /* Capas de los rayos: tamaño relativo al ancho y opacidad base (ver updateBeams) */
@@ -166,13 +168,13 @@ class WeaponSystem {
   }
 
   /** Gasto de Ki de una técnica: 0 = gratis · 1 = gasta al lanzarse · 2 = gasta mientras está activa (orbes).
-      Gastan Ki las técnicas propias del personaje (las que tiene en «unique», también sus fusiones), menos el ataque
-      básico con el que empieza y las que ya cobran su propio Ki (los rayos) */
+      Gastan Ki las técnicas de ki propias del personaje (las que tiene en «unique», también sus fusiones), menos el
+      ataque básico con el que empieza y las que ya cobran su propio Ki (los rayos). Las físicas nunca gastan Ki */
   kiMode(w, p) {
     if (w.kiMode !== undefined && w.kiCh === p.ch.id) return w.kiMode;
     const D = WEAPONS[w.id];
     w.kiCh = p.ch.id;
-    w.kiMode = (D.unique !== p.ch.id || p.ch.start.includes(w.id) || w.kind === 'beam' || w.kind === 'bigbeam') ? 0 : (w.kind === 'orbit' ? 2 : 1);
+    w.kiMode = (D.cat !== 'ki' || D.unique !== p.ch.id || p.ch.start.includes(w.id) || w.kind === 'beam' || w.kind === 'bigbeam') ? 0 : (w.kind === 'orbit' ? 2 : 1);
     return w.kiMode;
   }
 
@@ -509,21 +511,23 @@ class WeaponSystem {
 
   /* ----- Pulso de Poder: onda circular ----- */
   nova(w, dt, g, p) {
-    const lv = w.lv, r = 8 * (lv >= 3 ? 1.3 : 1), dm = 20 * (1 + 0.4 * (lv >= 2) + 0.4 * (lv >= 5));
-    if (w.pend > 0) { w.pend -= dt; if (w.pend <= 0) this.pulse(g, p, r, dm); }
+    // cfg opcional { r, dmg, cd } y color propio (las técnicas sin color usan el ki de la forma)
+    const C = WEAPONS[w.id].cfg || {}, lv = w.lv, r = (C.r || 8) * (lv >= 3 ? 1.3 : 1), dm = (C.dmg || 20) * (1 + 0.4 * (lv >= 2) + 0.4 * (lv >= 5));
+    const col = WEAPONS[w.id].color || p.form.ki;
+    if (w.pend > 0) { w.pend -= dt; if (w.pend <= 0) this.pulse(g, p, r, dm, col); }
     if (!this.ready(w, dt, p)) return;
     if (g.horde.nearest(p.x, p.z, r + 4) < 0) return;
-    w.cd = lv >= 5 ? 3 : 4;
-    this.pulse(g, p, r, dm);
+    w.cd = (C.cd || 4) * (lv >= 5 ? 0.75 : 1);
+    this.pulse(g, p, r, dm, col);
     if (lv >= 4) w.pend = 0.35;
   }
-  pulse(g, p, r, dm) {
+  pulse(g, p, r, dm, col) {
     g.horde.damageRadius(p.x, p.z, r, dm * p.damageMul(), 14, g);
     g.world.damageArea(p.x, p.z, r, dm);
     g.horde.shockwave(p.x, p.z, r, 12);
     SFX.play('pulse');
     if (g.vfx && FXA.auraGen) g.vfx.play('auraGen', p.x, 0.3, p.z, { flat: true, size: r * 0.7, grow: 3, dur: 0.4, frames: FXA.auraGen.f.slice(0, 4) });
-    g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 56, r * 3, 0.4, 0.3, p.form.ki);
+    g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 56, r * 3, 0.4, 0.3, col || p.form.ki);
     g.fx.ring(g.fx.aura, p.x, 0.5, p.z, 36, r * 2, 0.5, 0.35, 0xffffff);
     g.shake(0.3);
   }
@@ -589,6 +593,92 @@ class WeaponSystem {
     }
     g.shake(0.2);
     SFX.play('slash');
+  }
+
+  /* ===== Técnicas físicas nuevas: embestida, impacto contra el suelo y torbellino de patadas ===== */
+  /** Imagen residual del personaje golpeando en (x, z) */
+  ghost(p, x, z, frame, flip) {
+    for (const gh of p.ghosts) if (gh.t <= 0) { gh.t = 0.28; gh.x = x; gh.z = z; gh.frame = frame; gh.flip = flip; gh.sheet = p.drawSheet; return; }
+  }
+  /** Embestida: cruza en línea recta hacia la horda dejando imágenes residuales que golpean a su paso y remata
+      con un golpe final que empuja y aturde. cfg { len, r, n (golpes), dmg, cd } */
+  rush(w, dt, g, p) {
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
+    if (w.pend > 0) {
+      w.tick -= dt;
+      if (w.tick > 0) return;
+      w.tick = 0.055; w.pend--;
+      const seg = w.len / w.n0, t = (w.n0 - w.pend) / w.n0, x = w.ox + w.dx * w.len * t, z = w.oz + w.dz * w.len * t, last = w.pend === 0;
+      const flip = w.dx * g.camCos - w.dz * g.camSin < 0 ? 1 : 0;
+      DMG_SRC = w.id;
+      // golpea todo el tramo recorrido desde el golpe anterior (sin huecos entre golpes)
+      g.horde.damageLine(x - w.dx * seg, z - w.dz * seg, w.dx, w.dz, seg, w.rr, w.dm * p.damageMul(), g);
+      if (last) g.horde.damageRadius(x, z, w.rr * 1.5, w.dm * 2 * p.damageMul(), 16, g);
+      g.world.damageArea(x, z, w.rr, w.dm);
+      if (last) g.horde.stunRadius(x, z, w.rr * 1.5, 0.6);
+      DMG_SRC = 'otros';
+      this.ghost(p, x - w.dx * 0.6, z - w.dz * 0.6, (w.n0 - w.pend) % 2 ? p.anim.atk : p.anim.crit, flip);
+      for (let i = 0; i < 8; i++) g.fx.sparks.emit(x, 1.3, z, rand(-5, 5), rand(0, 3), rand(-5, 5), 0.25, 0.35, 0, col);
+      if (g.vfx) g.vfx.play('hitRing', x, 1.4, z, { size: last ? 4.5 : 2.6, fps: 26, tint: col });
+      SFX.play('hit');
+      if (last) { if (g.vfx) g.vfx.play('meteorHit', x, 1.4, z, { size: 4, dur: 0.3 }); g.shake(0.35); SFX.play('boom'); }
+      return;
+    }
+    if (!this.ready(w, dt, p)) return;
+    const len = (C.len || 12) * (lv >= 3 ? 1.25 : 1), a = this.aim(g, p, len + 2); if (!a) return;
+    w.cd = (C.cd || 3.2) * (lv >= 4 ? 0.8 : 1);
+    w.ox = p.x; w.oz = p.z; w.dx = a.dx; w.dz = a.dz; w.len = len; w.rr = C.r || 2.2;
+    w.dm = (C.dmg || 20) * (1 + 0.3 * (lv >= 2) + 0.35 * (lv >= 5));
+    w.n0 = w.pend = (C.n || 4) + (lv >= 5 ? 2 : 0); w.tick = 0;
+    p.attack(a.dx, a.dz, true, g); SFX.play('dash');
+  }
+  /** Impacto: puñetazo contra el suelo que daña, empuja y aturde todo alrededor y deja el suelo agrietado;
+      desde el nivel 3 hay una réplica más amplia. cfg { r, dmg, cd, stun } */
+  quake(w, dt, g, p) {
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
+    const R = (C.r || 6) * (lv >= 4 ? 1.2 : 1), dm = (C.dmg || 40) * (1 + 0.3 * (lv >= 2) + 0.35 * (lv >= 5));
+    const hit = (r, d, k) => {
+      DMG_SRC = w.id;
+      g.horde.damageRadius(p.x, p.z, r, d * p.damageMul(), k, g); g.horde.stunRadius(p.x, p.z, r, C.stun || 0.8);
+      g.world.damageArea(p.x, p.z, r, d);
+      DMG_SRC = 'otros';
+      g.fx.ring(g.fx.aura, p.x, 0.4, p.z, 40, r * 2.2, 0.5, 0.35, col);
+      for (let i = 0; i < 24; i++) { const a = (i / 24) * 6.2832; g.fx.sparks.emit(p.x + Math.cos(a) * r * 0.5, 0.4, p.z + Math.sin(a) * r * 0.5, Math.cos(a) * 9, rand(2, 5), Math.sin(a) * 9, 0.35, 0.4, 0, col); }
+      if (g.vfx) { g.vfx.crater(p.x, p.z, r * 0.7, col); g.vfx.dust(p.x, p.z, r * 1.3); g.vfx.play('hitRing', p.x, 0.8, p.z, { size: r * 1.6, fps: 22, tint: col }); }
+      g.shake(0.5); SFX.play('boom');
+    };
+    if (w.pend > 0) { w.pend -= dt; if (w.pend <= 0) hit(R * 1.35, dm * 0.6, 12); }
+    if (!this.ready(w, dt, p)) return;
+    if (g.horde.nearest(p.x, p.z, R) < 0) return;
+    w.cd = (C.cd || 4.5) * (lv >= 4 ? 0.85 : 1);
+    hit(R, dm, 18);
+    if (lv >= 3) w.pend = 0.35;
+    p.attack(1, 0, true, g);
+  }
+  /** Torbellino: ráfaga de patadas girando sobre ti; cada golpe daña todo alrededor. cfg { n, r, dmg, cd } */
+  whirl(w, dt, g, p) {
+    const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
+    if (w.pend > 0) {
+      w.tick -= dt;
+      if (w.tick > 0) return;
+      w.tick = 0.08; w.pend--; w.ang += 1.9;
+      const r = (C.r || 3.6) * (lv >= 3 ? 1.25 : 1), c = Math.cos(w.ang), s = Math.sin(w.ang);
+      DMG_SRC = w.id;
+      g.horde.damageRadius(p.x, p.z, r, w.dm * p.damageMul(), 6, g);
+      g.world.damageArea(p.x, p.z, r, w.dm);
+      DMG_SRC = 'otros';
+      if (g.vfx) g.vfx.play('cresc', p.x + c * r * 0.5, 0.5, p.z + s * r * 0.5, { flat: true, size: r * 1.6, rot: Math.atan2(-s, c), fps: 30, tint: col });
+      for (let i = 0; i < 6; i++) g.fx.sparks.emit(p.x + c * r * 0.8, 1.2, p.z + s * r * 0.8, -s * 6, 0.5, c * 6, 0.22, 0.32, 0, col);
+      p.attack(c, s, w.pend % 2 === 0, g);
+      if (w.pend % 2 === 0) SFX.play('slash');
+      return;
+    }
+    if (!this.ready(w, dt, p)) return;
+    if (g.horde.nearest(p.x, p.z, (C.r || 3.6) * 1.6) < 0) return;
+    w.cd = (C.cd || 2.6) * (lv >= 4 ? 0.8 : 1);
+    w.dm = (C.dmg || 10) * (1 + 0.3 * (lv >= 2) + 0.3 * (lv >= 5));
+    w.pend = (C.n || 6) + (lv >= 5 ? 3 : 0); w.tick = 0; w.ang = Math.random() * 6.28;
+    SFX.play('dash');
   }
 
   /* ----- Rayos rápidos (Rayos Oculares de Piccolo, Death Beam de Freezer) ----- */
@@ -675,8 +765,9 @@ class WeaponSystem {
     if (!this.ready(w, dt, p)) return;
     const a = this.aim(g, p, 26); if (!a) return;
     const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
-    const n = C.n || 3 + (lv >= 2) + (lv >= 4) + (lv >= 5) * 2, dm = (C.dmg || 12) * (lv >= 3 ? 1.3 : 1);
-    w.cd = C.cd || (lv >= 5 ? 1.6 : 2.2);
+    // (antes «C.n || 3 + ...»: con cfg.n o cfg.cd propios no subían los proyectiles ni bajaba la recarga al subir de nivel)
+    const n = (C.n || 3) + (lv >= 2) + (lv >= 4) + (lv >= 5) * 2, dm = (C.dmg || 12) * (lv >= 3 ? 1.3 : 1);
+    w.cd = C.cd ? C.cd * (lv >= 5 ? 0.75 : 1) : (lv >= 5 ? 1.6 : 2.2);
     const base = Math.atan2(a.dz, a.dx);
     for (let i = 0; i < n; i++) {
       const ang = base + Math.PI + (i - (n - 1) / 2) * (2.6 / Math.max(1, n - 1)), crit = Math.random() < p.crit;   // salen hacia atrás y giran
@@ -715,8 +806,8 @@ class WeaponSystem {
     if (!this.ready(w, dt, p)) return;
     if (g.horde.n === 0) return;
     const C = WEAPONS[w.id].cfg || {}, lv = w.fused ? 5 : w.lv, col = this.col(w, p);
-    const n = C.n || 3 + (lv >= 2) + (lv >= 4) * 2 + (lv >= 5) * 2, r = C.r || (lv >= 4 ? 2.6 : 2), dm = (C.dmg || 30) * (lv >= 3 ? 1.35 : 1);
-    w.cd = C.cd || (lv >= 5 ? 2.2 : 3.2);
+    const n = (C.n || 3) + (lv >= 2) + (lv >= 4) * 2 + (lv >= 5) * 2, r = (C.r || 2) * (lv >= 4 ? 1.3 : 1), dm = (C.dmg || 30) * (lv >= 3 ? 1.35 : 1);
+    w.cd = C.cd ? C.cd * (lv >= 5 ? 0.7 : 1) : (lv >= 5 ? 2.2 : 3.2);
     let hits = 0;
     for (let k = 0; k < 40 && hits < n; k++) {
       const i = (Math.random() * g.horde.n) | 0, ex = g.horde.x[i], ez = g.horde.z[i], dx = ex - p.x, dz = ez - p.z;
@@ -750,8 +841,8 @@ class WeaponSystem {
     }
     if (!this.ready(w, dt, p)) return;
     if (g.horde.nearest(p.x, p.z, 14) < 0) return;
-    w.cd = C.cd || (lv >= 4 ? 4.5 : 6);
-    w.pend = C.n || 3 + (lv >= 2) + (lv >= 5) * 2; w.tick = 0;
+    w.cd = C.cd ? C.cd * (lv >= 4 ? 0.75 : 1) : (lv >= 4 ? 4.5 : 6);
+    w.pend = (C.n || 3) + (lv >= 2) + (lv >= 5) * 2; w.tick = 0;
     if (w.id === 'meteorkai') p.hp = Math.max(1, p.hp - 2);
     p.attack(1, 0, true, g); SFX.play('dash');
   }

@@ -823,7 +823,14 @@ class Game {
     return '<h4 class="sh">DAÑO POR TÉCNICA</h4><div class="dchart">' + ids.map((id) => {
       const W = WEAPONS[id], col = W && W.color ? '#' + W.color.toString(16).padStart(6, '0') : id === 'ally' ? '#7fe07a' : '#ffb020';
       return '<div class="dr"><span>' + srcName(id) + '</span><div class="dbar"><i style="width:' + (by[id] / top * 100).toFixed(1) + '%;background:' + col + '"></i></div><b>' + fmtK(by[id]) + ' · ' + Math.round(by[id] / tot * 100) + '%</b></div>';
-    }).join('') + '</div>';
+    }).join('') + '</div>' + this.catLine(by, tot);
+  }
+  /** Reparto del daño de la partida entre técnicas físicas y de ki */
+  catLine(by, tot) {
+    let f = 0, k = 0;
+    for (const id in by) { const c = srcCat(id); if (c === 'fis') f += by[id]; else if (c === 'ki') k += by[id]; }
+    if (!f && !k) return '';
+    return '<p class="dcat"><span class="tcat fis">✊ FÍSICO ' + fmtK(f) + ' · ' + Math.round(f / tot * 100) + '%</span> <span class="tcat ki">✺ KI ' + fmtK(k) + ' · ' + Math.round(k / tot * 100) + '%</span></p>';
   }
 
   /* ---------- Combos ---------- */
@@ -854,6 +861,12 @@ class Game {
   microStop(t) {
     if (this.hsCd > 0) return;
     this.hsCd = 1.2; this.hitstop = Math.max(this.hitstop, t);
+  }
+  /** Aviso flotante de eficacia («¡EFICAZ!» / «RESISTE») sobre el enemigo golpeado: como mucho uno cada 0,5 s */
+  effHint(x, z, sc, weak, cat) {
+    if (this.effCd > 0 || !this.ui.floatText) return;
+    this.effCd = 0.5;
+    this.ui.floatText(x, 2.4 * sc + 0.6, z, weak ? '¡EFICAZ!' : 'RESISTE', weak ? (cat === 'fis' ? '#ffb040' : '#5ad8ff') : '#aab2c0', weak);
   }
   onCrit(dmg) {
     if (this.impCd > 0 || this.state !== 'play' || dmg < 30 * this.player.damageMul()) return;
@@ -977,7 +990,7 @@ class Game {
     const k = WEAPONS[src] && WEAPONS[src].kind;
     if (!k) return 'explosiones';
     if (['beam', 'bigbeam', 'ray', 'pbolt'].includes(k)) return 'rayos';
-    if (['scythe', 'godslash', 'orbit', 'kiplanet', 'barrier', 'minions'].includes(k)) return 'cuerpo';
+    if (['scythe', 'godslash', 'rush', 'quake', 'whirl', 'meteor', 'orbit', 'kiplanet', 'barrier', 'minions'].includes(k)) return 'cuerpo';
     if (['bullet', 'blast', 'homing', 'barrage', 'discs', 'zshot', 'fan', 'splitblast', 'rain', 'hellzone'].includes(k)) return 'rafagas';
     return 'explosiones';
   }
@@ -1468,6 +1481,7 @@ class Game {
       this.horde.bossTint = B.tintSprite !== false;
       this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
       if (B.moves) this.ui.toast(B.moves, true);                       // sus técnicas, para saber qué esperar
+      if (B.res) this.ui.toast((B.res === 'fis' ? '🛡 ' : '✦ ') + RES_TXT[B.res], true);   // qué tipo de ataque resiste
       this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.col || B.tints[0]);
       this.vfx.play('flare', x, 7, z, { size: 15, dur: 0.8, pri: 1 }); this.vfx.crater(x, z, 5); this.impact(0.12, 0);
     }
@@ -1511,10 +1525,10 @@ class Game {
   bossAt() { const i = this.horde.indexOfUid(this.bossUid); return i < 0 ? null : { i, x: this.horde.x[i], z: this.horde.z[i] }; }
   /** Programa una acción del jefe dentro de `t` segundos (solo si sigue vivo) */
   /** Acción diferida de la partida (no depende del jefe): la ejecuta updateTimers */
-  after(t, f) { (this.timers || (this.timers = [])).push({ t, f }); }
+  after(t, f) { (this.timers || (this.timers = [])).push({ t, f, src: DMG_SRC }); }   // recuerda qué técnica lo lanzó
   updateTimers(dt) {
     const L = this.timers; if (!L || !L.length) return;
-    for (let i = L.length - 1; i >= 0; i--) { L[i].t -= dt; if (L[i].t <= 0) { const f = L[i].f; L.splice(i, 1); f(); } }
+    for (let i = L.length - 1; i >= 0; i--) { L[i].t -= dt; if (L[i].t <= 0) { const T = L[i]; L.splice(i, 1); const o = DMG_SRC; DMG_SRC = T.src; T.f(); DMG_SRC = o; } }
   }
   later(t, f) { this.boss.q.push({ t, f: () => { const o = this.bossAt(); if (o) f(o); } }); }
   /** Dirección del jefe hacia el jugador, con un desvío opcional */
@@ -2326,6 +2340,7 @@ class Game {
       this.updateUlt(rawDt);                                   // la secuencia de la Ultimate va en tiempo real (no se para con el hitstop)
       let dt = 0;
       if (this.hsCd > 0) this.hsCd -= rawDt;
+      if (this.effCd > 0) this.effCd -= rawDt;
       if (this.hitstop > 0) this.hitstop -= rawDt; else dt = rawDt;
       if (dt > 0) this.update(dt);
       // Impact frame de crítico: negativo en B/N y luego destello de contraste

@@ -83,8 +83,34 @@ class UIManager {
   /* ---------- HUD ---------- */
   showHud(on) { this.el.hud.style.display = on ? 'block' : 'none'; }
 
+  /** Texto flotante sobre un punto del mundo (avisos de eficacia): un pequeño grupo de etiquetas que se reciclan */
+  floatText(x, y, z, text, color, big) {
+    if (!this.fl) {
+      this.fl = []; this.flV = new THREE.Vector3();
+      for (let k = 0; k < 6; k++) { const d = document.createElement('div'); d.className = 'ftxt'; this.el.hud.appendChild(d); this.fl.push({ d, t: 0, x: 0, y: 0, z: 0 }); }
+    }
+    let o = this.fl[0];
+    for (const f of this.fl) if (f.t < o.t) o = f;                          // la más vieja (o una libre)
+    o.t = 0.8; o.x = x; o.y = y; o.z = z;
+    o.d.textContent = text; o.d.style.color = color; o.d.classList.toggle('big', !!big); o.d.style.display = 'block';
+  }
+  updateFloat(game, dt) {
+    if (!this.fl) return;
+    const W = window.innerWidth, H = window.innerHeight, v = this.flV;
+    for (const f of this.fl) {
+      if (f.t <= 0) continue;
+      f.t -= dt;
+      if (f.t <= 0) { f.d.style.display = 'none'; continue; }
+      v.set(f.x, f.y + (0.8 - f.t) * 1.5, f.z).project(game.camera);           // sube poco a poco
+      if (v.z > 1) { f.d.style.display = 'none'; continue; }
+      f.d.style.transform = 'translate(' + ((v.x + 1) * 0.5 * W).toFixed(0) + 'px,' + ((1 - v.y) * 0.5 * H).toFixed(0) + 'px) translate(-50%,-50%)';
+      f.d.style.opacity = Math.min(1, f.t * 3).toFixed(2);
+    }
+  }
+
   update(game, dt) {
     const p = game.player, e = this.el, T = this.setT.bind(this), D = this.setD.bind(this);
+    this.updateFloat(game, dt);
     const sc = (el, v) => { const k = clamp(v, 0, 1).toFixed(3); if (el._s !== k) { el._s = k; el.style.transform = 'scaleX(' + k + ')'; } };
     sc(e.hpBar, p.hp / p.maxHp); sc(e.kiBar, p.ki / p.maxKi); sc(e.xpBar, p.xp / p.xpNext);
     T(e.hpTxt, Math.max(0, Math.ceil(p.hp)) + ' / ' + Math.ceil(p.maxHp));
@@ -467,15 +493,16 @@ class UIManager {
     let det = '';
     if (v.soon) det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p><p>Este guerrero llegará en una próxima actualización.</p>';
     else {
-      const bar = (n, val, max) => '<div class="sb"><span>' + n + '</span><div><i style="width:' + Math.min(100, (val / max) * 100) + '%"></i></div><b>' + val + '</b></div>';
+      const bar = (n, val, max, cls) => '<div class="sb' + (cls ? ' ' + cls : '') + '"><span>' + n + '</span><div><i style="width:' + Math.min(100, (val / max) * 100) + '%"></i></div><b>' + val + '</b></div>';
+      const chip = (id) => WEAPONS[id].cat === 'fis' ? '<span class="tcat fis">✊ FÍS</span>' : '<span class="tcat ki">✺ KI</span>';
       const best = Save.d.best[v.id];
       const techs = v.unique.filter((id) => id !== v.start[0]).concat(Object.keys(WEAPONS).filter((id) => WEAPONS[id].shop && !WEAPONS[id].unique)).filter((id) => !WEAPONS[id].unique || WEAPONS[id].unique === v.id);
       det = '<h3>' + v.name + '</h3><p class="dim">' + v.role + '</p>' +
-        bar('VIDA', v.hp, 160) + bar('KI', v.ki, 160) + bar('VEL', Math.round(v.spd * 100), 150) + bar('DAÑO', Math.round(v.dmg * 100), 150) +
+        bar('VIDA', v.hp, 160) + bar('KI', v.ki, 160) + bar('VEL', Math.round(v.spd * 100), 150) + bar('ATQ FÍS', Math.round(v.atkF * 100), 140, 'fis') + bar('ATQ KI', Math.round(v.atkK * 100), 140, 'ki') +
         '<h4>PASIVA · ' + v.passive.name + '</h4><p>' + v.passive.desc + '</p>' +
         (v.ult ? '<h4>ULTIMATE [Q] · ' + v.ult.name + '</h4><p>Se carga derrotando enemigos. ' + ULT_DESC[v.ult.type || 'rift'] + ' Cuesta un ' + Math.round(ULT_KI * 100) + '% del Ki máximo.' + (v.ult.debuff ? '<br><span class="trb">✖ Después: ' + v.ult.debuff.name.toLowerCase() + ', ' + v.ult.debuff.text + '.</span>' : '') + '</p>' : '') +
-        '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +
-        '<h4>TÉCNICAS (al subir de nivel)</h4>' + techs.map((id) => { const W = WEAPONS[id], lock = W.shop && !Save.d.techs.includes(id); return '<p class="' + (lock ? 'lockt' : '') + '"><i>' + W.icon + '</i> <b>' + W.name + '</b> · NV ' + (W.minLv || 2) + (lock ? ' · 🔒 en la tienda' : '') + '</p>'; }).join('') +
+        '<h4>ATAQUE BÁSICO</h4><p><i>' + WEAPONS[v.start[0]].icon + '</i> <b>' + WEAPONS[v.start[0]].name + '</b> ' + chip(v.start[0]) + ' · ' + WEAPONS[v.start[0]].lv[0] + '</p>' +
+        '<h4>TÉCNICAS (al subir de nivel)</h4>' + techs.map((id) => { const W = WEAPONS[id], lock = W.shop && !Save.d.techs.includes(id); return '<p class="' + (lock ? 'lockt' : '') + '"><i>' + W.icon + '</i> <b>' + W.name + '</b> ' + chip(id) + ' · NV ' + (W.minLv || 2) + (lock ? ' · 🔒 en la tienda' : '') + '</p>'; }).join('') +
         '<h4>FUSIONES (las dos técnicas al nivel 5)</h4>' + fusionsFor(v.id).map((f) => { const F = WEAPONS[f], lock = F.fusion.some((x) => !techOwned(x)); return '<p class="' + (lock ? 'lockt' : '') + '"><i>⚭</i> <b>' + F.name + '</b> · ' + F.fusion.map((x) => WEAPONS[x].name).join(' + ') + (lock ? ' · 🔒 requiere técnica de la tienda' : '') + (F.down ? ' · <span class="trb">✖ ' + F.down.text + '</span>' : '') + '</p>'; }).join('') +
         '<h4>TRANSFORMACIONES</h4><div class="forms ftl">' + v.forms.map((f, i) => { const T = traitOf(v, i); return '<span>' + f.name + ' <em>NV ' + f.lvl + '</em>' + (T ? '<small class="trg">✚ ' + T.good + '</small><small class="trb">✖ ' + T.bad + '</small>' : '') + '</span>'; }).join('') + '</div>' +
         (best ? '<h4>MEJOR PARTIDA</h4><p>' + fmtTime(best.time) + ' · ' + best.kills + ' enemigos · NV ' + best.level + '</p>' : '');

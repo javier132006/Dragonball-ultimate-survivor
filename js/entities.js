@@ -62,7 +62,8 @@ class Player {
     this.guanteMul = 1; this.pluma = false; this.reloj = false;                // objetos nuevos (se reaplican al recalcular)
     this.takeMul = 1; this.noSenzu = false; this.noRegen = false;              // debilidades de los pactos de Kami
     this.ballSight = false;                                                    // Radar de Bulma: ves las esferas en el radar
-    this.kiMul = 1 + 0.05 * L('kidmg');                                        // Entrenamiento de Ki: daño de las técnicas de ki
+    // Mejoras del ataque físico y del ataque de ki (se multiplican por el ATQ FÍSICO / ATQ KI del personaje)
+    this.atkF = 1 + 0.05 * L('fdmg'); this.atkK = 1 + 0.05 * L('kidmg');
     // Control del Ki (vitaminas, objetos y laboratorio):
     // chargeMul: velocidad al cargar con [C] · chargeHeal: curación mientras cargas · kiUse: lo que gastan técnicas,
     // rayos, Ultimate y transformaciones (mínimo 0,4) · formRegen: parte de la regeneración que sigue transformado · kiOnKill
@@ -123,6 +124,15 @@ class Player {
 
   xpFor(level) { return Math.floor(6 + level * 3 + level * level * 0.35); }
 
+  /** Multiplicador del tipo de daño: ATQ FÍSICO o ATQ KI del personaje (el de la fusión si estás fusionado) x sus mejoras.
+      La Ultimate usa la media de los dos */
+  catMul(cat) {
+    const c = this.fusion ? this.fusion.ch : this.ch;
+    if (cat === 'fis') return c.atkF * this.atkF;
+    if (cat === 'ki') return c.atkK * this.atkK;
+    if (cat === 'mix') return (c.atkF * this.atkF + c.atkK * this.atkK) / 2;
+    return 1;
+  }
   /** Multiplicador de daño total: vitaminas x forma x pasiva del personaje */
   /** Suma carga a la Ultimate (solo si el personaje tiene una) */
   /** Ultimate activa: la de la fusión mientras dura (y su cinemática) */
@@ -568,6 +578,15 @@ class HordeManager {
   }
 
   /** Aplica daño a un enemigo (la retirada se hace después, en reap) */
+  /** Defensa del enemigo ante un tipo de ataque: RES_MUL si lo resiste, WEAK_MUL si es su debilidad, 1 si no tiene */
+  defMul(i, cat, game) {
+    if (cat !== 'fis' && cat !== 'ki') return 1;
+    const t = this.type[i], res = t === T_BOSS ? (game.stage && game.stage.boss && game.stage.boss.res) : ENEMY_TYPES[t].res;
+    if (!res) return 1;
+    const weak = res !== cat;
+    game.effHint(this.x[i], this.z[i], ENEMY_TYPES[t].scale, weak, cat);
+    return weak ? WEAK_MUL : RES_MUL;
+  }
   hurt(i, dmg, kx, kz, game, area) {
     if (this.hp[i] <= 0) return;
     if (this.shield[i] > 0) {                                     // Blindado: el escudo absorbe el golpe (las explosiones lo rompen)
@@ -575,6 +594,8 @@ class HordeManager {
     }
     if (this.type[i] === T_BOSS && game.bossInv > 0) dmg *= 0.1;  // el jefe cambiando de fase apenas recibe daño
     const wm = game.wMul && game.wMul[DMG_SRC]; if (wm) dmg *= wm;  // daño extra de la técnica por las cartas raras
+    const cat = srcCat(DMG_SRC);                                    // técnica física o de ki
+    if (cat && game.player) dmg *= game.player.catMul(cat) * this.defMul(i, cat, game);
     if (game.player.guanteMul > 1 && this.hp[i] < this.maxHp[i] * 0.3) dmg *= game.player.guanteMul;   // Guante de Hielo
     if (game.rivalUid && this.uid[i] === game.rivalUid) dmg = game.rivalHit(dmg);   // rival con memoria
     const real = Math.min(dmg, this.hp[i]), R = game.run;
@@ -718,7 +739,7 @@ class KiPool {
   /** Con el atlas de efectos, cada ráfaga es una esfera de su color (y los Kienzan, discos que giran) */
   useFx(sh) { this.sb.setSheet(sh.tex, sh.cols, sh.rows); this.fx = true; }
   fire(x, z, dx, dz, speed, dmg, r, crit, life, pierce, aoe, tint, size, look) {
-    const base = dmg; dmg = base * ((window.game && window.game.player && window.game.player.kiMul) || 1);   // técnicas de ki: Entrenamiento de Ki
+    const base = dmg;   // el ATQ KI se aplica al impactar (hurt), según la técnica que la lanzó
     for (let i = 0; i < this.max; i++) {
       const b = this.b[i];
       if (b.active) continue;
