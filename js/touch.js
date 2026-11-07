@@ -38,7 +38,7 @@ class TouchControls {
     this.hold('tbDash', 'Space'); this.hold('tbKi', 'KeyC');
     this.hold('tbTp', 'KeyF');                                                         // Transmisión Instantánea
     this.tap('tbBase', () => { if (game.state === 'play') game.revertForm(); });
-    this.tap('tbE', () => { if (game.state === 'play') game.interact(); else if (game.state === 'trade') game.closeTrade(); });
+    this.tap('tbE', () => { if (game.state === 'play') game.interact(); else if (game.state === 'trade') game.closeTrade(); else if (game.state === 'gacha') game.gacha.close(); });
     this.tap('tbTf', () => { if (game.state === 'play') game.transform(); });
     this.tap('tbPause', () => { if (game.state === 'play' || game.state === 'pause') game.togglePause(); });
     this.tap('tbLv', () => { if (game.state === 'play' && game.practice) game.practiceLevel(); });

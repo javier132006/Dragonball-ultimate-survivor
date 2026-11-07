@@ -287,9 +287,9 @@ class UIManager {
     // Compañeros
     for (const a of game.allies.list) dot(a.x, a.z, 7, '#7fe07a');
     // Puntos de interés (se ven también en el borde si están lejos)
-    const PC = { boss: '#ff3050', time: '#6fd0ff', temple: '#5be07a', merchant: '#ffd24a', swapper: '#ff9a3a' }, PL = { boss: '!', time: '⧗', temple: '▲', merchant: 'B', swapper: 'R' };
+    const PC = { boss: '#ff3050', time: '#6fd0ff', temple: '#5be07a', merchant: '#ffd24a', swapper: '#ff9a3a', gacha: '#ff7a1a' }, PL = { boss: '!', time: '⧗', temple: '▲', merchant: 'B', swapper: 'R', gacha: '★' };
     for (const q of game.points.list) {
-      if (q.used && q.type !== 'merchant' && q.type !== 'swapper') continue;
+      if (q.used && !POI_REUSE.has(q.type)) continue;
       edge(q.x, q.z, PC[q.type], PL[q.type], 7);
     }
     for (let i = 0; i < 7; i++) if (!pk.got[i] && (p.ballSight || Math.hypot(pk.bx[i] - p.x, pk.bz[i] - p.z) < BALL_SEE)) edge(pk.bx[i], pk.bz[i], '#ffb030', '★', 6);   // esferas: solo de cerca
@@ -314,9 +314,9 @@ class UIManager {
     for (let i = 0; i < 7; i++) if (!game.pickups.got[i] && (p.ballSight || Math.hypot(game.pickups.bx[i] - p.x, game.pickups.bz[i] - p.z) < BALL_SEE)) sq(game.pickups.bx[i], game.pickups.bz[i], 3 * k, '#ffd84a');
     const CC = ['#ff7ad0', '#ffd24a', '#b050ff'];
     for (let i = 0; i < game.capsules.n; i++) sq(game.capsules.x[i], game.capsules.z[i], (game.capsules.gold[i] ? 3 : 2) * k, CC[game.capsules.gold[i]]);
-    const PC = { boss: '#ff3050', time: '#6fd0ff', temple: '#5be07a', merchant: '#ffd24a', swapper: '#ff9a3a' };
+    const PC = { boss: '#ff3050', time: '#6fd0ff', temple: '#5be07a', merchant: '#ffd24a', swapper: '#ff9a3a', gacha: '#ff7a1a' };
     for (const o of game.points.list) {
-      const used = o.used && o.type !== 'merchant' && o.type !== 'swapper', s = 5 * k, c = used ? '#667' : PC[o.type];
+      const used = o.used && !POI_REUSE.has(o.type), s = 5 * k, c = used ? '#667' : PC[o.type];
       g.fillStyle = c; g.strokeStyle = '#000'; g.lineWidth = 1;
       const cx = X(o.x), cy = X(o.z);
       g.beginPath();
@@ -325,7 +325,7 @@ class UIManager {
       else if (o.type === 'temple') { g.moveTo(cx, cy - s); g.lineTo(cx + s, cy + s * 0.8); g.lineTo(cx - s, cy + s * 0.8); g.closePath(); }
       else g.rect(cx - s * 0.7, cy - s * 0.7, s * 1.4, s * 1.4);
       g.fill(); g.stroke();
-      if (big) { g.fillStyle = '#fff'; g.font = '700 11px "M PLUS Rounded 1c",sans-serif'; g.fillText(o.type === 'merchant' ? 'BULMA' : o.type === 'swapper' ? 'ROSHI' : o.type === 'boss' ? 'ALTAR' : o.type === 'time' ? 'TIEMPO' : 'TEMPLO', cx + s + 3, cy + 3); }
+      if (big) { g.fillStyle = '#fff'; g.font = '700 11px "M PLUS Rounded 1c",sans-serif'; g.fillText(o.type === 'merchant' ? 'BULMA' : o.type === 'swapper' ? 'ROSHI' : o.type === 'gacha' ? 'GACHAPÓN' : o.type === 'boss' ? 'ALTAR' : o.type === 'time' ? 'TIEMPO' : 'TEMPLO', cx + s + 3, cy + 3); }
     }
     for (const r of game.points.rifts) {
       const pulse = 5 * k + Math.sin(t * 6) * 2;

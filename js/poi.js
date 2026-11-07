@@ -13,8 +13,11 @@ const POI_TYPES = {
   temple: { frame: 2, name: 'Templo del Desafío', color: 0x5be07a, scale: 1.7 },
   merchant: { frame: 3, name: 'Bulma', color: 0xffd24a, scale: 1.05 },
   swapper: { frame: 4, name: 'Maestro Roshi', color: 0x7ad8ff, scale: 1.05 },
-  rift: { frame: 5, name: 'Grieta', color: 0xc050ff, scale: 2.4 }
+  rift: { frame: 5, name: 'Grieta', color: 0xc050ff, scale: 2.4 },
+  gacha: { frame: 6, name: 'Gachapón de Shenron', color: 0xff9a2a, scale: 1.35 }
 };
+// Puntos que se pueden usar todas las veces que quieras (no se gastan)
+const POI_REUSE = new Set(['merchant', 'swapper', 'gacha']);
 const TIME_ZONE_R = 7;       // radio de la Habitación del Tiempo
 const TIME_CHARGE = 12;      // segundos dentro para completarla
 
@@ -55,9 +58,15 @@ function makePoiTexture() {
   ell(5, 16, 16, 13, 14, [60, 16, 100]); ell(5, 16, 16, 10, 11, [128, 36, 190]); ell(5, 16, 16, 6, 7, [18, 0, 36]);
   for (let k = 0; k < 90; k++) { const a = k * 0.3, r = 1.5 + k * 0.14; put(5, 16 + Math.cos(a) * r * 0.85, 16 + Math.sin(a) * r, [255, 150, 255]); put(5, 16 + Math.cos(a + 3.1) * r * 0.85, 16 + Math.sin(a + 3.1) * r, [190, 90, 255]); }
 
+  // 6 · Gachapón de Shenron: máquina roja con cúpula de cristal llena de esferas del dragón
+  rect(6, 7, 17, 18, 13, [214, 40, 48]); rect(6, 9, 19, 14, 2, [255, 96, 96]); rect(6, 6, 29, 20, 2, [120, 20, 28]);
+  rect(6, 13, 22, 6, 4, [40, 30, 40]); rect(6, 14, 23, 4, 2, [255, 200, 60]); rect(6, 20, 21, 3, 3, [255, 220, 90]);
+  ell(6, 16, 10, 9, 8, [170, 220, 255]); ell(6, 16, 10, 8, 7, [214, 238, 255]);
+  for (const [bx, by] of [[12, 12], [17, 13], [21, 10], [14, 7], [19, 6], [11, 9]]) { ell(6, bx, by, 2, 2, [255, 150, 30]); put(6, bx, by, [210, 30, 30]); put(6, bx - 1, by - 1, [255, 230, 160]); }
+  rect(6, 15, 1, 2, 2, [255, 200, 60]);
   // Contorno: los píxeles transparentes junto a uno opaco se pintan oscuros
   const o = new Uint8Array(buf);
-  for (let f = 0; f < 6; f++) for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+  for (let f = 0; f < 7; f++) for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
     const i = (y * W + f * 32 + x) * 4;
     if (buf[i + 3]) continue;
     let near = false;
@@ -98,7 +107,7 @@ class Points {
       }
       const [x, z] = fitPlay(rand(-R, R), rand(-R, R)); spots.push([x, z]); return [x, z];
     };
-    const plan = [['boss', 1], ['time', 2], ['temple', 2], ['merchant', 2], ['swapper', 1]];
+    const plan = [['boss', 1], ['time', 2], ['temple', 2], ['merchant', 2], ['swapper', 1], ['gacha', 1]];
     for (const [type, n] of plan) for (let i = 0; i < n; i++) { const [x, z] = spot(); this.add(type, x, z); }
   }
 
@@ -109,15 +118,15 @@ class Points {
     this.spr.begin(); this.glow.begin();
     for (let i = 0; i < this.list.length; i++) {
       const o = this.list[i], T = POI_TYPES[o.type], dx = p.x - o.x, dz = p.z - o.z, d2 = dx * dx + dz * dz, bob = Math.sin(this.t * 2 + i) * 0.06;
-      if (d2 < bd && (!o.used || o.type === 'merchant' || o.type === 'swapper')) { bd = d2; best = i; }
+      if (d2 < bd && (!o.used || POI_REUSE.has(o.type))) { bd = d2; best = i; }
       if (o.type === 'time' && !o.used) {                           // Habitación del Tiempo: carga mientras estás dentro
         const r = TIME_ZONE_R, inside = d2 < r * r;
         if (inside) { o.charge = Math.min(1, o.charge + dt / TIME_CHARGE); g.zoneBusy = o; }
         for (let k = 0; k < 2; k++) { const a = rand(0, 6.28); g.fx.trail.emit(o.x + Math.cos(a) * r, 0.2, o.z + Math.sin(a) * r, 0, rand(1, 3), 0, 0.5, 0.25, 0, inside ? 0x9fe8ff : 0x4a90c0); }
         if (o.charge >= 1) { o.used = true; g.onTimeRoomDone(o); }
       }
-      this.spr.push(o.x, 0.1 + bob, o.z, T.frame, 0, 0, T.scale, 1, o.used && !(o.type === 'merchant' || o.type === 'swapper') ? 0x666666 : undefined);
-      if (!o.used || o.type === 'merchant' || o.type === 'swapper') this.glow.push(o.x, 1, o.z, 0, 0, 0, 5 + Math.sin(this.t * 3 + i) * 0.5, 1, T.color);
+      this.spr.push(o.x, 0.1 + bob, o.z, T.frame, 0, 0, T.scale, 1, o.used && !POI_REUSE.has(o.type) ? 0x666666 : undefined);
+      if (!o.used || POI_REUSE.has(o.type)) this.glow.push(o.x, 1, o.z, 0, 0, 0, 5 + Math.sin(this.t * 3 + i) * 0.5, 1, T.color);
     }
     this.near = best;
     for (const r of this.rifts) {                                   // Grietas de Black (una por destino)

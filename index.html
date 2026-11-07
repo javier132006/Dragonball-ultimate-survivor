@@ -46,7 +46,7 @@ button:hover{filter:brightness(1.08)}
 button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 #000}
 button:disabled{filter:grayscale(.9) brightness(.7);cursor:not-allowed;transform:none;box-shadow:var(--sh)}
 /* Secundarios: papel blanco con tinta */
-#scrB,.tclose,.abtn.alt,.tab,.back,.qb,.tgl,#cardFoot button,.start.alt,.ti button.alt{background:var(--paper);color:#000}
+#scrB,.tclose,.gbtn.alt,.abtn.alt,.tab,.back,.qb,.tgl,#cardFoot button,.start.alt,.ti button.alt{background:var(--paper);color:#000}
 .tab.on,.qb.on,.tgl.on{background:linear-gradient(180deg,#fff3a6,var(--ki) 60%,#f0b400);color:#000}
 .start.alt{background:linear-gradient(180deg,#fff,#e8eeff)}
 
@@ -471,6 +471,38 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 /* Mercader / Roshi */
 #trade{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,10,36,.86);z-index:14;padding:10px}
 #trade.show{display:flex}
+/* Gachapón de Shenron: 7 esferas que se dan la vuelta y se mezclan */
+#gacha{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,10,36,.9);z-index:14;padding:10px;--sw:min(124px,calc((100vw - 52px) / 7))}
+#gacha.show{display:flex}
+.gbox{width:min(920px,98vw);max-height:calc(100dvh - 20px);overflow-y:auto;padding:18px 16px 16px;text-align:center;background:var(--tone),linear-gradient(180deg,#2140b8,#13246e);border:3px solid #000;border-radius:10px;box-shadow:8px 8px 0 #000}
+.gk{font-family:var(--disp);font-size:12px;color:#ffb02e}
+.gbox h2{font-family:var(--disp);font-weight:400;font-size:clamp(20px,3.4vw,32px);color:#fff;-webkit-text-stroke:1.5px #000;paint-order:stroke fill;text-shadow:3px 3px 0 #000;margin:4px 0 2px}
+.gs{font-size:13px;font-weight:800;color:var(--t2);min-height:18px;margin-bottom:10px}
+.grow{position:relative;width:calc(var(--sw) * 7);height:calc(var(--sw) * 1.45 + 60px);margin:0 auto}
+.gb{position:absolute;left:calc(var(--x) * var(--sw));top:calc(30px + var(--y) * 30px);width:var(--sw);height:calc(var(--sw) * 1.45);padding:0 3px;border:0;background:none;box-shadow:none;cursor:default;
+  transition-property:left,top;transition-timing-function:ease-in-out;perspective:600px}
+.gin{position:relative;width:100%;height:100%;transition:transform .45s;transform-style:preserve-3d}
+.gb.up .gin{transform:rotateY(180deg)}
+.gfront,.gback{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;align-items:center;justify-content:center}
+.gfront{transform:rotateY(180deg)}
+.gf{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 4px;border:3px solid var(--c);border-radius:8px;background:rgba(0,0,0,.45);box-shadow:3px 3px 0 #000,inset 0 0 18px color-mix(in srgb,var(--c) 45%,transparent)}
+.gf .gi{font-size:calc(var(--sw) * .3);line-height:1;color:var(--c)}.gf .gi .ico{width:1.1em;height:1.1em}
+.gf small{font-size:9px;font-weight:900;color:var(--c);letter-spacing:.3px}
+.gf b{font-size:clamp(9px,1.1vw,12px);line-height:1.15;color:#fff;font-weight:800}
+.gdb{width:calc(var(--sw) * .86);height:calc(var(--sw) * .86);border-radius:50%;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;padding:18%;gap:0 2px;
+  background:radial-gradient(circle at 32% 26%,#fffbe0 0 7%,#ffe27a 14%,#ffa21a 46%,#e06a00 78%,#a84400 100%);box-shadow:inset -4px -6px 10px rgba(110,30,0,.55),0 0 0 3px #000,4px 4px 0 3px #000}
+.gdb u{text-decoration:none;color:#d8141c;font-size:calc(var(--sw) * .15);line-height:1;font-family:Arial,sans-serif}
+.gdb.n1 u{font-size:calc(var(--sw) * .3)}.gdb.n2 u,.gdb.n3 u{font-size:calc(var(--sw) * .2)}
+.gb.pickable{cursor:pointer}.gb.pickable:hover .gdb,.gb.pickable:focus-visible .gdb{transform:translateY(-8px) scale(1.06);box-shadow:inset -4px -6px 10px rgba(110,30,0,.55),0 0 0 3px #000,0 0 22px 6px #ffd84a}
+.gb.pickable .gdb{transition:transform .15s,box-shadow .15s}
+.gb.chosen .gf{animation:gwin .6s ease-out}.gb.dim{opacity:.45}
+@keyframes gwin{0%{transform:scale(.8)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+.gfoot{min-height:64px}
+.gdet{font-size:12px;font-weight:700;color:var(--t2);min-height:34px;margin:0 auto 6px;max-width:640px}
+@media (max-height:520px){#gacha{--sw:min(92px,calc((100vw - 52px) / 7))}.gbox{padding:10px 12px}.gk{display:none}.gbox h2{font-size:18px;margin:0}.gs{margin-bottom:4px;font-size:12px}
+  .grow{height:calc(var(--sw) * 1.45 + 30px)}.gb{top:calc(15px + var(--y) * 15px)}.gdet{min-height:0;margin-bottom:2px;font-size:11px}.gfoot{min-height:0}.gres{margin:0 0 6px;font-size:12px}.gres b{font-size:16px}.gbtn{padding:7px 14px;font-size:13px}.gz{margin-top:4px}}
+.gres{font-size:14px;font-weight:800;margin:2px 0 10px}.gres b{font-family:var(--disp);font-weight:400;font-size:20px}.gres span{font-size:12px;color:var(--t2);font-weight:700}
+.gbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}.gbtn{padding:10px 18px;font-size:14px}.gz{font-size:12px;font-weight:700;color:var(--t2);margin-top:8px}
 .tb{width:min(660px,96vw);max-height:calc(100dvh - 20px);overflow-y:auto;padding:20px 24px;text-align:center;box-shadow:8px 8px 0 #000}
 .tb>small{font-family:var(--disp);font-size:12px;color:var(--ki)}.tb h2{font-family:var(--disp);font-weight:400;font-size:clamp(22px,3.6vw,34px);color:#fff;-webkit-text-stroke:1.5px #000;paint-order:stroke fill;text-shadow:3px 3px 0 #000;margin:6px 0}
 .tz{font-size:13px;font-weight:700;margin-bottom:12px;color:var(--t2)}.tz b{font-family:var(--disp);font-weight:400;color:var(--ki);font-size:18px}
@@ -708,6 +740,7 @@ html.touch #rhud #pr{width:160px}
 </div>
 <div id="modal"></div>
 <div id="trade"></div>
+<div id="gacha"></div>
 <div id="bigmap"><canvas id="bigmapc" width="520" height="520"></canvas><div class="legend"><span style="color:#ff7ad0">■ CÁPSULA</span><span style="color:#ffd24a">■ DORADA</span><span style="color:#b050ff">■ MALDITA</span><span style="color:#ff3050">◆ ALTAR</span><span style="color:#6fd0ff">● TIEMPO</span><span style="color:#5be07a">▲ TEMPLO</span><span style="color:#ffd24a">■ BULMA</span><span style="color:#ff9a3a">■ ROSHI</span><span style="color:#d070ff">● GRIETA</span></div></div>
 <div id="fade"></div>
 <div id="exit"><div><small>GRACIAS POR JUGAR</small><h2>¡HASTA PRONTO, GUERRERO!</h2><p>Puedes cerrar esta pestaña. Tu progreso está guardado.</p><button>VOLVER A ENTRAR</button></div></div>
@@ -768,7 +801,7 @@ html.touch #rhud #pr{width:160px}
       x.send();
     });
   };
-  const CODE = ['js/core.js', 'js/vfx.js', 'js/data.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js'];
+  const CODE = ['js/core.js', 'js/vfx.js', 'js/data.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js'];
   (async () => {
     LOAD.step('three', 0.1, 'Cargando el motor gráfico…');
     try { await script('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'); }

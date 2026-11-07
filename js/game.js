@@ -7,7 +7,7 @@
    ===================================================================== */
 
 /** Estadísticas de la partida en curso (se muestran en la pausa y al terminar) */
-const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0, bosses: 0, tps: 0, route: [] });
+const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0, bosses: 0, tps: 0, gachas: 0, route: [] });
 /** Nombre legible del origen del daño (gráfica de daño por técnica) */
 const SRC_NAMES = { ult: 'Ultimate', otros: 'Otros (ondas, explosiones)', ally: 'Compañeros', mines: 'Minas de Energía', transform: 'Transformación', aura: 'Aura de transformación', bolt: 'Rayos de la forma', counter: 'Contraataques', tp: 'Transmisión Instantánea', chain: 'Saibaimen en cadena' };
 /** Color del brillo de cada grieta según el mapa al que lleva */
@@ -115,6 +115,7 @@ class Game {
     this.capsules = new Capsules(this.scene, tex);
     this.weapons = new WeaponSystem(this.scene, tex);
     this.points = new Points(this.scene, tex);          // santuarios, comerciantes, altar y grieta
+    this.gacha = new Gacha(this);                       // Gachapón de Shenron (ventana de las 7 esferas)
     this.shots = new EnemyShots(this.scene, tex);       // disparos de los jefes
     this.allies = new Allies(this.scene, sheets);       // compañeros temporales
     // Al romper un cristal: orbes de experiencia, chispas y a veces una semilla
@@ -222,6 +223,9 @@ class Game {
       else if (s === 'play' && e.code === 'KeyQ') this.ultimate();
       else if (s === 'play' && e.code === 'KeyH') this.revertForm();
       else if (s === 'trade' && (e.code === 'KeyE' || e.code === 'Escape')) this.closeTrade();
+      else if (s === 'gacha' && (e.code === 'KeyE' || e.code === 'Escape')) this.gacha.close();
+      else if (s === 'gacha' && /^Digit[1-7]$/.test(e.code)) this.gacha.pick(+e.code[5] - 1);
+      else if (s === 'gacha' && (e.code === 'Enter' || e.code === 'Space')) { if (this.gacha.phase === 'show') this.gacha.mix(); }
       else if (s === 'play' && e.code === 'KeyM') { this.showMap = !this.showMap; ui.el.bigmap.style.display = this.showMap ? 'block' : 'none'; }
       else if ((s === 'play' || s === 'pause') && e.code === 'Tab') { e.preventDefault(); this.togglePause(); }
       else if ((s === 'levelup' || s === 'wish') && /^Digit[1-4]$/.test(e.code)) { if (this.cardsReady()) ui.pickCard(+e.code[5] - 1); }
@@ -657,6 +661,7 @@ class Game {
       if (o.type === 'temple') return { t: '[E] ACEPTAR EL DESAFÍO · ENEMIGOS MÁS FUERTES, MÁS RECOMPENSA', ok: true };
       if (o.type === 'merchant') return { t: '[E] HABLAR CON BULMA', ok: true };
       if (o.type === 'swapper') return { t: '[E] HABLAR CON EL MAESTRO ROSHI', ok: true };
+      if (o.type === 'gacha') { const c = this.gacha.cost(o); return { t: '[E] GACHAPÓN DE SHENRON · ' + (c ? c + ' ZENI' : 'PRIMERA TIRADA GRATIS'), ok: this.cash >= c }; }
     }
     return null;
   }
@@ -678,6 +683,7 @@ class Game {
       ui.toast('DESAFÍO ' + this.chal); ui.toast('Enemigos +25% vida · +15% daño · +20% Zeni', true);
       this.shake(0.7);
     } else if (o.type === 'merchant' || o.type === 'swapper') this.openTrade(o);
+    else if (o.type === 'gacha') this.gacha.open(o);
   }
   /** Habitación del Espíritu y el Tiempo completada: eliges 1 de 3 bendiciones */
   /** Al cargar la Habitación del Tiempo entras en la sala: 40 s de oleadas intensas mientras fuera solo pasan ~7 s */
@@ -794,14 +800,14 @@ class Game {
     const p = this.player, r = this.run, pc = (v) => Math.round(v * 100) + '%', row = (a, b) => '<div><span>' + a + '</span><b>' + b + '</b></div>';
     let h = '<h4 class="sh">PERSONAJE</h4><div class="sum">' + [
       ['NIVEL', p.level], ['VIDA', Math.max(0, Math.ceil(p.hp)) + ' / ' + Math.ceil(p.maxHp)], ['REGENERACIÓN', p.regen.toFixed(1) + '/s'], ['ARMADURA', pc(p.armor)],
-      ['ESQUIVA', pc(p.dodge)], ['VIDA POR BAJA', p.killHeal.toFixed(1)], ['DAÑO', 'x' + p.damageMul().toFixed(2)], ['CADENCIA', 'x' + p.rateMul.toFixed(2)],
+      ['ESQUIVA', pc(p.dodge)], ['VIDA POR BAJA', p.killHeal.toFixed(1)], ['DAÑO', 'x' + p.damageMul().toFixed(2)], ['ATQ FÍSICO', 'x' + p.catMul('fis').toFixed(2)], ['ATQ KI', 'x' + p.catMul('ki').toFixed(2)], ['CADENCIA', 'x' + p.rateMul.toFixed(2)],
       ['CRÍTICO', pc(p.crit)], ['DAÑO CRÍTICO', 'x' + p.critDmg.toFixed(2)], ['VELOCIDAD', pc(p.speedMul)], ['DASH', 'x' + p.dashMul.toFixed(2)],
       ['KI MÁXIMO', Math.round(p.maxKi)], ['REGEN. KI', p.kiRegen.toFixed(1) + '/s'], ['IMÁN', p.magnet.toFixed(1)], ['SUERTE', p.luck],
       ['EXPERIENCIA', 'x' + p.xpMul.toFixed(2)], ['ZENI', 'x' + (p.zeniMul * this.coinMul).toFixed(2)]].map((x) => row(x[0], x[1])).join('') + '</div>';
     h += '<h4 class="sh">PARTIDA</h4><div class="sum">' + [
       ['MAPA', (this.step + 1) + ' / ' + ROUTE_LEN + ' · ' + this.stage.name], ['TIEMPO EN EL MAPA', fmtTime(this.stageTime)], ['ENEMIGOS', this.kills], ['DAÑO TOTAL', Math.floor(r.damage)],
       ['GOLPE MÁS FUERTE', Math.floor(r.best)], ['DAÑO RECIBIDO', Math.floor(r.taken)], ['DASHES', r.dashes], ['CÁPSULAS', this.capsOpened],
-      ['MALDICIONES', r.curses], ['DESAFÍOS', r.temples + ' (nv ' + this.chal + ')'], ['HABITACIONES DEL TIEMPO', r.rooms], ['ZENI', Math.floor(this.cash)], ['COMBO MÁXIMO', r.maxCombo], ['EVENTOS', r.events], ['TELETRANSPORTES', r.tps]].map((x) => row(x[0], x[1])).join('') + '</div>' + this.dmgChart();
+      ['MALDICIONES', r.curses], ['DESAFÍOS', r.temples + ' (nv ' + this.chal + ')'], ['HABITACIONES DEL TIEMPO', r.rooms], ['ZENI', Math.floor(this.cash)], ['COMBO MÁXIMO', r.maxCombo], ['EVENTOS', r.events], ['TELETRANSPORTES', r.tps], ['TIRADAS DEL GACHAPÓN', r.gachas]].map((x) => row(x[0], x[1])).join('') + '</div>' + this.dmgChart();
     if (p.trait) h += '<h4 class="sh">FORMA · ' + p.form.name + '</h4><div class="trait"><b>' + p.trait.name + '</b><span class="trg">✚ ' + p.trait.good + '</span><span class="trb">✖ ' + p.trait.bad + '</span></div>';
     const fl = fusionsFor(p.ch.id).filter((f) => WEAPONS[f].fusion.every((x) => techOwned(x, this.practice)));
     if (fl.length) h += '<h4 class="sh">FUSIONES (LAS DOS TÉCNICAS AL NV 5)</h4><div class="chips">' + fl.map((f) => {
