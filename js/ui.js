@@ -17,6 +17,7 @@ class UIManager {
       'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'cardFoot', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
+    this.map = new WorldMap(this);                    // mapa del mundo del inicio
     this.flash = 0; this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0; this.wKey = ''; this.mmT = 0; this.lastBiome = -1;
     this.tab = 'upgrades'; this.mtab = 'missions'; this.rtab = 'all'; this.otab = 'global'; this.atab = 'login'; this.screen = 'home'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
     this.cardHandlers = []; this.cardFocus = 0; this.cardAt = 0; this.hudT = 0; this.optMsg = ''; this.impArmed = false;
@@ -401,7 +402,13 @@ class UIManager {
     this.showHud(false);
     this.renderMenu();
   }
-  hideMenu() { this.el.menu.classList.remove('show'); }
+  hideMenu() { this.el.menu.classList.remove('show'); if (this.map) this.map.unmount(); }
+  /** Destello de la Teletransportación al cambiar de pantalla */
+  itFlash() {
+    const f = document.getElementById('itfx');
+    if (!f) return;
+    f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  }
   claimable() {
     let n = 0;
     for (const m of MISSIONS) {
@@ -421,10 +428,15 @@ class UIManager {
       records: this.renderRecords, account: this.renderAccount, credits: this.renderCredits, missions: this.renderMissions };
     (R[s] || this.renderMissions).call(this);
     const H = this.hdr;
-    e.menuNav.innerHTML = s === 'home' ? this.profileBar()
-      : '<button class="back" ' + (H.back || 'data-go="home"') + '>Volver</button><div class="bnr ' + H.c + '"' + (H.st ? ' style="' + H.st + '"' : '') + '><h3>' + H.t + '</h3>' + (H.s ? '<span>' + H.s + '</span>' : '') + '</div>' + (H.tabs ? '<div class="seg nav">' + H.tabs + '</div>' : '');
+    const KJ = { play: '戦', legend: '龍', shop: '店', missions: '亀', records: '武', stats: '計', options: '設', account: '名', credits: '謝' };
+    e.menu.dataset.kj = s === 'home' ? '' : (this.hdr.k || KJ[s] || '気');
+    e.menuNav.innerHTML = s === 'home' ? this.homeBar()
+      : '<button class="back" ' + (H.back || 'data-go="home"') + '><i>◀</i>' + (H.back ? 'Volver' : 'Mapa') + '</button><div class="bnr ' + H.c + '"' + (H.st ? ' style="' + H.st + '"' : '') + '><i class="kj">' + (H.k || KJ[s] || '気') + '</i><h3>' + H.t + '</h3>' + (H.s ? '<span>' + H.s + '</span>' : '') + '</div>' + (H.tabs ? '<div class="seg nav">' + H.tabs + '</div>' : '');
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menu.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
+    // El mapa del inicio tiene su propia animación (solo mientras se ve)
+    const wm = s === 'home' && e.menuBody.querySelector('.wm');
+    if (wm) this.map.mount(wm); else this.map.unmount();
   }
   /** Botones de pestaña dentro de un selector .seg */
   segTabs(list, cur, attr) { return list.map((x) => '<button class="tab' + (cur === x[0] ? ' on' : '') + '" data-' + attr + '="' + x[0] + '">' + x[1] + '</button>').join(''); }
@@ -438,13 +450,13 @@ class UIManager {
   }
   /** Tipo de combate del personaje según su ataque físico y de ki: 'f' físico, 'k' ki, 'e' equilibrado */
   charType(c) { const f = c.atkF || 1, k = c.atkK || 1; return f > k + 0.04 ? 'f' : k > f + 0.04 ? 'k' : 'e'; }
-  /** Barra superior del inicio: guerrero equipado, sagas, racha y cuenta */
-  profileBar() {
-    const sel = charById(Save.d.sel), done = Save.d.sagas || {};
-    return '<div class="pbar"><div class="pav">' + this.pic(sel) + '</div><span class="pst">' + nice(sel.name) + '</span>' +
-      '<span class="pst" title="Libros del Modo Leyenda completados"><span class="dball"></span>' + storyDone() + '/' + BOOKS.length + '</span>' +
-      '<span class="pst" title="Días seguidos"><i>🔥</i>' + Save.d.login.streak + '</span>' +
-      '<button class="pacc" data-go="account">' + this.accountLabel() + '</button></div>';
+  /** Barra superior del inicio (sobre el mapa): logo y accesos rápidos */
+  homeBar() {
+    return '<div class="wlogo"><b>DRAGON BALL</b><span>ULTIMATE SURVIVOR</span></div>' +
+      '<div class="wico"><span class="wchip" title="Días seguidos entrando">🔥 ' + Save.d.login.streak + '</span>' +
+      '<button class="wib" data-go="stats" title="Rastreador: tus estadísticas"><i class="scout"></i><span>Rastreador</span></button>' +
+      '<button class="wib" data-go="account" title="Cuenta"><i>👤</i><span>' + this.accountLabel() + '</span></button>' +
+      '<button class="wib" data-go="options" title="Opciones"><i>⚙</i></button><button class="wib" data-go="credits" title="Créditos"><i>★</i></button><button class="wib" data-exit title="Salir"><i>⏻</i></button></div>';
   }
   /** Fila de clasificación: puesto, retrato, nombre (con etiqueta) y puntuación */
   rankRow(i, c, name, sub, score, me, chip) {
@@ -452,42 +464,29 @@ class UIManager {
       '<div class="rn"><b>' + (chip || '') + name + '</b><small>' + sub + '</small></div><b>' + score + '</b></div>';
   }
 
-  /* ---------- Inicio ---------- */
+  /* ---------- Inicio: el mapa del mundo ---------- */
   renderHome() {
-    const sel = charById(Save.d.sel), d = diffById(Save.d.diff), n = this.claimable(), done = Save.d.sagas || {}, l = Save.d.login;
-    const daily = Save.d.daily.ids.map((id) => missionById(id));
-    const dots = daily.map((m) => '<u class="' + (Save.isClaimed(m) ? 'ok' : Save.progress(m) >= m.goal ? 'go' : '') + '"></u>').join('');
-    const mods = dailyMods(), D = Save.d.day && Save.d.day.date === todayStr() ? Save.d.day : null;
+    const sel = charById(Save.d.sel), d = diffById(Save.d.diff), n = this.claimable(), mods = dailyMods(), rank = Save.d.rank;
+    const D = Save.d.day && Save.d.day.date === todayStr() ? Save.d.day : null;
     const own = CHARACTERS.filter((c) => !c.soon && Save.d.unlocked.includes(c.id)).length, tot = CHARACTERS.filter((c) => !c.soon).length;
-    const achN = ACHIEVEMENTS.filter((a) => Save.d.ach[a.id]).length, rank = Save.d.rank;
-    const tile = (go, ico, name, sub, col, badge) => '<button class="htile" data-go="' + go + '" style="--tc:' + col + '"><span class="ti2">' + ico + '</span><b>' + name + '</b><small>' + sub + '</small>' + (badge ? '<span class="badge">' + badge + '</span>' : '') + '</button>';
-    const best = rank.slice(0, 5).map((r, i) => { const c = charById(r.ch); return this.rankRow(i, c, c ? nice(c.name) : r.ch, r.kills.toLocaleString('es-ES') + ' bajas · NV ' + r.level + (r.win ? ' · Victoria' : ''), r.score.toLocaleString('es-ES')); }).join('');
-    this.el.menuBody.innerHTML = '<div class="home"><div class="hl">' +
-      '<div class="logo"><span class="dball"></span><h1>DRAGON<br> BALL</h1><div class="lsub"><span class="rib">ULTIMATE SURVIVOR</span><span class="vtag">v2.0</span></div></div>' +
-      '<div class="hgrid">' +
-        '<button class="hplay" data-go="play"><span class="dball"></span><div><b>Jugar</b><small>' + nice(sel.name) + ' · ' + nice(d.name) + '</small></div></button>' +
-        '<button class="hmode c-pur" data-go="legend"><span class="mi">' + iconHtml('map') + '</span><div><b>Modo Leyenda</b><small>' + storyDone() + ' / ' + BOOKS.length + ' libros · ★ ' + BOOKS.reduce((s, B) => s + bookStars(B.idx), 0) + '</small></div></button>' +
-        '<button class="hday" data-start="daily"><span class="medal">☀</span><small>Desafío del día</small><b>' + mods[0].name + '</b><em>+ ' + mods[1].name + (D ? '<br>Hoy: ' + D.best.toLocaleString('es-ES') : '<br>+300 monedas') + '</em></button>' +
-        '<button class="hmode c-grn" data-start="practice"><span class="mi">' + iconHtml('power') + '</span><div><b>Entrenamiento</b><small>Prueba técnicas sin presión</small></div></button>' +
-      '</div>' +
-      '<div class="hrow">' +
-        '<button class="hwd" data-go="missions"><span class="mi"><span class="dball"></span></span><div><b>Misiones diarias</b><div class="dots">' + dots + '</div><small>Nuevas en ' + this.untilReset() + '</small></div>' + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>' +
-        '<button class="hwd dk" data-go="missions"><span class="mi">🔥</span><div><b>Racha de ' + l.streak + ' día' + (l.streak === 1 ? '' : 's') + '</b><small>Entra cada día: premio mayor</small></div></button>' +
-      '</div>' +
-      '<div class="htiles">' +
-        tile('play', iconHtml('gear'), 'Guerreros', own + ' / ' + tot, '#ff7a2a') +
-        tile('shop', iconHtml('capsule'), 'Tienda', 'Mejoras', '#22b86f') +
-        tile('ach', iconHtml('dball'), 'Logros', achN + ' / ' + ACHIEVEMENTS.length, '#ffb21e') +
-        tile('records', '🏆', 'Récords', rank.length ? rank[0].score.toLocaleString('es-ES') : 'Sin marcas', '#ff4d5e') +
-        tile('stats', iconHtml('stats'), 'Estadísticas', Math.floor(Save.d.stats.runs || 0) + ' partidas', '#3f7cf5') +
-        tile('account', '👤', 'Cuenta', this.accountLabel(), '#a487ff') +
-      '</div>' +
-      '<div class="hbot"><button data-go="options"><i>' + iconHtml('system') + '</i>Opciones</button><button data-go="credits"><i>★</i>Créditos</button><button class="ex" data-exit><i>⏻</i>Salir</button></div>' +
-      '</div>' +
-      '<div class="hr"><div class="pnl hrp"><div class="hrh"><span class="mi">🏆</span><div><b>Tus récords</b><small>Las mejores partidas en este navegador</small></div></div><div class="hrb">' +
-        (best ? '<div class="rk">' + best + '</div>' : '<p class="dim">Aún no hay partidas: tu mejor puntuación aparecerá aquí.</p>') +
-        '<div class="myb"><span class="k2">Desafío de hoy</span><b>' + (D ? D.best.toLocaleString('es-ES') + ' puntos' : 'Aún sin jugar hoy') + '</b><p>' + mods.map((m) => m.icon + ' ' + m.name).join(' · ') + '</p></div>' +
-      '</div></div></div></div>';
+    const stars = BOOKS.reduce((sum, B) => sum + bookStars(B.idx), 0);
+    // Lo que se ve en el cartel de cada lugar (dato útil + aviso)
+    const info = {
+      lookout: [storyDone() + ' / ' + BOOKS.length + ' libros · ★ ' + stars, 0],
+      kaio: ['Prueba técnicas sin presión', 0],
+      karin: [mods[0].icon + ' ' + mods[0].name + (D ? ' · Hoy ' + D.best.toLocaleString('es-ES') : ' · +300'), D ? 0 : '!'],
+      paoz: [own + ' / ' + tot + ' guerreros', 0],
+      kame: [n ? n + ' premio' + (n > 1 ? 's' : '') + ' por cobrar' : 'Encargos del Maestro Roshi', n],
+      cc: ['Mejoras, objetos y técnicas', 0],
+      tenka: [rank.length ? 'Récord: ' + rank[0].score.toLocaleString('es-ES') : 'Aún sin marcas', 0]
+    };
+    const pins = PLACES.map((p) => '<button class="wpin" data-place="' + p.id + '"><span class="wk">' + p.kanji + '</span><span class="wtx"><b>' + p.name + '</b><em>' + p.sub + '</em><small>' + info[p.id][0] + '</small></span>' +
+      (info[p.id][1] ? '<span class="badge">' + info[p.id][1] + '</span>' : '') + '</button>').join('');
+    this.el.menuBody.innerHTML = '<div class="wm"><canvas class="wmc"></canvas>' + pins +
+      '<div class="wav" aria-hidden="true"><i class="aur"></i>' + this.pic(sel, 84, 84) + '</div>' +
+      '<div class="wbot"><button class="wme" data-go="play"><span class="wpt">' + this.pic(sel, 84, 84) + '</span><span class="wmt"><small>Tu guerrero</small><b>' + nice(sel.name) + '</b><em>' + nice(d.name) + ' · cambiar</em></span></button>' +
+      '<button class="wgo" data-start><span class="dball"></span><b>¡A luchar!</b></button>' +
+      '<p class="whint">Toca un lugar y tu guerrero irá con la <b>Teletransportación</b></p></div></div>';
   }
 
   /* ---------- Modo Leyenda: biblioteca de libros (sagas) y cada libro con sus capítulos ---------- */

@@ -111,6 +111,7 @@ class SoundEngine {
   s_lose(t) { this.arp(t, [69, 65, 62, 57], 0.22, 'triangle', 0.08); }
   s_impact(t) { this.hiss('lowpass', 8000, 80, 0.5, t, 1.2, 0.4, null, 0.002); this.tone('sine', 70, 25, t, 1.0, 0.5); this.tone('square', 2000, 200, t, 0.15, 0.08); }
   s_block(t) { this.tone('square', 520, 380, t, 0.08, 0.05); this.hiss('bandpass', 2500, 1500, 3, t, 0.08, 0.08); }
+  s_shenron(t) { this.hiss('lowpass', 420, 70, 0.7, t, 1.8, 0.22, null, 0.4); this.tone('sawtooth', 75, 42, t + 0.5, 1.6, 0.11, null, 0.25); this.tone('square', 150, 80, t + 1.3, 1.0, 0.045, null, 0.12); this.hiss('bandpass', 900, 300, 2, t + 1.4, 0.9, 0.08, null, 0.1); }
   s_tp(t) { this.tone('sine', 2200, 400, t, 0.15, 0.06); this.tone('sine', 400, 2200, t + 0.08, 0.12, 0.05); }
   s_phase(t) { this.tone('sawtooth', 70, 140, t, 1.2, 0.12, null, 0.05); this.hiss('lowpass', 3000, 100, 0.7, t, 1.2, 0.3, null, 0.01); [45, 51].forEach((n) => this.tone('square', NOTE(n), NOTE(n), t, 0.9, 0.04)); }
   s_revert(t) { this.tone('sine', 660, 220, t, 0.4, 0.07); }

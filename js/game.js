@@ -254,11 +254,15 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
-      if (D.go) this.go(D.go);
+      if (D.place) {                                                  // mapa: viaja con la Teletransportación y luego entra
+        const P = placeById(D.place);
+        ui.map.travel(D.place, () => { if (P.act.go) this.go(P.act.go); else { this.saga = null; this.startLoad(P.act.start === 'practice', P.act.start === 'daily'); } });
+      }
+      else if (D.go) this.go(D.go);
       else if (D.tab) { ui.tab = D.tab; ui.renderMenu(); }
       else if (D.mtab) { ui.mtab = D.mtab; ui.renderMenu(); }
       else if (D.ch) this.viewChar(D.ch);
@@ -360,17 +364,13 @@ class Game {
   go(screen) {
     if (screen === 'ach' || screen === 'missions') { this.ui.mtab = screen === 'ach' ? 'ach' : 'missions'; screen = 'missions'; }
     if (screen === 'legend') { this.ui.book = null; this.ui.lchap = null; }
+    if (screen !== this.ui.screen && this.ui.el.menu.classList.contains('show')) { this.ui.itFlash(); if (screen === 'home') SFX.play('tp'); }
     this.ui.screen = screen; this.ui.renderMenu(); this.applyView();
   }
   /** En la pantalla de inicio el personaje se desplaza a la derecha para dejar sitio a los botones */
   applyView() {
     const w = window.innerWidth, h = window.innerHeight;
-    if (this.state === 'menu' && this.ui.screen === 'home') {
-      // El personaje queda centrado en el hueco libre entre la columna de botones y el panel de récords
-      const hl = document.querySelector('#menu .hl'), hr = document.querySelector('#menu .hr');
-      const L = hl ? hl.getBoundingClientRect().right : 0, R = hr && hr.offsetWidth ? hr.getBoundingClientRect().left : w;
-      this.camera.setViewOffset(w, h, -((L + R) / 2 - w / 2), 0, w, h);
-    } else this.camera.clearViewOffset();
+    this.camera.clearViewOffset();                                   // (el inicio es el mapa del mundo: ya no se ve el 3D detrás)
   }
   /** Fondo vivo del menú: unos cuantos enemigos que pasean por el mapa (no atacan) */
   menuCrowd() {
@@ -1079,6 +1079,7 @@ class Game {
     h += '<div class="sum">' + [['ENEMIGOS', this.kills], ['TIEMPO', fmtTime(this.time)], ['NIVEL', this.player.level], ['DAÑO TOTAL', Math.floor(this.run.damage)]].map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
     const nx = this.nextChap, aT = nx ? (nx.book === B ? 'SIGUIENTE CAPÍTULO [R]' : 'SIGUIENTE LIBRO [R]') : 'REPETIR [R]';
     this.ui.showScreen(prize ? '¡LIBRO COMPLETADO!' : '¡CAPÍTULO COMPLETADO!', nice(B.name) + ' · Capítulo ' + (SG.idx + 1) + ': ' + SG.name, h, aT, 'VOLVER AL LIBRO [M]', 'win story');
+    if (prize) setTimeout(() => Shenron.summon({ kicker: '¡Libro completado!', title: nice(B.name), sub: 'Has terminado la saga. Shenron te concede:', html: '<span class="big">' + prize + '</span>', btn: '¡Siguiente libro!' }), 400);
   }
   storyLoseHtml(r) {
     const SG = this.saga, G = SG.goal, v = this.sagaValue(), n = G.n || 1;
@@ -1569,11 +1570,14 @@ class Game {
     if (m.daily) Save.d.daily.claimed[id] = true; else Save.d.claimed[id] = true;
     Save.d.zeni += m.reward; Save.write();
     this.ui.renderMenu();
+    // Shenron concede el premio
+    Shenron.summon({ kicker: m.daily ? 'Misión del día cumplida' : 'Misión cumplida', title: '¡Deseo concedido!', sub: m.name, html: '<span class="big">+' + m.reward + ' monedas</span>' });
   }
   claimLogin() {
     const l = Save.checkLogin();
     if (l) { Save.d.login = { last: todayStr(), streak: l.streak }; Save.d.zeni += l.reward; Save.write(); }
     this.ui.hideModal(); this.ui.renderMenu();
+    if (l) Shenron.summon({ kicker: 'Recompensa diaria', title: '¡Di tu deseo!', sub: 'Día ' + l.streak + ' de racha: vuelve mañana y el premio será mayor', html: '<span class="big">+' + l.reward + ' monedas</span>' });
   }
   /** Seguimiento de misiones: suma al total y al progreso diario */
   track(stat, n) {
@@ -2608,7 +2612,8 @@ class Game {
     // Sombras del sol: solo se redibujan si el sol cambió de celda o se rompió un cristal (antes: cada 1-2 fotogramas)
     if (this.shadowDirty) { this.renderer.shadowMap.needsUpdate = true; this.shadowDirty = false; }
     if (vf) this.vfx.flush(s === 'play' ? (this.hitstop > 0 ? 0 : rawDt) : rawDt, this.player);
-    this.renderer.render(this.scene, this.camera);
+    // En el mapa del inicio no se ve el mundo 3D: no se dibuja (ahorra batería en el móvil)
+    if (!(s === 'menu' && this.ui.screen === 'home' && this.ui.el.menu.classList.contains('show'))) this.renderer.render(this.scene, this.camera);
   }
 }
 

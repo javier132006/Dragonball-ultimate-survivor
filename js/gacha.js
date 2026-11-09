@@ -79,7 +79,10 @@ class Gacha {
     if (g.cash < this.cost(o)) { g.ui.toast('NECESITAS ' + this.cost(o) + ' ZENI PARA TIRAR', true); SFX.play('warn'); return; }
     this.o = o; g.state = 'gacha'; g.releaseMouse();
     this.el.classList.add('show');
+    const first = !o.pulls;
     this.start();
+    // La primera tirada de cada máquina: aparece Shenron sobre las 7 esferas
+    if (first) Shenron.summon({ short: true, kicker: '¡Gachapón de Shenron!', title: '¡Elige bien!', sub: 'Un premio legendario… o una maldición' });
   }
   /** Nueva tirada: cobra, prepara los premios y los enseña boca arriba */
   start() {
