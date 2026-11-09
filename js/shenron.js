@@ -7,7 +7,8 @@
    - Shenron.Flyer: el dragón cruzando el cielo del mapa del inicio.
    ===================================================================== */
 const Shenron = (() => {
-  const C = { body: '#2f9a3c', light: '#55c25a', dark: '#0e3a15', belly: '#efdc8c', bellyD: '#b9a256', scale: '#1d6b29', spike: '#46b84f', horn: '#e6d08a', hornD: '#8a7438', eye: '#ff2a1a' };
+  // Colores sacados de la hoja de sprites de Shenron (verde con brillo lima, vientre canela, cuernos marrones)
+  const C = { body: '#3a9a28', light: '#8fd24c', dark: '#123c0e', belly: '#c9a46a', bellyD: '#8e6c3a', scale: '#256f1c', spike: '#5bbd3a', horn: '#9a7040', hornD: '#4a3018', eye: '#ff2a1a' };
 
   /* ---------- Curvas: Catmull-Rom remuestreada por longitud ---------- */
   /** Convierte unos puntos de control en una polilínea densa con distancias acumuladas */
@@ -228,6 +229,62 @@ const Shenron = (() => {
     ctx.closePath(); ctx.fill();
   }
 
+  /* ---------- Shenron con sprites (hoja recortada en assets/shenron.js) ---------- */
+  const IMG = new Image();
+  if (typeof SHENRON_ATLAS !== 'undefined') IMG.src = SHENRON_ATLAS.src;
+  const FR = (n) => SHENRON_ATLAS.frames[n];
+  /** Dibuja un fotograma del atlas centrado en (x, y) con altura h */
+  function frameAt(ctx, name, x, y, h) {
+    const f = FR(name), w = h * f[2] / f[3];
+    ctx.drawImage(IMG, f[0], f[1], f[2], f[3], x - w / 2, y - h / 2, w, h);
+  }
+  /**
+   * Shenron enroscado: sube desde el haz de las esferas creciendo y con un fogonazo de luz,
+   * luego respira (dos fotogramas) y, al conceder el deseo, le brillan los ojos.
+   */
+  function drawSprite(ctx, S, t, p, out, granted) {
+    const W = S.W, H = S.H, e = 1 - Math.pow(1 - p, 3), back = p < 1 ? 1 + Math.sin(p * Math.PI) * 0.08 : 1;
+    const h = Math.min(H * 0.8, (W > H * 1.3 ? W * 0.5 : W * 0.95) * 0.9), cy = H * 0.47 + Math.sin(t * 1.6) * H * 0.012;
+    const y = H * 0.88 + (cy - H * 0.88) * e, sc = (0.25 + 0.75 * e) * back * (1 + Math.sin(t * 2.2) * 0.008);
+    // Aura dorada detrás
+    const ga = (0.35 + Math.sin(t * 3) * 0.1) * e * (1 - out), g = ctx.createRadialGradient(S.cx, y, h * 0.1, S.cx, y, h * 0.75);
+    g.addColorStop(0, 'rgba(255,230,120,' + ga + ')'); g.addColorStop(1, 'rgba(255,200,60,0)');
+    ctx.fillStyle = g; ctx.fillRect(S.cx - h, y - h, h * 2, h * 2);
+    const name = granted ? (Math.floor(t * 3) % 2 ? 'idle5' : 'idle4') : (Math.floor(t * 2.2) % 2 ? 'idle1' : 'idle0');
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = Math.min(1, e * 1.6) * (1 - out);
+    frameAt(ctx, name, S.cx, y, h * sc);
+    // Fogonazo al aparecer y al irse: la misma figura sumada en claro
+    const flash = Math.max(p < 1 ? (1 - p) * 0.9 : 0, out * 1.4);
+    if (flash > 0.02) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, flash) * (1 - out * 0.6); frameAt(ctx, name, S.cx, y, h * sc); }
+    ctx.restore();
+  }
+  /** Esfera convertida en piedra (al terminar el deseo) */
+  function stoneBall(ctx, x, y, r) {
+    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+    g.addColorStop(0, '#d8d4cc'); g.addColorStop(0.6, '#8f8a80'); g.addColorStop(1, '#4e4a44');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(40,36,30,.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x - r * 0.4, y - r * 0.1); ctx.lineTo(x, y + r * 0.15); ctx.lineTo(x + r * 0.3, y - r * 0.2); ctx.stroke();
+  }
+  /** Franja inclinada con los ojos de Shenron (los 4 fotogramas del parpadeo brillante) */
+  function cutIn(ctx, W, H, k) {
+    if (k > 1.1 || !IMG.naturalWidth) return;
+    const inA = Math.min(1, k / 0.15), outA = Math.max(0, (k - 0.85) / 0.25), a = inA * (1 - outA);
+    const bh = Math.min(H * 0.2, 150), cy = H * 0.2, slide = (1 - inA) * W * 0.4 + outA * -W * 0.4;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.moveTo(slide, cy - bh / 2 + 20); ctx.lineTo(W + slide, cy - bh / 2 - 20); ctx.lineTo(W + slide, cy + bh / 2 - 20); ctx.lineTo(slide, cy + bh / 2 + 20); ctx.closePath();
+    ctx.fillStyle = '#05070f'; ctx.fill(); ctx.clip();
+    const f = FR('blink' + Math.min(3, Math.floor(k / 0.16))), sh = f[3] * 0.56, sy = f[1] + f[3] * 0.22, sw = f[2];   // banda de los ojos
+    const dh = bh * 1.25, dw = dh * sw / sh;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(IMG, f[0], sy, sw, sh, W / 2 - dw / 2 + slide, cy - dh / 2, dw, dh);
+    ctx.globalAlpha = a * 0.1; ctx.fillStyle = '#ffe680'; ctx.fillRect(0, cy - bh, W, bh * 2);
+    ctx.restore();
+    ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(slide, cy - bh / 2 + 20); ctx.lineTo(W + slide, cy - bh / 2 - 20); ctx.moveTo(slide, cy + bh / 2 + 20); ctx.lineTo(W + slide, cy + bh / 2 - 20); ctx.stroke(); ctx.restore();
+  }
+
   /* ---------- Invocación a pantalla completa ---------- */
   let active = null;
   /**
@@ -269,8 +326,10 @@ const Shenron = (() => {
       const dt = Math.min(0.12, (now - S.last) / 1000); S.last = now; S.t += dt;              // (tope alto: en móviles lentos no se alarga)
       const W = S.W, H = S.H, t = S.t;
       ctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+      // Al cerrar (S.out de 0 a 1): Shenron se desvanece, las esferas se vuelven piedra y salen volando, y al final se va el cielo
+      const outSky = Math.max(0, (S.out - 0.62) / 0.38), outDr = Math.min(1, S.out * 2.2), stone = S.out > 0.12;
       // Cielo oscurecido (verde noche) con destellos de rayos
-      const dark = Math.min(1, t / 0.5) * (1 - S.out);
+      const dark = Math.min(1, t / 0.5) * (1 - outSky);
       const sky = ctx.createLinearGradient(0, 0, 0, H);
       sky.addColorStop(0, 'rgba(6,20,14,' + 0.94 * dark + ')'); sky.addColorStop(0.6, 'rgba(10,34,22,' + 0.92 * dark + ')'); sky.addColorStop(1, 'rgba(30,24,6,' + 0.9 * dark + ')');
       ctx.clearRect(0, 0, W, H); ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
@@ -282,24 +341,39 @@ const Shenron = (() => {
         while (y < H * 0.5) { x += (Math.random() - 0.5) * 60; y += 20 + Math.random() * 30; ctx.lineTo(x, y); } ctx.stroke();
       }
       S.bolts = S.bolts.filter((b) => b.life > 0);
-      // Las 7 esferas en el suelo, brillando
+      // Las 7 esferas en el suelo, brillando (al cerrar: piedras que salen disparadas)
       const by = H * 0.9, br = Math.max(11, Math.min(W, H) * 0.028), glow = 0.6 + Math.sin(t * 6) * 0.4;
-      ctx.globalAlpha = 1 - S.out;
-      for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2 - Math.PI / 2, rx = br * 4.2, ry = br * 1.4; ball(ctx, S.cx + Math.cos(a) * rx, by + Math.sin(a) * ry, br, i + 1, glow * (t < DUR ? 1 : 0.4)); }
+      const fly = stone ? Math.min(1, (S.out - 0.12) / 0.6) : 0, fe = fly * fly;
+      ctx.globalAlpha = 1 - outSky;
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 - Math.PI / 2, rx = br * 4.2, ry = br * 1.4;
+        const x = S.cx + Math.cos(a) * (rx + fe * W * 0.7), y = by + Math.sin(a) * ry - Math.sin(fly * Math.PI) * H * 0.25 * (0.6 + (i % 3) * 0.2) - fe * H * 0.3;
+        if (stone) stoneBall(ctx, x, y, br * (1 - fly * 0.5)); else ball(ctx, x, y, br, i + 1, glow * (t < DUR ? 1 : 0.4));
+      }
+      ctx.globalAlpha = 1;
       // Columna de luz al empezar
       if (t > 0.3 && t < DUR + 0.4) { const a = Math.min(1, (t - 0.3) * 3) * Math.max(0, 1 - (t - DUR) / 0.4); const g = ctx.createLinearGradient(S.cx - 60, 0, S.cx + 60, 0); g.addColorStop(0, 'rgba(255,230,120,0)'); g.addColorStop(0.5, 'rgba(255,240,170,' + 0.55 * a + ')'); g.addColorStop(1, 'rgba(255,230,120,0)'); ctx.fillStyle = g; ctx.fillRect(S.cx - 60, 0, 120, by); }
       // El dragón
-      const L = S.path[S.path.length - 1].d, p = Math.min(1, Math.max(0, (t - 0.45) / (DUR - 0.45))), e = 1 - Math.pow(1 - p, 3);
-      if (p > 0) {
-        const headS = L * e, len = L * 0.96, n = 72;
-        const pts = spine(S.path, headS, len, n, t, S.w, p < 1 ? 0.12 : 0.22);
-        // La parte del cuerpo que aún no ha salido queda escondida en el haz de las esferas
-        const vis = pts.filter((q, i) => headS - (i / (n - 1)) * len > -8);
-        if (vis.length > 4) draw(ctx, vis, S.w, t, { roar: p > 0.85 && t < DUR + 0.8, headAng: p >= 1 ? Math.PI - 0.12 + Math.sin(t * 1.2) * 0.05 : null });
+      const p = Math.min(1, Math.max(0, (t - 0.45) / (DUR - 0.45)));
+      if (p > 0 && outDr < 1) {
+        if (IMG.complete && IMG.naturalWidth) drawSprite(ctx, S, t, p, outDr, t > DUR);
+        else {                                                                   // (por si la imagen no ha cargado: el dibujado a mano)
+          const L = S.path[S.path.length - 1].d, e = 1 - Math.pow(1 - p, 3), headS = L * e, len = L * 0.96, n = 72;
+          const pts = spine(S.path, headS, len, n, t, S.w, p < 1 ? 0.12 : 0.22), vis = pts.filter((q, i) => headS - (i / (n - 1)) * len > -8);
+          ctx.globalAlpha = 1 - outDr;
+          if (vis.length > 4) draw(ctx, vis, S.w, t, { roar: p > 0.85 && t < DUR + 0.8, headAng: p >= 1 ? Math.PI - 0.12 + Math.sin(t * 1.2) * 0.05 : null });
+          ctx.globalAlpha = 1;
+        }
       }
-      ctx.globalAlpha = 1;
-      if (t > DUR && !txt.classList.contains('on')) { txt.classList.add('on'); if (opts.short) setTimeout(() => api.close(), 1100); }
-      if (S.out > 0) { S.out = Math.min(1, S.out + dt * 2.5); root.style.opacity = String(1 - S.out); if (S.out >= 1) { api.close(true); return; } }
+      // Corte anime: los ojos de Shenron brillan en una franja cuando concede el deseo
+      if (S.cut != null) cutIn(ctx, W, H, t - S.cut);
+      if (t > DUR && !txt.classList.contains('on')) { txt.classList.add('on'); S.cut = t; if (opts.short) setTimeout(() => api.close(), 1100); }
+      if (S.out > 0) {
+        S.out = Math.min(1, S.out + dt / 1.1);
+        txt.classList.add('off');
+        if (outSky > 0) root.style.opacity = String(1 - outSky);
+        if (S.out >= 1) { api.close(true); return; }
+      }
       requestAnimationFrame(frame);
     }
     const api = {
