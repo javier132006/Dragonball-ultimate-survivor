@@ -489,8 +489,7 @@ class UIManager {
       kame: [n ? n + ' premio' + (n > 1 ? 's' : '') + ' por cobrar' : 'Encargos del Maestro Roshi', n],
       cc: ['Mejoras, objetos y técnicas', 0],
       tenka: [rank.length ? 'Récord: ' + rank[0].score.toLocaleString('es-ES') : 'Aún sin marcas', 0],
-      altar: ['◆ ' + (Save.d.crystals || 0).toLocaleString('es-ES') + ' · cambia en ' + Math.ceil(bannerNow().left / 864e5) + ' d', (Save.d.crystals || 0) >= GACHA_COST10 ? '!' : 0],
-      cellring: [(Save.d.zstats && Save.d.zstats.wins ? Save.d.zstats.wins + ' victorias' : 'Lucha 2D con 37 guerreros'), 0]
+      altar: ['◆ ' + (Save.d.crystals || 0).toLocaleString('es-ES') + ' · cambia en ' + Math.ceil(bannerNow().left / 864e5) + ' d', (Save.d.crystals || 0) >= GACHA_COST10 ? '!' : 0]
     };
     const pins = PLACES.map((p) => '<button class="wpin" data-place="' + p.id + '"><span class="wk">' + p.kanji + '</span><span class="wtx"><b>' + p.name + '</b><em>' + p.sub + '</em><small>' + info[p.id][0] + '</small></span>' +
       (info[p.id][1] ? '<span class="badge">' + info[p.id][1] + '</span>' : '') + '</button>').join('');
@@ -575,7 +574,6 @@ class UIManager {
     const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     this.hdr = { t: 'Créditos', s: 'Gracias a quienes hicieron los sprites', c: 'c-pur' };
     this.el.menuBody.innerHTML = '<div class="pnl cpnl"><h4 class="sec">Sprites de personajes</h4><p class="dim" style="margin-bottom:12px">Sprites del pack «Dragon Ball Sagas», hechos por la comunidad. Gracias a sus autores:</p>' +
-      '<div class="mod"><i>★</i><div><b>Z Legends 3 · Geneildo Santos</b><small>Luchadores, cinemáticas, efectos, escenarios y voces del Combate Z (Juegos de Cell) y de las cinemáticas de Ultimate</small></div></div>' +
       '<div class="mod"><i>★</i><div><b>Pack de Sprites V3, V4 y V5</b><small>Guerreros y transformaciones del Altar de Shenron (Yamcha, Gohan niño, Ginyu, Dabura, Gohan del Futuro, Super Androide 35, Super 17, Vegetto SSJB3, Super Buu…). Goku Ultra Instinto, Super Baby y Vegetto Ego hechos por Black Vinas; Kamba SSJ4 editado por Black Vinas</small></div></div>' +
       SPRITE_CREDITS.map((c) => '<div class="mod"><i>★</i><div><b>' + esc(c.author) + '</b><small>' + c.what.map(esc).join(' · ') + '</small></div></div>').join('') +
       '<h4 class="sec" style="margin-top:16px">Dragon Ball</h4><p class="dim">Dragon Ball es una obra de Akira Toriyama. Juego de fans sin ánimo de lucro.</p></div>';

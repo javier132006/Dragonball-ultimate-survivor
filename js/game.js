@@ -115,7 +115,6 @@ class Game {
     this.capsules = new Capsules(this.scene, tex);
     this.weapons = new WeaponSystem(this.scene, tex);
     this.points = new Points(this.scene, tex);          // santuarios, comerciantes, altar y grieta
-    this.zfight = new ZFight(this);                       // Combate Z (lucha 2D, js/zfight.js)
     this.summon = new Summon(this);                     // Altar de Shenron: gachapón de transformaciones
     this.gacha = new Gacha(this);                       // Gachapón de Shenron (ventana de las 7 esferas)
     this.shots = new EnemyShots(this.scene, tex);       // disparos de los jefes
@@ -262,7 +261,7 @@ class Game {
       const D = t.dataset;
       if (D.place) {                                                  // mapa: viaja con la Teletransportación y luego entra
         const P = placeById(D.place);
-        ui.map.travel(D.place, () => { if (P.act.zfight) this.zfight.open(); else if (P.act.go) this.go(P.act.go); else { this.saga = null; this.startLoad(P.act.start === 'practice', P.act.start === 'daily'); } });
+        ui.map.travel(D.place, () => { if (P.act.go) this.go(P.act.go); else { this.saga = null; this.startLoad(P.act.start === 'practice', P.act.start === 'daily'); } });
       }
       else if (D.go) { this.go(D.go); if (D.wk !== undefined) { ui.mtab = 'weekly'; ui.renderMenu(); } }
       else if (D.tab) { ui.tab = D.tab; ui.renderMenu(); }
@@ -551,7 +550,6 @@ class Game {
     if (ch.portrait) this.ui.drawFrame(this.ui.el.portrait, ch.portrait.sheet, ch.portrait.frame, ch.portrait.tint);
     this.state = 'play';
     this.clock.getDelta();
-    if (window.ZL3Ult) ZL3Ult.prefetch(ch.id);                     // cinemáticas de Ultimate de Z Legends 3 (en segundo plano)
     if (!this.saga) this.ui.toast(this.practice ? 'ENTRENAMIENTO' : this.daily ? 'DESAFÍO DIARIO' : this.mode ? MODES[this.mode].name.toUpperCase() : ch.name);
     if (this.mode) this.ui.toast(MODES[this.mode].hint, true);
     if (this.practice) this.ui.toast('L: subir de nivel · K: limpiar la horda · J: +500 Zeni', true);
@@ -2092,10 +2090,7 @@ class Game {
     };
     // Guerreros y formas del Altar de Shenron: antes, corte en diagonal con su retrato grande
     const face = (p.form && p.form.face) || p.ch.face;
-    if (!Save.d.opt.noCine && !p.fusion && window.ZL3Ult && ZL3Ult.ready(p.ch.id, p.formIdx)) {   // cinemática de Z Legends 3 (si ya se descargó)
-      this.state = 'ultcine'; this.releaseMouse();
-      ZL3Ult.play(p.ch.id, p.formIdx, UN, () => { if (this.state !== 'ultcine') return; this.clock.getDelta(); this.grabMouse(); go(); });
-    } else if (face && this.ui.sheets && this.ui.sheets[face] && !Save.d.opt.noCine) {
+    if (face && this.ui.sheets && this.ui.sheets[face] && !Save.d.opt.noCine) {
       this.state = 'ultcine'; this.ui.faceCut(face, UN, U.col || p.form.ki);
       this.faceT = 0.9; this.faceGo = go;                     // sigue en tiempo de juego (ver loop: estado 'ultcine')
     } else go();
@@ -2631,7 +2626,6 @@ class Game {
     requestAnimationFrame(this.loop);
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     const s = this.state;
-    if (s === 'zfight') return;                                         // Combate Z: dibuja su propio canvas 2D; el 3D descansa
     const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine' || s === 'bosscine' || s === 'talk';
     if (vf) this.vfx.begin(this.camera);
     if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }
