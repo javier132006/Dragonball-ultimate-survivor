@@ -342,7 +342,7 @@ class Player {
   pose() {
     const a = this.anim;
     this.drawSheet = this.fusion ? this.fusion.sheet : this.form.sheet;          // fusionado: el aspecto de la fusión
-    let fr = a.idle;
+    let fr = a.idleSeq ? a.idleSeq[((this.animT * 3) | 0) % a.idleSeq.length] : a.idle;   // quieto: respira si la hoja lo trae
     const cf = this.chgSheet ? formChg(this.ch, this.formIdx) : null;
     this.chgPose = !!cf && !this.fusion && (this.charging || this.cineChg) && this.dashT <= 0;
     if (this.chgPose) { this.drawSheet = this.chgSheet; this.frame = cf[0] + ((this.animT * 10) | 0) % cf[1]; return; }   // pose de cargar ki (aura animada)

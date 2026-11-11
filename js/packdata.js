@@ -6,6 +6,12 @@
    por los mismos pasos que lo original.
    ===================================================================== */
 
+/* ---------- Animación de las hojas del pack ----------
+   Las hojas con rig por partes (tools/make_pack.py) traen respiración (6, 7) y cuatro pasos (1-4);
+   las de melena gigante usan la disposición clásica A_HD. */
+const A_PK = { idle: 0, idleSeq: [0, 6, 7, 6], walk: [1, 2, 3, 4], atk: 5, atk2: 10, crit: 11, hurt: 8, dash: 9, death: [12, 13, 14] };
+const packAnim = sh => (window.SPRITE_DATA && SPRITE_DATA[sh] && SPRITE_DATA[sh].rig ? A_PK : A_HD);
+
 /* ---------- Hojas del pack ---------- */
 const PACK_SHEETS = ['x_nappa', 'x_tenshin', 'x_roshi', 'x_satan', 'x_uub', 'x_granola', 'x_granola2', 'x_whis', 'x_ginyu', 'x_bulma',
   'g_goku_ssj5', 'g_goku_inf', 'g_vegeta_ego', 'g_gohan_beast', 'g_gogeta_inf', 'g_gogeta_ssj4', 'g_goku_ssj3b', 'g_goku_golden', 'g_goku_rose', 'g_goku_beast',
@@ -22,10 +28,10 @@ const packChar = (o) => {
     hp: o.hp, ki: o.kiMax || 110, spd: o.spd, dmg: 1.0, start: [id + '_1'], unique: [id + '_1', id + '_2', id + '_3', id + '_4'],
     passive: o.passive, ult: o.ult, portrait: { sheet: sh, frame: 0 },
     forms: [
-      form('BASE', 1, sh, A_HD, 1.0, 1.0, k, 0, 0xffffff),
-      form(o.f2 || 'DESPERTAR', 10, sh, A_HD, 1.4, 1.1, k, k, 0xfff8e8),
-      form(o.f3 || 'MODO GUERRERO', 22, c2, A_HD, 1.9, 1.2, k, k, 0xffeedd),
-      form(o.f4 || 'PODER MÁXIMO', 34, c2, A_HD, 2.5, 1.3, k, k, 0xffffff)
+      form('BASE', 1, sh, packAnim(sh), 1.0, 1.0, k, 0, 0xffffff),
+      form(o.f2 || 'DESPERTAR', 10, sh, packAnim(sh), 1.4, 1.1, k, k, 0xfff8e8),
+      form(o.f3 || 'MODO GUERRERO', 22, c2, packAnim(c2), 1.9, 1.2, k, k, 0xffeedd),
+      form(o.f4 || 'PODER MÁXIMO', 34, c2, packAnim(c2), 2.5, 1.3, k, k, 0xffffff)
     ]
   };
 };
@@ -182,7 +188,7 @@ function applyGachaForms() {
     const own = eq ? [eq] : [];
     const last = c.baseForms[c.baseForms.length - 1];
     c.forms = c.baseForms.concat(own.map((g, k) => {
-      const st = Save.d.gforms[g.id] || 1, f = form(g.name, Math.min(48, last.lvl + 4 + k * 3), g.sheet, A_HD,
+      const st = Save.d.gforms[g.id] || 1, f = form(g.name, Math.min(48, last.lvl + 4 + k * 3), g.sheet, packAnim(g.sheet),
         last.dmg * (1.06 + g.r * 0.06 + k * 0.03) * (1 + 0.04 * (st - 1)), last.spd + 0.02 + g.r * 0.01, g.ki, g.aura, 0xffffff);
       f.gacha = g.id; f.rare = g.r; f.stars = st;
       return f;
