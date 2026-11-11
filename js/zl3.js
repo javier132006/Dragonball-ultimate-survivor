@@ -19,7 +19,41 @@ function zl3Install() {
     const pz = c.portrait && ZL3.sheetFor(c.portrait.sheet);
     if (pz) { c.portrait.sheet = pz; c.portrait.frame = 0; used.add(pz); }
   }
+  zl3Bosses();
   for (const n of Object.keys(SPRITE_DATA)) if (/^z_/.test(n) && !SHEET_NAMES.includes(n)) SHEET_NAMES.push(n);
+}
+
+/** Jefes nuevos (los que no estaban en el juego). Usan los ataques de siempre de los jefes; solo cambia su aspecto y su combinación */
+const ZL3_NEW_BOSSES = {
+  nappa: { name: 'NAPPA', r: 1.9, col: 0xd0a070, forms: ['SOLDADO SAIYAJIN', 'FURIA DE NAPPA', 'BREAK CANNON'], tints: [0xffffff, 0xffe0c0, 0xffc090],
+    moves: 'Ráfaga · Embestida · Lluvia de ki · Break Cannon', names: { fan: 'RÁFAGA SAIYAJIN', beam: '¡BREAK CANNON!', rain: 'LLUVIA DE KI', dash: 'EMBESTIDA' },
+    pat: [['fan', 'dash'], ['fan', 'dash', 'rain'], ['fan', 'dash', 'rain', 'beam']], res: 'fis', stages: [0, 7] },
+  ginyu: { name: 'CAPITÁN GINYU', r: 1.8, col: 0xb04aff, forms: ['FUERZA ESPECIAL', 'POSE DE COMBATE', 'CAMBIO DE CUERPOS'], tints: [0xffffff, 0xf0d0ff, 0xd8a0ff],
+    moves: 'Ráfaga · Teletransporte · Esferas · Invocación', names: { fan: 'RÁFAGA GINYU', blink: 'TELETRANSPORTE', orbs: 'MILK CANNON', summon: 'FUERZAS GINYU' },
+    pat: [['fan', 'blink'], ['fan', 'blink', 'orbs'], ['fan', 'blink', 'orbs', 'summon']], res: 'ki', stages: [0, 3] },
+  moro: { name: 'MORO', r: 1.9, col: 0x9aff70, forms: ['EL DEVORADOR', 'MAGIA ABSORBIDA', 'PLANETA DEVORADO'], tints: [0xffffff, 0xd8ffc0, 0xb0ff90],
+    moves: 'Esferas · Regeneración · Lluvia de magia · Rayo', names: { orbs: 'MAGIA DE MORO', regen: 'ABSORBE ENERGÍA', rain: 'LLUVIA DE MAGIA', beam: 'RAYO DEVORADOR' },
+    pat: [['orbs', 'fan'], ['orbs', 'rain', 'regen'], ['orbs', 'rain', 'beam', 'regen']], res: 'ki', stages: [6, 7] },
+  baby: { name: 'SUPER BABY 2', r: 1.9, col: 0xff5a5a, forms: ['PARÁSITO TUFFLE', 'SUPER BABY', 'GRAN MONO ARTIFICIAL'], tints: [0xffffff, 0xffd0c8, 0xffa090],
+    moves: 'Ráfaga · Embestida · Invocación · Anillo', names: { fan: 'RÁFAGA DE BABY', dash: 'EMBESTIDA', summon: 'ESCLAVOS DE BABY', ring: 'ONDA TUFFLE' },
+    pat: [['fan', 'dash'], ['fan', 'dash', 'ring'], ['fan', 'dash', 'ring', 'summon']], res: 'fis', stages: [2, 4] }
+};
+
+/** Jefes: los que ya existen cambian de hoja (ZL3_BOSS) y los nuevos se añaden a los mapas. `scale` ≈ alto de la casilla / 20:
+    mantiene el mismo tamaño de píxel que los jefes de siempre (casillas de 128 px a escala 3,2) */
+function zl3Bosses() {
+  if (!window.ZL3_BOSS) return;
+  for (const k in ZL3_BOSS) {
+    const sh = 'z_' + ZL3_BOSS[k], m = SPRITE_DATA[sh]; if (!m) continue;
+    let B = BOSSES[k];
+    if (!B) {
+      const N = ZL3_NEW_BOSSES[k]; if (!N) continue;
+      B = BOSSES[k] = Object.assign({ id: k }, N); B.res = N.res;
+      for (const i of N.stages) if (STAGES[i] && !STAGES[i].bosses.includes(k)) STAGES[i].bosses.push(k);
+    }
+    B.sheet = sh; B.row = 0; B.scale = Math.round(m.h * 0.05 * 100) / 100; delete B.rows;
+  }
+  for (const S of STAGES) S.boss = Object.assign({}, BOSSES[S.bosses[0]], { hp: S.bossHp });   // jefe por defecto de cada mapa, con la hoja nueva
 }
 
 /** Tabla de columnas que usan los jefes-luchador (andar, golpe, técnica…) a partir de la tabla de la hoja, si la trae */

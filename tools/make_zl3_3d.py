@@ -32,8 +32,11 @@ REPLACE = {
     'kefla': 'kefla', 'janemba': 'janemba', 'jiren': 'jiren', 'bills': 'beerus', 'hitto': 'hit', 'raditz': 'raditz',
     'andro17': 'a17', 'andro18': 'a18', 'black_rose': 'black', 'zamasuf': 'zamasu',
 }
+# Jefes del modo supervivencia que pasan a usar su hoja de Z Legends 3 (id del jefe -> luchador)
+BOSS = {'freezer': 'freezer', 'cell': 'cell', 'broly': 'brolyz', 'buu': 'kidbuu', 'jiren': 'jiren', 'beerus': 'beerus', 'zamasu': 'zamasu',
+        'janemba': 'janemba', 'hit': 'hit', 'raditz': 'raditz', 'nappa': 'nappa', 'ginyu': 'ginyu', 'moro': 'moro', 'baby': 'baby'}
 EXTRA = ['nappa', 'tien', 'moro', 'kidbuu', 'brolyz', 'brolydbs', 'ginyu', 'baby']       # sin hoja antigua: enemigos / jefes nuevos
-USED = sorted(set(REPLACE.values()) | set(EXTRA))
+USED = sorted(set(REPLACE.values()) | set(EXTRA) | set(BOSS.values()))
 PXH = 52.3                                                             # alto de casilla -> escala (hs)
 
 def frames(A, name):
@@ -123,6 +126,6 @@ if __name__ == '__main__':
         if PREV:
             im = sheet.copy(); bg = Image.new('RGBA', im.size, (70, 100, 70, 255)); bg.alpha_composite(im)
             bg.resize((im.width * 2, im.height * 2), Image.NEAREST).save(os.path.join(PREV, cid + '.png'))
-    out.append('window.ZL3_MAP = %s;\n' % json.dumps(REPLACE, separators=(',', ':')))
+    out.append('window.ZL3_MAP = %s;\nwindow.ZL3_BOSS = %s;\n' % (json.dumps(REPLACE, separators=(',', ':')), json.dumps(BOSS, separators=(',', ':'))))
     open(os.path.join(ROOT, 'assets', 'zl3.js'), 'w').write(''.join(out))
     print('TOTAL hojas', tot // 1024, 'KB')
