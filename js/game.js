@@ -98,6 +98,7 @@ class Game {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 420);
     this.camLook = new THREE.Vector3(0, 0, 0);
+    this.backdrop = new Backdrop(this.scene);               // panorama de fondo de cada mapa (escenarios de Z Legends 3)
 
     initShared();
     const tex = makeTextures();
@@ -590,7 +591,7 @@ class Game {
     this.stageIdx = idx; this.stage = S; this.stageTime = 0; this.waveT = 60; this.swarm = false;
     this.bossUid = 0; this.bossDead = false; this.bossSpawned = false; this.victoryT = 0; this.zoneBusy = null;
     this.boss = { t: {}, next: 0 }; this.phase = 0; this.bossInv = 0; this.night = 0; this.wasNight = false; this.nightT = 0;
-    CFG.ARENA = S.R;
+    CFG.ARENA = S.R; this.backdrop.set(S.id);
     if (this.world.th !== THEMES[S.theme] || this.world.R !== S.R || this.world.seedX !== WORLD_SEED_XOR || this.world.reliefSeed !== RELIEF_SEED) {
       this.world.dispose(this.scene);
       this.world = new World(this.scene, S.theme);
@@ -2456,6 +2457,7 @@ class Game {
       this.camLook.y + d * sp + (Math.random() - 0.5) * s * 1.2,
       this.camLook.z + this.camCos * d * cp);
     this.camera.lookAt(this.camLook);
+    this.backdrop.follow(this.camera, this.night);
     this.shakeAmt = Math.max(0, s - rawDt * 2.6);
   }
 

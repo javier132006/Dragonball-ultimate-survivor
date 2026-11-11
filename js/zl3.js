@@ -61,3 +61,44 @@ function bossAnimOf(sheet, def) {
   const m = window.SPRITE_DATA && SPRITE_DATA[sheet], a = m && m.anim;
   return a ? { walk: a.walk, hit: a.hurt, atk: a.atk, cast: a.atk2, stun: a.hurt } : def;
 }
+
+/* ---------- Panorama de fondo ----------
+   Escenarios de Z Legends 3 (assets/zl3/s/<id>.webp, 30-70 KB cada uno, se descargan solo al usarlos) en un cilindro que sigue
+   a la cámara. Se ve sobre el horizonte (al inclinar la cámara) y se apaga de noche. Solo con http(s): con doble clic el navegador
+   no deja usar imágenes de archivo como textura. */
+const ZL3_STAGE = { earth: 'desert', namek: 'namek', vegeta: 'zoon', room: 'time', rift: 'space', torneo: 'tdp', hell: 'hell', kame: 'kame' };
+class Backdrop {
+  constructor(scene) {
+    this.on = /^https?:/.test(location.protocol);
+    this.cache = {}; this.cur = null; this.id = null;
+    this.mat = new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false, depthWrite: false });
+    this.mesh = new THREE.Mesh(new THREE.CylinderGeometry(385, 385, 150, 48, 1, true), this.mat);
+    this.mesh.renderOrder = -10; this.mesh.frustumCulled = false; this.mesh.visible = false;
+    scene.add(this.mesh);
+  }
+  /** Elige el escenario del mapa `stageId` (descarga la imagen la primera vez) */
+  set(stageId) {
+    const z = ZL3_STAGE[stageId]; this.id = z || null;
+    if (!this.on || !z) { this.mesh.visible = false; return; }
+    const c = this.cache[z];
+    if (c && c.tex) return this.show(z);
+    if (c) return;                                              // ya se está descargando
+    this.cache[z] = {};
+    const img = new Image();
+    img.onload = () => {
+      const t = new THREE.Texture(img);
+      t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false;
+      t.wrapS = THREE.MirroredRepeatWrapping; t.repeat.set(8, 1); t.needsUpdate = true;
+      this.cache[z].tex = t; if (this.id === z) this.show(z);
+    };
+    img.onerror = () => { this.cache[z].err = true; };
+    img.src = 'assets/zl3/s/' + z + '.webp';
+  }
+  show(z) { this.mat.map = this.cache[z].tex; this.mat.needsUpdate = true; this.mesh.visible = true; }
+  /** Sigue a la cámara; de noche se oscurece como el resto del mapa */
+  follow(cam, night) {
+    if (!this.mesh.visible) return;
+    this.mesh.position.set(cam.position.x, 40, cam.position.z);
+    this.mat.color.setScalar(1 - (night || 0) * 0.75);
+  }
+}

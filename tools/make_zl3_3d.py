@@ -110,6 +110,17 @@ def build(cid):
                 crit=seq['crit'][0], hurt=seq['hurt'][0], dash=seq['dash'][0], death=seq['death'], chgSeq=seq['chg'])
     return sheet, dict(cols=cols, rows=rows, w=cw, h=ch, hs=round(ch / PXH, 4), anc=anc, px=1), anim, A
 
+STAGES_USED = ['desert', 'namek', 'zoon', 'time', 'space', 'tdp', 'hell', 'kame']     # mapas del 3D -> escenario (ver Backdrop en js/zl3.js)
+
+def stages():
+    out = os.path.join(ROOT, 'assets', 'zl3', 's'); os.makedirs(out, exist_ok=True)
+    Z.OUT = os.path.join(ROOT, 'assets', 'zl3')
+    tot = 0
+    for st in Z.build_stages():
+        if st['id'] in STAGES_USED: tot += st['bytes']
+        else: os.remove(os.path.join(out, st['id'] + '.webp'))
+    print('escenarios', tot // 1024, 'KB')
+
 def webp_b64(im):
     b = io.BytesIO(); im.save(b, 'WEBP', lossless=True, quality=100, method=6, exact=True)
     return base64.b64encode(b.getvalue()).decode(), len(b.getvalue())
@@ -129,3 +140,4 @@ if __name__ == '__main__':
     out.append('window.ZL3_MAP = %s;\nwindow.ZL3_BOSS = %s;\n' % (json.dumps(REPLACE, separators=(',', ':')), json.dumps(BOSS, separators=(',', ':'))))
     open(os.path.join(ROOT, 'assets', 'zl3.js'), 'w').write(''.join(out))
     print('TOTAL hojas', tot // 1024, 'KB')
+    stages()
