@@ -86,6 +86,15 @@ class UIManager {
 
   /* ---------- HUD ---------- */
   showHud(on) { this.el.hud.style.display = on ? 'block' : 'none'; }
+  /** Marcador de los modos de cristales (dentro del HUD): cristales ganados y reloj o número de jefe */
+  modeHud(g) {
+    let el = document.getElementById('modeHud');
+    if (!g.mode) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'modeHud'; this.el.hud.appendChild(el); }
+    const t = g.mode === 'rush' ? '⏳ ' + fmtTime(Math.max(0, Math.ceil(g.modeT))) : '♛ JEFE ' + (g.gN + (g.bossSpawned ? 1 : 0)) + (g.bossSpawned ? '' : ' · llega en ' + Math.max(0, Math.ceil(g.gNext)) + ' s');
+    const h = '<b>' + MODES[g.mode].name + '</b><span class="crys"></span><em>' + g.modeCry + '</em><small>' + t + '</small>';
+    if (el._h !== h) { el._h = h; el.innerHTML = h; }
+  }
 
   /** Texto flotante sobre un punto del mundo (avisos de eficacia): un pequeño grupo de etiquetas que se reciclan */
   floatText(x, y, z, text, color, big) {
@@ -778,16 +787,32 @@ class UIManager {
   /* ---------- Misiones (como los «Encargos»): las del día y las permanentes ---------- */
   missionRow(m) {
     const pr = Math.min(m.goal, Save.progress(m)), done = Save.isClaimed(m), ok = pr >= m.goal;
-    const T = m.daily ? (m.reward <= 100 ? ['g', 'Fácil', '#22b86f'] : m.reward <= 120 ? ['b', 'Media', '#3f7cf5'] : ['r', 'Difícil', '#f0455d'])
+    const T = m.weekly ? (m.cry <= 100 ? ['g', 'Fácil', '#22b86f'] : m.cry <= 150 ? ['b', 'Media', '#3f7cf5'] : ['r', 'Difícil', '#f0455d']) : m.daily ? (m.reward <= 100 ? ['g', 'Fácil', '#22b86f'] : m.reward <= 120 ? ['b', 'Media', '#3f7cf5'] : ['r', 'Difícil', '#f0455d'])
       : (m.reward < 400 ? ['t', 'Constancia', '#2a9d8f'] : m.reward < 900 ? ['b', 'Hazaña', '#3f7cf5'] : ['r', 'Reto', '#f0455d']);
     return '<div class="er" style="--ec:' + T[2] + '"><div class="eic">' + (m.daily ? '<span class="dball"></span>' : '★') + (done ? '<span class="ok">✓</span>' : '') + '</div>' +
       '<div class="et"><b><span class="chip ' + T[0] + '">' + T[1] + '</span>' + m.name + '</b><p>' + m.desc + '.</p>' +
       (done ? '<div class="done">Completada y cobrada</div>' : '<div class="mb"><i style="width:' + (pr / m.goal * 100) + '%"></i><em>' + fmtK(Math.floor(pr)) + ' / ' + fmtK(m.goal) + '</em></div>') + '</div>' +
-      '<div class="ea">' + (done ? '<span class="hecho">¡Hecho!</span>' : '<span class="rwd"><span class="coin"></span>+' + m.reward + '</span>' + (ok ? '<button class="c-grn" data-claim="' + m.id + '">Cobrar</button>' : '')) + '</div></div>';
+      '<div class="ea">' + (done ? '<span class="hecho">¡Hecho!</span>' : (m.weekly ? '<span class="rwd cry"><span class="crys"></span>+' + m.cry + '</span>' : '<span class="rwd"><span class="coin"></span>+' + m.reward + '</span>') + (ok ? '<button class="c-grn" data-claim="' + m.id + '">Cobrar</button>' : '')) + '</div></div>';
+  }
+  /** Pestaña ◆ Cristales: misiones semanales y los modos que dan cristales */
+  renderWeekly() {
+    const wk = MISSIONS.filter((m) => m.weekly), done = wk.filter((m) => Save.isClaimed(m)).length, tot = wk.reduce((a, m) => a + m.cry, 0);
+    const d = new Date(); const left = 7 - ((d.getDay() + 6) % 7);
+    this.el.menuBody.innerHTML = '<div class="enc">' +
+      '<div class="pnl ep"><div class="eh" style="--ehc:var(--blu)"><span class="k2">Misiones semanales</span><h4>Esta semana</h4><small>Se renuevan el lunes (' + (left === 1 ? 'mañana' : 'en ' + left + ' días') + ') · ' + done + ' de ' + wk.length + ' · hasta ' + tot.toLocaleString('es-ES') + ' cristales</small></div>' +
+        '<div class="eb">' + wk.map((m) => this.missionRow(m)).join('') + '</div></div>' +
+      '<div class="pnl ep"><div class="eh" style="--ehc:var(--grn)"><span class="k2">Modos de cristales</span><h4>Gana cristales jugando</h4><small>Con el guerrero que tengas elegido y tu dificultad</small></div>' +
+        '<div class="eb">' + this.modeCards() + '</div></div></div>';
+  }
+  modeCards() {
+    return Object.keys(MODES).map((k) => { const M = MODES[k], b = Save.d.best['mode_' + k];
+      return '<div class="mcard"><i>' + M.icon + '</i><div><b>' + M.name + '</b><p>' + M.desc + '</p>' + (b ? '<small>Mejor: ' + b.cry + ' cristales' + (k === 'gauntlet' ? ' · ' + b.bosses + ' jefes' : '') + '</small>' : '') + '</div><button class="c-blu" data-start="' + k + '">Jugar</button></div>'; }).join('');
   }
   renderMissions() {
     const achN = ACHIEVEMENTS.filter((a) => Save.d.ach[a.id]).length;
-    this.hdr = { t: 'Misiones', s: 'Vuelve cada día: se renuevan a las 00:00', c: '', tabs: this.segTabs([['missions', 'Misiones'], ['ach', 'Logros · ' + achN + '/' + ACHIEVEMENTS.length]], this.mtab, 'mtab') };
+    this.hdr = { t: 'Misiones', s: 'Vuelve cada día: se renuevan a las 00:00', c: '', tabs: this.segTabs([['missions', 'Misiones'], ['weekly', '◆ Cristales'], ['ach', 'Logros · ' + achN + '/' + ACHIEVEMENTS.length]], this.mtab, 'mtab') };
+    Save.checkWeekly();
+    if (this.mtab === 'weekly') { this.renderWeekly(); return; }
     if (this.mtab === 'ach') {
       const st = Save.d.stats;
       this.el.menuBody.innerHTML = '<div class="shop">' + ACHIEVEMENTS.map((a) => {

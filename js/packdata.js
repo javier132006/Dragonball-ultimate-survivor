@@ -22,6 +22,9 @@ const GUNITS = [
   ['babyv', 'char', null, 'SUPER BABY', 3, 0xff6ad8, 0xd04aff],
   ['vegito_b3', 'form', 'vegito', 'SUPER SAIYAN BLUE 3', 2, 0x6fd8ff, 0x4fc8ff],
   ['super17', 'form', 'andro17', 'SUPER 17', 2, 0xffe14a, 0x3a8aff],
+  ['trunks_dbs', 'form', 'trunks', 'ESPADA DE LA ESPERANZA', 2, 0x8ad8ff, 0x6fc8ff],
+  ['bardock_ssjl', 'form', 'bardock', 'SSJ DEL ÚLTIMO COMBATE', 1, 0xffe14a, 0xffc83a],
+  ['buu_gordo', 'form', 'majin', 'BUU ENFURECIDO', 1, 0xff9ad0, 0xff6ab8],
   ['kamba', 'char', null, 'KAMBA SSJ4', 2, 0xff3a4a, 0xd01a2a],
   ['andro35', 'char', null, 'SUPER ANDROIDE 35', 2, 0xff5a8a, 0xff3a6a],
   ['gohanf', 'char', null, 'GOHAN DEL FUTURO', 2, 0xffe14a, 0xffc83a],
@@ -123,6 +126,8 @@ const GRARE = [
   { k: 'ULTRA', name: 'ULTRA', col: '#ff3d7a', glow: '#ffffff' }
 ];
 const GACHA_RATES = [70, 21.5, 7, 1.5];             // % de HERO, EXTREME, SPARKING, ULTRA
+// TEMPORAL para pruebas: cristales al empezar. Para la versión normal: 1000 (una tirada x10)
+const CRYSTAL_START = 100000;
 const GACHA_COST1 = 100, GACHA_COST10 = 1000, GACHA_PITY = 80, GACHA_STARS = 5;
 
 /* ---------- Estandartes: cambian cada 10 días y medio (siempre el mismo para todos) ---------- */
@@ -131,7 +136,13 @@ const BANNERS = [
   { id: 'ui', name: 'INSTINTO SUPERIOR', sub: 'El cuerpo se mueve solo', feat: ['goku_mui', 'gohanf'], col: ['#5ab8ff', '#2149d0'], units: ['goku_mui', 'gohanf', 'super17', 'yamcha', 'gohankid'] },
   { id: 'fusion', name: 'FUSIÓN DEFINITIVA', sub: 'Dos guerreros, un solo poder', feat: ['vegito_ego', 'vegito_b3'], col: ['#a34dff', '#2149d0'], units: ['vegito_ego', 'vegito_b3', 'andro35', 'ginyu', 'dabura'] },
   { id: 'evil', name: 'AMENAZA TSUFUR', sub: 'El mal vuelve con más fuerza', feat: ['babyv', 'buu_zamasu'], col: ['#ff3d7a', '#5a1a8a'], units: ['babyv', 'buu_zamasu', 'kamba', 'dabura', 'ginyu'] },
-  { id: 'ssj4', name: 'FURIA SAIYAJIN', sub: 'La sangre saiyajin hierve', feat: ['kamba', 'goku_mui'], col: ['#d81f3c', '#ff7a12'], units: ['kamba', 'goku_mui', 'gohanf', 'super17', 'yamcha', 'gohankid'] }
+  { id: 'ssj4', name: 'FURIA SAIYAJIN', sub: 'La sangre saiyajin hierve', feat: ['kamba', 'goku_mui'], col: ['#d81f3c', '#ff7a12'], units: ['kamba', 'goku_mui', 'gohanf', 'super17', 'yamcha', 'gohankid'] },
+  // Nuevos (repiten algunos ULTRA, como cualquier estandarte de gacha)
+  { id: 'future', name: 'FUTURO SIN ESPERANZA', sub: 'Los últimos guerreros contra los androides', feat: ['trunks_dbs', 'gohanf'], col: ['#3d9bff', '#2a2f5a'], units: ['trunks_dbs', 'gohanf', 'super17', 'andro35', 'yamcha', 'gohankid', 'goku_mui'] },
+  { id: 'buu', name: 'SAGA DE MAJIN BUU', sub: 'El mago Babidi despierta al monstruo', feat: ['buu_zamasu', 'buu_gordo'], col: ['#ff7ac8', '#5a1a8a'], units: ['buu_zamasu', 'buu_gordo', 'dabura', 'gohankid', 'vegito_b3', 'ginyu'] },
+  { id: 'pride', name: 'ORGULLO SAIYAJIN', sub: 'Padre e hijo, la misma sangre guerrera', feat: ['bardock_ssjl', 'goku_mui'], col: ['#ffb81c', '#2a8a3a'], units: ['bardock_ssjl', 'goku_mui', 'kamba', 'gohanf', 'trunks_dbs', 'yamcha'] },
+  { id: 'gt', name: 'AMENAZA DE GT', sub: 'Baby y Super 17 contra la Tierra', feat: ['babyv', 'super17'], col: ['#c04dff', '#1a3a7a'], units: ['babyv', 'super17', 'kamba', 'andro35', 'ginyu', 'buu_gordo'] },
+  { id: 'legends', name: 'LEYENDAS DEL ALTAR', sub: 'Vuelven todos los ULTRA a la vez', feat: ['vegito_ego', 'goku_mui', 'babyv'], col: ['#ff3d7a', '#ffb81c'], units: ['vegito_ego', 'goku_mui', 'babyv', 'buu_zamasu', 'vegito_b3', 'trunks_dbs', 'kamba', 'bardock_ssjl', 'dabura'] }
 ];
 /** Estandarte de ahora: índice, datos y milisegundos hasta que cambie */
 function bannerNow(t) {
@@ -148,7 +159,8 @@ const STANDARD_BANNER = { id: 'std', name: 'ESFERAS ETERNAS', sub: 'Todos los gu
 const OLD_BUY = { nappa: 3000, tenshin: 3500, uub: 6000, granola: 5500, ginyu: 4000 }, OLD_REQ = ['roshi', 'satan', 'whis', 'bulma'];
 function packSaveDefaults() {
   const d = Save.d;
-  if (typeof d.crystals !== 'number') d.crystals = 1000;                         // regalo de bienvenida: una tirada x10
+  if (typeof d.crystals !== 'number') d.crystals = CRYSTAL_START;                // regalo de bienvenida
+  if (CRYSTAL_START >= 100000 && !d.gtest) { d.gtest = 1; d.crystals = Math.max(d.crystals, CRYSTAL_START); }   // TEMPORAL (pruebas): todos empiezan con 100.000
   if (!d.gforms || typeof d.gforms !== 'object') d.gforms = {};                  // id → estrellas (1..5)
   if (!d.gpity || typeof d.gpity !== 'object') d.gpity = {};                     // por estandarte: tiradas sin ULTRA
   if (typeof d.gpulls !== 'number') d.gpulls = 0;

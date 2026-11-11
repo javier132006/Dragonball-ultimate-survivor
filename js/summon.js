@@ -326,7 +326,7 @@ Object.assign(UIManager.prototype, {
           '<button class="bpull" data-pull="10"' + (d.crystals < GACHA_COST10 ? ' disabled' : '') + '>Invocar ×10<small><span class="crys"></span> ' + GACHA_COST10.toLocaleString('es-ES') + ' · EXTREME+ seguro</small></button></div>' +
         '<div class="bfoot"><div class="bpity"><span>Garantía ULTRA</span><div class="mb"><i style="width:' + (pity / GACHA_PITY * 100) + '%"></i><em>' + pity + ' / ' + GACHA_PITY + '</em></div></div><button class="pill" data-rates>Probabilidades</button></div>' +
       '</div>' +
-      '<div class="pnl gside"><div class="gsh"><b>Premios</b><span>' + own + ' / ' + GUNITS.length + ' conseguidos</span></div>' + mig + '<div class="glist">' + items + '</div>' +
+      '<div class="pnl gside"><div class="gmodes"><span class="k2">Gana cristales</span>' + Object.keys(MODES).map((k) => '<button class="c-blu" data-start="' + k + '">' + MODES[k].icon + ' ' + MODES[k].name + '</button>').join('') + '<button class="c-yel" data-go="missions" data-wk>◆ Misiones semanales</button></div><div class="gsh"><b>Premios</b><span>' + own + ' / ' + GUNITS.length + ' conseguidos</span></div>' + mig + '<div class="glist">' + items + '</div>' +
         '<p class="dim gnote">Guerreros nuevos: se desbloquean al salir (toca para ver su ficha). Transformaciones: van al final de la cadena de su guerrero (pulsa [G] en partida); lleva una por guerrero, toca otra tuya para cambiarla.</p></div>' +
       '</div>';
     animIn(this.el.menuBody);

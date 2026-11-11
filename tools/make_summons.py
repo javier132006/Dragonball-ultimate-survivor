@@ -36,6 +36,9 @@ SPEC = {
     'kamba': ('V5', 'KAMBA SSJ4*', dict(idle=[6, 7, 8, 7], walk=[12, 15], atk=22, crit=27, beam=51, hurt=34, dash=16, death=[35, 36, 37], chg=[40, 41], pt=80)),
     'babyv': ('V5', 'SUPER BABY*', dict(idle=[8, 9, 10, 11], walk=[19, 22], atk=24, crit=33, beam=99, hurt=72, dash=21, death=[73, 74, 75], chg=[79, 80, 81], pt=203)),
     'vegito_ego': ('V5', 'VEGETTO EGO*', dict(idle=[20, 21, 22, 23], walk=[28, 25], atk=36, crit=50, beam=86, hurt=58, dash=29, death=[58, 59, 60], chg=[63, 64], pt=96)),
+    'trunks_dbs': ('V4', 'MIRAI TRUNKS (DBS)', dict(idle=[0, 1, 2, 3], walk=[9, 10], atk=5, crit=44, beam=64, hurt=49, dash=11, death=[50, 51, 52], chg=[59, 60], pt=81)),
+    'bardock_ssjl': ('V4', 'BARDOCK SSJ', dict(idle=[13, 14, 15, 14], walk=[16, 21], atk=19, crit=23, beam=63, hurt=41, dash=17, death=[42, 43, 44], chg=[48, 49], pt=94)),
+    'buu_gordo': ('V3', 'MAJIN BUU (GORDO)', dict(idle=[0, 9], walk=[14, 15], atk=11, crit=10, beam=37, hurt=21, dash=38, death=[21, 30, 30], chg=[34, 35], pt=66)),
     'dabura': ('V5', 'DABURA', dict(idle=[0, 1, 2, 1], walk=[3, 4], atk=18, crit=16, beam=20, hurt=11, dash=56, death=[34, 35, 35], chg=[30, 31, 32, 31], pt=74)),
 }
 

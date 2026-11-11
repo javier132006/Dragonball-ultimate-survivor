@@ -1101,6 +1101,14 @@ const DIFFS = [
 ];
 const diffById = (id) => DIFFS.find((x) => x.id === id) || DIFFS[0];
 
+/* ---------- Modos de cristales (se juegan desde el Altar de Shenron) ---------- */
+const RUSH_TIME = 300, RUSH_BONUS = 60, RUSH_CAP = 300;  // Lluvia de Cristales: 5 minutos; aguantar hasta el final da +60; como mucho 300 de los enemigos
+const gauntletCry = (n) => 30 + 10 * n;                 // Asalto de Jefes: cada jefe da 10 cristales más que el anterior
+const MODES = {
+  rush: { name: 'Lluvia de Cristales', icon: '◆', desc: '5 minutos contra una horda enorme. Cada enemigo puede soltar cristales (las élites, 4; hasta ' + RUSH_CAP + '). Si aguantas hasta el final, +' + RUSH_BONUS + '.', hint: 'Aguanta ' + RUSH_TIME / 60 + ' minutos · los enemigos sueltan cristales' },
+  gauntlet: { name: 'Asalto de Jefes', icon: '♛', desc: 'Jefes al azar, uno tras otro y cada vez más fuertes. El primero da 30 cristales y cada uno da 10 más que el anterior. Acaba cuando caes.', hint: 'Jefes sin parar · cada uno da más cristales' }
+};
+
 /* ---------- Misiones: permanentes (progreso acumulado) y diarias (se renuevan cada día) ---------- */
 const MISSIONS = [
   { id: 'k200', name: 'Cazador', desc: 'Derrota 200 enemigos', stat: 'kills', goal: 200, reward: 150 },
@@ -1119,9 +1127,20 @@ const MISSIONS = [
   { id: 'dc5', name: 'Día de compras', desc: 'Abre 5 cápsulas hoy', stat: 'capsules', goal: 5, reward: 100, daily: true },
   { id: 'dr3', name: 'Constancia', desc: 'Juega 3 partidas hoy', stat: 'runs', goal: 3, reward: 80, daily: true },
   { id: 'db1', name: 'Jefe del día', desc: 'Derrota 1 jefe hoy', stat: 'bosses', goal: 1, reward: 150, daily: true },
-  { id: 'dt600', name: 'Resistencia', desc: 'Sobrevive 10 minutos en total hoy', stat: 'time', goal: 600, reward: 120, daily: true }
+  { id: 'dt600', name: 'Resistencia', desc: 'Sobrevive 10 minutos en total hoy', stat: 'time', goal: 600, reward: 120, daily: true },
+  // Semanales (se renuevan cada lunes): dan Cristales del Dragón para el Altar de Shenron
+  { id: 'wk3000', name: 'Horda semanal', desc: 'Derrota 3.000 enemigos esta semana', stat: 'kills', goal: 3000, cry: 150, weekly: true },
+  { id: 'wb8', name: 'Cazajefes', desc: 'Derrota 8 jefes esta semana', stat: 'bosses', goal: 8, cry: 200, weekly: true },
+  { id: 'wr10', name: 'Guerrero constante', desc: 'Juega 10 partidas esta semana', stat: 'runs', goal: 10, cry: 100, weekly: true },
+  { id: 'wrush', name: 'Buscador de cristales', desc: 'Termina 3 Lluvias de Cristales', stat: 'rushes', goal: 3, cry: 150, weekly: true },
+  { id: 'wgaunt', name: 'Asalto total', desc: 'Derrota 6 jefes en el Asalto de Jefes', stat: 'gbosses', goal: 6, cry: 250, weekly: true },
+  { id: 'wsum', name: 'Poder del altar', desc: 'Juega 5 partidas con guerreros o formas del altar', stat: 'sumRuns', goal: 5, cry: 150, weekly: true },
+  { id: 'wch3', name: 'Lector de leyendas', desc: 'Gana 3 capítulos del Modo Leyenda', stat: 'chapters', goal: 3, cry: 150, weekly: true },
+  { id: 'wday3', name: 'Reto del día', desc: 'Completa 3 desafíos diarios', stat: 'dailies', goal: 3, cry: 150, weekly: true }
 ];
 const missionById = (id) => MISSIONS.find((m) => m.id === id);
+/** Semana actual: fecha del lunes (AAAA-MM-DD) */
+function weekStr() { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
 /* ---------- Logros: se desbloquean solos al cumplirse y pagan monedas al momento ---------- */
 const ACHIEVEMENTS = [
@@ -1159,7 +1178,7 @@ const todayStr = () => { const t = new Date(); return t.getFullYear() + '-' + St
 
 /* ---------- Guardado local ---------- */
 const Save = {
-  d: { zeni: 0, unlocked: ['goku'], sel: 'goku', up: {}, best: {}, items: [], techs: [], stats: {}, claimed: {}, clears: {}, diff: 'easy', daily: null, login: { last: '', streak: 0 }, ach: {}, vol: { mus: 0.5, sfx: 0.75 },
+  d: { zeni: 0, unlocked: ['goku'], sel: 'goku', up: {}, best: {}, items: [], techs: [], stats: {}, claimed: {}, clears: {}, diff: 'easy', daily: null, login: { last: '', streak: 0 }, ach: {}, vol: { mus: 0.5, sfx: 0.75 }, weekly: null,
     opt: { quality: 'auto', flash: false, shake: 1 }, rank: [], day: null, dayHist: [], story: {} },
   load() {
     try { const s = JSON.parse(localStorage.getItem('dbus_save_v1')); if (s) Object.assign(this.d, s); } catch (e) { /* sin guardado */ }
@@ -1178,7 +1197,7 @@ const Save = {
       const raw = str.trim(), json = raw[0] === '{' ? raw : decodeURIComponent(escape(atob(raw))), o = JSON.parse(json);
       if (!o || typeof o.zeni !== 'number' || !Array.isArray(o.unlocked)) return false;
       this.d = Object.assign(JSON.parse(JSON.stringify(SAVE_DEFAULT)), o);
-      this.write(); this.load(); this.checkDaily();
+      this.write(); this.load(); this.checkDaily(); this.checkWeekly();
       return true;
     } catch (e) { return false; }
   },
@@ -1192,6 +1211,12 @@ const Save = {
     while (ids.length < 3) { const m = pool[(rng() * pool.length) | 0]; if (!ids.includes(m.id)) ids.push(m.id); }
     this.d.daily = { date: t, ids, prog: {}, claimed: {} };
   },
+  /** Renueva las misiones semanales cada lunes */
+  checkWeekly() {
+    const w = weekStr();
+    if (this.d.weekly && this.d.weekly.wk === w) return;
+    this.d.weekly = { wk: w, prog: {}, claimed: {} };
+  },
   /** Racha de inicio de sesión: devuelve la recompensa pendiente o null si ya se cobró hoy */
   checkLogin() {
     const t = todayStr(), l = this.d.login;
@@ -1201,8 +1226,8 @@ const Save = {
     const streak = l.last === ys ? l.streak + 1 : 1;
     return { streak, reward: 100 + 50 * Math.min(streak - 1, 6) };
   },
-  progress(m) { return m.daily ? (this.d.daily.prog[m.stat] || 0) : (this.d.stats[m.stat] || 0); },
-  isClaimed(m) { return m.daily ? !!this.d.daily.claimed[m.id] : !!this.d.claimed[m.id]; }
+  progress(m) { return m.weekly ? (this.d.weekly.prog[m.stat] || 0) : m.daily ? (this.d.daily.prog[m.stat] || 0) : (this.d.stats[m.stat] || 0); },
+  isClaimed(m) { return m.weekly ? !!this.d.weekly.claimed[m.id] : m.daily ? !!this.d.daily.claimed[m.id] : !!this.d.claimed[m.id]; }
 };
 
 const SAVE_DEFAULT = JSON.parse(JSON.stringify(Save.d));

@@ -263,7 +263,7 @@ class Game {
         const P = placeById(D.place);
         ui.map.travel(D.place, () => { if (P.act.go) this.go(P.act.go); else { this.saga = null; this.startLoad(P.act.start === 'practice', P.act.start === 'daily'); } });
       }
-      else if (D.go) this.go(D.go);
+      else if (D.go) { this.go(D.go); if (D.wk !== undefined) { ui.mtab = 'weekly'; ui.renderMenu(); } }
       else if (D.tab) { ui.tab = D.tab; ui.renderMenu(); }
       else if (D.mtab) { ui.mtab = D.mtab; ui.renderMenu(); }
       else if (D.ch) this.viewChar(D.ch);
@@ -279,7 +279,7 @@ class Game {
       else if (D.tech) this.buyTech(D.tech);
       else if (D.claim) this.claimMission(D.claim);
       else if (D.diff) { Save.d.diff = D.diff; Save.write(); ui.renderMenu(); }
-      else if (D.start !== undefined) { this.saga = D.start.startsWith('chap:') ? chapById(D.start.slice(5)) : null; this.startLoad(D.start === 'practice', D.start === 'daily'); }
+      else if (D.start !== undefined) { this.saga = D.start.startsWith('chap:') ? chapById(D.start.slice(5)) : null; this.startLoad(D.start === 'practice', D.start === 'daily', MODES[D.start] ? D.start : null); }
       else if (D.exit !== undefined) ui.showExit(true);
       else if (D.rtab) { ui.rtab = D.rtab; ui.renderMenu(); }
       else if (D.otab) { ui.otab = D.otab; ui.renderMenu(); }
@@ -353,7 +353,7 @@ class Game {
   /** Volver a jugar: en el Modo Historia, tras ganar, pasa al siguiente capítulo (o al primero del libro siguiente) */
   again() {
     if (this.saga && this.won && this.nextChap) this.saga = this.nextChap;
-    this.startLoad(this.practice, this.daily);
+    this.startLoad(this.practice, this.daily, this.mode);
   }
   locked() { return document.pointerLockElement === this.renderer.domElement; }
   grabMouse() { if (IS_TOUCH) return; try { const r = this.renderer.domElement.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* sin pointer lock */ } }
@@ -481,7 +481,7 @@ class Game {
     this.camLook.set(0, 0, 0);
     if (this.saga) { this.ui.screen = 'legend'; this.ui.book = this.saga.book.idx; this.ui.lchap = this.won && this.nextChap && this.nextChap.book === this.saga.book ? this.nextChap.idx : this.saga.idx; }
     else this.ui.screen = 'home';
-    this.saga = null; this.won = false;
+    this.saga = null; this.won = false; this.mode = null; this.ui.modeHud(this);
     this.allies.reset(); this.setStorm(0);
     SFX.music('menu');
     this.ui.showMenu(this);
@@ -491,17 +491,17 @@ class Game {
 
   /* ---------- Partida ---------- */
   /** Empieza la partida mostrando la pantalla de carga mientras se genera el mapa (relieve nuevo en cada partida) */
-  startLoad(practice, daily) {
+  startLoad(practice, daily, mode) {
     const l = document.getElementById('loading'), tx = document.getElementById('ldTxt');
     if (this.loadingRun) return;
-    if (!l) { this.start(practice, daily); return; }
+    if (!l) { this.start(practice, daily, mode); return; }
     this.loadingRun = true;
     l.classList.add('quick'); l.style.display = 'flex';
     const tip = document.getElementById('tip'); if (tip) tip.textContent = '¡PREPARANDO EL COMBATE!';
     if (tx) tx.textContent = '';
     // Dos cuadros para que se pinte la pantalla antes del trabajo pesado
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      try { this.start(practice, daily); if (this.renderer) this.renderer.compile(this.scene, this.camera); }
+      try { this.start(practice, daily, mode); if (this.renderer) this.renderer.compile(this.scene, this.camera); }
       finally {
         this.loadingRun = false; this.clock.getDelta();
         l.classList.add('out');
@@ -509,8 +509,11 @@ class Game {
       }
     }));
   }
-  start(practice, daily) {
-    if (practice || daily) this.saga = null;                         // el Modo Leyenda solo en partidas normales
+  start(practice, daily, mode) {
+    if (practice || daily || mode) this.saga = null;                 // el Modo Leyenda solo en partidas normales
+    // Modos de cristales: 'rush' (Lluvia de Cristales, 5 min) · 'gauntlet' (Asalto de Jefes, jefes sin parar)
+    this.mode = !practice && !daily && MODES[mode] ? mode : null; this.modeCry = 0; this.modeT = this.mode === 'rush' ? RUSH_TIME : 0; this.modeDone = false;
+    this.gN = 0; this.gNext = 4; this.ui.modeHud(this);
     const ch = this.saga ? charById(this.saga.ch) : charById(Save.d.sel);
     if (!ch || ch.soon || (!this.saga && !Save.d.unlocked.includes(ch.id))) return;   // en una saga juegas con su personaje
     // Desafío diario: mapa con la semilla del día, 2 modificadores y dificultad NORMAL para todos
@@ -547,7 +550,8 @@ class Game {
     if (ch.portrait) this.ui.drawFrame(this.ui.el.portrait, ch.portrait.sheet, ch.portrait.frame, ch.portrait.tint);
     this.state = 'play';
     this.clock.getDelta();
-    if (!this.saga) this.ui.toast(this.practice ? 'ENTRENAMIENTO' : this.daily ? 'DESAFÍO DIARIO' : ch.name);
+    if (!this.saga) this.ui.toast(this.practice ? 'ENTRENAMIENTO' : this.daily ? 'DESAFÍO DIARIO' : this.mode ? MODES[this.mode].name.toUpperCase() : ch.name);
+    if (this.mode) this.ui.toast(MODES[this.mode].hint, true);
     if (this.practice) this.ui.toast('L: subir de nivel · K: limpiar la horda · J: +500 Zeni', true);
     for (const m of this.modList) this.ui.toast(m.icon + ' ' + m.name + ': ' + m.text, true);
     SFX.music('battle');
@@ -1078,6 +1082,7 @@ class Game {
     const nStars = [0, 1, 2].filter((i) => mask & (1 << i)).length, gained = nStars - (prev.stars || 0);
     let coins = (first ? SG.reward : 0) + Math.max(0, gained) * 50, prize = '';
     let crys = (first ? 30 : 0) + Math.max(0, gained) * 10;
+    this.track('chapters', 1);
     S[SG.id] = { stars: nStars, mask, best: prev.best ? Math.min(prev.best, Math.floor(this.time)) : Math.floor(this.time) };
     if (!wasBook && bookDone(B.idx)) {                                // ¡libro completado!: premio grande
       (Save.d.sagas || (Save.d.sagas = {}))[B.id] = true;
@@ -1393,8 +1398,17 @@ class Game {
     if (this.practice) return { coins: 0, bonus: 0, score: 0, crys: 0 };    // el entrenamiento no da recompensas
     let coins = Math.floor(this.zeniRun * d.coins), bonus = 0;
     // Cristales del Dragón (gachapón): por aguantar, por jefes y por ganar
-    const crys = Math.min(60, Math.floor(this.time / 60) * 3) + this.run.bosses * 5 + (win ? 20 : 0);
+    const crys = Math.min(60, Math.floor(this.time / 60) * 3) + this.run.bosses * 5 + (win ? 20 : 0) + (this.modeCry || 0);
     Save.d.crystals = (Save.d.crystals || 0) + crys;
+    if (p.ch.summon || (p.ch.forms || []).some((f) => f.gacha)) this.track('sumRuns', 1);   // misión semanal: jugar con el altar
+    if (this.mode) {                              // modos de cristales: monedas y misiones, sin ranking ni premio de dificultad
+      Save.d.zeni += coins; this.track('runs', 1); this.track('time', Math.floor(this.time)); this.trackMax('maxLevel', p.level);
+      if (this.mode === 'rush' && this.modeDone) this.track('rushes', 1);
+      const k = 'mode_' + this.mode, b = Save.d.best[k];
+      if (!b || this.modeCry > b.cry) Save.d.best[k] = { cry: this.modeCry, time: Math.floor(this.time), bosses: this.gN };
+      this.checkAch(); Save.write();
+      return { coins, bonus: 0, score: 0, crys, mode: this.mode, modeCry: this.modeCry };
+    }
     if (this.saga) {                              // Modo Historia: monedas de la partida (los premios del capítulo van aparte); sin ranking
       Save.d.zeni += coins; this.track('runs', 1); this.track('time', Math.floor(this.time)); this.trackMax('maxLevel', p.level);
       if (win) this.track('wins', 1);
@@ -1452,14 +1466,50 @@ class Game {
       ['CÁPSULAS ABIERTAS', this.capsOpened], ['MAPA ALCANZADO', (this.step + 1) + ' / ' + ROUTE_LEN], ['DAÑO TOTAL', Math.floor(this.run.damage)],
       ['GOLPE MÁS FUERTE', Math.floor(this.run.best)], ['DAÑO RECIBIDO', Math.floor(this.run.taken)], ['DASHES', this.run.dashes], ['DIFICULTAD', this.diff.name]];
     let h = '';
-    if (!this.practice) h += '<div class="score' + (r.record ? ' rec' : '') + '"><small>' + (r.record ? '¡NUEVO RÉCORD!' : this.daily ? 'PUNTUACIÓN · DESAFÍO DIARIO' : 'PUNTUACIÓN') + '</small><b>' + (r.score || 0).toLocaleString('es-ES') + '</b><span>' + this.run.route.join(' ▸ ') + '</span></div>';
-    if (!this.practice && this.online.ready) h += '<div class="onl' + (this.online.logged ? '' : ' off') + '" id="onlRes">' + (this.online.logged ? 'Enviando al ranking mundial…' : 'Inicia sesión en CUENTA para entrar en el ranking mundial.') + '</div>';
+    if (!this.practice && !r.mode) h += '<div class="score' + (r.record ? ' rec' : '') + '"><small>' + (r.record ? '¡NUEVO RÉCORD!' : this.daily ? 'PUNTUACIÓN · DESAFÍO DIARIO' : 'PUNTUACIÓN') + '</small><b>' + (r.score || 0).toLocaleString('es-ES') + '</b><span>' + this.run.route.join(' ▸ ') + '</span></div>';
+    if (!this.practice && !r.mode && this.online.ready) h += '<div class="onl' + (this.online.logged ? '' : ' off') + '" id="onlRes">' + (this.online.logged ? 'Enviando al ranking mundial…' : 'Inicia sesión en CUENTA para entrar en el ranking mundial.') + '</div>';
     h += '<div class="sum">' + rows.map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
     h += this.dmgChart();
     if (this.practice) return h + '<div class="reward">ENTRENAMIENTO<small>El modo práctica no da monedas ni cuenta para misiones y logros</small></div>';
     h += '<div class="reward">+' + r.coins + ' MONEDAS' + (r.bonus ? '<small>incluye ' + r.bonus + ' de bonificación por completar el nivel</small>' : '') + (r.dayBonus ? '<small>incluye ' + r.dayBonus + ' por terminar el desafío de hoy</small>' : '') + '</div>';
-    if (r.crys) h += '<div class="crew">+' + r.crys + ' CRISTALES DEL DRAGÓN</div>';
+    if (r.crys) h += '<div class="crew">+' + r.crys + ' CRISTALES DEL DRAGÓN' + (r.mode ? '<small>' + r.modeCry + ' de ' + MODES[r.mode].name + '</small>' : '') + '</div>';
     return h;
+  }
+  /* ---------- Modos de cristales ---------- */
+  /** Cada cuadro: reloj de la Lluvia de Cristales y llegada de jefes en el Asalto. true = la partida ha terminado */
+  updateMode(dt) {
+    if (this.mode === 'rush') {
+      const before = Math.ceil(this.modeT); this.modeT -= dt;
+      const now = Math.ceil(this.modeT);
+      if (now !== before && (now === 60 || now === 30 || now <= 5) && now > 0) { this.ui.toast(now + ' SEGUNDOS', true); SFX.play('warn'); }
+      if (this.modeT <= 0) { this.modeDone = true; this.modeCry += RUSH_BONUS; this.rushEnd(); return true; }
+    } else if (this.mode === 'gauntlet' && !this.bossSpawned && !this.player.dying) {
+      this.gNext -= dt;
+      if (this.gNext <= 0) {
+        const keys = Object.keys(BOSSES), key = keys[(Math.random() * keys.length) | 0];
+        this.stage.boss = Object.assign({ id: '' }, BOSSES[key], { hp: this.stage.bossHp * Math.pow(1.18, this.gN) });
+        this.bossDead = false; this.spawnBoss();
+        this.ui.toast('JEFE ' + (this.gN + 1) + ' · +' + gauntletCry(this.gN) + ' ◆', true);
+      }
+    }
+    this.ui.modeHud(this);
+    return false;
+  }
+  rushKill(x, z, type) {
+    let n = type === T_BOSS ? 25 : type === 4 ? 4 : Math.random() < 0.05 ? 1 : 0;
+    n = Math.min(n, RUSH_CAP - this.modeCry);
+    if (n <= 0) return;
+    this.modeCry += n; this.fx.burst(this.fx.sparks, x, 1.2, z, 6 + n * 2, 6, 0.4, 0.3, 8);
+    if (n >= 4) { this.ui.toast('+' + n + ' ◆ CRISTALES', true); SFX.play('coin'); }
+  }
+  gauntletKill(x, z) {
+    const n = gauntletCry(this.gN); this.gN++; this.modeCry += n; this.track('gbosses', 1);
+    this.ui.toast('+' + n + ' ◆ · SIGUIENTE JEFE EN 6 S', true);
+    this.bossSpawned = false; this.gNext = 6;
+  }
+  rushEnd() {
+    this.won = true; this.state = 'over'; this.releaseMouse(); SFX.music(''); SFX.play('win');
+    this.ui.showScreen('¡TIEMPO!', 'LLUVIA DE CRISTALES · HAS AGUANTADO ' + fmtTime(RUSH_TIME), this.runSummary(this.finishRun(false)), 'JUGAR OTRA VEZ [R]', 'MENÚ [M]', 'win');
   }
   gameOver() {
     this.state = 'over'; this.releaseMouse(); SFX.music(''); SFX.play('lose');
@@ -1588,12 +1638,12 @@ class Game {
   claimMission(id) {
     const m = missionById(id);
     if (!m || Save.isClaimed(m) || Save.progress(m) < m.goal) return;
-    if (m.daily) Save.d.daily.claimed[id] = true; else Save.d.claimed[id] = true;
-    const cr = m.daily ? 20 : 50;
-    Save.d.zeni += m.reward; Save.d.crystals = (Save.d.crystals || 0) + cr; Save.write();
+    if (m.weekly) Save.d.weekly.claimed[id] = true; else if (m.daily) Save.d.daily.claimed[id] = true; else Save.d.claimed[id] = true;
+    const cr = m.weekly ? m.cry : m.daily ? 20 : 50, zn = m.reward || 0;
+    Save.d.zeni += zn; Save.d.crystals = (Save.d.crystals || 0) + cr; Save.write();
     this.ui.renderMenu();
     // Shenron concede el premio
-    Shenron.summon({ kicker: m.daily ? 'Misión del día cumplida' : 'Misión cumplida', title: '¡Deseo concedido!', sub: m.name, html: '<span class="big">+' + m.reward + ' monedas</span><span class="bigc">+' + cr + ' cristales</span>' });
+    Shenron.summon({ kicker: m.weekly ? 'Misión semanal cumplida' : m.daily ? 'Misión del día cumplida' : 'Misión cumplida', title: '¡Deseo concedido!', sub: m.name, html: (zn ? '<span class="big">+' + zn + ' monedas</span>' : '') + '<span class="bigc">+' + cr + ' cristales</span>' });
   }
   claimLogin() {
     const l = Save.checkLogin();
@@ -1606,6 +1656,7 @@ class Game {
     if (this.practice) return;
     const s = Save.d.stats; s[stat] = (s[stat] || 0) + n;
     const p = Save.d.daily.prog; p[stat] = (p[stat] || 0) + n;
+    Save.checkWeekly(); const w = Save.d.weekly.prog; w[stat] = (w[stat] || 0) + n;
   }
   trackMax(stat, v) {
     if (this.practice) return;
@@ -2169,6 +2220,7 @@ class Game {
       Save.d.rival = { lvl: lv + 1, counter: top, topW, beatMe: false }; Save.write();
       this.ui.toast('¡RIVAL DERROTADO!'); this.ui.toast('Recordará ' + this.rivalWName(topW) + '... y volverá más fuerte', true); SFX.play('achieve');
     }
+    if (this.mode === 'rush') this.rushKill(x, z, type);
     this.gainCash(ENEMY_TYPES[type].cash);
     this.orbs.spawn(x, z, ENEMY_TYPES[type].xp);
     this.gainZeni(type === 3 ? 60 : 0.5 * ENEMY_TYPES[type].xp);
@@ -2198,7 +2250,9 @@ class Game {
       this.vfx.play('dome', x, 3, z, { size: 14, grow: 1.6, dur: 0.8, pri: 1 });
       this.impact(0.26, 0);
       this.ui.toast('¡' + this.stage.boss.name + ' DERROTADO!'); this.shake(1); SFX.play('bigboom'); SFX.music('battle');
-      if (this.stage.final || this.saga) this.victoryT = 2.2;
+      if (this.mode === 'gauntlet') this.gauntletKill(x, z);                // Asalto de Jefes: cristales y el siguiente jefe
+      else if (this.mode === 'rush') { /* Lluvia de Cristales: se sigue en el mismo mapa hasta que acabe el tiempo */ }
+      else if (this.stage.final || this.saga) this.victoryT = 2.2;
       else this.openRifts(x, z);
     } else {
       if (Math.random() < 0.012) this.pickups.drop(x, z);
@@ -2440,7 +2494,7 @@ class Game {
         this.swarm = true; this.ui.toast('¡ENJAMBRE FINAL!'); this.shake(1); SFX.play('alarm'); SFX.music('boss');
       }
       const sw = this.swarmLvl();
-      this.spawnAcc += Math.min(4 + t0 * 0.09, 22) * S.spawn * (1 + sw * 0.7) * this.diff.spawn * (1 + this.chal * 0.2) * (this.roomT > 0 ? 3 : 1) * dt;   // en la sala, el triple
+      this.spawnAcc += Math.min(4 + t0 * 0.09, 22) * S.spawn * (1 + sw * 0.7) * this.diff.spawn * (1 + this.chal * 0.2) * (this.roomT > 0 ? 3 : 1) * (this.mode === 'rush' ? 1.6 : this.mode === 'gauntlet' ? 0.5 : 1) * dt;   // en la sala, el triple · Lluvia de Cristales: más horda · Asalto: menos
       while (this.spawnAcc >= 1) { this.spawnAcc -= 1; this.spawnEnemy(); }
       this.waveT -= dt;
       if (this.waveT <= 0 && !this.swarm) {                         // oleada normal cada minuto
@@ -2450,6 +2504,7 @@ class Game {
       }
     }
     if (this.victoryT > 0) { this.victoryT -= dt; if (this.victoryT <= 0) { this.victory(); return; } }
+    if (this.mode && this.updateMode(dt)) return;
     const P = this.player;
     if (P.reloj) {                                                              // Reloj de Arena: al bajar del 30% de vida, la horda va más lenta 5 s (cada 30 s)
       P.relojCd = Math.max(0, (P.relojCd || 0) - dt); P.relojT = Math.max(0, (P.relojT || 0) - dt);
@@ -2654,7 +2709,7 @@ class Game {
   const frame = () => new Promise((r) => requestAnimationFrame(() => r()));   // deja pintar la barra entre fases
   let sheets = null;
   try {
-    Save.load(); Save.checkDaily(); Save.write();
+    Save.load(); Save.checkDaily(); Save.checkWeekly(); Save.write();
     // Iconos de técnicas y objetos (sprites): una variable CSS con la hoja «icons»
     const ic = window.SPRITE_DATA && window.SPRITE_DATA.icons;
     if (ic) document.documentElement.style.setProperty('--icons', 'url(' + ic.src + ')');
