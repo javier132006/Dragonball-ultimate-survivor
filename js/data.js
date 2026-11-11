@@ -1136,7 +1136,8 @@ const MISSIONS = [
   { id: 'wgaunt', name: 'Asalto total', desc: 'Derrota 6 jefes en el Asalto de Jefes', stat: 'gbosses', goal: 6, cry: 250, weekly: true },
   { id: 'wsum', name: 'Poder del altar', desc: 'Juega 5 partidas con guerreros o formas del altar', stat: 'sumRuns', goal: 5, cry: 150, weekly: true },
   { id: 'wch3', name: 'Lector de leyendas', desc: 'Gana 3 capítulos del Modo Leyenda', stat: 'chapters', goal: 3, cry: 150, weekly: true },
-  { id: 'wday3', name: 'Reto del día', desc: 'Completa 3 desafíos diarios', stat: 'dailies', goal: 3, cry: 150, weekly: true }
+  { id: 'wday3', name: 'Reto del día', desc: 'Completa 3 desafíos diarios', stat: 'dailies', goal: 3, cry: 150, weekly: true },
+  { id: 'wzf', name: 'Guerrero Z', desc: 'Gana 3 combates en el Combate Z (Juegos de Cell)', stat: 'zwins', goal: 3, cry: 150, weekly: true }
 ];
 const missionById = (id) => MISSIONS.find((m) => m.id === id);
 /** Semana actual: fecha del lunes (AAAA-MM-DD) */

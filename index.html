@@ -1446,6 +1446,40 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
   .bfp{height:52%}.sckj{font-size:60px}
   .zeni.cry::before{width:13px;height:17px}
 }
+
+/* ---------- Combate Z (lucha 2D) ---------- */
+#zf{position:fixed;inset:0;z-index:60;background:#05070f;overflow:hidden;font-family:var(--body);color:#fff;touch-action:none;user-select:none}
+#zf .zfc{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#zf .zfui{position:absolute;inset:0;pointer-events:none}#zf .zfui>*{pointer-events:auto}#zf .zhud{pointer-events:none}
+.zfload{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(circle,#24306a,#05070f 70%)}
+.zfload b{font-family:var(--hero);font-weight:400;font-size:clamp(40px,8vw,90px);letter-spacing:.05em;color:#ffe14a;-webkit-text-stroke:3px #000;paint-order:stroke fill;text-shadow:5px 5px 0 #000}
+.zfload p{font-weight:800}.zfload small{opacity:.7;font-size:12px}
+.zbar{width:min(520px,80vw);height:16px;border:3px solid #000;border-radius:8px;background:#0b1236;overflow:hidden}.zbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3fd2ff,#ffe14a);transition:width .2s}
+.zset{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;padding:12px 16px;background:radial-gradient(ellipse at 50% 0,#2a3a8a,#070b1e 70%);overflow:hidden}
+.zhead{display:flex;align-items:center;gap:14px}.zhead h1{font-family:var(--hero);font-weight:400;font-size:clamp(28px,4vw,48px);letter-spacing:.05em;margin:0;color:#ffe14a;-webkit-text-stroke:2px #000;paint-order:stroke fill;text-shadow:3px 3px 0 #000}.zsub{font-weight:800;font-size:13px;opacity:.8}
+.zback{font-size:16px;padding:5px 14px}
+.zrow{display:flex;flex-wrap:wrap;gap:10px}.zopt{display:flex;align-items:center;gap:5px;padding:5px 10px;background:rgba(0,0,0,.35);border:2px solid #000;border-radius:8px}.zopt span{font-weight:800;font-size:12px;opacity:.85;margin-right:4px}
+.zseg{font-size:14px;padding:4px 12px;background:#26305e;box-shadow:none}.zseg.on{background:var(--stripe),var(--yel);color:#2a1800}
+.zopt select{font:inherit;font-weight:700;padding:4px 6px;border-radius:6px;border:2px solid #000;background:#fff}
+.zteams{display:flex;align-items:center;justify-content:center;gap:16px}.zteam{display:flex;align-items:center;gap:8px;padding:6px 10px;border:3px solid #000;border-radius:10px;background:rgba(40,120,255,.25)}.zteam.cpu{background:rgba(255,60,80,.25)}
+.zteam>span{font-family:var(--hero);font-size:16px;letter-spacing:.05em;writing-mode:vertical-rl;transform:rotate(180deg)}
+.zslot{display:flex;flex-direction:column;align-items:center;width:78px;padding:4px;border-radius:8px;background:rgba(0,0,0,.35)}.zslot.on{outline:3px solid #ffe14a}.zslot i{font-style:normal;font-family:var(--hero);font-size:52px;line-height:90px;opacity:.4}.zslot b{font-size:10px;text-align:center;line-height:1.1}
+.zvs{font-family:var(--hero);font-size:38px;color:#ffe14a;-webkit-text-stroke:2px #000;paint-order:stroke fill}
+.zgrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px;align-content:start;padding:4px}
+.zch{display:flex;flex-direction:column;align-items:center;padding:4px 2px;border:3px solid #000;border-radius:8px;background:linear-gradient(180deg,#2c3a7a,#121a44);cursor:pointer}.zch:hover{background:linear-gradient(180deg,#3d50a8,#18225a)}
+.zch.pl{outline:3px solid #3fd2ff}.zch.cp{outline:3px solid #ff5a6a}.zch span{font-size:10px;font-weight:800;text-align:center;line-height:1.1}
+.zface{image-rendering:pixelated}.zch .zface{width:40px;height:56px}
+.zfoot{display:flex;gap:10px;justify-content:flex-end}.zgo{font-size:26px;padding:6px 34px;background:var(--stripe),var(--red)}.zclr,.zcpu{font-size:15px}
+.zhelp{font-size:11px;opacity:.7;line-height:1.35}
+.zpause,.zres{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:10px;padding:22px 34px;background:rgba(8,12,34,.92);border:4px solid #000;border-radius:14px;box-shadow:0 0 40px rgba(0,0,0,.6)}
+.zpause b,.zres>b{font-family:var(--hero);font-weight:400;font-size:52px;letter-spacing:.05em;color:#ffe14a;-webkit-text-stroke:2px #000;paint-order:stroke fill}.zres.lose>b{color:#ff6a7a}
+.zrs{display:flex;gap:16px}.zrs span{display:flex;flex-direction:column;align-items:center;font-size:12px;font-weight:700;opacity:.9}.zrs b{font-family:var(--hero);font-size:26px}
+.zpr{font-weight:800;color:#8fe8ff}.zrb{display:flex;gap:10px}
+.zftouch{position:absolute;inset:0;pointer-events:none}.zftouch button{pointer-events:auto;font-size:13px;padding:0;width:52px;height:52px;border-radius:50%;opacity:.72;box-shadow:none}
+.zpadl{position:absolute;left:14px;bottom:14px;width:160px;height:160px}.zpadl .u{position:absolute;left:54px;top:0}.zpadl .d{position:absolute;left:54px;bottom:0}.zpadl .l{position:absolute;left:0;top:54px}.zpadl .r{position:absolute;right:0;top:54px}
+.zpadr{position:absolute;right:10px;bottom:10px;display:grid;grid-template-columns:repeat(7,auto);gap:5px;max-width:420px}.zpadr .sp{background:var(--stripe),var(--pur)}.zpadr .sp2{background:var(--stripe),var(--blu)}.zpadr .sp3{background:var(--stripe),var(--red);font-size:10px}
+.zpz{position:absolute;top:auto;bottom:38%;left:50%;transform:translateX(-50%);width:40px!important;height:40px!important}
+@media (max-height:520px){.zslot{width:56px}.zslot .zface{width:40px;height:60px}.zteams{gap:8px}.zhelp{display:none}.zgrid{grid-template-columns:repeat(auto-fill,minmax(60px,1fr))}.zch .zface{width:32px;height:44px}.zhead h1{font-size:24px}.zset{gap:5px;padding:6px 10px}.zfoot button{padding:3px 14px}.zgo{font-size:18px}.zpadr button{width:44px;height:44px;font-size:11px}}
 </style>
 </head>
 <body>
@@ -1600,7 +1634,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
       x.send();
     });
   };
-  const CODE = ['js/core.js', 'js/vfx.js', 'js/packdata.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js'];
+  const CODE = ['js/core.js', 'js/vfx.js', 'js/packdata.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/summon.js', 'js/zfight.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js'];
   (async () => {
     LOAD.step('three', 0.1, 'Cargando el motor gráfico…');
     try { await script('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'); }

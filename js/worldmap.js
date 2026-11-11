@@ -13,7 +13,8 @@ const PLACES = [
   { id: 'kame', oy: 40, fx: 0.29, fy: 0.9, name: 'Kame House', sub: 'Misiones y logros', kanji: '亀', act: { go: 'missions' } },
   { id: 'cc', oy: 54, fx: 0.84, fy: 0.44, name: 'Cápsula Corp.', sub: 'Tienda', kanji: '店', act: { go: 'shop' } },
   { id: 'altar', oy: 44, fx: 0.17, fy: 0.1, name: 'Altar de Shenron', sub: 'Invocar transformaciones', kanji: '願', act: { go: 'summon' } },
-  { id: 'tenka', oy: 50, fx: 0.72, fy: 0.8, name: 'Torneo', sub: 'Récords', kanji: '武', act: { go: 'records' } }
+  { id: 'tenka', oy: 50, fx: 0.72, fy: 0.8, name: 'Torneo', sub: 'Récords', kanji: '武', act: { go: 'records' } },
+  { id: 'cellring', oy: 44, fx: 0.08, fy: 0.84, name: 'Juegos de Cell', sub: 'Combate Z · 1 vs 1 a 3 vs 3', kanji: '闘', act: { zfight: true } }
 ];
 const placeById = (id) => PLACES.find((p) => p.id === id);
 
@@ -133,6 +134,8 @@ class WorldMap {
     this.drawLookout(c, P.lookout.x, P.lookout.y, k);
     this.island(c, P.kame.x, P.kame.y + 24 * k, 120 * k, 40 * k, 5);
     this.drawKame(c, P.kame.x, P.kame.y + 4 * k, k);
+    this.island(c, P.cellring.x, P.cellring.y + 24 * k, 150 * k, 46 * k, 13);
+    this.drawRing(c, P.cellring.x, P.cellring.y + 6 * k, k);
     this.island(c, P.tenka.x, P.tenka.y + 26 * k, 170 * k, 52 * k, 9);
     this.drawTenka(c, P.tenka.x, P.tenka.y + 6 * k, k);
     // Viñeta suave para que se lean los carteles
@@ -231,6 +234,17 @@ class WorldMap {
     c.fillStyle = '#a89f8a'; c.beginPath(); c.moveTo(x - w, y); c.lineTo(x, y + h); c.lineTo(x + w, y); c.lineTo(x + w, y + 8 * k); c.lineTo(x, y + h + 8 * k); c.lineTo(x - w, y + 8 * k); c.closePath(); c.fill();
     c.strokeStyle = 'rgba(90,80,60,.5)'; c.lineWidth = 1;
     for (let i = 1; i < 4; i++) { const f = i / 4; c.beginPath(); c.moveTo(x - w + w * f, y - h * f); c.lineTo(x + w * f, y + h - h * f); c.stroke(); c.beginPath(); c.moveTo(x - w + w * f, y + h * f); c.lineTo(x + w * f, y - h + h * f); c.stroke(); }
+  }
+  /** Ring de los Juegos de Cell: plataforma de losas blancas con cuatro postes */
+  drawRing(c, x, y, k) {
+    const w = 70 * k, h = 24 * k;
+    c.fillStyle = '#9aa0a8'; c.beginPath(); c.moveTo(x - w, y); c.lineTo(x, y + h); c.lineTo(x + w, y); c.lineTo(x + w, y + 10 * k); c.lineTo(x, y + h + 10 * k); c.lineTo(x - w, y + 10 * k); c.closePath(); c.fill();
+    c.fillStyle = '#eef0f2'; c.beginPath(); c.moveTo(x, y - h); c.lineTo(x + w, y); c.lineTo(x, y + h); c.lineTo(x - w, y); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(80,90,110,.45)'; c.lineWidth = 1;
+    for (let i = 1; i < 5; i++) { const f = i / 5; c.beginPath(); c.moveTo(x - w + w * f, y - h * f); c.lineTo(x + w * f, y + h - h * f); c.stroke(); c.beginPath(); c.moveTo(x - w + w * f, y + h * f); c.lineTo(x + w * f, y - h + h * f); c.stroke(); }
+    for (const [px, py] of [[x - w, y], [x + w, y], [x, y - h], [x, y + h]]) { c.fillStyle = '#cfd4da'; c.fillRect(px - 3 * k, py - 26 * k, 6 * k, 26 * k); c.fillStyle = '#7a828c'; c.fillRect(px - 4 * k, py - 28 * k, 8 * k, 4 * k); }
+    // Un rayo cruzando el ring: aquí se lucha
+    c.strokeStyle = 'rgba(255,230,90,.9)'; c.lineWidth = 3 * k; c.beginPath(); c.moveTo(x - w * 0.6, y - 34 * k); c.lineTo(x - w * 0.1, y - 26 * k); c.lineTo(x - w * 0.2, y - 20 * k); c.lineTo(x + w * 0.6, y - 12 * k); c.stroke();
   }
   /** Torre de Karin: columna alta con el santuario de Karin arriba */
   drawKarin(c, x, top, base, lookY, k) {
