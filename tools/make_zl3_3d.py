@@ -188,6 +188,52 @@ def panels(prev=None):
         Cn.save(os.path.join(prev, 'paneles.png'))
     return ok
 
+# Efectos (nombre nuestro -> (tipo de objeto, animación)). 'b' = hoja grande (casillas de 192 px), si no, pequeña (64 px)
+COLS = {'Y': 'Amarelo', 'B': 'Azul', 'K': 'Rosa', 'P': 'Black', 'G': 'VerdeClaro', 'R': 'Vermelho_Kefla', 'O': 'Amarelo'}
+FXS = {}
+for c, n in COLS.items(): FXS['kb' + c] = ('kiblast_jogador_sprite', n, 's')
+for c, n in {'Y': 'Amarelo', 'B': 'Azul3', 'K': 'Rosa', 'P': 'Black', 'G': 'Verde', 'R': 'Vermelho_Kefla', 'O': 'Laranja'}.items(): FXS['kh' + c] = ('efeito_de_kiblast_sprite', n, 's')
+FXS.update({'hit': ('hit_sprite', 'Default', 's'), 'hit3': ('hit_sprite', 'Hit3', 'b'), 'hit7': ('hit_sprite', 'Hit7', 'b'), 'spark': ('hit_sprite', 'Hit2', 's'),
+            'slash': ('hit_sprite', 'Hit_Corte', 'b'), 'impact': ('efeitodeimpacto_sprite', 'EfeitoDeColisao', 's'), 'extreme': ('efeitodeimpacto_sprite', 'Extreme', 'b'),
+            'kiboom': ('explosaodeki_effect_sprite', 'Default', 's'), 'boomS': ('explosao_sprite', 'Explosao2', 's'), 'boom1': ('explosao_sprite', 'Explosao1', 'b'),
+            'boom3': ('explosao_sprite', 'Explosao3', 'b'), 'boom10': ('explosao_sprite', 'Explosao10', 'b'), 'boom15': ('explosao_sprite', 'Explosao15', 'b'),
+            'hitStrong': ('hit_forte_sprite', 'Cima', 'b'), 'thunder': ('thunder_effect_sprite', 'Default', 'b'), 'dust': ('starteffectdust_sprite', 'Efeito4', 'b'),
+            'ballGoku': ('esferadekigigante_sprite', 'Goku', 'b'), 'ballDeath': ('esferadekigigante_sprite', 'DeathBall', 'b'), 'ballBills': ('esferadekigigante_sprite', 'Bills', 'b'),
+            'guard': ('defesa_effect_sprite', 'Default', 'b'), 'spark2': ('sparking_ativo_effect_jogador_sprite', 'Default', 's')})
+for c, n in {'B': 'Charge_AZULESCURO', 'W': 'Charge_BASE', 'Y': 'Charge_AMARELO', 'R': 'Charge_RED', 'K': 'Charge_ROSA', 'G': 'Charge_VERDE', 'L': 'Charge_VERDE_CLARO', 'D': 'Charge_DOURADA', 'V': 'Charge_VERMELHO', 'C': 'Charge'}.items():
+    FXS['aura' + c] = ('aura_sprite', n, 'b')
+for c, n in {'B': 'Azul', 'P': 'Roxo', 'K': 'Rosa', 'Y': 'Amarelo', 'G': 'Verde'}.items():
+    for k in (1, 2, 3): FXS['kame%d%s' % (k, c)] = ('kamehameha_pt%d' % k, n, 'b')
+
+def fx_sheets():
+    """Dos atlas en rejilla (64 y 192 px) con el ancla de cada fotograma en el centro de su casilla. Devuelve (hojas, tabla)"""
+    T = {}
+    for i, t, k in Z.TYPES:
+        if k and k not in T: T[k] = Z.anims_of(t)
+    cells = {'s': [], 'b': []}; table = {}
+    for name, (typ, an, sz) in FXS.items():
+        A = T.get(typ, {}); a = A.get(an)
+        if not a: print('  falta efecto', typ, an); continue
+        C = 64 if sz == 's' else 192
+        ext = max(max(round(f['hx'] * f['w']), f['w'] - round(f['hx'] * f['w']), round(f['hy'] * f['h']), f['h'] - round(f['hy'] * f['h'])) for f in a['f'])
+        k = min(1.0, (C / 2 - 1) / max(1, ext))
+        idx = []
+        for f in a['f']:
+            im = Z.crop(f)
+            if k < 1: im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.NEAREST)
+            cell = Image.new('RGBA', (C, C), (0, 0, 0, 0))
+            cell.paste(im, (C // 2 - round(f['hx'] * f['w'] * k), C // 2 - round(f['hy'] * f['h'] * k)))
+            idx.append(len(cells[sz])); cells[sz].append(cell)
+        f0 = a['f'][0]
+        table[name] = {'s': 'zfx' if sz == 's' else 'zfxb', 'f': idx, 'k': round(k, 4), 'w': f0['w'], 'h': f0['h'], 'fps': a['speed'] or 12}
+    sheets = {}
+    for sz, L in cells.items():
+        C = 64 if sz == 's' else 192; cols = 16 if sz == 's' else 10; rows = (len(L) + cols - 1) // cols
+        im = Image.new('RGBA', (cols * C, rows * C), (0, 0, 0, 0))
+        for i, c in enumerate(L): im.paste(c, ((i % cols) * C, (i // cols) * C))
+        sheets['zfx' if sz == 's' else 'zfxb'] = (im, dict(cols=cols, rows=rows, w=C, h=C))
+    return sheets, table
+
 def webp_b64(im):
     b = io.BytesIO(); im.save(b, 'WEBP', lossless=True, quality=100, method=6, exact=True)
     return base64.b64encode(b.getvalue()).decode(), len(b.getvalue())
@@ -205,6 +251,13 @@ if __name__ == '__main__':
             im = sheet.copy(); bg = Image.new('RGBA', im.size, (70, 100, 70, 255)); bg.alpha_composite(im)
             bg.resize((im.width * 2, im.height * 2), Image.NEAREST).save(os.path.join(PREV, cid + '.png'))
     out.append('window.ZL3_MAP = %s;\nwindow.ZL3_BOSS = %s;\n' % (json.dumps(REPLACE, separators=(',', ':')), json.dumps(BOSS, separators=(',', ':'))))
+    sh, ft = fx_sheets()
+    for nm, (im, meta) in sh.items():
+        b64, n = webp_b64(im); tot += n
+        out.append('window.SPRITE_DATA["%s"] = %s;\n' % (nm, json.dumps(dict(meta, src='data:image/webp;base64,' + b64), separators=(',', ':'))))
+        print('efectos', nm, im.size, n // 1024, 'KB')
+        if PREV: bg = Image.new('RGBA', im.size, (40, 40, 60, 255)); bg.alpha_composite(im); bg.save(os.path.join(PREV, nm + '.png'))
+    out.append('window.ZFX_ANIMS = %s;\n' % json.dumps(ft, separators=(',', ':')))
     out.append('window.ZL3_PANEL = %s;\n' % json.dumps(panels(PREV), separators=(',', ':')))
     out.append('window.ZL3_VOICE = %s;\n' % json.dumps(voices(), separators=(',', ':')))
     open(os.path.join(ROOT, 'assets', 'zl3.js'), 'w').write(''.join(out))

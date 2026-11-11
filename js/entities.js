@@ -400,6 +400,14 @@ class Player {
       if ((au || this.charging || ka) && !this.chgPose) {
         const big = this.charging ? 1.3 : 1, name = ka || !F || !F.a ? 'auraSS1' : F.a, own = name === 'auraSS2' || name === 'auraSS3';
         V.aura(name, this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : own ? 0xffffff : (au || this.form.ki), this.charging ? 0.85 : own ? 0.62 : 0.5, this.animT);
+        // Z Legends 3: llamas de aura de su color que suben alrededor del personaje
+        const zq = (this.animT * (this.charging ? 20 : 6)) | 0;
+        if (V.z3 && zq !== this.zaQ) {
+          this.zaQ = zq;
+          const hex = ka ? 0xff3a2a : (au || this.form.ki), r = (hex >> 16) & 255, g = (hex >> 8) & 255, bl = hex & 255, mx = Math.max(r, g, bl);
+          const L = mx && (mx - Math.min(r, g, bl)) / mx < 0.25 ? 'W' : Z3_AURA[zipKind(hex)], a = (zq * 2.39996) % 6.283, rr = 0.55 + (zq % 3) * 0.3;
+          V.z3play('Zaura' + L, this.x + Math.cos(a) * rr, 0.15, this.z + Math.sin(a) * rr * 0.6, this.charging ? 1.7 : 1.2, { vy: this.charging ? 3.2 : 2.2, dur: 0.45, alpha: 0.9 });
+        }
       }
       if (F && !ka) {
         // Rayitos de electricidad pegados al cuerpo (SSJ2, Evolución, Ultra Ego...): fotogramas de 'bolt' que saltan de sitio
@@ -812,7 +820,10 @@ class KiPool {
       if (!this.fx) sb.push(b.x, b.y, b.z, 0, 0, 0, b.size, 1, b.tint);
       else if (b.fr < 0 && b.look !== 1) sb.push(b.x, b.y, b.z, fxf(b.look, ((b.life * 14) | 0) % fxn(b.look)), 0, 0, b.size * 1.2, 1, 0xffffff, b.life * 9);
       else if (b.fr < 0) sb.push(b.x, b.y, b.z, fxf('disc', 3 + (((b.life * 18) | 0) & 1)), 0, 0, b.size * 1.15, 1, 0xffffff, b.life * 9);
-      else {
+      else if (V && V.z3) {                                     // Z Legends 3: ráfaga de ki de su color, mirando hacia donde va
+        sb.push(b.x, b.y, b.z, b.fr, 0, 0, b.size * 0.5, 0.7, 0xffffff);
+        V.z3f('Zkb' + b.zk, (b.life * 12) | 0, b.x, b.y, b.z, b.size * 1.3, V.ang(b.vx, b.vz));
+      } else {
         sb.push(b.x, b.y, b.z, b.fr, 0, 0, b.size * (V && V.zipOk ? 0.6 : 0.75), 1, 0xffffff);             // brillo de ki
         if (V && V.zipOk) { const Z = ZIP_BALL[b.zk]; V.zip(Z[0], Z[1], b.x, b.y, b.z, b.size * 0.62, zr); }   // y encima, la bola del pack de su color
       }

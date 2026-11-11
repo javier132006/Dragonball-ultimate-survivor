@@ -256,7 +256,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -293,6 +293,7 @@ class Game {
       else if (D.acct === 'out') this.online.signOut().then(() => { ui.atab = 'login'; ui.renderMenu(); });
       else if (D.q) { Save.d.opt.quality = D.q; Save.write(); this.perf.pr = 1; this.applyQuality(); ui.renderMenu(); }
       else if (D.flash !== undefined) { Save.d.opt.flash = !Save.d.opt.flash; Save.write(); ui.renderMenu(); }
+      else if (D.z3fx !== undefined) { Save.d.opt.z3fx = Save.d.opt.z3fx === false; Save.write(); if (this.vfx) this.vfx.z3 = Save.d.opt.z3fx !== false && !!FXA.ZkbY && !!(this.ui.sheets && this.ui.sheets.zfx); ui.renderMenu(); }
       else if (D.exp !== undefined) this.exportSave();
       else if (D.imp !== undefined) this.importSave();
       else if (D.impfile !== undefined) { const f = document.getElementById('impFile'); if (f) f.click(); }

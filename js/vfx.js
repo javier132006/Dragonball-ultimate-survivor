@@ -7,6 +7,15 @@
    ===================================================================== */
 
 const FXA = window.FX_ANIMS || {};
+/* Efectos de Z Legends 3 (assets/zl3.js, hojas zfx de 64 px y zfxb de 192 px): se añaden con el prefijo Z (Zboom1, ZkbY…).
+   `k` = escala a la que se metió el dibujo en su casilla; w/h = tamaño del dibujo original en píxeles */
+for (const k in (window.ZFX_ANIMS || {})) FXA['Z' + k] = window.ZFX_ANIMS[k];
+/* Color de Z Legends 3 para un color de ataque (Y amarillo, O naranja, R rojo, B azul, P morado, G verde, K rosa) */
+/* Efectos de siempre que pasan a dibujarse con los de Z Legends 3: nombre -> [efecto Z, escala de tamaño] */
+const Z3_ALIAS = { hitRing: ['Zhit', 1.1], meteorHit: ['Zextreme', 1.2], kameImp: ['Zkiboom', 1.2], fireBoom: ['Zboom1', 1.1], cellBoom: ['Zboom3', 1.1] };
+const Z3_BEAM = { Y: 'Y', O: 'Y', R: 'K', B: 'B', P: 'P', G: 'G', K: 'K' };
+const Z3_AURA = { Y: 'Y', O: 'D', R: 'R', B: 'C', P: 'K', G: 'G', K: 'K' };
+const Z3_BOOM = { Y: 'Zboom1', O: 'Zboom1', R: 'Zboom1', B: 'Zboom3', P: 'Zboom10', G: 'Zboom1', K: 'Zboom10' };
 let FX_SHEETS = null;                       // hojas de efectos y objetos (las usa también world.js para el decorado)
 
 /** Índice en el atlas del fotograma k de la animación `name` (se queda en el último si k se pasa) */
@@ -63,8 +72,11 @@ class VFX {
       B(sheets.props, { max: 90, blend: true, flat: true, renderOrder: 1 }),
       B(sheets.props, { max: 80, blend: true, anchor: 0.04, renderOrder: 2 }),
       B(sheets.fx, { max: 16, blend: true, renderOrder: 6 }),       // 6: esferas sólidas (Genkidama): con su color real, sin quemarse a blanco
-      B(sheets.fxzip || sheets.fx, { max: 500, blend: true, renderOrder: 6.5 })   // 7: efectos del pack (pixel art nítido)
+      B(sheets.fxzip || sheets.fx, { max: 500, blend: true, renderOrder: 6.5 }),  // 7: efectos del pack (pixel art nítido)
+      B(sheets.zfx || sheets.fx, { max: 600, blend: true, renderOrder: 6.6 }),     // 8: efectos de Z Legends 3 pequeños (ráfagas, impactos)
+      B(sheets.zfxb || sheets.fx, { max: 260, blend: true, renderOrder: 6.4 })     // 9: efectos de Z Legends 3 grandes (rayos, explosiones, auras)
     ];
+    this.z3 = !!(sheets.zfx && sheets.zfxb && FXA.ZkbY) && (typeof Save === 'undefined' || Save.d.opt.z3fx !== false);
     this.zipOk = ZIP_FX && !!sheets.fxzip && !!FXA.zkiY;
     this.rx = 1; this.rz = 0;                                             // eje «derecha» de la cámara (para girar los efectos)
     // Pool de animaciones (estructura de arrays: sin crear objetos durante la partida)
@@ -83,12 +95,13 @@ class VFX {
       tint, alpha, rot, spin, flat (tumbada en el suelo), vx/vy/vz, fade (true), follow (sigue al jugador), flip, pri (1 = no se descarta) */
   play(name, x, y, z, o) {
     if (!this.ok) return -1;
+    if (this.z3 && Z3_ALIAS[name] && !(o && o.frames)) { const al = Z3_ALIAS[name]; return this.z3play(al[0], x, y, z, ((o && o.size) || 2) * al[1], Object.assign({}, o, { tint: 0xffffff })); }
     const a = FXA[name]; if (!a) return -1;
     o = o || {};
     if (!o.pri && this.cnt > this.N * 0.8 * this.load) return -1;        // con mucha carga se descartan los efectos menores
     const i = this.free.pop(); if (i === undefined) return -1;
     const flat = !!o.flat, sh = a.s;
-    this.bi[i] = sh === 'fxzip' ? 7 : sh === 'fxbig' ? 2 : sh === 'props' ? (flat ? 4 : 5) : flat ? 1 : 0;
+    this.bi[i] = sh === 'zfx' ? 8 : sh === 'zfxb' ? 9 : sh === 'fxzip' ? 7 : sh === 'fxbig' ? 2 : sh === 'props' ? (flat ? 4 : 5) : flat ? 1 : 0;
     this.fr[i] = o.frames || a.f; this.act[i] = 1; this.list[this.cnt++] = i;
     this.x[i] = x; this.y[i] = y; this.z[i] = z; this.vx[i] = o.vx || 0; this.vy[i] = o.vy || 0; this.vz[i] = o.vz || 0;
     this.t[i] = 0; this.loop[i] = o.loop || 0;
@@ -159,10 +172,27 @@ class VFX {
     const a = FXA[name]; if (!this.zipOk || !a) return -1;
     return this.play(name, x, y, z, Object.assign({}, o, { size: size / (a.e || 1) }));
   }
+  /* ---------- Efectos de Z Legends 3 ---------- */
+  /** Tamaño de casilla (unidades del mundo) para que el dibujo mida `size` en su lado mayor */
+  z3cell(a, size) { return size * (a.s === 'zfx' ? 64 : 192) / (Math.max(a.w, a.h) * a.k); }
+  /** Un fotograma de un efecto Z para este cuadro */
+  z3f(name, k, x, y, z, size, rot, alpha, tint) {
+    const a = FXA[name]; if (!this.z3 || !a || !this.on) return;
+    this.b[a.s === 'zfx' ? 8 : 9].push(x, y, z, a.f[(k | 0) % a.f.length], 0, 0, this.z3cell(a, size), alpha === undefined ? 1 : alpha, tint === undefined ? 0xffffff : tint, rot || 0);
+  }
+  /** Animación de un efecto Z (size = lado mayor del dibujo) */
+  z3play(name, x, y, z, size, o) {
+    const a = FXA[name]; if (!this.z3 || !a) return -1;
+    return this.play(name, x, y, z, Object.assign({ fps: Math.max(10, a.fps) }, o, { size: this.z3cell(a, size) }));
+  }
   /** Impacto del color del ataque */
-  zhit(hex, x, y, z, size) { const n = ZIP_HIT[zipKind(hex)]; return this.zplay(n, x, y, z, size, { fps: 18, rot: Math.random() * 6.28, frames: n === 'zfireO' ? [fxf('zfireO', 1)] : null, dur: 0.22 }); }
+  zhit(hex, x, y, z, size) {
+    if (this.z3) return this.z3play('Zkh' + zipKind(hex), x, y, z, size * 0.9, { rot: Math.random() * 6.28, fade: false });
+    const n = ZIP_HIT[zipKind(hex)]; return this.zplay(n, x, y, z, size, { fps: 18, rot: Math.random() * 6.28, frames: n === 'zfireO' ? [fxf('zfireO', 1)] : null, dur: 0.22 }); }
   /** Explosión del color del ataque */
-  zboom(hex, x, z, r, big) { const n = ZIP_BOOM[zipKind(hex)]; return this.zplay(n, x, r * 0.5, z, r * 2.1, { dur: big ? 0.6 : 0.4, grow: 1.35, pri: big ? 1 : 0, alpha: 0.95 }); }
+  zboom(hex, x, z, r, big) {
+    if (this.z3) return -1;                                      // con Z Legends 3 la explosión ya la dibuja boom()
+    const n = ZIP_BOOM[zipKind(hex)]; return this.zplay(n, x, r * 0.5, z, r * 2.1, { dur: big ? 0.6 : 0.4, grow: 1.35, pri: big ? 1 : 0, alpha: 0.95 }); }
 
   /* ---------- Recetas: combinaciones listas para usar ---------- */
   /** Destello de ki del color pedido (amarillo, azul, morado o rojo) */
@@ -173,7 +203,8 @@ class VFX {
   }
   /** Explosión: bola de fuego animada + destello + (si es grande) cráter en el suelo */
   boom(x, z, r, hex, big) {
-    this.play('boom', x, r * 0.45, z, { size: r * 2.4, fps: 22, pri: big ? 1 : 0 });
+    if (this.z3) this.z3play(big ? 'Zboom15' : Z3_BOOM[zipKind(hex === undefined ? 0xffa030 : hex)], x, r * 0.45, z, r * (big ? 1.7 : 1.5), { pri: big ? 1 : 0, fade: false });   // explosión de Z Legends 3
+    else this.play('boom', x, r * 0.45, z, { size: r * 2.4, fps: 22, pri: big ? 1 : 0 });
     if (hex !== undefined) this.flash(x, r * 0.5, z, r * 1.6, hex);
     if (big) this.crater(x, z, r * 1.1, hex);
     if (big) {
