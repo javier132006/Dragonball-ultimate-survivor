@@ -58,8 +58,10 @@ class WorldMap {
     this.drawStatic();
     // Carteles de los lugares y el guerrero
     for (const el of this.root.querySelectorAll('[data-place]')) { const P = this.pos[el.dataset.place]; el.style.left = P.x + 'px'; el.style.top = Math.round(P.y + placeById(el.dataset.place).oy * this.k) + 'px'; }
-    this.placeAvatar(Save.d.mapAt || 'paoz');
+    this.placeAvatar(this.at());
   }
+  /** Lugar donde está el guerrero. Si el guardado trae uno que ya no existe (p. ej. un modo retirado), vuelve a la Montaña Paoz */
+  at() { return this.pos[Save.d.mapAt] ? Save.d.mapAt : 'paoz'; }
   placeAvatar(id) {
     const av = this.root && this.root.querySelector('.wav');
     if (!av) return;
@@ -73,7 +75,7 @@ class WorldMap {
    */
   travel(id, cb) {
     if (this.busy || !this.root) return;
-    const av = this.root.querySelector('.wav'), from = Save.d.mapAt || 'paoz';
+    const av = this.root.querySelector('.wav'), from = this.at();
     if (!av) { if (cb) cb(); return; }
     this.busy = true;
     if (typeof SFX !== 'undefined') SFX.play('tp');
@@ -89,6 +91,7 @@ class WorldMap {
   }
   /** Rayo vertical de luz donde se va o se llega */
   streak(P) {
+    if (!P) return;
     const s = document.createElement('i'); s.className = 'itln'; s.style.left = P.x + 'px'; s.style.top = P.y + 'px';
     this.root.appendChild(s); setTimeout(() => s.remove(), 420);
   }
