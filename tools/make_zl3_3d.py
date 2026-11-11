@@ -82,10 +82,11 @@ def build(cid):
     R['death'] = [(frames(A, n) or P)[0] for n in ('Dano_Aereo1', 'SendoLancado_LADO', 'Caido')]
     ds = frames(A, 'Dash_Start')
     R['dash'] = [ds[-1] if ds else mpf[0]]
-    chg = frames(A, 'CarregandoKi_Stage1') + frames(A, 'CarregandoKi_Stage2') + frames(A, 'CarregandoKi_Stage3')
-    R['chg'] = [f for f in chg if f['w'] < idle['w'] * 1.5 and f['h'] < idle['h'] * 1.3] or P
+    ok = lambda L: [f for f in L if f['w'] < idle['w'] * 1.6 and f['h'] < idle['h'] * 1.35]
+    R['chgIn'] = ok(frames(A, 'CarregandoKi_Stage1'))                       # empieza a cargar (una vez)
+    R['chg'] = ok(frames(A, 'CarregandoKi_Stage2') + frames(A, 'CarregandoKi_Stage3')) or R['chgIn'] or P   # carga mantenida (en bucle)
     # recorte + posición de cada fotograma en la casilla
-    order = ['idle', 'walk', 'atk', 'crit', 'beam', 'hurt', 'death', 'dash', 'chg']
+    order = ['idle', 'walk', 'atk', 'crit', 'beam', 'hurt', 'death', 'dash', 'chgIn', 'chg']
     uniq, idx, seq = [], {}, {}
     for r in order:
         seq[r] = []
@@ -107,7 +108,7 @@ def build(cid):
         sheet.paste(Z.crop(f), (c * cw + half - ax[i], r * ch + ch - pad - D - ay[i]))
     anc = round((pad + D) / ch, 4)
     anim = dict(idle=seq['idle'][0], idleSeq=seq['idle'], walk=seq['walk'], atk=seq['atk'][0], atkSeq=seq['atk'], atk2=seq['beam'][0],
-                crit=seq['crit'][0], hurt=seq['hurt'][0], dash=seq['dash'][0], death=seq['death'], chgSeq=seq['chg'])
+                crit=seq['crit'][0], hurt=seq['hurt'][0], dash=seq['dash'][0], death=seq['death'], chgIn=seq['chgIn'], chgSeq=seq['chg'])
     return sheet, dict(cols=cols, rows=rows, w=cw, h=ch, hs=round(ch / PXH, 4), anc=anc, px=1), anim, A
 
 STAGES_USED = ['desert', 'namek', 'zoon', 'time', 'space', 'tdp', 'hell', 'kame']     # mapas del 3D -> escenario (ver Backdrop en js/zl3.js)
@@ -234,6 +235,58 @@ def fx_sheets():
         sheets['zfx' if sz == 's' else 'zfxb'] = (im, dict(cols=cols, rows=rows, w=C, h=C))
     return sheets, table
 
+AURAS = {'Y': 'AMARELO', 'W': 'BASE', 'R': 'RED', 'K': 'ROSA', 'B': 'AZULESCURO', 'C': '', 'G': 'VERDE', 'L': 'VERDE_CLARO', 'D': 'DOURADA', 'V': 'VERMELHO'}
+
+def aura_sheet():
+    """Aura de cargar ki de Z Legends 3 a tamaño original: Pre_Charge (empieza), Charge (bucle) y Pos_Charge (se apaga), por color.
+    Casillas de 168x336 con los pies abajo en el centro. Devuelve (hoja, meta, tabla {color: {pre, loop, pos}})"""
+    A = Z.anims_of(Z.best_type('aura_sprite', None)[1])
+    CW, CH, cells, table = 168, 336, [], {}
+    for c, suf in AURAS.items():
+        t = {}
+        for part in ('Pre_Charge', 'Charge', 'Pos_Charge'):
+            a = A.get(part + ('_' + suf if suf else ''))
+            if not a: continue
+            idx = []
+            for f in a['f']:
+                im = Z.crop(f); cell = Image.new('RGBA', (CW, CH), (0, 0, 0, 0))
+                cell.paste(im, (CW // 2 - round(f['hx'] * f['w']), CH - 2 - round(f['hy'] * f['h'])))
+                idx.append(len(cells)); cells.append(cell)
+            t[{'Pre_Charge': 'pre', 'Charge': 'loop', 'Pos_Charge': 'pos'}[part]] = idx
+        if 'loop' in t: table[c] = t
+    cols = 12; rows = (len(cells) + cols - 1) // cols
+    im = Image.new('RGBA', (cols * CW, rows * CH), (0, 0, 0, 0))
+    for i, c in enumerate(cells): im.paste(c, ((i % cols) * CW, (i // cols) * CH))
+    return im, dict(cols=cols, rows=rows, w=CW, h=CH, hs=round(CH / PXH, 4), anc=round(2 / CH, 4)), table
+
+ULT_SKIP = re.compile(r'Intro|Vitoria|WinPose|Background|_Vs|Lava|NoHardFeelings|IHaveNoUse|Blindness|Together|Bojack|AtaqueLight|Fusion|BarrierExplosion|Acertou|^GokuUi$|EnergyWave')
+
+def ult_videos(prev=None):
+    """El «vídeo» de la Ultimate de cada luchador: paneles de cinemática seguidos (160x90, pixel art).
+    assets/zl3/u/<id>.webp (atlas) y una tabla {id: [[x, y, w, h, ms], ...]} para reproducirlo"""
+    CUT = Z.anims_of(Z.best_type('cutscenes_sprite', None)[1])
+    dst = os.path.join(ROOT, 'assets', 'zl3', 'u'); os.makedirs(dst, exist_ok=True)
+    out, tot = {}, 0
+    for src, cid, name, cuts, shop in Z.FIGHTERS:
+        if cid not in USED: continue
+        C = [n for n in CUT if any(n == g or n.startswith(g + '_') for g in cuts) and not ULT_SKIP.search(n)]
+        U = [n for n in C if re.search(r'Ult', n)] or C
+        fr = [(f, a) for n in U for a in [CUT[n]] for f in a['f'] if f['w'] >= 120]
+        if len(fr) < 4: continue
+        step = 2 if len(fr) > 56 else 1
+        fr = fr[::step][-48:]
+        ims = [Z.crop(f) for f, a in fr]
+        atlas, co = Z.pack(ims, 1024)
+        path = os.path.join(dst, cid + '.webp'); atlas.save(path, 'WEBP', lossless=True, quality=100, method=6, exact=True)
+        tot += os.path.getsize(path)
+        out[cid] = [[x, y, im.width, im.height, int(round(1000 / 12 * max(0.5, min(3, f['d'] or 1)) * step))] for (x, y), im, (f, a) in zip(co, ims, fr)]
+        if prev:
+            W = 8; M = Image.new('RGB', (W * 164, ((len(ims) + W - 1) // W) * 94), (20, 20, 20))
+            for k, im in enumerate(ims): M.paste(im, ((k % W) * 164, (k // W) * 94))
+            M.save(os.path.join(prev, 'ult_' + cid + '.png'))
+    print('vídeos de Ultimate', len(out), tot // 1024, 'KB')
+    return out
+
 def webp_b64(im):
     b = io.BytesIO(); im.save(b, 'WEBP', lossless=True, quality=100, method=6, exact=True)
     return base64.b64encode(b.getvalue()).decode(), len(b.getvalue())
@@ -257,6 +310,9 @@ if __name__ == '__main__':
         out.append('window.SPRITE_DATA["%s"] = %s;\n' % (nm, json.dumps(dict(meta, src='data:image/webp;base64,' + b64), separators=(',', ':'))))
         print('efectos', nm, im.size, n // 1024, 'KB')
         if PREV: bg = Image.new('RGBA', im.size, (40, 40, 60, 255)); bg.alpha_composite(im); bg.save(os.path.join(PREV, nm + '.png'))
+    aim, ameta, atab = aura_sheet(); b64, n = webp_b64(aim); tot += n; print('auras', aim.size, n // 1024, 'KB')
+    out.append('window.SPRITE_DATA["zaura"] = %s;\nwindow.ZAURA = %s;\n' % (json.dumps(dict(ameta, src='data:image/webp;base64,' + b64), separators=(',', ':')), json.dumps(atab, separators=(',', ':'))))
+    out.append('window.ZL3_ULTV = %s;\n' % json.dumps(ult_videos(PREV), separators=(',', ':')))
     out.append('window.ZFX_ANIMS = %s;\n' % json.dumps(ft, separators=(',', ':')))
     out.append('window.ZL3_PANEL = %s;\n' % json.dumps(panels(PREV), separators=(',', ':')))
     out.append('window.ZL3_VOICE = %s;\n' % json.dumps(voices(), separators=(',', ':')))

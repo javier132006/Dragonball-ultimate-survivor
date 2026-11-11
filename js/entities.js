@@ -32,6 +32,10 @@ class Player {
   reset(ch) {
     this.ch = ch; this.fusion = null; this.pact = null; this.godT = 0;                // pacto del Oráculo de Kami (id)                              // fusión en tiempo real: { id, ch, sheet, t }
     for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); if (f.chgS && this.sheets[f.chgS]) this.batch(f.chgS); }
+    if (!this.auraB && this.sheets.zaura) {                                         // aura de Z Legends 3 (detrás del personaje, a tamaño de píxel)
+      const s = this.sheets.zaura, H = 3.6 * (s.hs || 1);
+      this.auraB = new SpriteBatch(this.scene, { max: 1, blend: true, texture: s.tex, cols: s.cols, rows: s.rows, w: H * (s.w / s.h), h: H, anchor: s.anc || 0.01, renderOrder: 2.9 });
+    }
     const cs = ch.chgSheet || ch.id + '_chg';                                        // hoja de cargar ki (los del altar traen la suya)
     this.chgSheet = this.sheets[cs] ? cs : null; if (this.chgSheet) this.batch(this.chgSheet);
     this.cineChg = false; this.chgPose = false;
@@ -346,10 +350,14 @@ class Player {
   /** Elige hoja y fotograma según el estado */
   pose() {
     const a = this.curAnim();
+    // Momento en que empezó / terminó la carga de ki (pose de inicio y aura que se enciende y se apaga)
+    if (this.charging || this.cineChg) { if (!this.wasChg) { this.wasChg = true; this.chgT0 = this.animT; } }
+    else if (this.wasChg) { this.wasChg = false; this.chgOff0 = this.animT; }
     this.drawSheet = this.fusion ? this.fusion.sheet : this.form.sheet;          // fusionado: el aspecto de la fusión
     let fr = a.idleSeq ? a.idleSeq[((this.animT * 3) | 0) % a.idleSeq.length] : a.idle;   // quieto: respira si la hoja lo trae
     if (a.chgSeq && !this.fusion && (this.charging || this.cineChg) && this.dashT <= 0) {   // hoja de Z Legends 3: carga con su propia pose (el aura la pone el juego)
-      this.chgPose = false; this.frame = a.chgSeq[((this.animT * 8) | 0) % a.chgSeq.length]; return;
+      const f = (this.animT - (this.chgT0 || 0)) * 12, nIn = a.chgIn ? a.chgIn.length : 0;   // primero levanta los brazos (una vez) y luego aguanta la pose
+      this.chgPose = false; this.frame = f < nIn ? a.chgIn[f | 0] : a.chgSeq[((f - nIn) / 1.5 | 0) % a.chgSeq.length]; return;
     }
     const fc = this.form.chgS && this.sheets[this.form.chgS] && !this.fusion && (this.charging || this.cineChg) && this.dashT <= 0;
     if (fc) { this.chgPose = true; this.drawSheet = this.form.chgS; this.frame = ((this.animT * 8) | 0) % this.form.chgN; return; }   // forma del altar: su propia carga con aura
@@ -373,9 +381,24 @@ class Player {
   }
 
   /** Vuelca sprite, imágenes residuales, escudo y sombra a la GPU */
+  /** Aura de cargar ki de Z Legends 3, detrás del personaje: se enciende (Pre), arde en bucle (Charge) y se apaga (Pos).
+      Transformado sin cargar: la misma aura, más pequeña y tenue */
+  z3Aura(hex, on) {
+    const T = ZAURA[auraKey(hex)] || ZAURA.W, V = this.vfx, t = this.animT, B = this.auraB;
+    let fr = -1, sc = 0.72, al = 0.92;
+    if (this.charging || this.cineChg) {
+      const k = (t - (this.chgT0 || 0)) * 14, np = T.pre ? T.pre.length : 0;
+      fr = k < np ? T.pre[k | 0] : T.loop[((k - np) | 0) % T.loop.length];
+    } else if (this.chgOff0 !== undefined && t - this.chgOff0 < 0.25 && T.pos) {
+      fr = T.pos[Math.min(T.pos.length - 1, ((t - this.chgOff0) * 14) | 0)];
+    } else if (on) { fr = T.loop[((t * 10) | 0) % 2]; sc = 0.5; al = 0.45; }
+    if (fr >= 0 && !this.dying && !this.introHide && !this.menuHide) B.push(this.x + V.bk.x * 0.3, 0, this.z + V.bk.z * 0.3, fr, ((t * 4) | 0) & 1, 0, sc, al, 0xffffff);
+  }
+
   syncSprite(shadows) {
     let y = 0, alpha = 1, flash = 0, scale = 1, sheet = this.drawSheet, frame = this.frame;
     for (const k in this.spr) { this.spr[k].begin(); this.gho[k].begin(); }
+    if (this.auraB) this.auraB.begin();
     if (this.dying) {
       const t = this.deathT, a = this.curAnim();
       const fr = a.death ? { s: this.fusion ? this.fusion.sheet : this.form.sheet, f: a.death } : a.alt && a.alt.death ? { s: a.alt.sheet, f: a.alt.death } : null;
@@ -397,17 +420,11 @@ class Player {
     const V = this.vfx, useFx = !!(V && V.ok);
     if (useFx && !this.dying && !this.introHide && !this.menuHide) {
       const ka = this.buffT > 0, au = this.form.aura || 0, F = formFx(this.ch, this.formIdx);
-      if ((au || this.charging || ka) && !this.chgPose) {
+      const zA = V.z3 && this.auraB && window.ZAURA;
+      if (zA) this.z3Aura(ka ? 0xff3a2a : au || 0xffffff, au || ka);   // forma base: aura blanca, como en Z Legends 3
+      else if ((au || this.charging || ka) && !this.chgPose) {
         const big = this.charging ? 1.3 : 1, name = ka || !F || !F.a ? 'auraSS1' : F.a, own = name === 'auraSS2' || name === 'auraSS3';
         V.aura(name, this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : own ? 0xffffff : (au || this.form.ki), this.charging ? 0.85 : own ? 0.62 : 0.5, this.animT);
-        // Z Legends 3: llamas de aura de su color que suben alrededor del personaje
-        const zq = (this.animT * (this.charging ? 20 : 6)) | 0;
-        if (V.z3 && zq !== this.zaQ) {
-          this.zaQ = zq;
-          const hex = ka ? 0xff3a2a : (au || this.form.ki), r = (hex >> 16) & 255, g = (hex >> 8) & 255, bl = hex & 255, mx = Math.max(r, g, bl);
-          const L = mx && (mx - Math.min(r, g, bl)) / mx < 0.25 ? 'W' : Z3_AURA[zipKind(hex)], a = (zq * 2.39996) % 6.283, rr = 0.55 + (zq % 3) * 0.3;
-          V.z3play('Zaura' + L, this.x + Math.cos(a) * rr, 0.15, this.z + Math.sin(a) * rr * 0.6, this.charging ? 1.7 : 1.2, { vy: this.charging ? 3.2 : 2.2, dur: 0.45, alpha: 0.9 });
-        }
       }
       if (F && !ka) {
         // Rayitos de electricidad pegados al cuerpo (SSJ2, Evolución, Ultra Ego...): fotogramas de 'bolt' que saltan de sitio
@@ -427,6 +444,7 @@ class Player {
         V.now(0, fxf('lightA', k), this.x + o * 0.5, 1.6 + (k % 3) * 0.4, this.z, 2.2, 0.95, 0xffffff);
       }
     }
+    if (this.auraB) this.auraB.end();
     this.shield.begin();
     if (this.charging && !useFx) this.shield.push(this.x, 1.5, this.z, 0, 0, 0, 5 * (1 + Math.sin(this.animT * 12) * 0.05), 1);
     this.shield.end();

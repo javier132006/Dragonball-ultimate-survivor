@@ -26,8 +26,16 @@ const ZL3 = {
   preload(ch) {
     if (!ch) return;
     if (!window.ZL3_VOICE) return;
-    for (const f of ch.forms) if (/^z_/.test(f.sheet)) this.panel(f.sheet.slice(2));
+    for (const f of ch.forms) if (/^z_/.test(f.sheet)) { this.panel(f.sheet.slice(2)); this.video(f.sheet.slice(2)); }
     for (const f of ch.forms) if (/^z_/.test(f.sheet)) { const s = ZL3_VOICE[f.sheet.slice(2)]; if (s) for (const k of s) if (k !== 'intro') this.get(f.sheet.slice(2), k).load(); }
+  },
+  uv: {},
+  /** Atlas del «vídeo» de la Ultimate (paneles de cinemática seguidos), o null si no hay o aún no ha llegado */
+  video(cid) {
+    if (!cid || !window.ZL3_ULTV || !ZL3_ULTV[cid]) return null;
+    let v = this.uv[cid];
+    if (!v) { v = this.uv[cid] = new Image(); v.src = 'assets/zl3/u/' + cid + '.webp'; }
+    return v.complete && v.naturalWidth ? v : null;
   },
   pn: {},
   /** Panel de cinemática (imagen lista para dibujar) del luchador, o null si no lo hay o aún no ha llegado */
@@ -50,7 +58,7 @@ function zl3Install() {
     if (pz) { c.portrait.sheet = pz; c.portrait.frame = 0; used.add(pz); }
   }
   zl3Bosses();
-  for (const n of Object.keys(SPRITE_DATA)) if (/^(z_|zfx)/.test(n) && !SHEET_NAMES.includes(n)) SHEET_NAMES.push(n);
+  for (const n of Object.keys(SPRITE_DATA)) if (/^(z_|zfx|zaura)/.test(n) && !SHEET_NAMES.includes(n)) SHEET_NAMES.push(n);
 }
 
 /** Jefes nuevos (los que no estaban en el juego). Usan los ataques de siempre de los jefes; solo cambia su aspecto y su combinación */

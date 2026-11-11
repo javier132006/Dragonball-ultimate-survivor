@@ -968,7 +968,7 @@ class WeaponSystem {
       const wob = 1 + Math.sin(g.time * 40) * 0.08, VZ = g.vfx;
       if (VZ && VZ.z3) {
         // Z Legends 3: cabeza (esfera en las manos), cuerpo en tramos y punta, del color del rayo
-        const c = Z3_BEAM[zipKind(b.color)], rot = VZ.ang(b.dx, b.dz), th = Math.min(7, b.hw * 2) * wob, px = th / 48, k = (g.time * 14) | 0, seg = 18 * px * 0.75;
+        const c = Z3_BEAM[zipKind(b.color)], rot = VZ.ang(b.dx, b.dz), th = Math.max(1.6, Math.min(4.6, b.hw * 1.7)) * wob, px = th / 48, k = (g.time * 14) | 0, seg = 18 * px * 0.75;
         for (let t = 0.8 + 50 * px; t < cur - 20 * px; t += seg) VZ.z3f('Zkame2' + c, k, b.x + b.dx * t, 1.5, b.z + b.dz * t, th, rot, fade);
         VZ.z3f('Zkame1' + c, k, b.x + b.dx * 0.8, 1.5, b.z + b.dz * 0.8, 105 * px * 0.8, rot, fade);
         VZ.z3f('Zkame3' + c, k, b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 126 * px * 0.85, rot, fade);

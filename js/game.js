@@ -2096,7 +2096,12 @@ class Game {
     // Guerreros y formas del Altar de Shenron: antes, corte en diagonal con su retrato grande
     const face = (p.form && p.form.face) || p.ch.face;
     const zpn = !face && !Save.d.opt.noCine ? ZL3.panel(ZL3.fighterOf(p.fusion ? p.fusion.ch : p.ch, p.fusion ? 0 : p.formIdx)) : null;
-    if (zpn) {                                                // Z Legends 3: panel de cinemática del personaje
+    const zid = ZL3.fighterOf(p.fusion ? p.fusion.ch : p.ch, p.fusion ? 0 : p.formIdx), zvd = !face && !Save.d.opt.noCine ? ZL3.video(zid) : null;
+    if (zvd) {                                                // Z Legends 3: el vídeo de su Ultimate (se puede saltar)
+      this.state = 'ultcine';
+      const ms = this.ui.ultVideo(zvd, ZL3_ULTV[zid], UN, U.col || p.form.ki, () => { this.faceT = 0.001; });
+      this.faceT = ms / 1000; this.faceGo = go;
+    } else if (zpn) {                                                // Z Legends 3: panel de cinemática del personaje
       this.state = 'ultcine'; this.ui.panelCut(zpn, UN, U.col || p.form.ki);
       this.faceT = 0.9; this.faceGo = go;
     } else if (face && this.ui.sheets && this.ui.sheets[face] && !Save.d.opt.noCine) {

@@ -342,3 +342,32 @@ UIManager.prototype.panelCut = function (img, name, col) {
   const cv = el.querySelector('canvas'), c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(img, 0, 0, 160, 90);
   document.body.appendChild(el); SFX.play('tp'); setTimeout(() => el.remove(), 1000);
 };
+
+/** «Vídeo» de la Ultimate de Z Legends 3: los paneles de cinemática del ataque, uno tras otro, a pantalla completa y en pixel art.
+    `T` = [[x, y, w, h, ms], …] dentro del atlas `img`. Devuelve lo que dura (ms). Tocar o pulsar una tecla lo salta (onSkip) */
+UIManager.prototype.ultVideo = function (img, T, name, col, onSkip) {
+  const old = document.getElementById('zuv'); if (old) old.remove();
+  const el = document.createElement('div'); el.id = 'zuv';
+  el.style.setProperty('--fc', '#' + (col || 0xffd84a).toString(16).padStart(6, '0'));
+  el.innerHTML = '<canvas width="160" height="90"></canvas><b>' + name + '</b>';
+  document.body.appendChild(el);
+  const cv = el.querySelector('canvas'), c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+  const total = T.reduce((a, f) => a + f[4], 0), t0 = performance.now();
+  let last = -1, done = false;
+  const end = () => { if (done) return; done = true; removeEventListener('keydown', skip, true); el.remove(); };
+  const skip = (e) => { if (done) return; if (e && e.type === 'keydown' && e.code === 'Escape') e.preventDefault(); end(); if (onSkip) onSkip(); };
+  el.addEventListener('pointerdown', skip); addEventListener('keydown', skip, true);
+  const draw = () => {
+    if (done) return;
+    let t = performance.now() - t0, k = 0;
+    while (k < T.length - 1 && t >= T[k][4]) { t -= T[k][4]; k++; }
+    if (k !== last) {                                  // cada panel centrado y escalado (enteros) para que el pixel art se vea nítido
+      last = k; const [x, y, w, h] = T[k], s = Math.max(1, Math.floor(Math.min(160 / w, 90 / h)));
+      c.fillStyle = '#000'; c.fillRect(0, 0, 160, 90); c.drawImage(img, x, y, w, h, ((160 - w * s) / 2) | 0, ((90 - h * s) / 2) | 0, w * s, h * s);
+    }
+    if (performance.now() - t0 >= total) return end();
+    requestAnimationFrame(draw);
+  };
+  draw(); SFX.play('tp');
+  return total;
+};

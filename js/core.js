@@ -267,6 +267,7 @@ class SpriteBatch {
     this.setSheet(o.texture, o.cols || 1, o.rows || 1);
     this.mesh = new THREE.Mesh(this.geo, this.mat);
     this.mesh.frustumCulled = false;
+    if (o.noDepth) this.mat.depthTest = false;                 // efectos grandes: el suelo no los corta por la mitad
     this.mesh.renderOrder = o.renderOrder || 0;
     scene.add(this.mesh);
   }

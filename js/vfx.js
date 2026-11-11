@@ -15,6 +15,12 @@ for (const k in (window.ZFX_ANIMS || {})) FXA['Z' + k] = window.ZFX_ANIMS[k];
 const Z3_ALIAS = { hitRing: ['Zhit', 1.1], meteorHit: ['Zextreme', 1.2], kameImp: ['Zkiboom', 1.2], fireBoom: ['Zboom1', 1.1], cellBoom: ['Zboom3', 1.1] };
 const Z3_BEAM = { Y: 'Y', O: 'Y', R: 'K', B: 'B', P: 'P', G: 'G', K: 'K' };
 const Z3_AURA = { Y: 'Y', O: 'D', R: 'R', B: 'C', P: 'K', G: 'G', K: 'K' };
+/** Color del aura de Z Legends 3 para un color: blanco (Ultra Instinto), amarillo, dorado, rojo, rosa, azul, verde… */
+function auraKey(hex) {
+  const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255, mx = Math.max(r, g, b);
+  if (!mx || (mx - Math.min(r, g, b)) / mx < 0.25) return 'W';
+  return Z3_AURA[zipKind(hex)];
+}
 const Z3_BOOM = { Y: 'Zboom1', O: 'Zboom1', R: 'Zboom1', B: 'Zboom3', P: 'Zboom10', G: 'Zboom1', K: 'Zboom10' };
 let FX_SHEETS = null;                       // hojas de efectos y objetos (las usa también world.js para el decorado)
 
@@ -74,7 +80,7 @@ class VFX {
       B(sheets.fx, { max: 16, blend: true, renderOrder: 6 }),       // 6: esferas sólidas (Genkidama): con su color real, sin quemarse a blanco
       B(sheets.fxzip || sheets.fx, { max: 500, blend: true, renderOrder: 6.5 }),  // 7: efectos del pack (pixel art nítido)
       B(sheets.zfx || sheets.fx, { max: 600, blend: true, renderOrder: 6.6 }),     // 8: efectos de Z Legends 3 pequeños (ráfagas, impactos)
-      B(sheets.zfxb || sheets.fx, { max: 260, blend: true, renderOrder: 6.4 })     // 9: efectos de Z Legends 3 grandes (rayos, explosiones, auras)
+      B(sheets.zfxb || sheets.fx, { max: 260, blend: true, renderOrder: 6.4, noDepth: true })     // 9: efectos de Z Legends 3 grandes (rayos, explosiones, auras)
     ];
     this.z3 = !!(sheets.zfx && sheets.zfxb && FXA.ZkbY) && (typeof Save === 'undefined' || Save.d.opt.z3fx !== false);
     this.zipOk = ZIP_FX && !!sheets.fxzip && !!FXA.zkiY;
