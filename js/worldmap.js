@@ -12,6 +12,7 @@ const PLACES = [
   { id: 'paoz', oy: 66, fx: 0.16, fy: 0.5, name: 'Montaña Paoz', sub: 'Elige guerrero', kanji: '悟', act: { go: 'play' } },
   { id: 'kame', oy: 40, fx: 0.29, fy: 0.9, name: 'Kame House', sub: 'Misiones y logros', kanji: '亀', act: { go: 'missions' } },
   { id: 'cc', oy: 54, fx: 0.84, fy: 0.44, name: 'Cápsula Corp.', sub: 'Tienda', kanji: '店', act: { go: 'shop' } },
+  { id: 'altar', oy: 44, fx: 0.17, fy: 0.1, name: 'Altar de Shenron', sub: 'Invocar transformaciones', kanji: '願', act: { go: 'summon' } },
   { id: 'tenka', oy: 50, fx: 0.72, fy: 0.8, name: 'Torneo', sub: 'Récords', kanji: '武', act: { go: 'records' } }
 ];
 const placeById = (id) => PLACES.find((p) => p.id === id);
@@ -101,7 +102,7 @@ class WorldMap {
     sky.addColorStop(0, '#2f7fe0'); sky.addColorStop(0.55, '#62b4ff'); sky.addColorStop(1, '#c4ecff');
     c.fillStyle = sky; c.fillRect(0, 0, W, hz + 2);
     // Sol con rayos suaves
-    const sx = W * 0.2, sy = hz * 0.35, sr = 60 * k + 20;
+    const sx = W * 0.36, sy = hz * 0.3, sr = 60 * k + 20;
     const sg = c.createRadialGradient(sx, sy, sr * 0.2, sx, sy, sr * 5); sg.addColorStop(0, 'rgba(255,250,210,.95)'); sg.addColorStop(0.15, 'rgba(255,240,170,.45)'); sg.addColorStop(1, 'rgba(255,240,170,0)');
     c.fillStyle = sg; c.fillRect(0, 0, W, hz);
     c.fillStyle = '#fffbe6'; c.beginPath(); c.arc(sx, sy, sr * 0.55, 0, Math.PI * 2); c.fill();
@@ -120,6 +121,7 @@ class WorldMap {
     const P = this.pos;
     // Islas y lugares (de atrás adelante)
     this.drawKaio(c, P.kaio.x, P.kaio.y, k);
+    this.drawAltar(c, P.altar.x, P.altar.y, k);
     this.island(c, P.cc.x, P.cc.y + 46 * k, 260 * k, 92 * k, 7);
     this.drawCC(c, P.cc.x, P.cc.y + 20 * k, k);
     this.island(c, P.paoz.x, P.paoz.y + 50 * k, 250 * k, 90 * k, 3);
@@ -264,6 +266,19 @@ class WorldMap {
     c.fillStyle = '#3a6ac0'; c.fillRect(x - 4, y - ph * 0.7, 8, ph * 0.7);
   }
   /** Planeta del Kaio: planeta pequeñito con su casa y su árbol */
+  /** Altar de Shenron: roca flotante con un pedestal y las 7 esferas brillando */
+  drawAltar(c, x, y, k) {
+    const rx = 70 * k + 16, ry = 14 * k + 4;
+    const halo = c.createRadialGradient(x, y - ry, 4, x, y - ry, rx * 1.5); halo.addColorStop(0, 'rgba(255,220,110,.75)'); halo.addColorStop(1, 'rgba(255,200,60,0)');
+    c.fillStyle = halo; c.beginPath(); c.arc(x, y - ry, rx * 1.5, 0, Math.PI * 2); c.fill();
+    const g = c.createLinearGradient(0, y, 0, y + ry * 5); g.addColorStop(0, '#8a7a66'); g.addColorStop(1, '#3e3428');
+    c.fillStyle = g; c.beginPath(); c.moveTo(x - rx, y); c.lineTo(x - rx * 0.55, y + ry * 2.4); c.lineTo(x - rx * 0.15, y + ry * 4.6); c.lineTo(x + rx * 0.3, y + ry * 2.8); c.lineTo(x + rx, y); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(30,20,10,.6)'; c.lineWidth = 2; c.stroke();
+    c.fillStyle = '#7fcf5a'; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = '#2a6a2a'; c.stroke();
+    c.fillStyle = '#d9d2c2'; c.beginPath(); c.ellipse(x, y - 2, rx * 0.5, ry * 0.55, 0, 0, Math.PI * 2); c.fill(); c.strokeStyle = '#8a8070'; c.lineWidth = 1.5; c.stroke();
+    const br = 6 * k + 3;
+    for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; Shenron.ball(c, x + Math.cos(a) * rx * 0.3, y - 3 - br * 0.6 + Math.sin(a) * ry * 0.3, br, i + 1, 0); }
+  }
   drawKaio(c, x, y, k) {
     const r = 40 * k + 10;
     const halo = c.createRadialGradient(x, y, r, x, y, r * 2.2); halo.addColorStop(0, 'rgba(255,250,200,.55)'); halo.addColorStop(1, 'rgba(255,250,200,0)');

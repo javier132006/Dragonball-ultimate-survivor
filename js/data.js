@@ -492,6 +492,7 @@ const CHARACTERS = [
     ]
   },
 ];
+packInstall('chars');                  // personajes y hojas nuevas del pack (js/packdata.js)
 const ULT_KI = 0.25;   // la Ultimate cuesta un 25% del Ki máximo, además de tener la barra llena
 const charById = (id) => CHARACTERS.find((c) => c.id === id);
 
@@ -743,6 +744,7 @@ const WEAPONS = {
   zamasu_3: { name: 'Rayo Inmortal', icon: '✦', kind: 'bigbeam', unique: 'zamasu', minLv: 6, shop: 0x000fa0, color: 0xa890ff, cfg: { cd: 10, dmg: 16, len: 38, hw: 2.6, life: 1.2, cost: 22 }, lv: ['Rayo morado concentrado.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
   zamasu_4: { name: 'Cuchillas de Zamasu', icon: '✦', kind: 'discs', unique: 'zamasu', minLv: 7, color: 0xc8b8ff, cfg: { cd: 1.7, n: 3, dmg: 18, spd: 20, life: 1.4 }, lv: ['Cuchillas que cortan la horda.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
 };
+packInstall('weapons');
 const MAX_WEAPON_LEVEL = 5, MAX_WEAPONS = 6;
 
 /* ---------- Vitaminas (mejoras pasivas) ---------- */
@@ -1166,6 +1168,7 @@ const Save = {
     if (!Array.isArray(this.d.dayHist)) this.d.dayHist = [];
     if (!this.d.story || typeof this.d.story !== 'object') this.d.story = {};
     for (const c of ['krilin', 'trunks']) if (this.d.sel === c && !this.d.unlocked.includes(c)) this.d.sel = 'goku';
+    packSaveDefaults(); applyGachaForms();                                       // gachapón: cristales y formas conseguidas (js/packdata.js)
   },
   /** Copia de seguridad: el guardado completo en texto (base64) para llevarlo a otro navegador */
   exportStr() { return btoa(unescape(encodeURIComponent(JSON.stringify(this.d)))); },
@@ -1579,6 +1582,7 @@ const NEW_TECH = {
   zamasu_f: ['zamasu', 'Embestida Inmortal', 'rush', 0xc8b8ff, { len: 12, n: 4, dmg: 33, cd: 3.2 }, 'Zamasu se lanza contra la horda golpeando a su paso.'],
   zamasu_k: ['zamasu', 'Rayo Sagrado', 'thunder', 0xd8c8ff, { n: 4, r: 2.4, dmg: 17, cd: 3 }, 'Rayos de luz divina caen sobre los mortales.']
 };
+packInstall('tech');
 for (const id in NEW_TECH) {
   const [ch, name, kind, color, cfg, desc] = NEW_TECH[id], phys = PHYS_KINDS.has(kind);
   WEAPONS[id] = { name, icon: phys ? '✊' : '✺', kind, unique: ch, minLv: phys ? 4 : 8, color, cfg, lv: [desc].concat(LV_TXT[kind]) };
@@ -1598,4 +1602,5 @@ const CHAR_ATK = {
   saibaman: [0.95, 0.95], bills: [1.15, 1.25], cooler: [1.0, 1.2], hitto: [1.3, 0.95], raditz: [1.1, 0.95], andro16: [1.2, 1.0],
   andro17: [1.05, 1.1], andro18: [1.1, 1.0], majin: [1.05, 1.15], superbuu: [1.15, 1.15], zamasu: [1.05, 1.15]
 };
+packInstall('atk');                    // personajes del pack (js/packdata.js)
 for (const c of CHARACTERS) { const a = CHAR_ATK[c.id] || [1, 1]; c.atkF = a[0]; c.atkK = a[1]; }

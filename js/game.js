@@ -115,6 +115,7 @@ class Game {
     this.capsules = new Capsules(this.scene, tex);
     this.weapons = new WeaponSystem(this.scene, tex);
     this.points = new Points(this.scene, tex);          // santuarios, comerciantes, altar y grieta
+    this.summon = new Summon(this);                     // Altar de Shenron: gachapón de transformaciones
     this.gacha = new Gacha(this);                       // Gachapón de Shenron (ventana de las 7 esferas)
     this.shots = new EnemyShots(this.scene, tex);       // disparos de los jefes
     this.allies = new Allies(this.scene, sheets);       // compañeros temporales
@@ -254,7 +255,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -267,6 +268,11 @@ class Game {
       else if (D.mtab) { ui.mtab = D.mtab; ui.renderMenu(); }
       else if (D.ch) this.viewChar(D.ch);
       else if (D.buy) this.buyChar(D.buy);
+      else if (D.claimch) this.claimChar(D.claimch);
+      else if (D.pull) this.summon.pull(+D.pull);
+      else if (D.gtab) { ui.gtab = D.gtab; ui.renderMenu(); }
+      else if (D.rates !== undefined) this.summon.showRates();
+      else if (D.gform) this.summon.toggleForm(D.gform);
       else if (D.equip) this.viewChar(D.equip, true);
       else if (D.lab) this.buyLab(D.lab);
       else if (D.item) this.buyItem(D.item);
@@ -403,9 +409,17 @@ class Game {
       } else h.phase[i] = 0;
     }
   }
+  /** Personaje con reto cumplido: se desbloquea gratis */
+  claimChar(id) {
+    const c = charById(id), P = c && reqProgress(c);
+    if (!P || Save.d.unlocked.includes(id) || P[0] < P[1]) return;
+    Save.d.unlocked.push(id); Save.d.sel = id; Save.write();
+    this.previewPlayer(); this.ui.view = id; this.ui.renderMenu();
+    Shenron.summon({ kicker: '¡Reto cumplido!', title: nice(c.name), sub: 'Se une a tu equipo', html: '<span class="big">¡Desbloqueado!</span>', btn: '¡Vamos!' });
+  }
   buyChar(id) {
     const c = charById(id);
-    if (!c || c.soon || Save.d.unlocked.includes(id) || Save.d.zeni < c.cost) return;
+    if (!c || c.soon || c.req || Save.d.unlocked.includes(id) || Save.d.zeni < c.cost) return;
     Save.d.zeni -= c.cost; Save.d.unlocked.push(id); Save.d.sel = id; Save.write();
     this.previewPlayer(); this.ui.view = id; this.ui.renderMenu();
   }
@@ -1063,19 +1077,22 @@ class Game {
     st.forEach((ok, i) => { if (ok) mask |= 1 << i; });
     const nStars = [0, 1, 2].filter((i) => mask & (1 << i)).length, gained = nStars - (prev.stars || 0);
     let coins = (first ? SG.reward : 0) + Math.max(0, gained) * 50, prize = '';
+    let crys = (first ? 30 : 0) + Math.max(0, gained) * 10;
     S[SG.id] = { stars: nStars, mask, best: prev.best ? Math.min(prev.best, Math.floor(this.time)) : Math.floor(this.time) };
     if (!wasBook && bookDone(B.idx)) {                                // ¡libro completado!: premio grande
       (Save.d.sagas || (Save.d.sagas = {}))[B.id] = true;
       const C = charById(B.prize);
       if (C && !Save.d.unlocked.includes(C.id)) { Save.d.unlocked.push(C.id); prize = '¡Desbloqueas a ' + nice(C.name) + '!'; }
       else { coins += 1500; prize = '+1500 monedas extra'; }
+      crys += 200; prize += ' · +200 cristales';
     }
+    Save.d.crystals = (Save.d.crystals || 0) + crys;
     Save.d.zeni += coins;
     const r = this.finishRun(true);
     this.nextChap = SG.idx + 1 < B.chapters.length ? B.chapters[SG.idx + 1] : B.idx + 1 < BOOKS.length && bookDone(B.idx) ? BOOKS[B.idx + 1].chapters[0] : null;
     let h = this.storyStarsHtml(st, newOnes);
     if (prize) h += '<div class="sbook" style="--b1:' + B.col + ';--b2:' + B.col2 + '"><small>¡Libro completado!</small><b>' + nice(B.name) + '</b><span>' + prize + '</span></div>';
-    h += '<div class="reward">+' + (coins + r.coins) + ' MONEDAS<small>' + (first ? SG.reward + ' por completar el capítulo · ' : '') + (gained > 0 ? gained * 50 + ' por estrellas nuevas · ' : '') + r.coins + ' de la partida</small></div>';
+    h += '<div class="reward">+' + (coins + r.coins) + ' MONEDAS<small>' + (first ? SG.reward + ' por completar el capítulo · ' : '') + (gained > 0 ? gained * 50 + ' por estrellas nuevas · ' : '') + r.coins + ' de la partida</small></div>' + (crys + (r.crys || 0) ? '<div class="crew">+' + (crys + (r.crys || 0)) + ' CRISTALES DEL DRAGÓN</div>' : '');
     h += '<div class="sum">' + [['ENEMIGOS', this.kills], ['TIEMPO', fmtTime(this.time)], ['NIVEL', this.player.level], ['DAÑO TOTAL', Math.floor(this.run.damage)]].map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
     const nx = this.nextChap, aT = nx ? (nx.book === B ? 'SIGUIENTE CAPÍTULO [R]' : 'SIGUIENTE LIBRO [R]') : 'REPETIR [R]';
     this.ui.showScreen(prize ? '¡LIBRO COMPLETADO!' : '¡CAPÍTULO COMPLETADO!', nice(B.name) + ' · Capítulo ' + (SG.idx + 1) + ': ' + SG.name, h, aT, 'VOLVER AL LIBRO [M]', 'win story');
@@ -1085,7 +1102,7 @@ class Game {
     const SG = this.saga, G = SG.goal, v = this.sagaValue(), n = G.n || 1;
     const prog = G.type === 'boss' || (this.sagaGoal && SG.boss) ? '¡Casi! El rival seguía en pie' : G.text + ' · ' + (G.type === 'survive' || G.type === 'hold' ? fmtTime(Math.min(v, n)) + ' de ' + fmtTime(n) : Math.min(v, n) + ' de ' + n);
     return '<div class="sbook lose"><small>Objetivo</small><b>' + prog + '</b><span>Consejo: sube de nivel con las cartas y usa [G] para transformarte</span></div>' +
-      '<div class="reward">+' + r.coins + ' MONEDAS<small>las monedas de la partida se quedan</small></div>' +
+      '<div class="reward">+' + r.coins + ' MONEDAS<small>las monedas de la partida se quedan</small></div>' + (r.crys ? '<div class="crew">+' + r.crys + ' CRISTALES DEL DRAGÓN</div>' : '') +
       '<div class="sum">' + [['ENEMIGOS', this.kills], ['TIEMPO', fmtTime(this.time)], ['NIVEL', this.player.level], ['DAÑO TOTAL', Math.floor(this.run.damage)]].map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
   }
   /** Diálogo: líneas [quién, texto]. El mundo se congela; E, Espacio, Intro, clic o el mando para avanzar */
@@ -1352,7 +1369,7 @@ class Game {
       if (Save.d.ach[a.id]) continue;
       const v = Math.max(st[a.stat] || 0, live[a.stat] || 0);
       if (v < a.goal) continue;
-      Save.d.ach[a.id] = true; Save.d.zeni += a.reward; Save.write();
+      Save.d.ach[a.id] = true; Save.d.zeni += a.reward; Save.d.crystals = (Save.d.crystals || 0) + 30; Save.write();
       SFX.play('achieve');
       this.ui.itemPopup({ icon: a.icon, name: a.name, text: a.desc + ' · +' + a.reward + ' monedas' }, { name: 'LOGRO DESBLOQUEADO', color: '#ffd84a' });
     }
@@ -1373,14 +1390,17 @@ class Game {
   /** Cierra la partida: monedas, récord, estadísticas y misiones. Devuelve {coins, bonus} */
   finishRun(win) {
     const p = this.player, id = p.ch.id, d = this.diff;
-    if (this.practice) return { coins: 0, bonus: 0, score: 0 };    // el entrenamiento no da recompensas
+    if (this.practice) return { coins: 0, bonus: 0, score: 0, crys: 0 };    // el entrenamiento no da recompensas
     let coins = Math.floor(this.zeniRun * d.coins), bonus = 0;
+    // Cristales del Dragón (gachapón): por aguantar, por jefes y por ganar
+    const crys = Math.min(60, Math.floor(this.time / 60) * 3) + this.run.bosses * 5 + (win ? 20 : 0);
+    Save.d.crystals = (Save.d.crystals || 0) + crys;
     if (this.saga) {                              // Modo Historia: monedas de la partida (los premios del capítulo van aparte); sin ranking
       Save.d.zeni += coins; this.track('runs', 1); this.track('time', Math.floor(this.time)); this.trackMax('maxLevel', p.level);
       if (win) this.track('wins', 1);
       this.track('damage', Math.floor(this.run.damage)); this.track('taken', Math.floor(this.run.taken)); this.track('dashes', this.run.dashes); this.trackMax('maxCombo', this.run.maxCombo); this.trackMax('bestHit', Math.floor(this.run.best));
       this.checkAch(); Save.write();
-      return { coins, bonus: 0, score: 0 };
+      return { coins, bonus: 0, score: 0, crys };
     }
     if (win) {                                    // primera victoria con ese personaje y dificultad = premio completo; después, un 20%
       const key = id + ':' + d.id, first = !Save.d.clears[key];
@@ -1412,7 +1432,7 @@ class Game {
     if (!b || this.time > b.time) Save.d.best[id] = { time: Math.floor(this.time), kills: this.kills, level: p.level };
     Save.write();
     this.sendOnline({ ch: id, kills: this.kills, level: p.level, bosses: this.run.bosses, step: this.step, time: Math.floor(this.time), win: !!win, diff: d.id, daily: !!this.daily });
-    return { coins, bonus, score, record: score > prevTop, dayBonus };
+    return { coins, bonus, score, record: score > prevTop, dayBonus, crys };
   }
   abandon() { this.finishRun(false); this.toMenu(); }
   /** Sube la partida al ranking mundial (si hay sesión) y escribe el resultado en el resumen */
@@ -1438,6 +1458,7 @@ class Game {
     h += this.dmgChart();
     if (this.practice) return h + '<div class="reward">ENTRENAMIENTO<small>El modo práctica no da monedas ni cuenta para misiones y logros</small></div>';
     h += '<div class="reward">+' + r.coins + ' MONEDAS' + (r.bonus ? '<small>incluye ' + r.bonus + ' de bonificación por completar el nivel</small>' : '') + (r.dayBonus ? '<small>incluye ' + r.dayBonus + ' por terminar el desafío de hoy</small>' : '') + '</div>';
+    if (r.crys) h += '<div class="crew">+' + r.crys + ' CRISTALES DEL DRAGÓN</div>';
     return h;
   }
   gameOver() {
@@ -1568,16 +1589,17 @@ class Game {
     const m = missionById(id);
     if (!m || Save.isClaimed(m) || Save.progress(m) < m.goal) return;
     if (m.daily) Save.d.daily.claimed[id] = true; else Save.d.claimed[id] = true;
-    Save.d.zeni += m.reward; Save.write();
+    const cr = m.daily ? 20 : 50;
+    Save.d.zeni += m.reward; Save.d.crystals = (Save.d.crystals || 0) + cr; Save.write();
     this.ui.renderMenu();
     // Shenron concede el premio
-    Shenron.summon({ kicker: m.daily ? 'Misión del día cumplida' : 'Misión cumplida', title: '¡Deseo concedido!', sub: m.name, html: '<span class="big">+' + m.reward + ' monedas</span>' });
+    Shenron.summon({ kicker: m.daily ? 'Misión del día cumplida' : 'Misión cumplida', title: '¡Deseo concedido!', sub: m.name, html: '<span class="big">+' + m.reward + ' monedas</span><span class="bigc">+' + cr + ' cristales</span>' });
   }
   claimLogin() {
     const l = Save.checkLogin();
-    if (l) { Save.d.login = { last: todayStr(), streak: l.streak }; Save.d.zeni += l.reward; Save.write(); }
+    if (l) { Save.d.login = { last: todayStr(), streak: l.streak }; Save.d.zeni += l.reward; Save.d.crystals = (Save.d.crystals || 0) + 50; Save.write(); }
     this.ui.hideModal(); this.ui.renderMenu();
-    if (l) Shenron.summon({ kicker: 'Recompensa diaria', title: '¡Di tu deseo!', sub: 'Día ' + l.streak + ' de racha: vuelve mañana y el premio será mayor', html: '<span class="big">+' + l.reward + ' monedas</span>' });
+    if (l) Shenron.summon({ kicker: 'Recompensa diaria', title: '¡Di tu deseo!', sub: 'Día ' + l.streak + ' de racha: vuelve mañana y el premio será mayor', html: '<span class="big">+' + l.reward + ' monedas</span><span class="bigc">+50 cristales</span>' });
   }
   /** Seguimiento de misiones: suma al total y al progreso diario */
   track(stat, n) {

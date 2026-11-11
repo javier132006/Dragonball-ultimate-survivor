@@ -14,7 +14,7 @@ class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
       'biome', 'combo', 'comboN', 'comboBar', 'storm', 'power', 'tfBtn', 'tfName', 'tfSub', 'goalL', 'trait', 'pactTag', 'abTp', 'tpFill', 'abUlt', 'ultFill', 'stageName', 'zoneBox', 'zoneBar', 'zoneTxt', 'trade', 'bigmap', 'bigmapc', 'fade', 'controls', 'abDash', 'dashFill', 'abCharge', 'vignette', 'toast', 'feed', 'wstrip', 'bossBox', 'bossBar', 'bossName', 'mm', 'portrait', 'prompt', 'itemPop',
-      'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'cardFoot', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'exit', 'modal', 'fatal', 'hud'];
+      'screen', 'scrBox', 'scrTitle', 'scrSub', 'scrStats', 'scrA', 'scrB', 'cards', 'cardTitle', 'cardSub', 'cardRow', 'cardFoot', 'menu', 'menuNav', 'menuBody', 'zeniMenu', 'cryMenu', 'exit', 'modal', 'fatal', 'hud'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.map = new WorldMap(this);                    // mapa del mundo del inicio
@@ -422,13 +422,14 @@ class UIManager {
   renderMenu() {
     const e = this.el, s = this.screen;
     e.zeniMenu.textContent = Save.d.zeni.toLocaleString('es-ES');
+    e.cryMenu.textContent = (Save.d.crystals || 0).toLocaleString('es-ES');
     e.menu.classList.toggle('ishome', s === 'home');
     this.hdr = { t: '', s: '', c: '', tabs: '' };
     const R = { home: this.renderHome, legend: this.renderLegend, play: this.renderPlay, shop: this.renderShopScreen, stats: this.renderStatsScreen, options: this.renderOptions,
-      records: this.renderRecords, account: this.renderAccount, credits: this.renderCredits, missions: this.renderMissions };
+      records: this.renderRecords, summon: this.renderSummon, account: this.renderAccount, credits: this.renderCredits, missions: this.renderMissions };
     (R[s] || this.renderMissions).call(this);
     const H = this.hdr;
-    const KJ = { play: '戦', legend: '龍', shop: '店', missions: '亀', records: '武', stats: '計', options: '設', account: '名', credits: '謝' };
+    const KJ = { play: '戦', legend: '龍', shop: '店', missions: '亀', records: '武', summon: '願', stats: '計', options: '設', account: '名', credits: '謝' };
     e.menu.dataset.kj = s === 'home' ? '' : (this.hdr.k || KJ[s] || '気');
     e.menuNav.innerHTML = s === 'home' ? this.homeBar()
       : '<button class="back" ' + (H.back || 'data-go="home"') + '><i>◀</i>' + (H.back ? 'Volver' : 'Mapa') + '</button><div class="bnr ' + H.c + '"' + (H.st ? ' style="' + H.st + '"' : '') + '><i class="kj">' + (H.k || KJ[s] || '気') + '</i><h3>' + H.t + '</h3>' + (H.s ? '<span>' + H.s + '</span>' : '') + '</div>' + (H.tabs ? '<div class="seg nav">' + H.tabs + '</div>' : '');
@@ -478,7 +479,8 @@ class UIManager {
       paoz: [own + ' / ' + tot + ' guerreros', 0],
       kame: [n ? n + ' premio' + (n > 1 ? 's' : '') + ' por cobrar' : 'Encargos del Maestro Roshi', n],
       cc: ['Mejoras, objetos y técnicas', 0],
-      tenka: [rank.length ? 'Récord: ' + rank[0].score.toLocaleString('es-ES') : 'Aún sin marcas', 0]
+      tenka: [rank.length ? 'Récord: ' + rank[0].score.toLocaleString('es-ES') : 'Aún sin marcas', 0],
+      altar: ['◆ ' + (Save.d.crystals || 0).toLocaleString('es-ES') + ' · cambia en ' + Math.ceil(bannerNow().left / 864e5) + ' d', (Save.d.crystals || 0) >= GACHA_COST10 ? '!' : 0]
     };
     const pins = PLACES.map((p) => '<button class="wpin" data-place="' + p.id + '"><span class="wk">' + p.kanji + '</span><span class="wtx"><b>' + p.name + '</b><em>' + p.sub + '</em><small>' + info[p.id][0] + '</small></span>' +
       (info[p.id][1] ? '<span class="badge">' + info[p.id][1] + '</span>' : '') + '</button>').join('');
@@ -563,6 +565,7 @@ class UIManager {
     const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     this.hdr = { t: 'Créditos', s: 'Gracias a quienes hicieron los sprites', c: 'c-pur' };
     this.el.menuBody.innerHTML = '<div class="pnl cpnl"><h4 class="sec">Sprites de personajes</h4><p class="dim" style="margin-bottom:12px">Sprites del pack «Dragon Ball Sagas», hechos por la comunidad. Gracias a sus autores:</p>' +
+      '<div class="mod"><i>★</i><div><b>Andrés Gamen Animations</b><small>Super Extra Pack de Sprites #2 y #3: los guerreros nuevos (Nappa, Tenshinhan, Roshi, Mr. Satán, Uub, Granola, Whis, Ginyu, Bulma) y todas las transformaciones del Altar de Shenron</small></div></div>' +
       SPRITE_CREDITS.map((c) => '<div class="mod"><i>★</i><div><b>' + esc(c.author) + '</b><small>' + c.what.map(esc).join(' · ') + '</small></div></div>').join('') +
       '<h4 class="sec" style="margin-top:16px">Dragon Ball</h4><p class="dim">Dragon Ball es una obra de Akira Toriyama. Juego de fans sin ánimo de lucro.</p></div>';
   }
@@ -581,7 +584,7 @@ class UIManager {
       if ((ct === 'own' && !has) || (ct === 'lock' && (has || c.soon))) continue;
       const cls = 'ch' + (Save.d.sel === c.id ? ' sel' : '') + (has ? '' : ' locked') + (c.soon ? ' soon' : '') + (this.view === c.id ? ' view' : '');
       grid += '<div class="' + cls + '" data-ch="' + c.id + '" style="--cc:' + COL[this.charType(c)] + '" title="' + nice(c.name) + '">' + (c.portrait ? this.pic(c) : '<div class="qm">?</div>') +
-        (c.soon ? '<span class="lk">PRONTO</span>' : has ? '' : '<span class="lk">🔒 ' + c.cost + '</span>') + '<b>' + nice(c.name) + '</b></div>';
+        (c.soon ? '<span class="lk">PRONTO</span>' : has ? '' : '<span class="lk">🔒 ' + (c.req ? 'Reto' : c.cost) + '</span>') + '<b>' + nice(c.name) + '</b></div>';
     }
     // Ficha
     let det;
@@ -596,7 +599,7 @@ class UIManager {
       const typs = (fF >= fK ? ['f', 'k'] : ['k', 'f']).map((x) => '<span class="typ ' + x + '">' + (x === 'f' ? 'Físico' : 'Ki') + '<small>' + (x === 'f' ? fF : fK) + '</small></span>').join('') + (t === 'e' ? '<span class="typ e">Equilibrado</span>' : '');
       const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '" title="x' + x.coins + ' monedas · +' + x.reward + ' al ganar">' + nice(x.name) + '</button>').join('');
       const W0 = WEAPONS[v.start[0]];
-      det = '<div class="lsc"><div class="lhd"><div class="pbox" style="--c1:' + (t === 'k' ? '#7ab8ff' : t === 'e' ? '#7ae0a8' : '#ffb25a') + ';--c2:' + COL[t] + '">' + this.pic(v, 120, 120) + '<span class="pc2">' + (best ? 'Récord NV ' + best.level : owned ? 'Sin jugar' : '🔒 ' + v.cost) + '</span></div>' +
+      det = '<div class="lsc"><div class="lhd"><div class="pbox" style="--c1:' + (t === 'k' ? '#7ab8ff' : t === 'e' ? '#7ae0a8' : '#ffb25a') + ';--c2:' + COL[t] + '">' + this.pic(v, 120, 120) + '<span class="pc2">' + (best ? 'Récord NV ' + best.level : owned ? 'Sin jugar' : '🔒 ' + (v.req ? 'Reto' : v.cost)) + '</span></div>' +
         '<div class="lin"><div class="lnum"><span class="k2">#' + String(idx).padStart(2, '0') + ' · ' + v.role + '</span><span class="chip ' + (Save.d.sel === v.id ? 'g' : owned ? 'd' : 'y') + '">' + (Save.d.sel === v.id ? 'Equipado' : owned ? 'Desbloqueado' : 'Bloqueado') + '</span></div>' +
           '<h3>' + nice(v.name) + '</h3><div class="typs">' + typs + '</div>' +
           '<span class="k2">Se transforma durante la partida</span><div class="evo">' + evo + '</div>' +
@@ -614,6 +617,9 @@ class UIManager {
         '</div>';
     }
     const act = v.soon ? '' : owned ? '<button class="pill" data-start="practice">' + iconHtml('power') + 'Entrenar</button><button class="pill" data-start="daily">☀ Diario</button><button class="go" data-start><span class="dball"></span>¡A luchar!<small>ENTER</small></button>'
+      : v.req ? (() => { const P = reqProgress(v), ok = P[0] >= P[1];           // personaje de reto: barra de progreso o botón de reclamar
+          return '<div class="reqb"><span class="k2">Reto para desbloquearlo</span><b>' + v.req.text + '</b><div class="mb"><i style="width:' + (P[0] / P[1] * 100) + '%"></i><em>' + fmtK(P[0]) + ' / ' + fmtK(P[1]) + '</em></div></div>' +
+            '<button class="buy c-grn" data-claimch="' + v.id + '"' + (ok ? '' : ' disabled') + '>' + (ok ? '¡Reclamar!' : 'Reto pendiente') + '</button>'; })()
       : '<button class="buy c-yel" data-buy="' + v.id + '"' + (Save.d.zeni < v.cost ? ' disabled' : '') + '>Desbloquear · <span class="coin"></span> ' + v.cost.toLocaleString('es-ES') + '</button>';
     this.el.menuBody.innerHTML = '<div class="liga"><div class="pnl lp">' + det + (act ? '<div class="lact">' + act + '</div>' : '') + '</div>' +
       '<div class="pnl lr"><div class="seg dk">' + this.segTabs([['all', 'Todos'], ['own', 'Tuyos'], ['lock', 'Por desbloquear']], ct, 'ctab') + '</div>' +
