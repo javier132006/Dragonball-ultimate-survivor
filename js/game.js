@@ -419,7 +419,7 @@ class Game {
   }
   buyChar(id) {
     const c = charById(id);
-    if (!c || c.soon || c.req || Save.d.unlocked.includes(id) || Save.d.zeni < c.cost) return;
+    if (!c || c.soon || c.req || c.summon || Save.d.unlocked.includes(id) || Save.d.zeni < c.cost) return;
     Save.d.zeni -= c.cost; Save.d.unlocked.push(id); Save.d.sel = id; Save.write();
     this.previewPlayer(); this.ui.view = id; this.ui.renderMenu();
   }
@@ -520,7 +520,7 @@ class Game {
     WORLD_SEED_XOR = this.daily ? dailySeed() % 100000 : 0;
     // Relieve: cada partida tiene colinas distintas; el desafío diario usa siempre el relieve del día
     RELIEF_SEED = this.daily ? (dailySeed() % 1000003) + 17 : Math.floor(Math.random() * 1000003);
-    this.timers = []; this.ultT = -1; const uf = this.ultFx || (this.ultFx = document.getElementById('ultFx')); if (uf) uf.style.opacity = 0;
+    this.timers = []; this.ultT = -1; this.faceT = 0; this.faceGo = null; const uf = this.ultFx || (this.ultFx = document.getElementById('ultFx')); if (uf) uf.style.opacity = 0;
     this.player.reset(ch); this.weapons.reset(ch); this.player.menuHide = false;
     this.diff = this.daily ? DIFFS[1] : diffById(Save.d.diff); this.cash = 0; this.capsOpened = 0; this.won = false; this.camera.clearViewOffset();
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0; this.leashT = 0;
@@ -2031,10 +2031,18 @@ class Game {
       this.shake(0.6); SFX.play('boom');
     };
     // Animación propia de cada personaje (el mundo espera congelado) y después la Ultimate
-    if (this.ultCine.has(p.ultId) && !Save.d.opt.noCine) {
-      this.state = 'ultcine';
-      this.ultCine.start(p.ultId, UN, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); });
-    } else fire();
+    const go = () => {
+      if (this.ultCine.has(p.ultId) && !Save.d.opt.noCine) {
+        this.state = 'ultcine';
+        this.ultCine.start(p.ultId, UN, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); });
+      } else { this.state = 'play'; this.clock.getDelta(); fire(); }
+    };
+    // Guerreros y formas del Altar de Shenron: antes, corte en diagonal con su retrato grande
+    const face = (p.form && p.form.face) || p.ch.face;
+    if (face && this.ui.sheets && this.ui.sheets[face] && !Save.d.opt.noCine) {
+      this.state = 'ultcine'; this.ui.faceCut(face, UN, U.col || p.form.ki);
+      this.faceT = 0.9; this.faceGo = go;                     // sigue en tiempo de juego (ver loop: estado 'ultcine')
+    } else go();
   }
   /** Secuencia de la Ultimate en tiempo real: destellos de impacto de colores y, al final, el tajo */
   updateUlt(dt) {
@@ -2612,6 +2620,7 @@ class Game {
       this.updateTalk(rawDt);
     } else if (s === 'intro' || s === 'ultcine') {                    // intro de la fusión / animación de la Ultimate, dentro del mapa
       (s === 'intro' ? this.intro : this.ultCine).update(rawDt);
+      if (this.faceT > 0 && (this.faceT -= rawDt) <= 0 && this.faceGo) { const f = this.faceGo; this.faceGo = null; f(); }   // corte del retrato terminado
       const p = this.player;
       p.animT += rawDt; p.pose();
       this.fx.update(rawDt);

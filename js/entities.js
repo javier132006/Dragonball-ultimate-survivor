@@ -31,8 +31,9 @@ class Player {
   /** Prepara al personaje elegido con sus stats base + mejoras permanentes del laboratorio */
   reset(ch) {
     this.ch = ch; this.fusion = null; this.pact = null; this.godT = 0;                // pacto del Oráculo de Kami (id)                              // fusión en tiempo real: { id, ch, sheet, t }
-    for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); }
-    this.chgSheet = this.sheets[ch.id + '_chg'] ? ch.id + '_chg' : null; if (this.chgSheet) this.batch(this.chgSheet);
+    for (const f of ch.forms) { this.batch(f.sheet); if (f.anim.alt) this.batch(f.anim.alt.sheet); if (f.chgS && this.sheets[f.chgS]) this.batch(f.chgS); }
+    const cs = ch.chgSheet || ch.id + '_chg';                                        // hoja de cargar ki (los del altar traen la suya)
+    this.chgSheet = this.sheets[cs] ? cs : null; if (this.chgSheet) this.batch(this.chgSheet);
     this.cineChg = false; this.chgPose = false;
     this.stacks = {}; this.stackMul = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
@@ -343,6 +344,8 @@ class Player {
     const a = this.anim;
     this.drawSheet = this.fusion ? this.fusion.sheet : this.form.sheet;          // fusionado: el aspecto de la fusión
     let fr = a.idleSeq ? a.idleSeq[((this.animT * 3) | 0) % a.idleSeq.length] : a.idle;   // quieto: respira si la hoja lo trae
+    const fc = this.form.chgS && this.sheets[this.form.chgS] && !this.fusion && (this.charging || this.cineChg) && this.dashT <= 0;
+    if (fc) { this.chgPose = true; this.drawSheet = this.form.chgS; this.frame = ((this.animT * 8) | 0) % this.form.chgN; return; }   // forma del altar: su propia carga con aura
     const cf = this.chgSheet ? formChg(this.ch, this.formIdx) : null;
     this.chgPose = !!cf && !this.fusion && (this.charging || this.cineChg) && this.dashT <= 0;
     if (this.chgPose) { this.drawSheet = this.chgSheet; this.frame = cf[0] + ((this.animT * 10) | 0) % cf[1]; return; }   // pose de cargar ki (aura animada)

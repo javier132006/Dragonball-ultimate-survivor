@@ -565,7 +565,7 @@ class UIManager {
     const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     this.hdr = { t: 'Créditos', s: 'Gracias a quienes hicieron los sprites', c: 'c-pur' };
     this.el.menuBody.innerHTML = '<div class="pnl cpnl"><h4 class="sec">Sprites de personajes</h4><p class="dim" style="margin-bottom:12px">Sprites del pack «Dragon Ball Sagas», hechos por la comunidad. Gracias a sus autores:</p>' +
-      '<div class="mod"><i>★</i><div><b>Andrés Gamen Animations</b><small>Super Extra Pack de Sprites #2 y #3: los guerreros nuevos (Nappa, Tenshinhan, Roshi, Mr. Satán, Uub, Granola, Whis, Ginyu, Bulma) y todas las transformaciones del Altar de Shenron</small></div></div>' +
+      '<div class="mod"><i>★</i><div><b>Pack de Sprites V3, V4 y V5</b><small>Guerreros y transformaciones del Altar de Shenron (Yamcha, Gohan niño, Ginyu, Dabura, Gohan del Futuro, Super Androide 35, Super 17, Vegetto SSJB3, Super Buu…). Goku Ultra Instinto, Super Baby y Vegetto Ego hechos por Black Vinas; Kamba SSJ4 editado por Black Vinas</small></div></div>' +
       SPRITE_CREDITS.map((c) => '<div class="mod"><i>★</i><div><b>' + esc(c.author) + '</b><small>' + c.what.map(esc).join(' · ') + '</small></div></div>').join('') +
       '<h4 class="sec" style="margin-top:16px">Dragon Ball</h4><p class="dim">Dragon Ball es una obra de Akira Toriyama. Juego de fans sin ánimo de lucro.</p></div>';
   }
@@ -584,7 +584,7 @@ class UIManager {
       if ((ct === 'own' && !has) || (ct === 'lock' && (has || c.soon))) continue;
       const cls = 'ch' + (Save.d.sel === c.id ? ' sel' : '') + (has ? '' : ' locked') + (c.soon ? ' soon' : '') + (this.view === c.id ? ' view' : '');
       grid += '<div class="' + cls + '" data-ch="' + c.id + '" style="--cc:' + COL[this.charType(c)] + '" title="' + nice(c.name) + '">' + (c.portrait ? this.pic(c) : '<div class="qm">?</div>') +
-        (c.soon ? '<span class="lk">PRONTO</span>' : has ? '' : '<span class="lk">🔒 ' + (c.req ? 'Reto' : c.cost) + '</span>') + '<b>' + nice(c.name) + '</b></div>';
+        (c.soon ? '<span class="lk">PRONTO</span>' : has ? '' : '<span class="lk">🔒 ' + (c.summon ? 'Altar' : c.req ? 'Reto' : c.cost) + '</span>') + '<b>' + nice(c.name) + '</b></div>';
     }
     // Ficha
     let det;
@@ -599,7 +599,7 @@ class UIManager {
       const typs = (fF >= fK ? ['f', 'k'] : ['k', 'f']).map((x) => '<span class="typ ' + x + '">' + (x === 'f' ? 'Físico' : 'Ki') + '<small>' + (x === 'f' ? fF : fK) + '</small></span>').join('') + (t === 'e' ? '<span class="typ e">Equilibrado</span>' : '');
       const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '" title="x' + x.coins + ' monedas · +' + x.reward + ' al ganar">' + nice(x.name) + '</button>').join('');
       const W0 = WEAPONS[v.start[0]];
-      det = '<div class="lsc"><div class="lhd"><div class="pbox" style="--c1:' + (t === 'k' ? '#7ab8ff' : t === 'e' ? '#7ae0a8' : '#ffb25a') + ';--c2:' + COL[t] + '">' + this.pic(v, 120, 120) + '<span class="pc2">' + (best ? 'Récord NV ' + best.level : owned ? 'Sin jugar' : '🔒 ' + (v.req ? 'Reto' : v.cost)) + '</span></div>' +
+      det = '<div class="lsc"><div class="lhd"><div class="pbox" style="--c1:' + (t === 'k' ? '#7ab8ff' : t === 'e' ? '#7ae0a8' : '#ffb25a') + ';--c2:' + COL[t] + '">' + this.pic(v, 120, 120) + '<span class="pc2">' + (best ? 'Récord NV ' + best.level : owned ? 'Sin jugar' : '🔒 ' + (v.summon ? 'Altar' : v.req ? 'Reto' : v.cost)) + '</span></div>' +
         '<div class="lin"><div class="lnum"><span class="k2">#' + String(idx).padStart(2, '0') + ' · ' + v.role + '</span><span class="chip ' + (Save.d.sel === v.id ? 'g' : owned ? 'd' : 'y') + '">' + (Save.d.sel === v.id ? 'Equipado' : owned ? 'Desbloqueado' : 'Bloqueado') + '</span></div>' +
           '<h3>' + nice(v.name) + '</h3><div class="typs">' + typs + '</div>' +
           '<span class="k2">Se transforma durante la partida</span><div class="evo">' + evo + '</div>' +
@@ -617,6 +617,7 @@ class UIManager {
         '</div>';
     }
     const act = v.soon ? '' : owned ? '<button class="pill" data-start="practice">' + iconHtml('power') + 'Entrenar</button><button class="pill" data-start="daily">☀ Diario</button><button class="go" data-start><span class="dball"></span>¡A luchar!<small>ENTER</small></button>'
+      : v.summon ? '<div class="reqb"><span class="k2">Guerrero del Altar de Shenron</span><b>Consíguelo invocando con Cristales del Dragón (' + GRARE[gformById(v.id).r].name + ')</b></div><button class="buy c-grn" data-place="altar">Ir al altar</button>'
       : v.req ? (() => { const P = reqProgress(v), ok = P[0] >= P[1];           // personaje de reto: barra de progreso o botón de reclamar
           return '<div class="reqb"><span class="k2">Reto para desbloquearlo</span><b>' + v.req.text + '</b><div class="mb"><i style="width:' + (P[0] / P[1] * 100) + '%"></i><em>' + fmtK(P[0]) + ' / ' + fmtK(P[1]) + '</em></div></div>' +
             '<button class="buy c-grn" data-claimch="' + v.id + '"' + (ok ? '' : ' disabled') + '>' + (ok ? '¡Reclamar!' : 'Reto pendiente') + '</button>'; })()

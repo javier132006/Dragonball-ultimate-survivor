@@ -1379,7 +1379,7 @@ const FORM_CHG = {
   superbuu: SAME4(3),
   zamasu: SAME4(2)
 };
-const formChg = (ch, idx) => (FORM_CHG[ch.id] || [])[idx] || null;
+const formChg = (ch, idx) => (FORM_CHG[ch.id] || (ch.chgN ? SAME4(ch.chgN) : []))[idx] || null;   // los del altar: su tira entera
 
 /* ---------- Créditos: autores de los sprites del pack «Dragon Ball Sagas» (archivo «Hecho por …» de cada carpeta) ---------- */
 const SPRITE_CREDITS = [

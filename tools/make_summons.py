@@ -1,0 +1,132 @@
+"""Guerreros y transformaciones del Altar de Shenron a partir de los «PACK DE SPRITES V3, V4 y V5».
+
+Cada carpeta del pack trae los fotogramas sueltos de un personaje (quieto, andar, golpes, rayos, carga con aura,
+caída…) como capturas AMPLIADAS con un factor distinto en cada imagen. Aquí:
+  1. Se recupera el pixel art original de cada captura: se mide el tamaño de «píxel» (las fronteras de color caen
+     en múltiplos de él) y se toma el color del centro de cada bloque. Así todos los fotogramas quedan a la misma
+     escala, la del juego (unos 48 px de alto).
+  2. Se monta la hoja del personaje con los fotogramas elegidos en SPEC (quieto, pasos, golpes, rayo, dash,
+     golpe recibido y caída) y la animación que el juego tiene que usar (va en la meta: anim).
+  3. Hoja de cargar ki (<id>_chg): los fotogramas de la carga con su aura.
+  4. Retrato grande (u_<id>_pt) para la invocación, la Ultimate y la ficha del guerrero.
+
+Uso: python3 tools/make_summons.py "CARPETA/PACK DE SPRITES V3" "…/V4" "…/V5" [--ver CARPETA]
+Salida: assets/summons.js (mismo formato que assets/sprites.js)
+"""
+import base64, glob, io, json, os, re, sys
+import numpy as np
+from PIL import Image
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(ROOT, 'assets', 'summons.js')
+REF = 52.3          # px de la hoja que miden 3,6 unidades del mundo (igual que tools/make_zip.py)
+
+# id: (pack, carpeta, fotogramas). idle/walk: listas (en bucle) · atk/crit: golpes · beam: rayo · chg: cargar ki
+# death: 3 fotogramas (cae, en el suelo…) · pt: retrato · big: ilustración grande (opcional)
+SPEC = {
+    'yamcha': ('V3', 'YAMCHA', dict(idle=[24, 25], walk=[4, 17], atk=30, crit=32, beam=75, hurt=54, dash=12, death=[54, 56, 57], chg=[71, 72, 73, 72], pt=89)),
+    'super17': ('V3', 'SUPER ANDROIDE 17', dict(idle=[15, 16, 17, 16], walk=[21, 22, 23, 24], atk=31, crit=41, beam=69, hurt=45, dash=27, death=[53, 54, 55], chg=[51, 52], pt=83)),
+    'andro35': ('V3', 'SUPER ANDROIDE 35', dict(idle=[16, 17, 18, 17], walk=[26, 27], atk=32, crit=28, beam=71, hurt=51, dash=23, death=[53, 55, 58], chg=[47, 48], pt=101)),
+    'vegito_b3': ('V3', 'VEGETTO SSJB3', dict(idle=[21, 22, 23, 24], walk=[33, 21], atk=49, crit=61, beam=110, hurt=80, dash=35, death=[80, 81, 82], chg=[93, 94], pt=117)),
+    'gohankid': ('V4', 'GOHAN (SAGA SAYAGIN - SWL)', dict(idle=[6, 8], walk=[4, 5], atk=9, crit=18, beam=20, hurt=29, dash=5, death=[29, 30, 30], chg=[27, 28], pt=41, big=40)),
+    'ginyu': ('V4', 'CAPIT*GINYU', dict(idle=[19, 20], walk=[22, 23], atk=30, crit=36, beam=46, hurt=16, dash=8, death=[15, 16, 17], chg=[38, 39], pt=55)),
+    'gohanf': ('V4', 'MIRAI GOHAN SSJ', dict(idle=[11, 12, 13, 12], walk=[18, 16], atk=28, crit=27, beam=75, hurt=52, dash=19, death=[52, 54, 55], chg=[101, 102, 103, 104, 105], pt=112)),
+    'buu_zamasu': ('V4', 'SUPER BUU (ZAMASU GATTAI ABSORVIDO)', dict(idle=[13, 14, 15, 14], walk=[36, 13], atk=46, crit=61, beam=87, hurt=121, dash=38, death=[122, 123, 125], chg=[68, 69], pt=128)),
+    'goku_mui': ('V5', 'GOKU MUI*', dict(idle=[31, 32, 33, 34], walk=[50, 51], atk=55, crit=79, beam=268, hurt=184, dash=52, death=[184, 185, 186], chg=[27, 28, 29, 30], pt=300)),
+    'kamba': ('V5', 'KAMBA SSJ4*', dict(idle=[6, 7, 8, 7], walk=[12, 15], atk=22, crit=27, beam=51, hurt=34, dash=16, death=[35, 36, 37], chg=[40, 41], pt=80)),
+    'babyv': ('V5', 'SUPER BABY*', dict(idle=[8, 9, 10, 11], walk=[19, 22], atk=24, crit=33, beam=99, hurt=72, dash=21, death=[73, 74, 75], chg=[79, 80, 81], pt=203)),
+    'vegito_ego': ('V5', 'VEGETTO EGO*', dict(idle=[20, 21, 22, 23], walk=[28, 25], atk=36, crit=50, beam=86, hurt=58, dash=29, death=[58, 59, 60], chg=[63, 64], pt=96)),
+    'dabura': ('V5', 'DABURA', dict(idle=[0, 1, 2, 1], walk=[3, 4], atk=18, crit=16, beam=20, hurt=11, dash=56, death=[34, 35, 35], chg=[30, 31, 32, 31], pt=74)),
+}
+
+# ---------------------------------------------------------------------------------------------------------------
+# Pixel art original a partir de la captura ampliada
+# ---------------------------------------------------------------------------------------------------------------
+def period(a):
+    """Tamaño del bloque y fase (x, y): las fronteras de color caen en múltiplos de s"""
+    ex = np.abs(np.diff(a.astype(int), axis=1)).sum(2) > 30
+    ey = np.abs(np.diff(a.astype(int), axis=0)).sum(2) > 30
+    xs = np.nonzero(ex)[1] + 1.0; ys = np.nonzero(ey)[0] + 1.0
+    S = np.arange(4.0, 30.0, 0.02)
+    def score(s): zx = np.exp(2j * np.pi * xs / s).mean(); zy = np.exp(2j * np.pi * ys / s).mean(); return abs(zx) + abs(zy), zx, zy
+    best = max(((score(s)[0], s) for s in S))
+    sc, s = best
+    for m in (3, 2):                                   # un armónico (s/2, s/3) alinea igual de bien: mejor el bloque mayor
+        if s * m < 40 and score(s * m)[0] > 0.85 * sc: s = s * m; break
+    _, zx, zy = score(s)
+    return s, (np.angle(zx) / (2 * np.pi) * s) % s, (np.angle(zy) / (2 * np.pi) * s) % s
+
+def native(path):
+    a = np.asarray(Image.open(path).convert('RGBA'))
+    s, px, py = period(a)
+    H, W = a.shape[:2]
+    cx = np.arange(px + s / 2, W, s).astype(int); cy = np.arange(py + s / 2, H, s).astype(int)
+    if px - s / 2 > 0: cx = np.r_[int(px - s / 2), cx]
+    if py - s / 2 > 0: cy = np.r_[int(py - s / 2), cy]
+    n = a[np.ix_(cy[cy < H], cx[cx < W])].copy()
+    n[:, :, 3] = np.where(n[:, :, 3] > 127, 255, 0); n[n[:, :, 3] == 0] = 0
+    im = Image.fromarray(n, 'RGBA'); b = im.getbbox()
+    return im.crop(b) if b else im
+
+# ---------------------------------------------------------------------------------------------------------------
+# Hojas
+# ---------------------------------------------------------------------------------------------------------------
+def feet_x(im):
+    a = np.asarray(im)[:, :, 3] > 0; ys, xs = np.nonzero(a)
+    low = ys > im.height * 0.6
+    return float(np.median(xs[low])) if low.any() else im.width / 2
+
+def build(frames, cols, center='feet'):
+    cx = [feet_x(f) if center == 'feet' else f.width / 2 for f in frames]
+    CW = int(max(2 * max(c, f.width - c) for f, c in zip(frames, cx))) + 4
+    CH = max(f.height for f in frames) + 3
+    rows = (len(frames) + cols - 1) // cols
+    S = Image.new('RGBA', (CW * cols, CH * rows), (0, 0, 0, 0))
+    for i, (f, c) in enumerate(zip(frames, cx)):
+        S.paste(f, ((i % cols) * CW + round(CW / 2 - c), (i // cols) * CH + CH - 2 - f.height), f)
+    return S, CW, CH, rows
+
+def encode(im):
+    o = io.BytesIO(); im.save(o, 'WEBP', lossless=True, quality=100, method=6, exact=True)
+    return 'data:image/webp;base64,' + base64.b64encode(o.getvalue()).decode()
+
+def meta(S, CW, CH, cols, rows, extra=None):
+    m = {'cols': cols, 'rows': rows, 'w': CW, 'h': CH, 'hs': round(CH / REF, 4), 'anc': round(2 / CH, 4), 'px': 1, 'src': encode(S)}
+    if extra: m.update(extra)
+    return m
+
+def char_sheet(F, sp):
+    """Celdas en orden: quieto…, pasos…, golpe, crítico, rayo, golpe recibido, dash, caída×3. La anim va en la meta"""
+    cells, anim = [], {}
+    def add(i): cells.append(F(i)); return len(cells) - 1
+    anim['idleSeq'] = [add(i) for i in sp['idle']]; anim['idle'] = anim['idleSeq'][0]
+    anim['walk'] = [add(i) for i in sp['walk']]
+    anim['atk'] = add(sp['atk']); anim['crit'] = add(sp['crit']); anim['atk2'] = add(sp['beam'])
+    anim['hurt'] = add(sp['hurt']); anim['dash'] = add(sp['dash']); anim['death'] = [add(i) for i in sp['death']]
+    S, CW, CH, rows = build(cells, 4)
+    return S, meta(S, CW, CH, 4, rows, {'anim': anim})
+
+if __name__ == '__main__':
+    packs = dict(zip(('V3', 'V4', 'V5'), sys.argv[1:4]))
+    ver = sys.argv[sys.argv.index('--ver') + 1] if '--ver' in sys.argv else None
+    lines = ['// Generado por tools/make_summons.py — guerreros del Altar de Shenron (PACK DE SPRITES V3-V5, no editar a mano)',
+             'window.SPRITE_DATA = window.SPRITE_DATA || {};']
+    for uid, (pk, folder, sp) in SPEC.items():
+        d = [p for p in glob.glob(os.path.join(packs[pk], '*')) if re.fullmatch(folder.replace('(', r'\(').replace(')', r'\)').replace('*', '.*'), os.path.basename(p))][0]
+        files = sorted(glob.glob(os.path.join(d, '*.png')), key=lambda p: int(re.sub(r'\D', '', os.path.basename(p))))
+        cache = {}
+        F = lambda i: cache.setdefault(i, native(files[i]))
+        S, m = char_sheet(F, sp)
+        out = {'u_' + uid: m}
+        C, CW, CH, rows = build([F(i) for i in sp['chg']], len(sp['chg']))
+        out['u_' + uid + '_chg'] = meta(C, CW, CH, len(sp['chg']), 1)
+        P = F(sp['pt']); out['u_' + uid + '_pt'] = meta(P, P.width, P.height, 1, 1)
+        if sp.get('big') is not None: B = F(sp['big']); out['u_' + uid + '_big'] = meta(B, B.width, B.height, 1, 1)
+        for k, v in out.items():
+            lines.append('window.SPRITE_DATA[%s] = %s;' % (json.dumps(k), json.dumps(v)))
+            if ver:
+                os.makedirs(ver, exist_ok=True)
+                Image.open(io.BytesIO(base64.b64decode(v['src'].split(',')[1]))).save(os.path.join(ver, k + '.png'))
+        print(uid, 'celdas', len(m['anim']['idleSeq']) + len(m['anim']['walk']) + 8, 'hoja', S.size, flush=True)
+    open(OUT, 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
+    print(len(SPEC), 'personajes ·', os.path.getsize(OUT) // 1024, 'KB ->', OUT)
