@@ -190,11 +190,60 @@ const GF_TRAIT = [null,
   { name: 'Aura chispeante', good: '+18% de daño y +8% de velocidad', bad: 'Gasta 2 de Ki/s sin regenerarlo (carga con C)', m: { dmg: 0.18, spd: 0.08 }, t: { kiDrain: 2 } },
   { name: 'Más allá de los límites', good: '+25% de daño, +10% de velocidad y tu aura quema', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { dmg: 0.25, spd: 0.1 }, t: { aura: 30, kiDrain: 3 } }
 ];
+/* Rasgo propio de cada transformación del altar: como sale por suerte, su ventaja es grande y va con el personaje;
+   la desventaja también le pega (m = estadísticas · t = efectos especiales, ver TRAITS en data.js) */
+const GU_TRAIT = {
+  goku_mui: { name: 'Ultra Instinto Dominado', good: 'Esquivas TODOS los ataques y contraatacas (3 de Ki por esquiva), +35% de daño, +20% de velocidad y de cadencia',
+    bad: 'Sin Ki el cuerpo no aguanta: recibes un 30% más de daño', m: { dmg: 0.35, spd: 0.2, rate: 0.2, armor: -0.3 }, t: { dodgeKi: 3 } },
+  vegito_ego: { name: 'Ego Superior', good: 'Cada golpe recibido sube tu daño (hasta +70%), +2,5 de vida/s y tu aura destruye a los enemigos',
+    bad: 'El Ego no esquiva: -20% de esquiva y recibes un 15% más de daño', m: { regen: 2.5, dodge: -0.2, armor: -0.15 }, t: { ego: 0.7, aura: 40 } },
+  buu_zamasu: { name: 'Inmortal absorbido', good: '+50% de vida máxima, +5 de vida/s, curas 1 por enemigo y rayos divinos a tu alrededor',
+    bad: 'Cuerpo pesado: -15% de velocidad y -25% de regeneración de Ki', m: { maxHp: 0.5, regen: 5, killHeal: 1, spd: -0.15, kiRegen: -0.25 }, t: { bolt: 36 } },
+  vegito_b3: { name: 'Blue al límite', good: '+35% de daño, +20% de cadencia y rayos a tu alrededor', bad: 'Gasta 4 de Ki/s sin regenerarlo (carga con C)',
+    m: { dmg: 0.35, rate: 0.2 }, t: { bolt: 40, kiDrain: 4 } },
+  super17: { name: 'Absorción de energía', good: '+60% de regeneración de Ki, +25% de armadura y +25% de vida máxima', bad: 'Fusión inestable: -12% de velocidad',
+    m: { kiRegen: 0.6, armor: 0.25, maxHp: 0.25, spd: -0.12 } },
+  trunks_dbs: { name: 'Espada de la Esperanza', good: '+20% de crítico, +60% de daño crítico y +40% de daño con poca vida', bad: '-15% de vida máxima',
+    m: { crit: 0.2, critDmg: 0.6, maxHp: -0.15 }, t: { lowHp: 0.4 } },
+  bardock_ssjl: { name: 'Último combate', good: '+25% de daño, +15% de velocidad y +60% de daño con poca vida', bad: 'Pierdes un 0,8% de vida por segundo',
+    m: { dmg: 0.25, spd: 0.15 }, t: { lowHp: 0.6, hpDrain: 0.008 } },
+  buu_gordo: { name: 'Buu enfurecido', good: '+40% de vida máxima, cada golpe recibido sube tu daño (hasta +40%) y tu vapor quema',
+    bad: '-15% de velocidad', m: { maxHp: 0.4, spd: -0.15 }, t: { ego: 0.4, aura: 32 } }
+};
+/* Rasgos de las formas de los guerreros del altar (índices 1-3; la base no tiene) */
+const PACK_TRAITS = {
+  yamcha: [null, { name: 'Colmillo de lobo', good: '+12% de crítico y +10% de velocidad', bad: 'Recibes un 10% más de daño', m: { crit: 0.12, spd: 0.1, armor: -0.1 } },
+    { name: 'Neo colmillo', good: '+15% de cadencia y el dash cuesta un 30% menos', bad: '-15% de regeneración de Ki', m: { rate: 0.15, dashCost: -0.3, kiRegen: -0.15 } },
+    { name: 'Lobo salvaje', good: '+25% de daño y +10% de crítico', bad: '-15% de vida máxima', m: { dmg: 0.25, crit: 0.1, maxHp: -0.15 } }],
+  gohankid: [null, { name: 'Furia', good: '+10% de daño y +30% con poca vida', bad: '-10% de regeneración de Ki', m: { dmg: 0.1, kiRegen: -0.1 }, t: { lowHp: 0.3 } },
+    { name: 'Poder oculto', good: '+20% de daño y +15% de experiencia', bad: 'Recibes un 10% más de daño', m: { dmg: 0.2, xp: 0.15, armor: -0.1 } },
+    { name: 'Ira desatada', good: '+30% de daño y tu aura quema a los enemigos', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { dmg: 0.3 }, t: { aura: 30, kiDrain: 3 } }],
+  ginyu: [null, { name: 'Pose especial', good: '+12% de armadura y +10% de cadencia', bad: '-8% de velocidad', m: { armor: 0.12, rate: 0.1, spd: -0.08 } },
+    { name: 'Fuerzas Ginyu', good: '+20% de cadencia y +30% de alcance del imán', bad: '-15% de regeneración de Ki', m: { rate: 0.2, magnet: 0.3, kiRegen: -0.15 } },
+    { name: 'Cambio de cuerpo', good: '+25% de daño y +2 de vida/s', bad: '-20% de vida máxima', m: { dmg: 0.25, regen: 2, maxHp: -0.2 } }],
+  dabura: [null, { name: 'Rey demonio', good: '+12% de armadura y +10% de daño', bad: '-8% de velocidad', m: { armor: 0.12, dmg: 0.1, spd: -0.08 } },
+    { name: 'Señor del Makai', good: '+15% de daño y tus llamas queman a los enemigos', bad: '-15% de regeneración de Ki', m: { dmg: 0.15, kiRegen: -0.15 }, t: { aura: 30 } },
+    { name: 'Emperador oscuro', good: '+30% de daño y curas 1 por enemigo', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { dmg: 0.3, killHeal: 1 }, t: { kiDrain: 3 } }],
+  gohanf: [null, { name: 'Última esperanza', good: '+1,5 de vida/s y +10% de daño', bad: '-10% de regeneración de Ki', m: { regen: 1.5, dmg: 0.1, kiRegen: -0.1 } },
+    { name: 'Guerrero solitario', good: '+10% de crítico y +30% de daño crítico', bad: 'Recibes un 10% más de daño', m: { crit: 0.1, critDmg: 0.3, armor: -0.1 } },
+    { name: 'Héroe del futuro', good: '+20% de daño y +50% con poca vida', bad: 'Pierdes un 0,6% de vida por segundo', m: { dmg: 0.2 }, t: { lowHp: 0.5, hpDrain: 0.006 } }],
+  andro35: [null, { name: 'Blindaje', good: '+15% de armadura y +15% de vida máxima', bad: '-10% de velocidad', m: { armor: 0.15, maxHp: 0.15, spd: -0.1 } },
+    { name: 'Sobrecarga', good: '+10% de cadencia y descargas a tu alrededor', bad: '-15% de regeneración de Ki', m: { rate: 0.1, kiRegen: -0.15 }, t: { bolt: 30 } },
+    { name: 'Núcleo al máximo', good: '+30% de daño y tu aura quema a los enemigos', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { dmg: 0.3 }, t: { aura: 34, kiDrain: 3 } }],
+  kamba: [null, { name: 'Energía maligna', good: 'Cada golpe recibido sube tu daño (hasta +30%)', bad: '-5% de velocidad', m: { spd: -0.05 }, t: { ego: 0.3 } },
+    { name: 'Saiyajin del mal', good: '+20% de daño y +10% de crítico', bad: 'Recibes un 10% más de daño', m: { dmg: 0.2, crit: 0.1, armor: -0.1 } },
+    { name: 'SSJ4 maligno', good: '+35% de daño y tu aura quema a los enemigos', bad: 'Gasta 4 de Ki/s sin regenerarlo (carga con C)', m: { dmg: 0.35 }, t: { aura: 36, kiDrain: 4 } }],
+  babyv: [null, { name: 'Parásito', good: '+1,5 de vida/s y curas 0,5 por enemigo', bad: 'Recibes un 8% más de daño', m: { regen: 1.5, killHeal: 0.5, armor: -0.08 } },
+    { name: 'Venganza Tuffle', good: '+20% de daño y +10% de cadencia', bad: '-15% de regeneración de Ki', m: { dmg: 0.2, rate: 0.1, kiRegen: -0.15 } },
+    { name: 'Gran mono artificial', good: '+40% de vida máxima y +25% de daño', bad: '-15% de velocidad', m: { maxHp: 0.4, dmg: 0.25, spd: -0.15 } }]
+};
+/** Rasgo de una unidad del altar (para mostrarlo en el altar): el de la forma o el de la forma más alta del guerrero */
+const unitTrait = (g) => g.kind === 'form' ? GU_TRAIT[g.id] || GF_TRAIT[g.r] : PACK_TRAITS[g.id] ? PACK_TRAITS[g.id][3] : null;
 /** Forma del altar equipada ahora mismo en un guerrero (o null) */
 const gformEquipped = (chId) => { const c = charById(chId), f = c && c.forms[c.forms.length - 1]; return f && f.gacha ? f.gacha : null; };
 function applyGachaForms() {
   for (const c of CHARACTERS) {
-    if (!c.baseForms) { c.baseForms = c.forms; c.baseTraits = TRAITS[c.id] ? TRAITS[c.id].slice() : null; }
+    if (!c.baseForms) { if (!TRAITS[c.id] && PACK_TRAITS[c.id]) TRAITS[c.id] = PACK_TRAITS[c.id]; c.baseForms = c.forms; c.baseTraits = TRAITS[c.id] ? TRAITS[c.id].slice() : null; }
     // Guerrero del altar: cada estrella (repetido) le da +4% de daño
     const cst = c.summon ? (Save.d.gforms[c.id] || 1) : 1, sm = 1 + 0.04 * (cst - 1);
     const base = sm === 1 ? c.baseForms : c.baseForms.map((f) => Object.assign({}, f, { dmg: f.dmg * sm }));
@@ -211,7 +260,7 @@ function applyGachaForms() {
     }));
     if (own.length) {
       const bt = c.baseTraits || []; while (bt.length < c.baseForms.length) bt.push(null);
-      TRAITS[c.id] = bt.concat(own.map((g) => GF_TRAIT[g.r]));
+      TRAITS[c.id] = bt.concat(own.map((g) => GU_TRAIT[g.id] || GF_TRAIT[g.r]));
     } else if (c.baseTraits) TRAITS[c.id] = c.baseTraits.slice();
   }
 }

@@ -66,6 +66,8 @@ function animIn(el) {
   }
 }
 const ucv = (g, a, w, h, cls) => '<canvas' + (cls ? ' class="' + cls + '"' : '') + ' width="' + w + '" height="' + (h || w) + '" data-unit="' + g.id + '" data-anim="' + a + '"></canvas>';
+/** Ventaja (✚) y desventaja (✖) de la unidad del altar */
+const traitHtml = (g, cls) => { const T = unitTrait(g); return T ? '<p class="' + (cls || 'strt') + '"><b>' + T.name + '</b><i>✚ ' + T.good + '</i><i class="bad">✖ ' + T.bad + '</i></p>' : ''; };
 const unitSub = (g) => g.kind === 'char' ? 'Guerrero nuevo' : nice(charById(g.ch).name);
 
 class Summon {
@@ -270,7 +272,7 @@ class Summon {
       '<div class="scut"><div class="scs s1"></div><div class="scs s2">' + ucv(g, art, 300, 375, 'scface') + '</div><div class="scs s3"></div><b class="sckj">' + (r === 3 ? '極' : r === 2 ? '超' : '新') + '</b></div>' +
       '<div class="schar">' + ucv(g, 'chg', 400, 400, 'schg') + ucv(g, 'idle', 360, 360, 'sidl') + '</div>' +
       '<div class="sinfo"><em>' + GRARE[r].name + '</em><small>' + unitSub(g) + '</small><b>' + nice(g.name) + '</b>' +
-      '<span>' + (what || (o.star ? '+1 ★ · ' + o.star + ' / ' + GACHA_STARS + ' estrellas' : '+' + o.refund + ' cristales (5 ★)')) + '</span></div><p class="stap">Toca para continuar</p>';
+      '<span>' + (what || (o.star ? '+1 ★ · ' + o.star + ' / ' + GACHA_STARS + ' estrellas' : '+' + o.refund + ' cristales (5 ★)')) + '</span>' + traitHtml(g) + '</div><p class="stap">Toca para continuar</p>';
     animIn(el);
     const T = [], at = (ms, f) => T.push(setTimeout(f, ms));
     SFX.play('charge');
@@ -312,7 +314,7 @@ Object.assign(UIManager.prototype, {
     const items = pool.slice().sort((a, b2) => b2.r - a.r || (a.kind > b2.kind ? 1 : -1)).map((g) => {
       const st = d.gforms[g.id] || 0, eq = st && g.kind === 'form' && gformEquipped(g.ch) === g.id;
       return '<div class="gcard r' + g.r + (st ? '' : ' lk') + (eq ? ' eq' : '') + (b.feat.includes(g.id) ? ' ft' : '') + '"' + (st ? ' data-gform="' + g.id + '" title="' + (g.kind === 'char' ? 'Ver su ficha' : 'Toca para ' + (eq ? 'quitarla' : 'equiparla')) + '"' : '') + '>' +
-        '<div class="gfp">' + ucv(g, 'face', 80, 100) + ucv(g, st ? 'idle' : 'still', 72, 72, 'gfs') + '</div><em>' + GRARE[g.r].name + '</em><b>' + nice(g.name) + '</b><small>' + unitSub(g) + '</small>' +
+        '<div class="gfp">' + ucv(g, 'face', 80, 100) + ucv(g, st ? 'idle' : 'still', 72, 72, 'gfs') + '</div><em>' + GRARE[g.r].name + '</em><b>' + nice(g.name) + '</b><small>' + unitSub(g) + '</small>' + traitHtml(g, 'gtrt') +
         (st ? '<span class="gst">' + '★'.repeat(st) + '<i>' + '★'.repeat(GACHA_STARS - st) + '</i></span>' + (eq ? '<span class="geq">Equipada</span>' : '') : '<span class="gst">Sin conseguir</span>') + '</div>';
     }).join('');
     const own = GUNITS.filter((g) => d.gforms[g.id]).length;

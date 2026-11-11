@@ -965,20 +965,12 @@ class WeaponSystem {
       }
       // Tres capas (halo, cuerpo y núcleo blanco). Cada capa separa sus sprites según su tamaño y sube su opacidad
       // en la misma proporción: se ve igual, pero se pintan aproximadamente la mitad de píxeles (menos trabajo de GPU)
-      const wob = 1 + Math.sin(g.time * 40) * 0.08, VZ = g.vfx;
-      if (VZ && VZ.z3) {
-        // Z Legends 3: cabeza (esfera en las manos), cuerpo en tramos y punta, del color del rayo
-        const c = Z3_BEAM[zipKind(b.color)], rot = VZ.ang(b.dx, b.dz), th = Math.max(1.6, Math.min(4.6, b.hw * 1.7)) * wob, px = th / 48, k = (g.time * 14) | 0, seg = 18 * px * 0.75;
-        for (let t = 0.8 + 50 * px; t < cur - 20 * px; t += seg) VZ.z3f('Zkame2' + c, k, b.x + b.dx * t, 1.5, b.z + b.dz * t, th, rot, fade);
-        VZ.z3f('Zkame1' + c, k, b.x + b.dx * 0.8, 1.5, b.z + b.dz * 0.8, 105 * px * 0.8, rot, fade);
-        VZ.z3f('Zkame3' + c, k, b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 126 * px * 0.85, rot, fade);
-      } else {
+      const wob = 1 + Math.sin(g.time * 40) * 0.08;   // rayos: los de siempre (los de Z Legends 3 no encajaban con la cámara 3D)
       for (let k = 0; k < 3; k++) {
         const size = b.hw * BEAM_K[k] * wob, step = Math.max(0.8, size * 0.3), al = Math.min(1, BEAM_A[k] * step / 0.8) * fade, col = k === 2 ? 0xffffff : b.color;
         for (let t = 0.8; t <= cur; t += step) B.push(b.x + b.dx * t, 1.5, b.z + b.dz * t, 0, 0, 0, size, al, col);
       }
       B.push(b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 0, 0, 0, b.hw * 3.6, 0.7 * fade, b.color);
-      }
       const V = g.vfx, D = WEAPONS[b.src];
       if (V && V.ok && D && D.sty === 'sbc') {                     // Makankosappo: espiral alrededor del rayo
         const k = ((g.time * 16) | 0) & 1, rot = Math.atan2(-b.dz, b.dx), st = b.hw * 3;
@@ -990,7 +982,7 @@ class WeaponSystem {
       } else if (V && V.ok && (b.src === 'deathbeam' || b.src === 'cellbeam')) {
         V.now(0, fxf('dbBall', 0), b.x + b.dx * cur, 1.5, b.z + b.dz * cur, 1.7, fade, 0xffffff, Math.atan2(-b.dz, b.dx));
       }
-      if (V && V.ok && b.hw > 0.9 && !V.z3) {
+      if (V && V.ok && b.hw > 0.9) {
         const k = (g.time * 20) | 0;
         const pl = g.player, oc = pl.ch.id === 'gohan' && pl.formIdx === 4 && b.follow ? 'beastBall' : bigOrb(b.color);   // esfera de las hojas nuevas en el origen
         if (oc) V.now(FXA[oc].s === 'fxbig' ? 2 : 0, fxf(oc, 0), b.x + b.dx * 0.9, 1.5, b.z + b.dz * 0.9, b.hw * 2.1, 0.75 * fade, 0xffffff, g.time * 2);
