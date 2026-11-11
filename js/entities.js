@@ -188,8 +188,12 @@ class Player {
   /** Lo llaman las armas al disparar: gira al personaje hacia el objetivo y muestra la pose de ataque */
   attack(dx, dz, crit, game) {
     this.flip = dx * game.camCos - dz * game.camSin < 0 ? 1 : 0;
-    this.atkT = 0.18; this.atkFrame = crit ? this.anim.crit : this.anim.atk;
+    const A = this.curAnim();
+    this.atkT = 0.18; this.atkFrame = crit ? A.crit : A.atkSeq ? A.atkSeq[(this.atkN = ((this.atkN | 0) + 1) % A.atkSeq.length)] : A.atk;   // Z Legends 3: alterna puño, patada y golpe
   }
+
+  /** Animación vigente: la del personaje o, fusionado, la de la fusión (cada hoja tiene su propia tabla de fotogramas) */
+  curAnim() { return this.fusion && this.fusion.anim || this.anim; }
 
   die() { this.dying = true; this.deathT = 0; this.charging = false; this.vx = 0; this.vz = 0; }
   updateDeath(dt) { this.deathT += dt; return this.deathT >= 1.9; }
@@ -341,9 +345,12 @@ class Player {
 
   /** Elige hoja y fotograma según el estado */
   pose() {
-    const a = this.anim;
+    const a = this.curAnim();
     this.drawSheet = this.fusion ? this.fusion.sheet : this.form.sheet;          // fusionado: el aspecto de la fusión
     let fr = a.idleSeq ? a.idleSeq[((this.animT * 3) | 0) % a.idleSeq.length] : a.idle;   // quieto: respira si la hoja lo trae
+    if (a.chgSeq && !this.fusion && (this.charging || this.cineChg) && this.dashT <= 0) {   // hoja de Z Legends 3: carga con su propia pose (el aura la pone el juego)
+      this.chgPose = false; this.frame = a.chgSeq[((this.animT * 8) | 0) % a.chgSeq.length]; return;
+    }
     const fc = this.form.chgS && this.sheets[this.form.chgS] && !this.fusion && (this.charging || this.cineChg) && this.dashT <= 0;
     if (fc) { this.chgPose = true; this.drawSheet = this.form.chgS; this.frame = ((this.animT * 8) | 0) % this.form.chgN; return; }   // forma del altar: su propia carga con aura
     const cf = this.chgSheet ? formChg(this.ch, this.formIdx) : null;
@@ -370,8 +377,8 @@ class Player {
     let y = 0, alpha = 1, flash = 0, scale = 1, sheet = this.drawSheet, frame = this.frame;
     for (const k in this.spr) { this.spr[k].begin(); this.gho[k].begin(); }
     if (this.dying) {
-      const t = this.deathT, a = this.anim;
-      const fr = a.death ? { s: this.form.sheet, f: a.death } : a.alt && a.alt.death ? { s: a.alt.sheet, f: a.alt.death } : null;
+      const t = this.deathT, a = this.curAnim();
+      const fr = a.death ? { s: this.fusion ? this.fusion.sheet : this.form.sheet, f: a.death } : a.alt && a.alt.death ? { s: a.alt.sheet, f: a.alt.death } : null;
       if (fr) { sheet = fr.s; frame = t < 0.35 ? fr.f[0] : t < 0.9 ? fr.f[1] : fr.f[2]; alpha = clamp(1 - (t - 1.1) / 0.75, 0, 1); }
       else { sheet = this.form.sheet; frame = a.idle; flash = t < 0.35 ? 1 : 0; alpha = clamp(1 - t / 1.5, 0, 1); y = t * 1.2; scale = 1 + t * 0.12; }
     } else {

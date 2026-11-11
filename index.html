@@ -1600,7 +1600,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
       x.send();
     });
   };
-  const CODE = ['js/core.js', 'js/vfx.js', 'js/packdata.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js'];
+  const CODE = ['js/core.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js'];
   (async () => {
     LOAD.step('three', 0.1, 'Cargando el motor gráfico…');
     try { await script('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'); }
@@ -1608,6 +1608,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
     LOAD.step('three', 1);
     LOAD.step('sprites', 0.02, 'Cargando personajes, enemigos y efectos…');
     try { await bigScript('assets/sprites.js', 'sprites', 'Cargando personajes, enemigos y efectos'); } catch (e) { console.error(e); }
+    try { await script('assets/zl3.js'); } catch (e) { console.error(e); }       // sprites de Z Legends 3 para el 3D
     try { await script('assets/summons.js'); } catch (e) { console.error(e); }  // guerreros y transformaciones del Altar de Shenron
     LOAD.step('sprites', 1, 'Preparando el código del juego…');
     for (let i = 0; i < CODE.length; i++) { await script(CODE[i]); LOAD.step('code', (i + 1) / CODE.length); }

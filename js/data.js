@@ -1628,4 +1628,5 @@ const CHAR_ATK = {
   andro17: [1.05, 1.1], andro18: [1.1, 1.0], majin: [1.05, 1.15], superbuu: [1.15, 1.15], zamasu: [1.05, 1.15]
 };
 packInstall('atk');                    // personajes del pack (js/packdata.js)
+zl3Install();                          // sprites y animaciones de Z Legends 3 (js/zl3.js)
 for (const c of CHARACTERS) { const a = CHAR_ATK[c.id] || [1, 1]; c.atkF = a[0]; c.atkK = a[1]; }

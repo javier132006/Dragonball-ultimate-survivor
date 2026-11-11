@@ -1263,7 +1263,7 @@ class Game {
     const i = this.allies.list.indexOf(a); if (i >= 0) this.allies.list.splice(i, 1);   // el aliado se funde contigo
     // Forma de la fusión equivalente a la tuya (base con base, la más alta con la más alta)
     const n = F.forms.length, k = Math.min(n - 1, Math.round(p.formIdx * (n - 1) / Math.max(1, p.ch.forms.length - 1)));
-    p.fusion = { id, ch: F, sheet: F.forms[k].sheet, t: FUSION_TIME, warned: false }; p.batch(p.fusion.sheet);
+    p.fusion = { id, ch: F, sheet: F.forms[k].sheet, anim: F.forms[k].anim, t: FUSION_TIME, warned: false }; p.batch(p.fusion.sheet);
     const go = () => { this.ui.toast('¡' + F.name + '!'); this.ui.toast('Fusión: +40% de daño, +20% de velocidad y su Ultimate durante ' + FUSION_TIME + ' s', true); };
     if (this.intro.has(id) && !Save.d.opt.noCine) {                 // cinemática de la fusión (Vegetto, Gogeta, Zamasu fusionado)
       this.state = 'intro'; this.releaseMouse();
@@ -1757,7 +1757,7 @@ class Game {
       this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = 0.62; this.horde.tints[T_BOSS] = B.tints[0];
       // Cada jefe se dibuja con sus sprites: fila propia en la hoja "bosses" (o una fila por forma en la de Goku Black)
       const sh = this.ui.sheets && this.ui.sheets[B.sheet];
-      this.horde.setBossSheet(sh || null, B.rows ? B.rows[0] : B.row, B.anim || BOSS_ANIM[B.sheet], B.sheet);
+      this.horde.setBossSheet(sh || null, B.rows ? B.rows[0] : B.row, bossAnimOf(B.sheet, B.anim || BOSS_ANIM[B.sheet]), B.sheet);
       this.horde.bossTint = B.tintSprite !== false;
       this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
       if (B.moves) this.ui.toast(B.moves, true);                       // sus técnicas, para saber qué esperar
@@ -2005,7 +2005,7 @@ class Game {
     this.horde.tints[T_BOSS] = B.tints[ph];
     ENEMY_TYPES[T_BOSS].scale = (B.scaleW || B.scale) * (1 + ph * 0.04);   // el jefe crece con cada transformación
     if (B.rows) this.horde.bossRow = B.rows[ph];                       // cambia a la fila de su nueva forma
-    if (B.sheets && this.ui.sheets && this.ui.sheets[B.sheets[ph]]) this.horde.setBossSheet(this.ui.sheets[B.sheets[ph]], 0, B.anim, B.sheets[ph]);   // luchador: hoja de su nueva forma
+    if (B.sheets && this.ui.sheets && this.ui.sheets[B.sheets[ph]]) this.horde.setBossSheet(this.ui.sheets[B.sheets[ph]], 0, bossAnimOf(B.sheets[ph], B.anim), B.sheets[ph]);   // luchador: hoja de su nueva forma
     this.horde.posBoss('cast', 1.2);
     const dx = p.x - bx, dz = p.z - bz, d = Math.hypot(dx, dz) || 1;
     if (d < 14) { p.kbx = dx / d * 22; p.kbz = dz / d * 22; }

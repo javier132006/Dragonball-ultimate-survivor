@@ -617,7 +617,7 @@ class WeaponSystem {
       g.world.damageArea(x, z, w.rr, w.dm);
       if (last) g.horde.stunRadius(x, z, w.rr * 1.5, 0.6);
       DMG_SRC = 'otros';
-      this.ghost(p, x - w.dx * 0.6, z - w.dz * 0.6, (w.n0 - w.pend) % 2 ? p.anim.atk : p.anim.crit, flip);
+      this.ghost(p, x - w.dx * 0.6, z - w.dz * 0.6, (w.n0 - w.pend) % 2 ? p.curAnim().atk : p.curAnim().crit, flip);
       for (let i = 0; i < 8; i++) g.fx.sparks.emit(x, 1.3, z, rand(-5, 5), rand(0, 3), rand(-5, 5), 0.25, 0.35, 0, col);
       if (g.vfx) g.vfx.play('hitRing', x, 1.4, z, { size: last ? 4.5 : 2.6, fps: 26, tint: col });
       SFX.play('hit');
@@ -833,7 +833,7 @@ class WeaponSystem {
       if (i < 0) { w.pend = 0; return; }
       const ex = g.horde.x[i], ez = g.horde.z[i], dm = (C.dmg || 34) * (lv >= 3 ? 1.35 : 1);
       DMG_SRC = w.id; g.horde.damageRadius(ex, ez, 2.6, dm * p.damageMul(), 10, g); g.horde.stunRadius(ex, ez, 2.6, 0.7); DMG_SRC = 'otros';
-      for (const gh of p.ghosts) if (gh.t <= 0) { gh.t = 0.3; gh.x = ex - 0.8; gh.z = ez; gh.frame = p.anim.atk; gh.flip = ex < p.x ? 1 : 0; gh.sheet = p.drawSheet; break; }
+      for (const gh of p.ghosts) if (gh.t <= 0) { gh.t = 0.3; gh.x = ex - 0.8; gh.z = ez; gh.frame = p.curAnim().atk; gh.flip = ex < p.x ? 1 : 0; gh.sheet = p.drawSheet; break; }
       if (g.vfx) { g.vfx.play('meteorHit', ex, 1.4, ez, { size: 4.2, dur: 0.3, tint: col === 0xff4a4a ? 0xff8a8a : 0xffffff }); g.vfx.play('hitRing', ex, 1.4, ez, { size: 3.5, fps: 24, tint: col }); }
       SFX.play('hit');
       if (w.pend === 0) { g.shake(0.4); if (lv >= 5 || w.fused) g.impact(0.07, 3); }
