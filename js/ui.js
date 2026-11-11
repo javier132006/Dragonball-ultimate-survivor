@@ -575,6 +575,7 @@ class UIManager {
     this.hdr = { t: 'Créditos', s: 'Gracias a quienes hicieron los sprites', c: 'c-pur' };
     this.el.menuBody.innerHTML = '<div class="pnl cpnl"><h4 class="sec">Sprites de personajes</h4><p class="dim" style="margin-bottom:12px">Sprites del pack «Dragon Ball Sagas», hechos por la comunidad. Gracias a sus autores:</p>' +
       '<div class="mod"><i>★</i><div><b>Pack de Sprites V3, V4 y V5</b><small>Guerreros y transformaciones del Altar de Shenron (Yamcha, Gohan niño, Ginyu, Dabura, Gohan del Futuro, Super Androide 35, Super 17, Vegetto SSJB3, Super Buu…). Goku Ultra Instinto, Super Baby y Vegetto Ego hechos por Black Vinas; Kamba SSJ4 editado por Black Vinas</small></div></div>' +
+      '<div class="mod"><i>★</i><div><b>Z Legends 3 · Geneildo Santos</b><small>Sprites y animaciones de los luchadores y jefes, escenarios de fondo, paneles de cinemática de las Ultimates y voces. Uso con fines de aprendizaje y sin ánimo de lucro.</small></div></div>' +
       SPRITE_CREDITS.map((c) => '<div class="mod"><i>★</i><div><b>' + esc(c.author) + '</b><small>' + c.what.map(esc).join(' · ') + '</small></div></div>').join('') +
       '<h4 class="sec" style="margin-top:16px">Dragon Ball</h4><p class="dim">Dragon Ball es una obra de Akira Toriyama. Juego de fans sin ánimo de lucro.</p></div>';
   }

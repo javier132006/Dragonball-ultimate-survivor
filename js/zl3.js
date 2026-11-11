@@ -7,6 +7,36 @@
 const ZL3 = {
   ok: () => !!(window.SPRITE_DATA && window.ZL3_MAP),
   /** Hoja nueva que sustituye a `name` (o null si no hay) */
+  vc: {},
+  /** Luchador de Z Legends 3 de una forma del personaje (o, si esa forma conserva su hoja antigua, de cualquier otra suya) */
+  fighterOf(ch, idx) {
+    const f = ch && ch.forms[idx | 0], any = ch && ch.forms.find((x) => /^z_/.test(x.sheet));
+    const s = f && /^z_/.test(f.sheet) ? f.sheet : any && any.sheet;
+    return s ? s.slice(2) : null;
+  },
+  /** Grito del luchador (ult, tf, intro). Si no tiene ese, prueba `alt`. Archivos pequeños en assets/zl3/a, se descargan al usarse */
+  voice(cid, kind, alt) {
+    const set = cid && window.ZL3_VOICE && ZL3_VOICE[cid]; if (!set) return;
+    const k = set.includes(kind) ? kind : alt && set.includes(alt) ? alt : null; if (!k) return;
+    const a = this.get(cid, k); a.volume = Math.min(1, ((Save.d.vol && Save.d.vol.sfx) || 0.75) * 1.1); a.currentTime = 0;
+    const p = a.play(); if (p && p.catch) p.catch(() => {});
+  },
+  get(cid, k) { const id = cid + '_' + k; return this.vc[id] || (this.vc[id] = new Audio('assets/zl3/a/' + id + '.m4a')); },
+  /** Descarga los gritos del personaje al empezar la partida (así suenan sin retraso) */
+  preload(ch) {
+    if (!ch) return;
+    if (!window.ZL3_VOICE) return;
+    for (const f of ch.forms) if (/^z_/.test(f.sheet)) this.panel(f.sheet.slice(2));
+    for (const f of ch.forms) if (/^z_/.test(f.sheet)) { const s = ZL3_VOICE[f.sheet.slice(2)]; if (s) for (const k of s) if (k !== 'intro') this.get(f.sheet.slice(2), k).load(); }
+  },
+  pn: {},
+  /** Panel de cinemática (imagen lista para dibujar) del luchador, o null si no lo hay o aún no ha llegado */
+  panel(cid) {
+    if (!cid || !window.ZL3_PANEL || !ZL3_PANEL.includes(cid)) return null;
+    let p = this.pn[cid];
+    if (!p) { p = this.pn[cid] = new Image(); p.src = 'assets/zl3/p/' + cid + '.webp'; }
+    return p.complete && p.naturalWidth ? p : null;
+  },
   sheetFor(name) { const id = window.ZL3_MAP && ZL3_MAP[name]; return id && SPRITE_DATA['z_' + id] ? 'z_' + id : null; }
 };
 
@@ -102,3 +132,4 @@ class Backdrop {
     this.mat.color.setScalar(1 - (night || 0) * 0.75);
   }
 }
+

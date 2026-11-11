@@ -539,7 +539,7 @@ class Game {
     this.step = 0; this.booms.length = 0; this.rerolls = 2; this.sigOffered = {}; this.wMul = {};
     this.loadStage(this.saga ? this.saga.stage : (this.daily ? dailySeed() % 2 === 1 : Math.random() < 0.5) ? 7 : 0);
     if (this.saga) this.storySetup();   // se empieza en la Tierra o en la Isla Kame
-    this.applyForm();
+    this.applyForm(); ZL3.preload(this.player.ch);
     for (let i = 0; i < (this.saga && this.saga.goal.type === 'tourney' ? 0 : 14); i++) this.spawnEnemy();
     this.horde.buildGrid();
     this.camYaw = 0; this.camPitch = 0.6; this.camDist = this.camDistT = 19;
@@ -1560,6 +1560,7 @@ class Game {
     }), (c) => { this.ui.hideCards(); this.state = 'play'; this.startCine(c.id); });
   }
   startCine(idx) {
+    ZL3.voice(ZL3.fighterOf(this.player.ch, idx), 'tf', 'intro');
     this.player.formReady = -1;
     this.state = 'transform';
     this.cine.start(idx);
@@ -1754,6 +1755,7 @@ class Game {
     if (i >= 0) {
       if (this.bossWeak) { this.bossWeak = false; this.horde.hp[i] *= 0.5; this.ui.toast('¡El castigo de Shenron lo ha debilitado!', true); }
       this.bossUid = this.horde.uid[i]; this.bossSpawned = true;
+      if (/^z_/.test(B.sheet)) ZL3.voice(B.sheet.slice(2), 'intro', 'ult');       // el jefe grita al aparecer
       this.boss = { t: {}, q: [], gap: 1.2, seen: {}, spiral: 0, spA: 0, spT: 0, spTint: 0, dashW: 0, sd: false };
       this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = 0.62; this.horde.tints[T_BOSS] = B.tints[0];
       // Cada jefe se dibuja con sus sprites: fila propia en la hoja "bosses" (o una fila por forma en la de Goku Black)
@@ -2069,6 +2071,7 @@ class Game {
     const kc = Math.round(p.maxKi * ULT_KI * p.kiUse);
     if (p.ki < kc) { this.ui.toast('NECESITAS ' + kc + ' DE KI PARA LA ULTIMATE · CARGA CON [C]', true); SFX.play('warn'); return; }
     p.ki -= kc; p.ult = 0; p.iframes = Math.max(p.iframes, 1.2);
+    ZL3.voice(ZL3.fighterOf(p.fusion ? p.fusion.ch : p.ch, p.fusion ? 0 : p.formIdx), 'ult');   // grito de Z Legends 3
     // Ataque combinado: el aliado más cercano (a menos de COMBO_R) ataca contigo y la Ultimate hace +50% de daño
     let ca = null, cd = COMBO_R;
     for (const a of this.allies.list) { const d = Math.hypot(a.x - p.x, a.z - p.z); if (d < cd) { cd = d; ca = a; } }
@@ -2091,7 +2094,11 @@ class Game {
     };
     // Guerreros y formas del Altar de Shenron: antes, corte en diagonal con su retrato grande
     const face = (p.form && p.form.face) || p.ch.face;
-    if (face && this.ui.sheets && this.ui.sheets[face] && !Save.d.opt.noCine) {
+    const zpn = !face && !Save.d.opt.noCine ? ZL3.panel(ZL3.fighterOf(p.fusion ? p.fusion.ch : p.ch, p.fusion ? 0 : p.formIdx)) : null;
+    if (zpn) {                                                // Z Legends 3: panel de cinemática del personaje
+      this.state = 'ultcine'; this.ui.panelCut(zpn, UN, U.col || p.form.ki);
+      this.faceT = 0.9; this.faceGo = go;
+    } else if (face && this.ui.sheets && this.ui.sheets[face] && !Save.d.opt.noCine) {
       this.state = 'ultcine'; this.ui.faceCut(face, UN, U.col || p.form.ki);
       this.faceT = 0.9; this.faceGo = go;                     // sigue en tiempo de juego (ver loop: estado 'ultcine')
     } else go();

@@ -1399,6 +1399,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
 /* Ultimate de un guerrero del altar: corte con su retrato */
 #fcut{position:fixed;inset:0;z-index:23;pointer-events:none;overflow:hidden}
 #fcut .fcs{position:absolute;left:-10%;right:-10%;top:30%;height:34%;transform:skewY(-6deg);display:flex;align-items:center;gap:3%;padding-left:16%;background:repeating-linear-gradient(90deg,rgba(255,255,255,.1) 0 2px,transparent 2px 26px),linear-gradient(90deg,#000 10%,var(--fc) 60%,#000);border-block:6px solid #fff;animation:fcin .9s cubic-bezier(.2,1.1,.4,1) forwards}
+#fcut.wide canvas{aspect-ratio:16/9;height:112%;box-shadow:0 0 0 4px #fff,0 0 22px var(--fc)}
 #fcut canvas{height:130%;width:auto;aspect-ratio:4/5;image-rendering:pixelated;transform:skewY(6deg);filter:drop-shadow(0 0 16px var(--fc))}
 #fcut b{font-family:var(--hero);font-weight:400;font-size:clamp(30px,6vw,80px);letter-spacing:.04em;color:#fff;-webkit-text-stroke:3px #000;paint-order:stroke fill;text-shadow:5px 5px 0 #000;transform:skewY(6deg)}
 @keyframes fcin{0%{transform:skewY(-6deg) translateX(100%)}18%{transform:skewY(-6deg) translateX(0)}82%{transform:skewY(-6deg) translateX(0);opacity:1}100%{transform:skewY(-6deg) translateX(-100%);opacity:0}}

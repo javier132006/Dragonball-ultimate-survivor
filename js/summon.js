@@ -332,3 +332,13 @@ Object.assign(UIManager.prototype, {
     animIn(this.el.menuBody);
   }
 });
+
+/** Corte de pantalla de la Ultimate con un panel de cinemática de Z Legends 3 (16:9, pixel art) */
+UIManager.prototype.panelCut = function (img, name, col) {
+  const old = document.getElementById('fcut'); if (old) old.remove();
+  const el = document.createElement('div'); el.id = 'fcut'; el.className = 'wide';
+  el.style.setProperty('--fc', '#' + (col || 0xffd84a).toString(16).padStart(6, '0'));
+  el.innerHTML = '<div class="fcs"><canvas width="160" height="90"></canvas><b>' + name + '</b></div>';
+  const cv = el.querySelector('canvas'), c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(img, 0, 0, 160, 90);
+  document.body.appendChild(el); SFX.play('tp'); setTimeout(() => el.remove(), 1000);
+};
