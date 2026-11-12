@@ -1353,12 +1353,32 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
 .snew,.sst{position:absolute;top:6px;left:6px;padding:0 7px;font-weight:800;font-size:11px;color:#2a1800;background:#ffe27a;border:2px solid var(--ink);border-radius:4px;transform:rotate(-6deg)}
 .sst{background:rgba(0,0,0,.6);color:#ffd84a;transform:none}
 .srev{position:absolute;inset:0;display:none;align-items:center;justify-content:center;gap:4%;padding:0 6%;cursor:pointer;background:radial-gradient(circle at 40% 50%,color-mix(in srgb,var(--rc) 70%,#fff),color-mix(in srgb,var(--rc) 50%,#05070f) 60%,#05070f)}
-.srev.on{display:flex;animation:srin .3s ease-out}
-@keyframes srin{0%{filter:brightness(6)}100%{filter:none}}
+.srev.on{display:flex}
+/* (sin `filter` en la presentación: sobre un canvas grande hacía que el navegador dejara de pintarlo) */
 .srays{position:absolute;inset:-80%;background:repeating-conic-gradient(rgba(255,255,255,.16) 0 5deg,rgba(255,255,255,0) 5deg 14deg);animation:spin 14s linear infinite}
 .schar{position:relative;height:min(74vh,60vw);aspect-ratio:1;animation:schar .5s cubic-bezier(.2,1.5,.4,1)}
 @keyframes schar{0%{transform:translateX(-60vw) scale(1.4)}100%{transform:none}}
-.schar canvas{width:100%;height:100%;image-rendering:pixelated;filter:drop-shadow(0 0 24px #fff) drop-shadow(8px 10px 0 rgba(0,0,0,.5))}
+.schar canvas{width:100%;height:100%;image-rendering:pixelated}
+/* Círculo de luz bajo sus pies y halo detrás (en vez del filtro de sombra) */
+.sglow{position:absolute;left:8%;right:8%;bottom:-2%;height:18%;border-radius:50%;background:radial-gradient(closest-side,#fff,var(--rc) 45%,transparent);opacity:.75;animation:sglw 1.6s ease-in-out infinite alternate}
+.sglow::before{content:'';position:absolute;left:5%;right:5%;bottom:40%;height:420%;border-radius:50%;background:radial-gradient(closest-side,color-mix(in srgb,var(--rc) 55%,transparent),transparent);opacity:.7}
+@keyframes sglw{to{transform:scaleX(1.12);opacity:.95}}
+.srev.r3 .sglow{background:radial-gradient(closest-side,#fff,#ff3d7a 30%,#3d9bff 55%,transparent);animation:sglw 1.6s ease-in-out infinite alternate,hue 3s linear infinite}
+@keyframes hue{to{filter:hue-rotate(360deg)}}
+/* Capa de efectos (partículas, rayos, ondas, resplandor): detrás del guerrero y de la ficha */
+.sfxc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.ssil,.scut,.schar,.sinfo,.snew{z-index:1}
+/* Estrellas: se llenan de una en una; la nueva salta con brillo */
+.sstars{display:flex;gap:4px;margin:2px 0}
+.sstars i{font-style:normal;font-size:clamp(22px,3vw,38px);line-height:1;color:rgba(255,255,255,.18);-webkit-text-stroke:2px #000;paint-order:stroke fill}
+.sstars i.on{color:#ffd84a;animation:sstr .35s calc(.45s + var(--k) * .11s) cubic-bezier(.2,1.8,.4,1) backwards;text-shadow:0 0 10px #ffb81c}
+.sstars i.new{color:#fff;text-shadow:0 0 14px #fff,0 0 26px #ffd84a;animation:sstr .5s calc(.45s + var(--k) * .11s) cubic-bezier(.2,2.2,.4,1) backwards,snst 1s calc(1s + var(--k) * .11s) ease-in-out infinite alternate}
+@keyframes sstr{0%{transform:scale(3) rotate(-30deg);opacity:0}100%{transform:none;opacity:1}}
+@keyframes snst{to{color:#ffd84a}}
+/* Sello de NUEVO / NUEVA */
+.snew{position:absolute;right:5%;top:9%;left:auto;width:max-content;max-width:40%;display:none;padding:4px 18px;font-family:var(--hero);font-weight:400;font-size:clamp(26px,4vw,52px);letter-spacing:.06em;color:#fff;background:#e8263a;border:4px solid #fff;border-radius:10px;box-shadow:0 0 0 4px #000,0 0 26px #ff5a6a;transform:rotate(10deg)}
+.srev.st3.isnew .snew{display:block;animation:snw .45s .55s cubic-bezier(.2,2,.4,1) backwards}
+@keyframes snw{0%{transform:rotate(10deg) scale(4);opacity:0}100%{transform:rotate(10deg) scale(1);opacity:1}}
 .sinfo{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;animation:sinf .5s .15s cubic-bezier(.2,1.5,.4,1) backwards}
 @keyframes sinf{0%{transform:translateX(50vw)}100%{transform:none}}
 .sinfo em{font-size:clamp(20px,3vw,36px);padding:0 16px;border-width:3px}
@@ -1386,13 +1406,20 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
 .sfp{position:relative;flex:1;min-height:0;width:100%;display:flex;justify-content:center}
 .sface .sfp canvas:first-child{flex:none;height:100%;width:auto;aspect-ratio:4/5;border:2px solid var(--ink);border-radius:4px 12px 4px 12px;background:linear-gradient(160deg,#fff,var(--rc) 60%,#0a0f2c);filter:none}
 .sface .sfp .sfs{position:absolute;right:0;bottom:-2px;flex:none;width:58%;height:auto;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.6))}
-/* Presentación grande: 1 silueta · 2 corte con el retrato · 3 cargando ki · 4 en guardia */
+/* Presentación grande: st1 concentración (+ .sil silueta) · st2 impacto y corte con el retrato · st3 cargando ki · st4 en guardia */
 .ssil,.scut{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
-.srev.st1 .ssil{display:flex}.srev.st2 .scut{display:block}
+.srev.st1.sil .ssil{display:flex}.srev.st2 .scut{display:block}
 .srev.st1 .schar,.srev.st2 .schar,.srev.st1 .sinfo,.srev.st2 .sinfo,.srev.st1 .stap,.srev.st2 .stap{display:none}
 .srev.st1,.srev.st2{background:#05070f}
-.srev.st1 .srays{background:repeating-conic-gradient(var(--rc) 0 4deg,rgba(0,0,0,0) 4deg 12deg);opacity:.55;animation-duration:3s}
-.ssil canvas{height:min(70vh,60vw);width:auto;aspect-ratio:1;image-rendering:pixelated;filter:brightness(0) drop-shadow(0 0 2px #fff) drop-shadow(0 0 30px var(--rc));animation:ssil .65s cubic-bezier(.3,1.6,.5,1)}
+.srev.st1 .srays{background:repeating-conic-gradient(var(--rc) 0 4deg,rgba(0,0,0,0) 4deg 12deg);opacity:.25;animation-duration:3s}
+.srev.st1.sil .srays{opacity:.55}
+.ssil canvas{height:min(70vh,60vw);width:auto;aspect-ratio:1;image-rendering:pixelated;animation:ssil .65s cubic-bezier(.3,1.6,.5,1)}
+/* Nombre gigante cruzando el corte */
+.scnm{position:absolute;left:5%;bottom:7%;z-index:2;font-family:var(--hero);font-weight:400;font-size:clamp(30px,6.5vw,96px);line-height:1;color:#fff;-webkit-text-stroke:4px #000;paint-order:stroke fill;text-shadow:6px 6px 0 #000;transform:skewX(-10deg) rotate(-8deg);animation:scnm .4s .25s cubic-bezier(.2,1.6,.4,1) backwards}
+@keyframes scnm{0%{transform:skewX(-10deg) rotate(-8deg) translateX(-120%)}100%{transform:skewX(-10deg) rotate(-8deg)}}
+/* Destello del impacto encima de todo */
+.srev.st2::after{content:'';position:absolute;inset:0;z-index:3;background:#fff;pointer-events:none;animation:sflh .45s ease-out forwards}
+@keyframes sflh{0%{opacity:1}100%{opacity:0}}
 @keyframes ssil{0%{transform:scale(.15);opacity:0}60%{opacity:1}100%{transform:scale(1)}}
 .scs{position:absolute;left:-10%;right:-10%;transform:skewY(-8deg)}
 .scs.s1{top:6%;height:14%;background:var(--rc);border-block:5px solid #000;animation:scsl .35s ease-out}
@@ -1402,7 +1429,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
 @keyframes speed{to{background-position:0 22px}}
 @keyframes scsl{0%{transform:skewY(-8deg) translateX(-110%)}100%{transform:skewY(-8deg)}}
 @keyframes scsr{0%{transform:skewY(-8deg) translateX(110%)}100%{transform:skewY(-8deg)}}
-.scface{position:relative;height:150%;width:auto;aspect-ratio:4/5;image-rendering:pixelated;transform:skewY(8deg);animation:scfz .9s cubic-bezier(.2,1.2,.4,1);filter:drop-shadow(0 0 18px var(--rc))}
+.scface{position:relative;height:150%;width:auto;aspect-ratio:4/5;image-rendering:pixelated;transform:skewY(8deg);animation:scfz .9s cubic-bezier(.2,1.2,.4,1)}
 @keyframes scfz{0%{transform:skewY(8deg) scale(2.4) translateX(30%)}100%{transform:skewY(8deg) scale(1)}}
 .sckj{position:absolute;right:8%;top:30%;font-family:var(--kanji);font-weight:900;font-size:clamp(60px,14vw,180px);color:#fff;-webkit-text-stroke:5px #000;paint-order:stroke fill;text-shadow:0 0 30px var(--rc);transform:rotate(-8deg);animation:scall .45s .2s cubic-bezier(.2,1.8,.4,1) backwards}
 .srev.r3 .scs.s1,.srev.r3 .scs.s3{background:linear-gradient(90deg,#ff3d7a,#ffb81c,#3dd68c,#3d9bff,#c04dff,#ff3d7a);background-size:300% 100%;animation:scsl .35s ease-out,rbw 2s linear infinite}
@@ -1410,7 +1437,17 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
 .schar .sidl{opacity:0}
 .srev.st4 .schar .schg{opacity:0;transition:opacity .25s}.srev.st4 .schar .sidl{opacity:1;transition:opacity .25s}
 .srev.st3 .schar{animation:schar2 .5s cubic-bezier(.2,1.5,.4,1)}
-@keyframes schar2{0%{transform:scale(2.2);filter:brightness(5)}100%{transform:none;filter:none}}
+@keyframes schar2{0%{transform:scale(2.2);opacity:.2}100%{transform:none;opacity:1}}
+/* Móvil en vertical: el guerrero arriba y la ficha debajo */
+@media (max-aspect-ratio:4/5){
+  .srev{flex-direction:column;justify-content:center;gap:1.5vh;padding:4vh 5% 6vh}
+  .schar{height:min(44vh,90vw)}
+  .sinfo{align-items:center;text-align:center;max-width:100%}
+  .sinfo b{font-size:clamp(30px,10vw,56px)}
+  .sinfo .strt{max-width:100%}
+  .snew{top:5%;right:4%}
+  .scnm{font-size:clamp(24px,9vw,56px);bottom:9%;left:9%;max-width:84%}
+}
 /* Ultimate de un guerrero del altar: corte con su retrato */
 #fcut{position:fixed;inset:0;z-index:23;pointer-events:none;overflow:hidden}
 #fcut .fcs{position:absolute;left:-10%;right:-10%;top:30%;height:34%;transform:skewY(-6deg);display:flex;align-items:center;gap:3%;padding-left:16%;background:repeating-linear-gradient(90deg,rgba(255,255,255,.1) 0 2px,transparent 2px 26px),linear-gradient(90deg,#000 10%,var(--fc) 60%,#000);border-block:6px solid #fff;animation:fcin .9s cubic-bezier(.2,1.1,.4,1) forwards}
