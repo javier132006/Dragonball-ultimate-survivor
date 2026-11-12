@@ -13,6 +13,7 @@ const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);         // número MIDI ->
 class SoundEngine {
   constructor() {
     this.ctx = null; this.pv = 1; this.last = {}; this.track = ''; this.step = 0; this.nextT = 0; this.timer = 0; this.duck = 1;
+    this.inten = 0; this.intenNow = 0;   // intensidad pedida por el juego (0-1) y la suavizada que suena
   }
 
   /** Se crea con el primer gesto del usuario (los navegadores lo exigen) */
@@ -145,9 +146,12 @@ class SoundEngine {
 
   /* ---------- Música procedimental ---------- */
   /** Pistas: 'menu' (tranquila), 'battle' (rock heroico), 'boss' (rápida y pesada), '' = silencio */
+  /** Intensidad 0-1: con más intensidad aparece una capa de tensión encima de la pista (sin cambiar de canción) */
+  setIntensity(k) { this.inten = Math.max(0, Math.min(1, k)); }
   music(name) {
     if (name === this.track) return;
     this.track = name;
+    if (!name || name === 'menu') this.inten = this.intenNow = 0;
     if (!this.ctx) return;
     clearInterval(this.timer);
     if (!name) return;
@@ -156,6 +160,7 @@ class SoundEngine {
   }
   schedule() {
     if (!this.ok() || !this.track) return;
+    this.intenNow += (this.inten - this.intenNow) * 0.06;          // la intensidad cambia poco a poco, sin saltos
     const S = SONGS[this.track], spb = 60 / S.bpm / 4;            // duración de una semicorchea
     while (this.nextT < this.ctx.currentTime + 0.15) {
       this.playStep(S, this.step, this.nextT, spb);
@@ -175,6 +180,10 @@ class SoundEngine {
     // Arpegio / melodía
     const m = S.lead[i];
     if (m !== '.') { const n = ch[+m % ch.length] + (+m >= ch.length ? 12 : 0) + 12; this.tone(S.leadWave, NOTE(n), NOTE(n), t, spb * 1.5, 0.05, out); }
+    // Capa de tensión: con intensidad media, un pulso agudo cada compás; con intensidad alta, también un chispeo de agudos
+    const k = this.intenNow;
+    if (k > 0.25 && i % 4 === 2) { const n = ch[0] + 12; this.tone('square', NOTE(n), NOTE(n), t, spb * 1.2, 0.012 + 0.03 * k, out); }
+    if (k > 0.6 && i % 2 === 1) this.hiss('highpass', 7000, 7000, 0.5, t, 0.03, 0.03 * k, out);
   }
 }
 

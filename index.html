@@ -152,6 +152,8 @@ h2{font-family:var(--body);font-weight:700;font-size:clamp(13px,1.8vw,17px);lett
 #bossBox{display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);width:min(560px,46vw);text-align:center;pointer-events:none}
 #bossName{font-family:var(--disp);font-size:24px;color:#ff5a4a;-webkit-text-stroke:2px #000;paint-order:stroke fill;text-shadow:3px 3px 0 #000;margin-bottom:4px}
 #bossBox .bar{height:20px;border-width:3px}#bossBox .bar i{background:linear-gradient(180deg,#ffb0a0,var(--star) 45%,#7a0010)}
+#bossBox .bar .btk{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(255,255,255,.8);pointer-events:none}
+#bossBox.warn .bar{animation:bwarn .3s steps(2) infinite}@keyframes bwarn{50%{filter:brightness(1.9) saturate(.5)}}
 /* Habilidades (abajo) */
 #abil{position:fixed;left:50%;bottom:16px;max-width:calc(100vw - 24px);transform:translateX(-50%);display:flex;gap:10px;pointer-events:none}
 .ab{position:relative;min-width:128px;padding:0 14px;white-space:nowrap;height:44px;overflow:hidden;display:flex;align-items:center;justify-content:center;
@@ -753,6 +755,7 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 .stt{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .stt div{padding:10px 14px;border-radius:18px;background:var(--pnl);box-shadow:var(--sh)}
 .stt span{display:block;font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--t3)}.stt b{display:block;font-size:24px;line-height:1.15}
+.stch{cursor:pointer;border-radius:14px}.stch.on{outline:2px solid var(--yel);outline-offset:2px}
 /* Cuenta */
 .acct{max-width:460px;width:100%;margin:8px auto;display:flex;flex-direction:column;gap:12px;padding:20px 22px;box-shadow:var(--sh2);border-radius:28px}
 .acct label{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:800;color:var(--t2)}

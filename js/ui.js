@@ -205,8 +205,8 @@ class UIManager {
     if (this.fpsAcc >= 0.5) { T(e.fps, String(Math.round(this.fpsN / this.fpsAcc))); this.fpsAcc = 0; this.fpsN = 0; }
     // Barra del jefe
     const bi = game.bossUid ? game.horde.indexOfUid(game.bossUid) : -1;
-    if (bi >= 0) { D(e.bossBox, 'block'); sc(e.bossBar, game.horde.hp[bi] / game.horde.maxHp[bi]); T(e.bossName, game.stage.boss.name + (game.stage.boss.forms ? ' · ' + game.stage.boss.forms[game.phase] : game.phase ? ' · FASE ' + (game.phase + 1) : '')); }
-    else D(e.bossBox, 'none');
+    if (bi >= 0) { D(e.bossBox, 'block'); sc(e.bossBar, game.horde.hp[bi] / game.horde.maxHp[bi]); T(e.bossName, game.stage.boss.name + (game.stage.boss.forms ? ' · ' + game.stage.boss.forms[game.phase] : game.phase ? ' · FASE ' + (game.phase + 1) : '')); this.bossTicks(game, bi); }
+    else { D(e.bossBox, 'none'); this.tickUid = 0; }
     this.updateStrip(game);
     this.mmT -= dt;
     if (this.mmT <= 0) { this.mmT = 0.05; this.drawMinimap(game, bi); if (game.showMap) this.paintMap(this.el.bigmapc.getContext('2d'), this.el.bigmapc.width, game, bi, true); }
@@ -785,10 +785,35 @@ class UIManager {
     const rows = [['Partidas', f('runs')], ['Victorias', f('wins')], ['Tiempo jugado', fmtTime(n('time'))], ['Mapa más lejano', n('maxStage') + ' / ' + ROUTE_LEN], ['Nivel máximo', n('maxLevel')],
       ['Enemigos derrotados', f('kills')], ['Élites', f('elites')], ['Jefes', f('bosses')], ['Daño total', f('damage')], ['Daño recibido', f('taken')], ['Dashes', f('dashes')],
       ['Cápsulas abiertas', f('capsules')], ['Maldiciones', f('curses')], ['Desafíos aceptados', f('temples')], ['Habitaciones del Tiempo', f('rooms')], ['Deseos a Shenron', f('wishes')], ['Combo máximo', f('maxCombo')], ['Golpe más fuerte', f('bestHit')], ['Transformaciones', f('transforms')], ['Fusiones', f('fusions')], ['Eventos', f('events')], ['Rivales derrotados', f('rivals')], ['Teletransportes', f('tps')], ['Desafíos diarios', f('dailies')]];
+    // Guerrero elegido en la lista (por defecto, el primero que hayas jugado)
+    const cs = Save.d.cs || {}, sel = this.stch && cs[this.stch] ? this.stch : ((CHARACTERS.find((c) => cs[c.id]) || {}).id || '');
     const best = CHARACTERS.filter((c) => Save.d.best[c.id]).sort((a, b) => Save.d.best[b.id].time - Save.d.best[a.id].time)
-      .map((c, i) => { const b = Save.d.best[c.id]; return this.rankRow(i, c, nice(c.name), b.kills + ' bajas · NV ' + b.level, fmtTime(b.time)); }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
+      .map((c, i) => { const b = Save.d.best[c.id]; return '<div class="stch' + (c.id === sel ? ' on' : '') + '" data-stch="' + c.id + '">' + this.rankRow(i, c, nice(c.name), b.kills + ' bajas · NV ' + b.level, fmtTime(b.time)) + '</div>'; }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
     this.el.menuBody.innerHTML = '<div class="msplit"><div><div class="stt">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div></div>' +
-      '<div class="pnl" style="padding:16px 18px;overflow-y:auto"><h4 class="sec">Mejor partida de cada guerrero</h4><div class="rk">' + best + '</div></div></div>';
+      '<div class="pnl" style="padding:16px 18px;overflow-y:auto">' + this.charStatsHtml(sel) + '<h4 class="sec">Mejor partida de cada guerrero</h4><div class="rk">' + best + '</div></div></div>';
+  }
+  /** Barra del jefe: una marca por cada fase y un aviso (pulso + texto) justo antes de transformarse */
+  bossTicks(game, bi) {
+    const B = game.stage.boss, NP = B.pat.length, bar = this.el.bossBar.parentNode;
+    if (this.tickUid !== game.bossUid) {                              // jefe nuevo: marcas nuevas
+      this.tickUid = game.bossUid; this.warnPh = -1;
+      bar.querySelectorAll('.btk').forEach((n) => n.remove());
+      for (let k = 1; k < NP; k++) { const m = document.createElement('b'); m.className = 'btk'; m.style.left = (100 - k / NP * 100) + '%'; bar.appendChild(m); }
+    }
+    // Se transforma al bajar de 1 - nxt/NP de vida: el aviso salta un 7% antes
+    const nxt = game.phase + 1, frac = game.horde.hp[bi] / game.horde.maxHp[bi], thr = 1 - nxt / NP;
+    const near = nxt < NP && frac >= thr && frac < thr + 0.07;
+    this.el.bossBox.classList.toggle('warn', near);
+    if (near && this.warnPh !== nxt) { this.warnPh = nxt; this.toast('¡' + B.name + ' está a punto de transformarse!', true); }
+  }
+  /** Estadísticas de un guerrero (Rastreador): partidas, bajas, daño y récords */
+  charStatsHtml(id) {
+    const c = id && charById(id), s = id && (Save.d.cs || {})[id];
+    if (!c || !s) return '<h4 class="sec">Por guerrero</h4><p class="dim">Juega una partida con un guerrero para ver sus estadísticas aquí.</p>';
+    const f = (k) => Math.floor(s[k] || 0).toLocaleString('es-ES');
+    const rows = [['Partidas', f('runs')], ['Victorias', f('wins')], ['Tiempo jugado', fmtTime(s.time || 0)], ['Enemigos derrotados', f('kills')], ['Jefes', f('bosses')], ['Daño total', f('damage')],
+      ['Daño recibido', f('taken')], ['Dashes', f('dashes')], ['Nivel máximo', f('maxLevel')], ['Mapa más lejano', (s.maxStage || 0) + ' / ' + ROUTE_LEN], ['Combo máximo', f('maxCombo')], ['Golpe más fuerte', f('bestHit')]];
+    return '<h4 class="sec">' + nice(c.name) + '</h4><div class="stt">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div>';
   }
 
   /* ---------- Misiones (como los «Encargos»): las del día y las permanentes ---------- */

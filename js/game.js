@@ -257,7 +257,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -286,6 +286,7 @@ class Game {
       else if (D.rtab) { ui.rtab = D.rtab; ui.renderMenu(); }
       else if (D.otab) { ui.otab = D.otab; ui.renderMenu(); }
       else if (D.ctab) { ui.ctab = D.ctab; ui.renderMenu(); }
+      else if (D.stch) { ui.stch = D.stch; ui.renderMenu(); }
       else if (D.lsel !== undefined) { ui.lsel = +D.lsel; ui.renderMenu(); }
       else if (D.book !== undefined) { ui.book = +D.book < 0 ? null : +D.book; ui.lchap = null; ui.renderMenu(); }
       else if (D.lchap !== undefined) { ui.lchap = +D.lchap; ui.renderMenu(); }
@@ -1429,6 +1430,7 @@ class Game {
   finishRun(win) {
     const p = this.player, id = p.ch.id, d = this.diff;
     if (this.practice) return { coins: 0, bonus: 0, score: 0, crys: 0 };    // el entrenamiento no da recompensas
+    this.trackCh(id, win);                        // estadísticas de este guerrero (Rastreador)
     let coins = Math.floor(this.zeniRun * d.coins), bonus = 0;
     // Cristales del Dragón (gachapón): por aguantar, por jefes y por ganar
     const crys = Math.min(60, Math.floor(this.time / 60) * 3) + this.run.bosses * 5 + (win ? 20 : 0) + (this.modeCry || 0);
@@ -1686,6 +1688,21 @@ class Game {
     if (l) { Save.d.login = { last: todayStr(), streak: l.streak }; Save.d.zeni += l.reward; Save.d.crystals = (Save.d.crystals || 0) + 50; Save.write(); }
     this.ui.hideModal(); this.ui.renderMenu();
     if (l) Shenron.summon({ kicker: 'Recompensa diaria', title: '¡Di tu deseo!', sub: 'Día ' + l.streak + ' de racha: vuelve mañana y el premio será mayor', html: '<span class="big">+' + l.reward + ' monedas</span><span class="bigc">+50 cristales</span>' });
+  }
+  /** Intensidad de la música (0-1): sube con la vida baja, el jefe en pantalla y un combo largo */
+  musicIntensity() {
+    const p = this.player, hf = Math.max(0, p.hp / p.maxHp);
+    const low = hf < 0.5 ? (0.5 - hf) * 2 : 0, boss = this.bossUid ? 0.55 : 0, combo = Math.min(1, this.combo / 25) * 0.5;
+    return Math.max(low, boss, combo);
+  }
+  /** Estadísticas de cada guerrero: sumas (partidas, bajas...) y récords (nivel, combo, golpe más fuerte) */
+  trackCh(id, win) {
+    const C = Save.d.cs || (Save.d.cs = {}), s = C[id] || (C[id] = {}), p = this.player;
+    const add = (k, n) => { s[k] = (s[k] || 0) + n; }, mx = (k, v) => { s[k] = Math.max(s[k] || 0, v); };
+    add('runs', 1); if (win) add('wins', 1);
+    add('time', Math.floor(this.time)); add('kills', this.kills); add('bosses', this.run.bosses);
+    add('damage', Math.floor(this.run.damage)); add('taken', Math.floor(this.run.taken)); add('dashes', this.run.dashes);
+    mx('maxLevel', p.level); mx('maxCombo', this.run.maxCombo); mx('bestHit', Math.floor(this.run.best)); mx('maxStage', this.step + 1);
   }
   /** Seguimiento de misiones: suma al total y al progreso diario */
   track(stat, n) {
@@ -2738,6 +2755,7 @@ class Game {
       }
       this.autoQuality(rawDt);
       this.tuto.update(rawDt);
+      SFX.setIntensity(this.musicIntensity());
       this.fx.update(dt);
       this.updateCamera(Math.max(dt, rawDt * 0.25), rawDt, false);
       this.ui.update(this, rawDt);
