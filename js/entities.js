@@ -348,6 +348,7 @@ class Player {
           if (h.hp[j] <= 0 || ex * ex + ez * ez > 196) continue;
           hits++; DMG_SRC = 'bolt';
           h.hurt(j, T.bolt * this.damageMul(), 0, 0, game);
+          if (game.vfx.pplay('Pstrike', h.x[j], 0, h.z[j], 4.6, { pri: 1 }) >= 0) { game.vfx.pplay('Pzap', h.x[j], 1.2, h.z[j], 3.2); continue; }   // pixelfx: rayo que cae + chispazo
           for (let s = 0; s <= 6; s++) game.fx.sparks.emit(this.x + ex * s / 6 + rand(-0.4, 0.4), 1.4 + rand(-0.3, 0.6), this.z + ez * s / 6 + rand(-0.4, 0.4), 0, 0, 0, 0.18, 0.45, 0, col);
         }
         DMG_SRC = 'otros';
@@ -668,7 +669,7 @@ class HordeManager {
           if (b.ign.indexOf(u) >= 0) continue;
           this.hurt(j, b.dmg, b.vx * 0.22, b.vz * 0.22, game);
           game.fx.burst(game.fx.sparks, b.x, 1.2, b.z, b.crit ? 8 : 3, b.crit ? 9 : 5, 0.3, b.crit ? 0.4 : 0.25, 6, b.tint);
-          if (b.crit) { game.microStop(0.04); game.shake(0.3); game.onCrit(b.dmg); } else game.shake(0.05);
+          if (b.crit) { game.microStop(0.04); game.shake(0.3); game.onCrit(b.dmg); if (game.time - (game.pCritT || 0) > 0.12) { game.pCritT = game.time; game.vfx.pplay('Pcrit', b.x, 1.2, b.z, 3.8, { rot: Math.random() * 6.28 }); } } else game.shake(0.05);
           if (b.pierce > 0) { b.pierce--; b.ign[b.ni++ % b.ign.length] = u; return false; }
           return true;
         }
@@ -932,6 +933,8 @@ class Pickups {
       if (dx * dx + dz * dz < 2.6) {
         if (!player.noSenzu) player.hp = Math.min(player.maxHp, player.hp + 30); SFX.play('heal');   // Pacto del Ermitaño: no curan
         game.fx.burst(game.fx.aura, this.sx[i], 0.8, this.sz[i], 10, 4, 0.5, 0.25, 0, 0x9cff6a);
+        if (!player.noSenzu) game.vfx.pplay('Pheal', player.x, 0, player.z, 4.2, { follow: false, pri: 1 });
+        game.vfx.pplay('Pcollect', this.sx[i], 0.9, this.sz[i], 3.4, { tint: 0x9cff6a });
         game.ui.toast(player.noSenzu ? 'EL PACTO DEL ERMITAÑO IMPIDE CURARTE' : '+30 VIDA', true);
         const l = --this.sn; this.sx[i] = this.sx[l]; this.sz[i] = this.sz[l];
       }
@@ -939,7 +942,7 @@ class Pickups {
     for (let i = 0; i < 7; i++) {
       if (this.got[i]) continue;
       const dx = player.x - this.bx[i], dz = player.z - this.bz[i];
-      if (dx * dx + dz * dz < 3.2) { this.got[i] = 1; this.collected++; game.onBall(this.collected, this.bx[i], this.bz[i]); }
+      if (dx * dx + dz * dz < 3.2) { this.got[i] = 1; this.collected++; game.vfx.pplay('Pcollect', this.bx[i], 1.1, this.bz[i], 4, { tint: 0xffb81c, pri: 1 }); game.onBall(this.collected, this.bx[i], this.bz[i]); }
     }
     this.senzu.begin();
     for (let i = 0; i < this.sn; i++) this.senzu.push(this.sx[i], 0.55 + Math.sin(this.t * 3 + i) * 0.12, this.sz[i], this.fx ? fxf('senzu', 1) : 0, 0, 0, this.fx ? 1.15 : 0.9, 1);

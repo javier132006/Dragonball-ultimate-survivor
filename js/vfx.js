@@ -10,6 +10,10 @@ const FXA = window.FX_ANIMS || {};
 /* Efectos de Z Legends 3 (assets/zl3.js, hojas zfx de 64 px y zfxb de 192 px): se añaden con el prefijo Z (Zboom1, ZkbY…).
    `k` = escala a la que se metió el dibujo en su casilla; w/h = tamaño del dibujo original en píxeles */
 for (const k in (window.ZFX_ANIMS || {})) FXA['Z' + k] = window.ZFX_ANIMS[k];
+/* Efectos de pixelfx (assets/pfx.js, github.com/patch-gg/pixelfx, MIT): prefijo P (Pstrike, Pshield…).
+   Hojas pfx (128 px, apoyo en el centro) y pfxg (192 px, apoyo abajo: rayos que caen, portales, círculos).
+   `e` = fracción de la casilla que ocupa el dibujo: pplay() pide el tamaño real del efecto */
+for (const k in (window.PFX_ANIMS || {})) FXA['P' + k] = window.PFX_ANIMS[k];
 /* Color de Z Legends 3 para un color de ataque (Y amarillo, O naranja, R rojo, B azul, P morado, G verde, K rosa) */
 /* Efectos de siempre que pasan a dibujarse con los de Z Legends 3: nombre -> [efecto Z, escala de tamaño] */
 const Z3_ALIAS = { hitRing: ['Zhit', 1.1], meteorHit: ['Zextreme', 1.2], kameImp: ['Zkiboom', 1.2], fireBoom: ['Zboom1', 1.1], cellBoom: ['Zboom3', 1.1] };
@@ -80,8 +84,11 @@ class VFX {
       B(sheets.fx, { max: 16, blend: true, renderOrder: 6 }),       // 6: esferas sólidas (Genkidama): con su color real, sin quemarse a blanco
       B(sheets.fxzip || sheets.fx, { max: 500, blend: true, renderOrder: 6.5 }),  // 7: efectos del pack (pixel art nítido)
       B(sheets.zfx || sheets.fx, { max: 600, blend: true, renderOrder: 6.6 }),     // 8: efectos de Z Legends 3 pequeños (ráfagas, impactos)
-      B(sheets.zfxb || sheets.fx, { max: 260, blend: true, renderOrder: 6.4, noDepth: true })     // 9: efectos de Z Legends 3 grandes (rayos, explosiones, auras)
+      B(sheets.zfxb || sheets.fx, { max: 260, blend: true, renderOrder: 6.4, noDepth: true }),    // 9: efectos de Z Legends 3 grandes (rayos, explosiones, auras)
+      B(sheets.pfx || sheets.fx, { max: 160, blend: true, renderOrder: 6.7 }),                    // 10: pixelfx centrados (impactos, escudo, explosiones)
+      B(sheets.pfxg || sheets.fx, { max: 60, blend: true, anchor: 0.01, renderOrder: 6.3 })       // 11: pixelfx apoyados en el suelo (rayos, portal, curación)
     ];
+    this.pfx = !!(sheets.pfx && sheets.pfxg && FXA.Pstrike);
     this.z3 = !!(sheets.zfx && sheets.zfxb && FXA.ZkbY) && (typeof Save === 'undefined' || Save.d.opt.z3fx !== false);
     this.zipOk = ZIP_FX && !!sheets.fxzip && !!FXA.zkiY;
     this.rx = 1; this.rz = 0;                                             // eje «derecha» de la cámara (para girar los efectos)
@@ -107,7 +114,7 @@ class VFX {
     if (!o.pri && this.cnt > this.N * 0.8 * this.load) return -1;        // con mucha carga se descartan los efectos menores
     const i = this.free.pop(); if (i === undefined) return -1;
     const flat = !!o.flat, sh = a.s;
-    this.bi[i] = sh === 'zfx' ? 8 : sh === 'zfxb' ? 9 : sh === 'fxzip' ? 7 : sh === 'fxbig' ? 2 : sh === 'props' ? (flat ? 4 : 5) : flat ? 1 : 0;
+    this.bi[i] = sh === 'pfx' ? 10 : sh === 'pfxg' ? 11 : sh === 'zfx' ? 8 : sh === 'zfxb' ? 9 : sh === 'fxzip' ? 7 : sh === 'fxbig' ? 2 : sh === 'props' ? (flat ? 4 : 5) : flat ? 1 : 0;
     this.fr[i] = o.frames || a.f; this.act[i] = 1; this.list[this.cnt++] = i;
     this.x[i] = x; this.y[i] = y; this.z[i] = z; this.vx[i] = o.vx || 0; this.vy[i] = o.vy || 0; this.vz[i] = o.vz || 0;
     this.t[i] = 0; this.loop[i] = o.loop || 0;
@@ -116,6 +123,19 @@ class VFX {
     this.rot[i] = o.rot || 0; this.spin[i] = o.spin || 0; this.tint[i] = o.tint === undefined ? 0xffffff : o.tint;
     this.flags[i] = (o.fade === false ? 0 : 1) | (o.follow ? 2 : 0) | (o.flip ? 4 : 0);
     return i;
+  }
+  /** Efecto de pixelfx con su tamaño real en el mundo (size = ancho del dibujo, no de la casilla) y a su velocidad.
+      Devuelve -1 si no están las hojas (el que llama pone entonces su efecto de siempre) */
+  pplay(name, x, y, z, size, o) {
+    const a = FXA[name]; if (!this.pfx || !a) return -1;
+    return this.play(name, x, y, z, Object.assign({ fps: a.fps, fade: false }, o, { size: size / (a.e || 1) }));
+  }
+  /** Fotograma k (en bucle) de un efecto de pixelfx, dibujado solo este cuadro (escudos, círculos que siguen a alguien) */
+  pnow(name, t, x, y, z, size, alpha, tint) {
+    const a = FXA[name]; if (!this.pfx || !a || !this.on) return false;
+    const k = ((t * a.fps) | 0) % a.f.length;
+    this.b[a.s === 'pfxg' ? 11 : 10].push(x, y, z, a.f[k], 0, 0, size / (a.e || 1), alpha === undefined ? 1 : alpha, tint === undefined ? 0xffffff : tint);
+    return true;
   }
   /** Un fotograma suelto solo para este cuadro (auras, brillos que siguen a algo). batch: 0..5 como en this.b */
   now(batch, frame, x, y, z, size, alpha, tint, rot, flip) {

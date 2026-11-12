@@ -787,7 +787,8 @@ class WeaponSystem {
       p.barT -= dt;
       if (g.vfx && g.vfx.ok) {
         const k = ((g.time * 12) | 0) % 6, green = w.id === 'cellbarrier';
-        g.vfx.now(0, green ? fxf('cellRing', 0) : fxf('barrier', k), p.x, 1.6, p.z, 4.6 * (1 + Math.sin(g.time * 9) * 0.04), 0.75, green ? 0xffffff : col, green ? g.time * 2 : 0);
+        if (green || !g.vfx.pnow('Pshield', g.time, p.x, 1.35, p.z, 8.6 * (1 + Math.sin(g.time * 9) * 0.03), 0.9, col))    // pixelfx: escudo geodésico de su color
+          g.vfx.now(0, green ? fxf('cellRing', 0) : fxf('barrier', k), p.x, 1.6, p.z, 4.6 * (1 + Math.sin(g.time * 9) * 0.04), 0.75, green ? 0xffffff : col, green ? g.time * 2 : 0);
       }
       if (p.barT <= 0) p.barHits = 0;
       return;

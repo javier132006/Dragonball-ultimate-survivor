@@ -1295,6 +1295,7 @@ class Game {
     this.run.tps++; this.track('tps', 1);
     this.fx.burst(this.fx.trail, ox, 1.2, oz, 18, 6, 0.4, 0.4, 0, col);
     this.fx.ring(this.fx.aura, x, 0.5, z, 30, 12, 0.35, 0.35, col);
+    this.vfx.pplay('Pimplode', ox, 1.4, oz, 4.2, { tint: col, pri: 1 });           // pixelfx: el sitio de donde desapareces se cierra
     DMG_SRC = 'tp'; this.horde.damageRadius(x, z, 3.2, 14 * p.damageMul(), 12, this); DMG_SRC = 'otros';
     this.vfx.flash(ox, 1.6, oz, 4, col); this.vfx.flash(x, 1.6, z, 5, col); this.vfx.play('kameStar', x, 1.6, z, { size: 6, fps: 16 });
     this.shake(0.3); SFX.play('tp');
@@ -1302,6 +1303,7 @@ class Game {
   onAutoDodge() {
     const p = this.player;
     p.spawnGhost(); p.ghostT = 0;
+    this.vfx.pplay('Pparry', p.x, 1.4, p.z, 5.2, { tint: 0xdff4ff });
     DMG_SRC = 'counter'; this.horde.damageRadius(p.x, p.z, 4, 25 * p.damageMul(), 14, this); DMG_SRC = 'otros';
     this.fx.burst(this.fx.trail, p.x, 1.2, p.z, 10, 6, 0.3, 0.35, 0, 0xdff4ff);
     SFX.play('dash');
@@ -1320,7 +1322,7 @@ class Game {
       } else { DMG_SRC = 'chain'; this.horde.damageRadius(b.x, b.z, 3.6, 30 * p.damageMul(), 10, this); }
       this.fx.burst(this.fx.sparks, b.x, 1, b.z, 18, 9, 0.45, 0.4, 6, 0x9aff4a);
       this.fx.ring(this.fx.aura, b.x, 0.4, b.z, 20, 10, 0.35, 0.35, 0x6aff3a);
-      this.vfx.boom(b.x, b.z, 2.4, 0x9aff4a, false);
+      if (this.vfx.pplay('Pplasma', b.x, 1.2, b.z, 5.6, { tint: 0xc8ff9a }) < 0) this.vfx.boom(b.x, b.z, 2.4, 0x9aff4a, false);
       SFX.play('boom');
     }
     DMG_SRC = 'otros';
@@ -1777,6 +1779,7 @@ class Game {
       this.horde.setBossSheet(sh || null, B.rows ? B.rows[0] : B.row, bossAnimOf(B.sheet, B.anim || BOSS_ANIM[B.sheet]), B.sheet);
       this.horde.bossTint = B.tintSprite !== false;
       this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
+      this.vfx.pplay('Pportal', x, 0, z, 12, { tint: B.col || B.tints[0], pri: 1 });   // pixelfx: portal bajo sus pies
       if (B.moves) this.ui.toast(B.moves, true);                       // sus técnicas, para saber qué esperar
       if (B.res) this.ui.toast((B.res === 'fis' ? '🛡 ' : '✦ ') + RES_TXT[B.res], true);   // qué tipo de ataque resiste
       this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.col || B.tints[0]);
@@ -2275,6 +2278,7 @@ class Game {
       this.fx.ring(this.fx.aura, x, 0.4, z, 50, 18, 0.7, 0.45, 0xffd24a);
       this.vfx.boom(x, z, 8, 0xffd24a, true); this.vfx.play('flare', x, 7, z, { size: 16, dur: 0.9, pri: 1 });
       this.vfx.play('dome', x, 3, z, { size: 14, grow: 1.6, dur: 0.8, pri: 1 });
+      for (let k = 0; k < 3; k++) this.after(0.35 + k * 0.3, () => this.vfx.pplay('Pfirework', x + rand(-5, 5), rand(5, 7), z + rand(-5, 5), rand(4.5, 5.5), { pri: 1 }));   // fuegos artificiales
       this.impact(0.26, 0);
       this.ui.toast('¡' + this.stage.boss.name + ' DERROTADO!'); this.shake(1); SFX.play('bigboom'); SFX.music('battle');
       if (this.mode === 'gauntlet') this.gauntletKill(x, z);                // Asalto de Jefes: cristales y el siguiente jefe

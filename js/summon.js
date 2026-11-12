@@ -161,6 +161,17 @@ class Summon {
       grid.appendChild(c);
     });
     const cards = [...grid.children];
+    // Efectos de pixelfx (MIT) dibujados en el canvas del altar: fotograma en bucle, con su ancho real `w` en píxeles de pantalla.
+    // Los de la hoja pfxg se apoyan abajo (círculos en el suelo); los de pfx, en su centro
+    const pfx = (name, tt, x, y, w, alpha) => {
+      const a = typeof FXA !== 'undefined' && FXA['P' + name], sh = a && this.g.ui.sheets && this.g.ui.sheets[a.s];
+      if (!sh || !sh.tex.image) return;
+      const k = ((tt * a.fps) | 0) % a.f.length, f = a.f[k], C = sh.w, sc = w / (a.e * C);
+      const sx = (f % sh.cols) * C, sy = ((f / sh.cols) | 0) * C, dw = C * sc;
+      ctx.save(); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = alpha === undefined ? 1 : alpha;
+      ctx.drawImage(sh.tex.image, sx, sy, C, C, Math.round(x - dw / 2), Math.round(a.s === 'pfxg' ? y - dw + 2 * sc : y - dw / 2), Math.round(dw), Math.round(dw));
+      ctx.restore();
+    };
     // «Juice» de la invocación: trauma (temblor = trauma²), golpe de zoom y vibración del mando en los momentos grandes
     const kick = (tr, zoom, ms) => {
       const k = Save.d.opt.shake; if (!(k > 0)) return;
@@ -225,6 +236,8 @@ class Summon {
             ctx.stroke();
           }
           ctx.globalAlpha = 1; S.bolts = S.bolts.filter((b) => b.l > 0);
+          pfx('runes', t, cx, y + r * 2.0, r * 4.2, 0.85 * e);                // círculo de runas bajo la esfera
+          if (S.shown >= 2) pfx('sun', t, cx, y, r * 4.2, Math.min(1, tb * 2)); // SPARKING / ULTRA: resplandor detrás
           const col = hue(S.shown), glow = ctx.createRadialGradient(cx, y, r * 0.5, cx, y, r * 3.2);
           glow.addColorStop(0, col); glow.addColorStop(1, 'rgba(0,0,0,0)');
           ctx.globalAlpha = 0.55 + Math.sin(t * 12) * 0.15; ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, y, r * 3.2, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;

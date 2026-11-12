@@ -58,7 +58,7 @@ function zl3Install() {
     if (pz) { c.portrait.sheet = pz; c.portrait.frame = 0; used.add(pz); }
   }
   zl3Bosses();
-  for (const n of Object.keys(SPRITE_DATA)) if (/^(z_|zfx|zaura)/.test(n) && !SHEET_NAMES.includes(n)) SHEET_NAMES.push(n);
+  for (const n of Object.keys(SPRITE_DATA)) if (/^(z_|zfx|zaura|pfx)/.test(n) && !SHEET_NAMES.includes(n)) SHEET_NAMES.push(n);
 }
 
 /** Jefes nuevos (los que no estaban en el juego). Usan los ataques de siempre de los jefes; solo cambia su aspecto y su combinación */
