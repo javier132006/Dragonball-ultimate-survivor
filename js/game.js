@@ -7,7 +7,7 @@
    ===================================================================== */
 
 /** Estadísticas de la partida en curso (se muestran en la pausa y al terminar) */
-const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0, bosses: 0, tps: 0, gachas: 0, route: [] });
+const newRun = () => ({ damage: 0, best: 0, taken: 0, dashes: 0, curses: 0, temples: 0, rooms: 0, shops: 0, swaps: 0, byW: {}, maxCombo: 0, events: 0, allies: 0, rivals: 0, fusions: 0, bosses: 0, tps: 0, gachas: 0, route: [], tl: [] });   // tl: muestras cada 15 s para la gráfica del resumen
 /** Nombre legible del origen del daño (gráfica de daño por técnica) */
 const SRC_NAMES = { ult: 'Ultimate', otros: 'Otros (ondas, explosiones)', ally: 'Compañeros', mines: 'Minas de Energía', transform: 'Transformación', aura: 'Aura de transformación', bolt: 'Rayos de la forma', counter: 'Contraataques', tp: 'Transmisión Instantánea', chain: 'Saibaimen en cadena' };
 /** Color del brillo de cada grieta según el mapa al que lleva */
@@ -116,6 +116,7 @@ class Game {
     this.capsules = new Capsules(this.scene, tex);
     this.weapons = new WeaponSystem(this.scene, tex);
     this.points = new Points(this.scene, tex);          // santuarios, comerciantes, altar y grieta
+    this.tuto = new Tutor(this);                          // consejos la primera vez que pasa algo
     this.summon = new Summon(this);                     // Altar de Shenron: gachapón de transformaciones
     this.gacha = new Gacha(this);                       // Gachapón de Shenron (ventana de las 7 esferas)
     this.shots = new EnemyShots(this.scene, tex);       // disparos de los jefes
@@ -256,7 +257,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-fps],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -293,6 +294,8 @@ class Game {
       else if (D.acct === 'out') this.online.signOut().then(() => { ui.atab = 'login'; ui.renderMenu(); });
       else if (D.q) { Save.d.opt.quality = D.q; Save.write(); this.perf.pr = 1; this.applyQuality(); ui.renderMenu(); }
       else if (D.flash !== undefined) { Save.d.opt.flash = !Save.d.opt.flash; Save.write(); ui.renderMenu(); }
+      else if (D.tips !== undefined) { Save.d.opt.tips = Save.d.opt.tips === false; Save.write(); ui.renderMenu(); }
+      else if (D.tipsreset !== undefined) { this.tuto.reset(); ui.toast('Volverás a ver todos los consejos', true); }
       else if (D.fps !== undefined) { Save.d.opt.fps = !Save.d.opt.fps; Save.write(); ui.renderMenu(); }
       else if (D.z3fx !== undefined) { Save.d.opt.z3fx = Save.d.opt.z3fx === false; Save.write(); if (this.vfx) this.vfx.z3 = Save.d.opt.z3fx !== false && !!FXA.ZkbY && !!(this.ui.sheets && this.ui.sheets.zfx); ui.renderMenu(); }
       else if (D.exp !== undefined) this.exportSave();
@@ -490,6 +493,7 @@ class Game {
     this.ui.showMenu(this);
     this.applyView();
     this.ui.showHud(false);
+    this.checkAch(true);                                          // logros de colección (Modo Leyenda, guerreros)
   }
 
   /* ---------- Partida ---------- */
@@ -900,6 +904,27 @@ class Game {
       const W = WEAPONS[id], col = W && W.color ? '#' + W.color.toString(16).padStart(6, '0') : id === 'ally' ? '#7fe07a' : '#ffb020';
       return '<div class="dr"><span>' + srcName(id) + '</span><div class="dbar"><i style="width:' + (by[id] / top * 100).toFixed(1) + '%;background:' + col + '"></i></div><b>' + fmtK(by[id]) + ' · ' + Math.round(by[id] / tot * 100) + '%</b></div>';
     }).join('') + '</div>' + this.catLine(by, tot);
+  }
+  /** Gráfica de la partida (SVG): barras = daño por segundo en cada tramo de 15 s, línea amarilla = enemigos
+      derrotados por minuto, línea verde = vida, marcas = subidas de nivel. Sin librerías */
+  timeChart() {
+    const S = this.run.tl.slice();
+    if (this.time - (S.length ? S[S.length - 1].t : 0) > 5) S.push({ t: this.time, d: this.run.damage, k: this.kills, h: Math.max(0, this.player.hp / this.player.maxHp), l: this.player.level });
+    if (S.length < 3) return '';
+    const W = 320, H = 110, T = S[S.length - 1].t || 1, X = (t) => (t / T * W).toFixed(1);
+    const seg = []; for (let i = 1; i < S.length; i++) { const dt = Math.max(1, S[i].t - S[i - 1].t); seg.push({ a: S[i - 1].t, b: S[i].t, dps: (S[i].d - S[i - 1].d) / dt, kpm: (S[i].k - S[i - 1].k) / dt * 60 }); }
+    const mD = Math.max(1, ...seg.map((s) => s.dps)), mK = Math.max(1, ...seg.map((s) => s.kpm));
+    const bars = seg.map((s) => '<rect x="' + X(s.a) + '" y="' + (H - s.dps / mD * (H - 8)).toFixed(1) + '" width="' + Math.max(1, (s.b - s.a) / T * W - 1).toFixed(1) + '" height="' + (s.dps / mD * (H - 8)).toFixed(1) + '" fill="#ff8a3a" opacity=".55"/>').join('');
+    const kl = seg.map((s) => X((s.a + s.b) / 2) + ',' + (H - s.kpm / mK * (H - 8)).toFixed(1)).join(' ');
+    const hl = S.map((s) => X(s.t) + ',' + (H - s.h * (H - 8)).toFixed(1)).join(' ');
+    let lv = ''; for (let i = 1; i < S.length; i++) if (S[i].l > S[i - 1].l) lv += '<line x1="' + X(S[i].t) + '" x2="' + X(S[i].t) + '" y1="' + H + '" y2="' + (H - 6) + '" stroke="#9ad0ff" stroke-width="1.5"/>';
+    const ticks = []; for (let m = 1; m * 60 < T; m++) ticks.push('<line x1="' + X(m * 60) + '" x2="' + X(m * 60) + '" y1="0" y2="' + H + '" stroke="#ffffff" stroke-opacity=".07"/>');
+    const best = seg.reduce((a, s) => (s.dps > a.dps ? s : a), seg[0]);
+    return '<h4 class="sh">TU PARTIDA, MINUTO A MINUTO</h4><div class="tchart"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">' + ticks.join('') + bars +
+      '<polyline points="' + hl + '" fill="none" stroke="#5be38a" stroke-width="2" vector-effect="non-scaling-stroke"/>' +
+      '<polyline points="' + kl + '" fill="none" stroke="#ffd84a" stroke-width="2" vector-effect="non-scaling-stroke"/>' + lv + '</svg>' +
+      '<div class="tleg"><span><i style="background:#ff8a3a"></i>Daño/s (máx. ' + fmtK(mD) + ')</span><span><i style="background:#ffd84a"></i>Enemigos/min (máx. ' + Math.round(mK) + ')</span><span><i style="background:#5be38a"></i>Vida</span><span><i style="background:#9ad0ff"></i>Nivel</span></div>' +
+      '<p class="tbest">Tu mejor momento: de ' + fmtTime(best.a) + ' a ' + fmtTime(best.b) + ', con ' + fmtK(best.dps) + ' de daño por segundo</p></div>';
   }
   /** Reparto del daño de la partida entre técnicas físicas y de ki */
   catLine(by, tot) {
@@ -1372,13 +1397,16 @@ class Game {
   }
 
   /* ---------- Logros: se comprueban cada segundo ---------- */
-  checkAch() {
-    if (this.practice) return;
-    const st = Save.d.stats, r = this.run, live = { maxCombo: r.maxCombo, bestHit: r.best, maxStage: this.step + 1 };
+  /** menu = true: desde el menú (tras una tirada o al volver de jugar): solo los de colección */
+  checkAch(menu) {
+    if (this.practice && !menu) return;
+    const r = this.run, live = menu ? {} : { maxCombo: r.maxCombo, bestHit: r.best, maxStage: this.step + 1 };
+    let k = 0;
     for (const a of ACHIEVEMENTS) {
-      if (Save.d.ach[a.id]) continue;
-      const v = Math.max(st[a.stat] || 0, live[a.stat] || 0);
-      if (v < a.goal) continue;
+      if (Save.d.ach[a.id] || (menu && !a.fn)) continue;
+      const v = Math.max(achVal(a), live[a.stat] || 0);
+      if (v < achGoal(a)) continue;
+      if (k++) { if (menu) setTimeout(() => this.checkAch(true), 2600); break; }   // de uno en uno: cada aviso se ve entero (en partida se mira cada segundo)
       Save.d.ach[a.id] = true; Save.d.zeni += a.reward; Save.d.crystals = (Save.d.crystals || 0) + 30; Save.write();
       SFX.play('achieve');
       this.ui.itemPopup({ icon: a.icon, name: a.name, text: a.desc + ' · +' + a.reward + ' monedas' }, { name: 'LOGRO DESBLOQUEADO', color: '#ffd84a' });
@@ -1474,6 +1502,7 @@ class Game {
     if (!this.practice && !r.mode) h += '<div class="score' + (r.record ? ' rec' : '') + '"><small>' + (r.record ? '¡NUEVO RÉCORD!' : this.daily ? 'PUNTUACIÓN · DESAFÍO DIARIO' : 'PUNTUACIÓN') + '</small><b>' + (r.score || 0).toLocaleString('es-ES') + '</b><span>' + this.run.route.join(' ▸ ') + '</span></div>';
     if (!this.practice && !r.mode && this.online.ready) h += '<div class="onl' + (this.online.logged ? '' : ' off') + '" id="onlRes">' + (this.online.logged ? 'Enviando al ranking mundial…' : 'Inicia sesión en CUENTA para entrar en el ranking mundial.') + '</div>';
     h += '<div class="sum">' + rows.map((x) => '<div><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('') + '</div>';
+    h += this.timeChart();
     h += this.dmgChart();
     if (this.practice) return h + '<div class="reward">ENTRENAMIENTO<small>El modo práctica no da monedas ni cuenta para misiones y logros</small></div>';
     h += '<div class="reward">+' + r.coins + ' MONEDAS' + (r.bonus ? '<small>incluye ' + r.bonus + ' de bonificación por completar el nivel</small>' : '') + (r.dayBonus ? '<small>incluye ' + r.dayBonus + ' por terminar el desafío de hoy</small>' : '') + '</div>';
@@ -1615,6 +1644,7 @@ class Game {
     this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 40, 14, 0.7, 0.4, 0xb040ff);
   }
   openCapsule(gold, x, z) {
+    this.tuto.say('capsula');
     if (gold === 2) this.applyCurse();
     const it = this.rollItem(gold), p = this.player, rar = RARITIES[it.rarity], col = parseInt(rar.color.slice(1), 16);
     it.apply(p);
@@ -1756,9 +1786,24 @@ class Game {
     // Variantes nuevas: el soldado élite sale entre los rápidos y el saibaiman de hielo entre la tropa básica
     if (t === T_FAST && t0 > 80 && Math.random() < 0.25) t = T_SOLDIER_E;
     else if (t === 0 && t0 > 100 && Math.random() < 0.12) t = T_ICESAI;
+    if (t === 0 && t0 > 240 && this.horde.barN < 2 && Math.random() < 0.025) t = T_BARRIER;   // Androide 17 con barrera (como mucho 2)
     this.spawnPos(32, 40);
     const hpMul = this.diff.hp * this.stage.hp * (1 + this.curseHp + this.chal * 0.25) * (1 + sw * 0.3) * (this.mods.rich ? 1.3 : 1) * this.timeMul();
     this.horde.spawn(this._sx, this._sz, (14 + t0 * 0.25) * ENEMY_TYPES[t].hp * hpMul, t);
+  }
+  /** Emboscada de Saibaimans: brotan en círculo cerca del jugador. Se ven salir (1,3 s) antes de atacar */
+  ambush() {
+    const p = this.player, n = 4 + Math.min(3, this.step), a0 = rand(0, 6.28), t0 = this.pressure();
+    const hp = (14 + t0 * 0.25) * ENEMY_TYPES[T_BURROW].hp * this.diff.hp * this.stage.hp * (1 + this.curseHp + this.chal * 0.25) * this.timeMul();
+    for (let k = 0; k < n; k++) {
+      const a = a0 + (k / n) * 6.28 + rand(-0.3, 0.3), r = rand(3.5, 5.5), lim = CFG.ARENA - 1;
+      const x = clamp(p.x + Math.cos(a) * r, -lim, lim), z = clamp(p.z + Math.sin(a) * r, -lim, lim);
+      const i = this.horde.spawn(x, z, hp, T_BURROW);
+      if (i < 0) break;
+      this.horde.stun[i] = 1.3;
+      this.vfx.dust(x, z, 2.6); this.fx.burst(this.fx.trail, x, 0.3, z, 6, 3, 0.5, 0.35, 0, 0xc8a070);
+    }
+    SFX.play('rift'); this.shake(0.35);
   }
   /** Invoca al jefe del mapa (en el altar, o en un punto fijo en el mapa final) */
   spawnBoss(x, z) {
@@ -1778,7 +1823,7 @@ class Game {
       const sh = this.ui.sheets && this.ui.sheets[B.sheet];
       this.horde.setBossSheet(sh || null, B.rows ? B.rows[0] : B.row, bossAnimOf(B.sheet, B.anim || BOSS_ANIM[B.sheet]), B.sheet);
       this.horde.bossTint = B.tintSprite !== false;
-      this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss');
+      this.ui.toast('¡' + B.name + '!'); this.shake(0.8); SFX.play('boss'); SFX.music('boss'); this.tuto.say('jefe');
       this.vfx.pplay('Pportal', x, 0, z, 12, { tint: B.col || B.tints[0], pri: 1 });   // pixelfx: portal bajo sus pies
       if (B.moves) this.ui.toast(B.moves, true);                       // sus técnicas, para saber qué esperar
       if (B.res) this.ui.toast((B.res === 'fis' ? '🛡 ' : '✦ ') + RES_TXT[B.res], true);   // qué tipo de ataque resiste
@@ -2396,7 +2441,7 @@ class Game {
     this.openLevelUp(true);
   }
   openLevelUp(again) {
-    this.state = 'levelup'; this.releaseMouse(); if (!again) SFX.play('levelup');
+    this.state = 'levelup'; this.releaseMouse(); if (!again) SFX.play('levelup'); this.tuto.say('cartas');
     const foot = this.rerolls > 0 ? '<button data-reroll>🎲 CAMBIAR CARTAS [R] · ' + this.rerolls + '</button>' : '';
     this.ui.showCards('¡NIVEL ' + this.player.level + '!', 'ELIGE UNA MEJORA [1 · 2 · 3]', this.rollCards(), (c) => {
       const p = this.player;
@@ -2425,6 +2470,7 @@ class Game {
 
   /* ---------- Esferas del Dragón y deseo de Shenron ---------- */
   onBall(n, x, z) {
+    this.tuto.say('esferas');
     this.gainZeni(50);
     this.fx.ring(this.fx.aura, x, 0.5, z, 40, 14, 0.7, 0.4, 0xffb030);
     this.ui.toast('ESFERA ' + n + ' / 7', true);
@@ -2521,6 +2567,9 @@ class Game {
     const p = this.player, h = this.horde;
     const clk = this.tourney ? 0 : this.roomT > 0 ? 1 / 6 : 1;      // torneo: el reloj se para · Sala del Tiempo: fuera pasa 6 veces más lento
     this.time += dt * clk; this.stageTime += dt * clk;
+    // Muestra para la gráfica del resumen (daño, enemigos, vida y nivel cada 15 s)
+    const TL = this.run.tl;
+    if (!TL.length || this.time - TL[TL.length - 1].t >= 15) TL.push({ t: this.time, d: this.run.damage, k: this.kills, h: this.player.hp / this.player.maxHp, l: this.player.level });
     this.updateTimeRoom(dt);
     p.update(dt, this);
     this.weapons.update(dt, this);
@@ -2537,6 +2586,8 @@ class Game {
       const sw = this.swarmLvl();
       this.spawnAcc += Math.min(4 + t0 * 0.09, 22) * S.spawn * (1 + sw * 0.7) * this.diff.spawn * (1 + this.chal * 0.2) * (this.roomT > 0 ? 3 : 1) * (this.mode === 'rush' ? 1.6 : this.mode === 'gauntlet' ? 0.5 : 1) * dt;   // en la sala, el triple · Lluvia de Cristales: más horda · Asalto: menos
       while (this.spawnAcc >= 1) { this.spawnAcc -= 1; this.spawnEnemy(); }
+      // Emboscada: desde el minuto 2,5, cada 30-45 s brotan Saibaimans del suelo a tu alrededor
+      if (t0 > 150 && !this.tourney && this.mode !== 'gauntlet' && !(this.saga && this.saga.goal.type === 'tourney') && (this.ambushT = (this.ambushT || rand(30, 45)) - dt) <= 0) { this.ambushT = rand(30, 45); this.ambush(); }
       this.waveT -= dt;
       if (this.waveT <= 0 && !this.swarm) {                         // oleada normal cada minuto
         this.waveT = 60;
@@ -2686,6 +2737,7 @@ class Game {
         this.renderer.domElement.style.filter = this.impT <= 0 ? '' : soft ? 'contrast(1.25) saturate(1.3)' : this.impT > 0.07 ? 'grayscale(1) contrast(9) invert(1)' : 'contrast(2.2) brightness(1.5) saturate(2)';
       }
       this.autoQuality(rawDt);
+      this.tuto.update(rawDt);
       this.fx.update(dt);
       this.updateCamera(Math.max(dt, rawDt * 0.25), rawDt, false);
       this.ui.update(this, rawDt);

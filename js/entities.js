@@ -468,6 +468,7 @@ class HordeManager {
     this.max = max; this.n = 0; this.speed = 3.4; this.uidNext = 1;
     const f = () => new Float32Array(max);
     this.x = f(); this.z = f(); this.hp = f(); this.maxHp = f(); this.hitT = f(); this.kx = f(); this.kz = f(); this.phase = f(); this.flip = f();
+    this.prot = new Uint8Array(this.max); this.barN = 0; this.barX = new Float32Array(4); this.barZ = new Float32Array(4); this.barR = 0;   // barrera de Androide 17
     this.type = new Uint8Array(max); this.uid = new Int32Array(max);
     this.stun = f(); this.aux = f(); this.shield = new Uint8Array(max);       // aturdimiento, temporizador propio y escudo
     this.pose = f(); this.poseC = new Uint8Array(max); this.grow = f();       // pose de técnica (tiempo y columna) y crecimiento (Célula)
@@ -528,8 +529,20 @@ class HordeManager {
     const px = player.x, pz = player.z, lim = CFG.ARENA + 2, kd = Math.exp(-7 * dt), dmg = game.enemyDamage(), cc = game.camCos, cs = game.camSin;
     const shots = game.shots, t = game.time;
     this.abCd -= dt; if (this.bossPose > 0) this.bossPose -= dt;
+    // Barrera de Androide 17: dónde están (máx. 4) y a quién protegen este cuadro
+    const bN = this.barN, bX = this.barX, bZ = this.barZ, bR2 = this.barR * this.barR, prot = this.prot;
+    let protDraw = 0; this.barN = 0;
     for (let i = 0; i < n; i++) {
       const T = ENEMY_TYPES[this.type[i]], xi = x[i], zi = z[i], sepR = T.r * 1.8, sepR2 = sepR * sepR;
+      if (T.barrier) {
+        if (this.barN < 4) { bX[this.barN] = xi; bZ[this.barN] = zi; this.barN++; this.barR = T.barrier; }
+        prot[i] = 0; game.vfx.pnow('Pshield', t + i * 0.37, xi, 1.3, zi, 4.4, 0.8, 0x7affd0);
+      } else {
+        let p = 0;
+        if (this.type[i] !== T_BOSS) for (let b = 0; b < bN; b++) { const ex = xi - bX[b], ez = zi - bZ[b]; if (ex * ex + ez * ez < bR2) { p = 1; break; } }   // al jefe no lo protege
+        prot[i] = p;
+        if (p && protDraw < 30) { protDraw++; game.vfx.pnow('Pshield', t + i * 0.21, xi, 1.1, zi, 2.4 * T.scale, 0.5, 0x7affd0); }
+      }
       let dx = px - xi, dz = pz - zi;
       const d = Math.sqrt(dx * dx + dz * dz) + 1e-4;
       dx /= d; dz /= d;
@@ -544,6 +557,7 @@ class HordeManager {
       }
       const sp = this.speed * T.spd;
       let vx = dx * sp, vz = dz * sp, sx = 0, sz = 0;
+      if (T.barrier) { if (d < 9) { vx *= -0.6; vz *= -0.6; } else if (d < 13) { vx *= 0.15; vz *= 0.15; } }   // se queda detrás de la horda
       if (T.fly) {                                              // volador: mantiene la distancia, rodea y dispara
         const side = (this.uid[i] & 1) ? 1 : -1;
         if (d < 8) { vx = -vx; vz = -vz; } else if (d < 12) { vx = -dz * sp * side; vz = dx * sp * side; }
@@ -639,6 +653,7 @@ class HordeManager {
       if (area) this.shield[i] = 0; else { this.shield[i]--; dmg *= 0.1; game.fx.burst(game.fx.sparks, this.x[i], 1.3, this.z[i], 4, 5, 0.25, 0.3, 0, 0x8ab0ff); }
     }
     if (this.type[i] === T_BOSS && game.bossInv > 0) dmg *= 0.1;  // el jefe cambiando de fase apenas recibe daño
+    if (this.prot[i]) { dmg *= BARRIER_CUT; if (Math.random() < 0.3) game.fx.burst(game.fx.sparks, this.x[i], 1.3, this.z[i], 3, 4, 0.2, 0.3, 0, 0x7affd0); }   // barrera de Androide 17
     const wm = game.wMul && game.wMul[DMG_SRC]; if (wm) dmg *= wm;  // daño extra de la técnica por las cartas raras
     const cat = srcCat(DMG_SRC);                                    // técnica física o de ki
     if (cat && game.player) dmg *= game.player.catMul(cat) * this.defMul(i, cat, game);
@@ -756,15 +771,17 @@ class HordeManager {
       const ty = this.type[i], T = ENEMY_TYPES[ty], ph = this.phase[i], hit = this.hitT[i] > 0 ? this.hitT[i] : 0, st = this.stun[i] > 0;
       const sc = T.scale * (1 + this.grow[i]);
       let y = st ? 0 : Math.abs(Math.sin(ph * 1.1)) * 0.14 * sc, tint = this.tints[ty];
+      const em = T.burrow && st;                                       // Saibaiman emboscado saliendo del suelo (el suelo tapa lo que está debajo)
+      if (em) y = -Math.min(1, this.stun[i] / 1.3) * 2.1 * sc;
       if (T.fly) y = 2.2 + Math.sin(ph * 0.5) * 0.3;
       if (T.shield && this.shield[i] <= 0) tint = 0x8a96b0;               // blindaje roto: metal apagado
-      if (st) tint = 0x9a9aff;
+      if (st && !em) tint = 0x9a9aff;
       if (ty === T_BOSS && bossOwn) {                                  // el jefe usa su hoja: caminar, golpe, técnica o aturdido
         const A = this.bossAnim, base = this.bossRow * this.bossCols;
         const col = hit > 0.05 ? A.hit : st ? A.stun : this.bossPose > 0 ? this.bossPoseC : A.walk[(ph | 0) % A.walk.length];
         bsb.push(this.x[i], y, this.z[i], base + col, this.flip[i], hit * 8, sc * (1 + hit * 0.5), 1, this.bossTint ? tint : 0xffffff, 0, 1 - hit * 1.3);
       } else {
-        const col = hit > 0.05 || st ? 4 : this.pose[i] > 0 ? this.poseC[i] : walk[(ph | 0) % 4];
+        const col = em ? 6 : hit > 0.05 || st ? 4 : this.pose[i] > 0 ? this.poseC[i] : walk[(ph | 0) % 4];
         sb.push(this.x[i], y, this.z[i], rows[ty] * 8 + col, this.flip[i], hit * 8, sc * (1 + hit * 0.5), 1, tint, 0, 1 - hit * 1.3);   // golpe: se aplasta (squash)
       }
       shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, (T.fly ? 1.2 : 1.9) * sc, T.fly ? 0.6 : 1);

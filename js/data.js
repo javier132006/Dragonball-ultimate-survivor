@@ -827,11 +827,16 @@ const ENEMY_TYPES = [
   // Soldado de Freezer élite (dibujo rojo): más vida y tres disparos en abanico
   { name: 'Soldado élite', row: 1, hp: 2.6, spd: 0.9, scale: 1.15, tint: 0xff7a7a, dmg: 1.3, xp: 4, r: 0.85, cash: 5, ab: 'volley' },
   // Saibaiman de hielo: rápido y frágil; su ráfaga helada te ralentiza
-  { name: 'Saibaiman de hielo', row: 0, hp: 0.7, spd: 1.6, scale: 0.9, tint: 0xa8e8ff, dmg: 0.8, xp: 1.6, r: 0.65, cash: 2, ab: 'icebolt' }
+  { name: 'Saibaiman de hielo', row: 0, hp: 0.7, spd: 1.6, scale: 0.9, tint: 0xa8e8ff, dmg: 0.8, xp: 1.6, r: 0.65, cash: 2, ab: 'icebolt' },
+  // Saibaiman emboscado: brota del suelo en grupo junto a ti (mientras sale no se mueve ni hace daño)
+  { name: 'Saibaiman emboscado', row: 0, hp: 0.8, spd: 1.35, scale: 0.9, tint: 0xd8f08a, dmg: 1.1, xp: 1.6, r: 0.65, cash: 2, burrow: true },
+  // Androide 17 · Barrera: se queda detrás de la horda; los enemigos a menos de `barrier` m reciben un 65% menos de daño
+  { name: 'Androide 17 · Barrera', row: 6, hp: 3, spd: 0.75, scale: 1.1, tint: 0xa8ffe4, dmg: 1, xp: 5, r: 0.8, cash: 6, barrier: 7 }
 ];
 /* Índices de tipo para que el código se lea mejor */
 const T_BASIC = 0, T_FAST = 1, T_BRUTE = 2, T_BOSS = 3, T_ELITE = 4, T_BOOM = 5, T_SHIELD = 6, T_FLY = 7, T_ABSORB = 8, T_CELLJR = 9;
-const T_FROST = 10, T_MBUU = 11, T_A18 = 12, T_KALE = 13, T_KYABE = 14, T_CAULI = 15, T_SOLDIER_E = 16, T_ICESAI = 17;
+const T_FROST = 10, T_MBUU = 11, T_A18 = 12, T_KALE = 13, T_KYABE = 14, T_CAULI = 15, T_SOLDIER_E = 16, T_ICESAI = 17, T_BURROW = 18, T_BARRIER = 19;
+const BARRIER_CUT = 0.35;   // daño que llega a un enemigo protegido por la barrera de Androide 17
 
 
 /* ---------- Rarezas y objetos (se encuentran en Cápsulas del mapa) ----------
@@ -1172,8 +1177,23 @@ const ACHIEVEMENTS = [
   { id: 'a_tp50', icon: '⇝', name: 'Shunkan Ido', desc: 'Usa 50 veces la Transmisión Instantánea', stat: 'tps', goal: 50, reward: 400 },
   { id: 'a_day1', icon: '☀', name: 'Reto del día', desc: 'Termina un desafío diario', stat: 'dailies', goal: 1, reward: 300 },
   { id: 'a_day7', icon: '☀', name: 'Constancia de guerrero', desc: 'Termina 7 desafíos diarios', stat: 'dailies', goal: 7, reward: 1500 },
-  { id: 'a_bp', icon: '♛', name: 'Sin piedad', desc: 'Lleva a 20 jefes a su última fase', stat: 'phase3', goal: 20, reward: 700 }
+  { id: 'a_bp', icon: '♛', name: 'Sin piedad', desc: 'Lleva a 20 jefes a su última fase', stat: 'phase3', goal: 20, reward: 700 },
+  /* ---- Colección: se miran en el guardado (fn) y también se comprueban en el menú ---- */
+  { id: 'c_g1', icon: '🐉', name: 'Primera invocación', desc: 'Haz tu primera tirada en el Altar de Shenron', fn: () => Save.d.gpulls || 0, goal: 1, reward: 150 },
+  { id: 'c_g100', icon: '🐉', name: 'Devoto de Shenron', desc: 'Haz 100 tiradas en el Altar', fn: () => Save.d.gpulls || 0, goal: 100, reward: 1500 },
+  { id: 'c_u10', icon: '✦', name: 'Coleccionista', desc: 'Consigue 10 guerreros o formas distintos del Altar', fn: () => Object.keys(Save.d.gforms || {}).length, goal: 10, reward: 600 },
+  { id: 'c_u25', icon: '✦', name: 'Gran coleccionista', desc: 'Consigue 25 guerreros o formas distintos del Altar', fn: () => Object.keys(Save.d.gforms || {}).length, goal: 25, reward: 1500 },
+  { id: 'c_uall', icon: '✦', name: 'Álbum completo', desc: 'Consigue todo lo del Altar de Shenron', fn: () => Object.keys(Save.d.gforms || {}).length, goal: () => (typeof GUNITS !== 'undefined' ? GUNITS.length : 999), reward: 5000 },
+  { id: 'c_s5', icon: '★', name: 'Poder despertado', desc: 'Sube algo del Altar a 5 estrellas', fn: () => Math.max(0, ...Object.values(Save.d.gforms || {})), goal: 5, reward: 1200 },
+  { id: 'c_ch10', icon: '☺', name: 'Guerreros Z', desc: 'Desbloquea 10 guerreros', fn: () => (Save.d.unlocked || []).length, goal: 10, reward: 600 },
+  { id: 'c_chall', icon: '☺', name: 'Todos los universos', desc: 'Desbloquea a todos los guerreros', fn: () => (Save.d.unlocked || []).length, goal: () => CHARACTERS.length, reward: 3000 },
+  { id: 'c_bk1', icon: '📖', name: 'Primer libro', desc: 'Completa un libro del Modo Leyenda', fn: () => (typeof storyDone === 'function' ? storyDone() : 0), goal: 1, reward: 500 },
+  { id: 'c_bkall', icon: '📖', name: 'La leyenda completa', desc: 'Completa todos los libros del Modo Leyenda', fn: () => (typeof storyDone === 'function' ? storyDone() : 0), goal: () => (typeof BOOKS !== 'undefined' ? BOOKS.length : 999), reward: 4000 }
 ];
+/** Meta de un logro (algunas dependen de cuánto contenido hay: todo el altar, todos los guerreros…) */
+const achGoal = (a) => (typeof a.goal === 'function' ? a.goal() : a.goal);
+/** Progreso de un logro: los de colección lo calculan (fn); el resto lee sus estadísticas guardadas */
+const achVal = (a) => (a.fn ? a.fn() : Save.d.stats[a.stat] || 0);
 const todayStr = () => { const t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
 
 /* ---------- Guardado local ---------- */

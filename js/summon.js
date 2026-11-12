@@ -187,6 +187,7 @@ class Summon {
     const close = () => {
       S.done = true; removeEventListener('resize', fit); root.remove(); this.fx = null;
       this.g.ui.renderMenu();
+      this.g.checkAch(true);                                         // logros de colección del altar
     };
     const revealCard = (k) => {                       // gira la carta k; SPARKING/ULTRA (o guerrero nuevo): primero la presentación grande
       const o = res[k], c = cards[k];

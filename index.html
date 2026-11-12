@@ -182,6 +182,16 @@ h2{font-family:var(--body);font-weight:700;font-size:clamp(13px,1.8vw,17px);lett
 #zoneBox .bar{margin-top:5px}#zoneBox .bar i{background:linear-gradient(180deg,#d4f4ff,#3ab0ff)}
 #itemPop{position:fixed;left:50%;top:17%;transform:translateX(-50%);display:none;align-items:center;gap:14px;padding:12px 20px;max-width:min(520px,92vw);pointer-events:none;z-index:9;box-shadow:var(--sh2)}
 #itemPop.go{display:flex;animation:ipop 3.2s ease-out forwards}
+/* Tutorial contextual (js/tuto.js): abajo, sin tapar el centro de la pantalla; se quita tocándolo */
+#tuto{position:fixed;left:50%;bottom:92px;transform:translate(-50%,20px);display:flex;align-items:center;gap:12px;max-width:min(520px,92vw);padding:10px 14px 10px 12px;z-index:9;opacity:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(20,28,52,.94),rgba(10,14,30,.94));border:2px solid #5ab4ff;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.5),0 0 18px rgba(90,180,255,.35);transition:opacity .25s,transform .25s;color:#eaf2ff}
+#tuto.go{opacity:1;transform:translate(-50%,0);pointer-events:auto;cursor:pointer}
+#tuto i{font-style:normal;font-size:26px;line-height:1;flex:none}
+#tuto small{display:block;font-size:10px;letter-spacing:.14em;color:#8fd0ff;font-weight:800}
+#tuto b{display:block;font-size:15px;margin:1px 0 2px}
+#tuto p{margin:0;font-size:12.5px;line-height:1.35;color:#c8d6ee}
+#tuto span{align-self:flex-start;font-size:12px;opacity:.6;flex:none}
+@media (max-width:700px){#tuto{bottom:150px}}
 #itemPop small{font-family:var(--disp);font-size:11px}#itemPop b{display:block;font-family:var(--disp);font-weight:400;font-size:20px;color:#fff;margin:2px 0}
 #itemPop p{font-size:12px;color:var(--t2)}.ip-i{font-size:40px;line-height:1}
 @keyframes ipop{0%{opacity:0;transform:translateX(-50%) scale(.6)}10%{opacity:1;transform:translateX(-50%) scale(1.06)}18%{transform:translateX(-50%) scale(1)}85%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-20px)}}
@@ -328,6 +338,11 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}.chips span{font-size:12px;font-weight:700;padding:2px 10px;background:var(--nv2);border-radius:999px;text-align:left}
 .chips .bf{color:#9dffb4}.chips .cu{color:#e0a0ff}
 .dchart{display:flex;flex-direction:column;gap:5px;margin:4px 0 10px;text-align:left}
+.tchart{margin:4px 0 10px;text-align:left}
+.tchart svg{display:block;width:100%;height:110px;background:rgba(0,0,0,.28);border-radius:8px;border:1px solid rgba(255,255,255,.08)}
+.tleg{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:11px;opacity:.85}
+.tleg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.tbest{margin:4px 0 0;font-size:12px;color:#ffd84a}
 .dcat{margin:-4px 0 10px;text-align:center}.dcat .tcat{font-size:11px;padding:2px 10px}
 .dr{display:grid;grid-template-columns:minmax(120px,1.3fr) 2fr auto;align-items:center;gap:10px;font-size:12px}
 .dr span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dr b{color:#fff;font-size:12px;min-width:84px;text-align:right}
@@ -1611,7 +1626,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
       x.send();
     });
   };
-  const CODE = ['js/core.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js'];
+  const CODE = ['js/core.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/tuto.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js'];
   (async () => {
     LOAD.step('three', 0.1, 'Cargando el motor gráfico…');
     try { await script('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'); }

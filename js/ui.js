@@ -696,6 +696,7 @@ class UIManager {
       '<div class="item opt wide"><div><b>Calidad gráfica</b><div class="qbs">' + qb + '</div><p>AUTO ajusta la resolución sola para mantener 60 FPS y quita las sombras si hace falta. BAJA: sin sombras, menos partículas y sin suavizado de bordes (este último, al recargar la página). Resolución actual: x' + pr.toFixed(2) + '</p></div></div>' +
       '<div class="item opt"><div><b>Reducir destellos</b><p>Quita los fogonazos blancos/negros y los negativos de los impact frames.</p></div><button class="tgl' + (O.flash ? ' on' : '') + '" data-flash>' + (O.flash ? 'Activado' : 'Desactivado') + '</button></div>' +
       '<div class="item opt"><div><b>Efectos de Z Legends 3</b><p>Ráfagas, rayos, explosiones, impactos y llamas de aura con el pixel art de Z Legends 3. Desactívalo para volver a los efectos de siempre.</p></div><button class="tgl' + (O.z3fx !== false ? ' on' : '') + '" data-z3fx>' + (O.z3fx !== false ? 'Activado' : 'Desactivado') + '</button></div>' +
+      '<div class="item opt"><div><b>Consejos</b><p>Un consejo corto la primera vez que pasa algo: tu primer jefe, la Ultimate lista, un enemigo nuevo… No pausa el juego.</p></div><button class="tgl' + (O.tips !== false ? ' on' : '') + '" data-tips>' + (O.tips !== false ? 'Activado' : 'Desactivado') + '</button><button class="tgl" data-tipsreset>Ver otra vez</button></div>' +
       '<div class="item opt"><div><b>Mostrar FPS</b><p>Contador de rendimiento en la esquina: FPS, milisegundos por cuadro, dibujos y triángulos. Útil para ver cómo va el juego en tu PC o móvil.</p></div><button class="tgl' + (O.fps ? ' on' : '') + '" data-fps>' + (O.fps ? 'Activado' : 'Desactivado') + '</button></div>' +
       '<div class="item opt"><div><b>Temblor de pantalla</b><input type="range" min="0" max="100" value="' + Math.round(O.shake * 100) + '" data-shake></div><b>' + Math.round(O.shake * 100) + '%</b></div>' +
       '<div class="item opt wide"><div><b>Copia de seguridad</b><p>Exporta tu progreso (se descarga un archivo y se copia el texto) o importa una copia pegando el texto o eligiendo el archivo.</p>' +
@@ -822,8 +823,8 @@ class UIManager {
     if (this.mtab === 'ach') {
       const st = Save.d.stats;
       this.el.menuBody.innerHTML = '<div class="shop">' + ACHIEVEMENTS.map((a) => {
-        const done = !!Save.d.ach[a.id], pr = Math.min(a.goal, st[a.stat] || 0);
-        return '<div class="item ach' + (done ? ' done' : '') + '"><div class="ic">' + a.icon + '</div><div><b>' + a.name + '</b><p>' + a.desc + '</p><div class="mb"><i style="width:' + (pr / a.goal * 100) + '%"></i><em>' + fmtK(pr) + ' / ' + fmtK(a.goal) + '</em></div></div><span class="arw">' + (done ? '✔' : '+' + a.reward) + '</span></div>';
+        const done = !!Save.d.ach[a.id], G = achGoal(a), pr = Math.min(G, achVal(a));
+        return '<div class="item ach' + (done ? ' done' : '') + '"><div class="ic">' + a.icon + '</div><div><b>' + a.name + '</b><p>' + a.desc + '</p><div class="mb"><i style="width:' + (pr / G * 100) + '%"></i><em>' + fmtK(pr) + ' / ' + fmtK(G) + '</em></div></div><span class="arw">' + (done ? '✔' : '+' + a.reward) + '</span></div>';
       }).join('') + '</div>';
       return;
     }
