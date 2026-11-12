@@ -57,6 +57,9 @@ function zl3Install() {
     const pz = c.portrait && ZL3.sheetFor(c.portrait.sheet);
     if (pz) { c.portrait.sheet = pz; c.portrait.frame = 0; used.add(pz); }
   }
+  // Gogeta SSJ4 solo existe en Z Legends 3: es una forma más (la última), NO sustituye a su estado base
+  const gg = CHARACTERS.find((c) => c.id === 'gogeta'), z4 = 'z_gogetassj4';
+  if (gg && SPRITE_DATA[z4] && !gg.forms.some((f) => f.sheet === z4)) { gg.forms.push(form('SUPER SAIYAN 4', 38, z4, packAnim(z4), 3.7, 1.36, 0xff6a5a, 0xff3a2a, 0xffffff)); used.add(z4); }
   zl3Bosses();
   for (const n of Object.keys(SPRITE_DATA)) if (/^(z_|zfx|zaura|pfx)/.test(n) && !SHEET_NAMES.includes(n)) SHEET_NAMES.push(n);
 }

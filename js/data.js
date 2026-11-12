@@ -186,6 +186,7 @@ const CHARACTERS = [
     ult: { name: 'BIG BANG KAMEHAMEHA', key: 'Q', cost: 100, type: 'beam', dmg: 11, len: 68, hw: 3.6, life: 1.8, col: 0x9fe0ff, end: 'bbBurst', fx: ['#000', '#fff', '#ffe14a', '#6fd8ff', '#ffe14a'], debuff: { name: 'FUSIÓN INESTABLE', text: 'el Ki no se regenera durante 10 s', t: 10, noki: true } },
     portrait: { sheet: 'gogeta_base', frame: 0 },
     // Base, SSJ2 y Blue son recoloreados del Super Gogeta del pack (pelo y aura con la paleta de Goku base y Vegetto Blue)
+    // El SUPER SAIYAN 4 (quinta forma, nivel 38) lo añade zl3Install() cuando están los sprites de Z Legends 3
     forms: [
       form('BASE', 1, 'gogeta_base', A_HD, 1.0, 1.0, 0xbfe4ff, 0, 0xffffff),
       form('SUPER SAIYAN', 10, 'gogeta', A_HD, 1.6, 1.15, 0xffe14a, 0xffd84a, 0xffffff),
@@ -1326,7 +1327,8 @@ const TRAITS = {
   gogeta: [null,
     { name: 'Fusión perfecta', good: '+20% de daño y +10% de velocidad', bad: '-15% de regeneración de Ki', m: { dmg: 0.2, spd: 0.1, kiRegen: -0.15 } },
     { name: 'Al límite', good: '+30% de daño crítico y rayos a tu alrededor', bad: 'Pierdes un 0,6% de vida por segundo', m: { critDmg: 0.3 }, t: { bolt: 34, hpDrain: 0.006 } },
-    { name: 'Ki divino fusionado', good: '+20% de cadencia y +2 de vida/s', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { rate: 0.2, regen: 2 }, t: { kiDrain: 3 } }
+    { name: 'Ki divino fusionado', good: '+20% de cadencia y +2 de vida/s', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { rate: 0.2, regen: 2 }, t: { kiDrain: 3 } },
+    { name: 'Fusión primigenia', good: '+35% de daño y +15% de armadura', bad: '-20% de regeneración de Ki', m: { dmg: 0.35, armor: 0.15, kiRegen: -0.2 } }
   ],
   broly: [null,
     { name: 'Furia creciente', good: 'Cada golpe recibido sube tu daño (hasta +30%)', bad: '-10% de velocidad', m: { spd: -0.1 }, t: { ego: 0.3 } },
@@ -1376,7 +1378,7 @@ const FORM_FX = {
   cell: [null, { spark: 'sparkG', burst: 'tfGold2' }, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xbfeeff, spark: 'lightB' }],
   bardock: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xff6a4a, burst: 'tfRose' }],
   vegito: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { spark: 'lightB', bolt: 0x8ad8ff, burst: 'tfStar' }],
-  gogeta: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { spark: 'lightB', bolt: 0x8ad8ff, burst: 'tfStar' }],
+  gogeta: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { spark: 'lightB', bolt: 0x8ad8ff, burst: 'tfStar' }, { a: 'auraSS1', bolt: 0xff5a4a, spark: 'sparkY', burst: 'tfGold' }],
   broly: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraGold', bolt: 0x9aff6a, spark: 'sparkG', burst: 'tfGold' }, { bolt: 0xff6a4a, burst: 'tfRose' }]
 };
 const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;

@@ -28,7 +28,7 @@ REPLACE = {
     'gohan_ss2': 'gohanssj2', 'gohan_ul': 'gohanbeast',
     'trunks': 'miraitrunks', 'piccolo': 'piccolo', 'cell': 'cell', 'freezer': 'freezer',
     'bardock': 'bardock', 'bardock_ss': 'bardockssj', 'vegito_blue': 'vegettoblue',
-    'gogeta_blue': 'gogetablue', 'gogeta_base': 'gogetassj4',
+    'gogeta_blue': 'gogetablue',     # Gogeta SSJ4 no sustituye a la base: es una forma más (js/zl3.js)
     'kefla': 'kefla', 'janemba': 'janemba', 'jiren': 'jiren', 'bills': 'beerus', 'hitto': 'hit', 'raditz': 'raditz',
     'andro17': 'a17', 'andro18': 'a18', 'black_rose': 'black', 'zamasuf': 'zamasu',
 }
