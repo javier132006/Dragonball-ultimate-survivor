@@ -193,7 +193,7 @@ const HM_UNIFORMS = {
 /* ---------- SpriteBatch: billboards instanciados con atlas (1 draw call) ---------- */
 const SPRITE_VS = `
 attribute vec4 iPos;    // xyz: pies del sprite en el mundo, w: opacidad
-attribute vec4 iData;   // x: fotograma, y: volteo (0/1), z: destello blanco, w: escala
+attribute vec4 iData;   // x: fotograma, y: estirado vertical + volteo (volteado = +10), z: destello blanco, w: escala
 attribute vec3 iCol;    // tinte por instancia
 attribute float iRot;   // giro en el plano del sprite (radianes): rayos, tajos y grietas orientados
 uniform vec2 uGrid; uniform vec2 uSize; uniform float uAnchor; uniform float uFlat;
@@ -207,7 +207,8 @@ void main() {
   vec4 rc = vec4(0.0, 0.0, 1.0, 1.0);
   if (uRectN > 0.5) rc = texture2D(uRects, vec2((clamp(iData.x, 0.0, uRectN - 1.0) + 0.5) / uRectN, 0.5));
   float u = mix(rc.x, rc.z, uv.x), v = mix(rc.y, rc.w, uv.y);
-  float su = mix(u, 1.0 - u, iData.y);                  // volteado: el quad se refleja, la textura no
+  float fl = step(5.0, iData.y), sq = iData.y - fl * 10.0; // sq: 1 = normal, <1 aplastado, >1 estirado
+  float su = mix(u, 1.0 - u, fl);                       // volteado: el quad se refleja, la textura no
   vUv = vec2((col + u) / uGrid.x, 1.0 - (row + 1.0 - v) / uGrid.y);
   vFlash = iData.z; vAlpha = iPos.w; vCol = iCol;
   vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
@@ -216,7 +217,8 @@ void main() {
   float s = iData.w;
   // Altura del terreno bajo el sprite (mapa de alturas en la GPU)
   float ground = texture2D(uHMap, clamp((iPos.xz - uHO) / uHS, 0.0, 1.0)).r * uHR.y + uHR.x;
-  vec2 o = vec2((su - 0.5) * uSize.x, (v - uAnchor) * uSize.y) * s;
+  // Squash & stretch conservando el volumen: si el alto se multiplica por sq, el ancho por 1/sqrt(sq)
+  vec2 o = vec2((su - 0.5) * uSize.x * inversesqrt(sq), (v - uAnchor) * uSize.y * sq) * s;
   float cr = cos(iRot), sr = sin(iRot);
   o = vec2(o.x * cr - o.y * sr, o.x * sr + o.y * cr);
   vec3 wp = iPos.xyz + vec3(0.0, ground, 0.0) + right * o.x + up * o.y;
@@ -231,6 +233,9 @@ void main() {
   vec3 rgb = mix(c.rgb * uTint * vCol, vec3(1.0), vFlash * 0.85);
   gl_FragColor = vec4(rgb, c.a * uAlpha * vAlpha);
 }`;
+
+/** Ruido suave en [-1, 1] para el temblor de cámara (suma de senos de frecuencias no múltiplas; cada eje con su semilla) */
+const shakeNoise = (t, k) => (Math.sin(t * 1.0 + k * 17.3) * 0.5 + Math.sin(t * 2.31 + k * 5.1) * 0.3 + Math.sin(t * 4.79 + k * 9.7) * 0.2);
 
 /** Uso por frame: begin() -> push(...) -> end(). Opciones: texture, cols, rows, w, h, anchor, tint, alpha, cut, additive, blend, flat, renderOrder */
 class SpriteBatch {
@@ -280,12 +285,13 @@ class SpriteBatch {
   }
   setTint(hex) { this.mat.uniforms.uTint.value.setHex(hex); }
   begin() { this.count = 0; }
-  push(x, y, z, frame, flip, flash, scale, alpha, tint, rot) {
+  /** sq (opcional): estirado vertical para el squash & stretch (1 = normal) */
+  push(x, y, z, frame, flip, flash, scale, alpha, tint, rot, sq) {
     if (this.count >= this.max) return;
     const i = this.count++, p = i * 4, c = i * 3;
     if (rot || this.rot[i]) { this.rot[i] = rot || 0; this.rotUsed = true; }       // el giro solo se sube a la GPU si alguien lo usa
     this.pos[p] = x; this.pos[p + 1] = y; this.pos[p + 2] = z; this.pos[p + 3] = alpha === undefined ? 1 : alpha;
-    this.data[p] = frame; this.data[p + 1] = flip; this.data[p + 2] = flash; this.data[p + 3] = scale;
+    this.data[p] = frame; this.data[p + 1] = (flip ? 10 : 0) + (sq || 1); this.data[p + 2] = flash; this.data[p + 3] = scale;
     if (tint === undefined) { this.col[c] = this.col[c + 1] = this.col[c + 2] = 1; }
     else { this.col[c] = ((tint >> 16) & 255) / 255; this.col[c + 1] = ((tint >> 8) & 255) / 255; this.col[c + 2] = (tint & 255) / 255; }
   }

@@ -216,6 +216,7 @@ class TransformScene {
     SFX.play('impact');
     const first = !p.formSeen[this.to];
     p.setForm(this.to); p.recompute(); g.applyForm();
+    p.squash(1.3); g.punchFov(9); rumble(450, 1, 0.7);          // nueva forma: estirón, la cámara se abre y el mando vibra
     p.formSeen[this.to] = true; p.tfCd = 30;        // 30 s hasta poder subir a la siguiente forma
     if (first) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.3);     // la curación solo la primera vez que alcanzas esa forma
     g.fx.ring(g.fx.aura, p.x, 0.4, p.z, 80, 30, 0.9, 0.5, col);

@@ -147,7 +147,7 @@ class Summon {
       '<div class="sbar"><button class="sskip">Saltar ▸▸</button></div>';
     document.body.appendChild(root);
     const cv = root.querySelector('.smc'), ctx = cv.getContext('2d'), grid = root.querySelector('.sgrid'), rev = root.querySelector('.srev'), call = root.querySelector('.scall');
-    const S = { t: 0, last: performance.now(), done: false, phase: 'ball', top, shown: top, fake: top >= 2 && Math.random() < 0.55, i: 0, wait: 0, parts: [], flash: 0, bolts: [] };
+    const S = { t: 0, last: performance.now(), done: false, phase: 'ball', top, shown: top, fake: top >= 2 && Math.random() < 0.55, i: 0, wait: 0, parts: [], flash: 0, bolts: [], tr: 0, zoom: 0 };
     if (S.fake) S.shown = Math.max(0, top - 1 - (Math.random() < 0.4 ? 1 : 0));
     this.fx = { root, S };
     const fit = () => { S.dpr = Math.min(2, devicePixelRatio || 1); S.W = innerWidth; S.H = innerHeight; cv.width = S.W * S.dpr; cv.height = S.H * S.dpr; };
@@ -161,6 +161,12 @@ class Summon {
       grid.appendChild(c);
     });
     const cards = [...grid.children];
+    // «Juice» de la invocación: trauma (temblor = trauma²), golpe de zoom y vibración del mando en los momentos grandes
+    const kick = (tr, zoom, ms) => {
+      const k = Save.d.opt.shake; if (!(k > 0)) return;
+      S.tr = Math.min(1, S.tr + tr * k); S.zoom = Math.min(0.12, S.zoom + zoom * k);
+      if (ms) rumble(ms, Math.min(1, tr * 1.2), Math.min(1, tr * 0.8));
+    };
     const hue = (r) => r === 3 ? 'hsl(' + ((S.t * 240) % 360) + ',100%,62%)' : GRARE[r].glow;
     const finish = () => {
       S.phase = 'end'; grid.classList.add('show'); cards.forEach((c) => c.classList.add('up'));
@@ -174,8 +180,8 @@ class Summon {
     const revealCard = (k) => {                       // gira la carta k; SPARKING/ULTRA (o guerrero nuevo): primero la presentación grande
       const o = res[k], c = cards[k];
       const big = o.g && (o.r >= 2 || (o.isNew && o.g.kind === 'char'));
-      if (big && !S.skip) { S.phase = 'big'; this.bigReveal(rev, o, () => { c.classList.add('up'); animIn(c); S.phase = 'flip'; S.wait = 0.25; }); }
-      else { c.classList.add('up'); animIn(c); S.wait = o.r === 1 ? 0.32 : 0.16; if (o.r === 1) SFX.play('select'); }
+      if (big && !S.skip) { S.phase = 'big'; kick(o.r >= 3 ? 0.9 : 0.7, 0.07, o.r >= 3 ? 500 : 320); this.bigReveal(rev, o, () => { c.classList.add('up'); animIn(c); kick(0.3, 0.02, 0); S.phase = 'flip'; S.wait = 0.25; }); }
+      else { c.classList.add('up'); animIn(c); S.wait = o.r === 1 ? 0.32 : 0.16; if (o.r === 1) { SFX.play('select'); kick(0.25, 0.015, 0); } }
     };
     // Las 7 esferas: giran en círculo y se juntan en la esfera de 4 estrellas
     const orbs = [...Array(7).keys()].map((k) => ({ a: (k / 7) * Math.PI * 2, n: k + 1 }));
@@ -202,12 +208,12 @@ class Summon {
             ctx.beginPath(); ctx.arc(cx, cy, rad, a - 0.5, a); ctx.stroke(); ctx.globalAlpha = 1;
             Shenron.ball(ctx, x, y, br, o.n, 1);
           }
-          if (t + dt >= 1.0) { S.flash = 0.8; SFX.play('charge'); }
+          if (t + dt >= 1.0) { S.flash = 0.8; SFX.play('charge'); kick(0.35, 0.03, 120); }
         } else {
           // La esfera grande gira; a los 1,9 s puede «cambiar» a una rareza mejor
           const tb = t - 1.0, p = Math.min(1, tb / 0.9), e = 1 - Math.pow(1 - p, 3), r = 16 + e * Math.min(W, H) * 0.14;
           const y = cy + Math.sin(t * 3) * 6 * e;
-          if (S.fake && tb > 1.0 && S.shown !== S.top) { S.shown = S.top; S.flash = 1; this.callout(call, S.top); SFX.play('shenron'); for (let k = 0; k < 40; k++) S.parts.push({ x: cx, y, vx: (Math.random() - 0.5) * 900, vy: (Math.random() - 0.5) * 900, l: 0.8 }); }
+          if (S.fake && tb > 1.0 && S.shown !== S.top) { S.shown = S.top; S.flash = 1; this.callout(call, S.top); SFX.play('shenron'); kick(0.8, 0.08, 380); for (let k = 0; k < 40; k++) S.parts.push({ x: cx, y, vx: (Math.random() - 0.5) * 900, vy: (Math.random() - 0.5) * 900, l: 0.8 }); }
           if (!S.fake && tb > 0.7 && !S.called && S.top >= 2) { S.called = true; this.callout(call, S.top); SFX.play('achieve'); }
           // Rayos de ki alrededor (más cuanto mejor la rareza)
           if (Math.random() < 0.15 + S.shown * 0.12) S.bolts.push({ a: Math.random() * 6.28, l: 0.18, r });
@@ -224,9 +230,9 @@ class Summon {
           ctx.globalAlpha = 0.55 + Math.sin(t * 12) * 0.15; ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, y, r * 3.2, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
           ctx.save(); ctx.translate(cx, y); ctx.rotate(t * 5 * (1 - e * 0.7)); Shenron.ball(ctx, 0, 0, r, 4, 0); ctx.restore();
           // Grietas de luz antes de romperse
-          if (tb > 1.5) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; for (let k = 0; k < 6; k++) { const a = k * 1.05 + 0.3; ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx + Math.cos(a) * r * (tb - 1.5) * 4, y + Math.sin(a) * r * (tb - 1.5) * 4); ctx.stroke(); } }
+          if (tb > 1.5) { S.tr = Math.max(S.tr, (tb - 1.5) * (0.5 + S.shown * 0.15) * Save.d.opt.shake); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; for (let k = 0; k < 6; k++) { const a = k * 1.05 + 0.3; ctx.beginPath(); ctx.moveTo(cx, y); ctx.lineTo(cx + Math.cos(a) * r * (tb - 1.5) * 4, y + Math.sin(a) * r * (tb - 1.5) * 4); ctx.stroke(); } }
           if (tb > 1.85) {                                           // ¡se rompe! salen las cartas
-            S.flash = 1; S.phase = 'deal'; S.dealT = t; grid.classList.add('show'); SFX.play('boom');
+            S.flash = 1; S.phase = 'deal'; S.dealT = t; grid.classList.add('show'); SFX.play('boom'); kick(0.6 + S.shown * 0.12, 0.06, 260);
             for (let k = 0; k < 60; k++) S.parts.push({ x: cx, y, vx: (Math.random() - 0.5) * 1200, vy: (Math.random() - 0.5) * 1200, l: 1 });
           }
         }
@@ -240,6 +246,14 @@ class Summon {
       for (const q of S.parts) { q.l -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.96; q.vy *= 0.96; if (q.l > 0) { ctx.fillStyle = S.shown === 3 ? 'hsl(' + ((q.x + t * 300) % 360) + ',100%,70%)' : GRARE[S.shown].glow; ctx.globalAlpha = Math.min(1, q.l * 1.5); ctx.fillRect(q.x - 3, q.y - 3, 6, 6); } }
       ctx.globalAlpha = 1; S.parts = S.parts.filter((q) => q.l > 0);
       if (S.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + S.flash + ')'; ctx.fillRect(0, 0, W, H); S.flash = Math.max(0, S.flash - dt * 2.5); }
+      // Temblor (trauma², ruido suave) + zoom que vuelve solo. Se escala un poco para que no se vean los bordes al moverse
+      if (S.tr > 0 || S.zoom > 0) {
+        const a = S.tr * S.tr, m = Math.min(W, H), q = t * 30, ox = shakeNoise(q, 1) * a * m * 0.025, oy = shakeNoise(q, 2) * a * m * 0.025;
+        const sc = 1 + S.zoom + a * 0.06;
+        root.style.transform = 'translate(' + ox.toFixed(1) + 'px,' + oy.toFixed(1) + 'px) rotate(' + (shakeNoise(q, 3) * a * 0.6).toFixed(2) + 'deg) scale(' + sc.toFixed(3) + ')';
+        S.tr = Math.max(0, S.tr - dt * 1.6); S.zoom = S.zoom > 0.001 ? S.zoom * Math.exp(-dt / 0.18) : 0;
+        if (S.tr <= 0 && S.zoom <= 0) root.style.transform = '';
+      }
       requestAnimationFrame(frame);
     };
     requestAnimationFrame((n0) => { S.last = n0; frame(n0); });

@@ -42,7 +42,7 @@ class Game {
     this.ui = new UIManager();
     this.state = 'menu';
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0;
-    this.bossUid = 0; this.nextBoss = 180; this.leashT = 0; this.hitstop = 0; this.shakeAmt = 0;
+    this.bossUid = 0; this.nextBoss = 180; this.leashT = 0; this.hitstop = 0; this.shakeAmt = 0; this.shakeT = 0; this.fovP = 0;
     this.ultT = -1; this.ultCut = false; this.ultFx = null;   // Ultimate: secuencia de impacto (el elemento se busca al usarlo)
     this.cash = 0; this.capsOpened = 0; this.diff = DIFFS[0]; this.won = false;
     // Estructura de la partida: mapas (STAGES), enjambre final, maldiciones y desafíos
@@ -56,7 +56,7 @@ class Game {
     this.step = 0; this.daily = false; this.mods = {}; this.modList = []; this.phase = 0; this.bossInv = 0; this.night = 0; this.nightT = 0; this.wasNight = false;
     this.booms = []; this.dodgeMsgT = 0; this.cardT = 0; this.lastResult = null;
     // Rendimiento: resolución dinámica (calidad AUTO) y sombras que no se recalculan en cada fotograma
-    this.perf = { acc: 0, n: 0, good: 0, pr: 1, shadowN: 0 };
+    this.perf = { acc: 0, n: 0, good: 0, pr: 1, shadowN: 0 }; this.perfHud = new PerfHud();
     this.shadowDirty = true;                                // el mapa de sombras se redibuja solo cuando cambia algo
     // Cámara orbital: yaw (giro), pitch (inclinación) y dist (zoom)
     this.camYaw = 0; this.camPitch = 0.98; this.camDist = 19; this.camDistT = 19; this.camCos = 1; this.camSin = 0;
@@ -256,7 +256,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-fps],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -293,6 +293,7 @@ class Game {
       else if (D.acct === 'out') this.online.signOut().then(() => { ui.atab = 'login'; ui.renderMenu(); });
       else if (D.q) { Save.d.opt.quality = D.q; Save.write(); this.perf.pr = 1; this.applyQuality(); ui.renderMenu(); }
       else if (D.flash !== undefined) { Save.d.opt.flash = !Save.d.opt.flash; Save.write(); ui.renderMenu(); }
+      else if (D.fps !== undefined) { Save.d.opt.fps = !Save.d.opt.fps; Save.write(); ui.renderMenu(); }
       else if (D.z3fx !== undefined) { Save.d.opt.z3fx = Save.d.opt.z3fx === false; Save.write(); if (this.vfx) this.vfx.z3 = Save.d.opt.z3fx !== false && !!FXA.ZkbY && !!(this.ui.sheets && this.ui.sheets.zfx); ui.renderMenu(); }
       else if (D.exp !== undefined) this.exportSave();
       else if (D.imp !== undefined) this.importSave();
@@ -1148,7 +1149,7 @@ class Game {
     const k = !!(keys.KeyE || keys.Space || keys.Enter || keys.NumpadEnter);
     if (k && !this.talkHeld) this.talkNext();
     this.talkHeld = k;
-    this.player.animT += dt; this.player.pose(); this.fx.update(dt); this.syncSprites(); this.updateCamera(dt, dt, false); this.ui.update(this, dt);
+    this.player.animT += dt; this.player.updSquash(dt); this.player.pose(); this.fx.update(dt); this.syncSprites(); this.updateCamera(dt, dt, false); this.ui.update(this, dt);
   }
   /* ---------- Torneo de las Artes Marciales: ring, tres rivales seguidos, salir del ring decide ---------- */
   updateTourney(dt) {
@@ -1681,7 +1682,19 @@ class Game {
     this.openCapsule(gold, x, z);
   }
 
-  shake(a) { a *= Save.d.opt.shake; this.shakeAmt = Math.min(1.4, Math.max(this.shakeAmt, a)); }
+  /** Temblor por «trauma»: se suma (con tope) y el temblor real es trauma², así los golpes pequeños apenas mueven
+      la cámara y los grandes pegan fuerte. Los grandes también vibran el mando y abren un poco el FOV */
+  shake(a) {
+    const o = Save.d.opt.shake; a *= o;
+    if (a <= 0) return;
+    const prev = this.shakeAmt;
+    this.shakeAmt = Math.min(1.4, Math.max(prev, a));             // se llama cada cuadro en las cargas: se queda el máximo, no se acumula
+    if (a < prev + 0.3) return;                                    // FOV y vibración solo con golpes nuevos, no mientras dura un temblor
+    if (a >= 0.9) this.punchFov(a * 3);
+    if (a >= 0.35) rumble(80 + a * 160, Math.min(1, a * 0.7), Math.min(1, a * 0.45));
+  }
+  /** Golpe de FOV: la cámara se abre unos grados y vuelve sola (dash, transformación, Ultimate, explosiones) */
+  punchFov(deg) { this.fovP = Math.min(10, this.fovP + deg * Save.d.opt.shake); }
   pressure() { return this.stageTime + this.step * 240; }
   swarmAt() { return this.stage.swarmAt || SWARM_TIME; }
   swarmLvl() { return this.swarm ? 1 + (this.stageTime - this.swarmAt()) / 60 : 0; }          // minutos de enjambre (0 = aún no)
@@ -2045,7 +2058,7 @@ class Game {
   }
   updateBossCine(dt) {
     this.bossCineT += dt;
-    this.player.animT += dt; this.player.pose();
+    this.player.animT += dt; this.player.updSquash(dt); this.player.pose();
     this.fx.update(dt); this.syncSprites(); this.updateCamera(dt, dt, false); this.ui.update(this, dt);
     if (this.bossCineT >= 2) {
       document.getElementById('bossCine').classList.remove('show');
@@ -2084,7 +2097,7 @@ class Game {
     const fire = () => {
       this.ultT = 0; this.ultCut = false;
       this.hitstop = Math.max(this.hitstop, 0.5);                // el mundo se congela mientras dura el destello
-      this.shake(0.6); SFX.play('boom');
+      this.shake(0.6); this.punchFov(8); rumble(400, 1, 0.6); this.player.squash(1.25); SFX.play('boom');
     };
     // Animación propia de cada personaje (el mundo espera congelado) y después la Ultimate
     const go = () => {
@@ -2465,11 +2478,20 @@ class Game {
     this.camLook.y += ((menu ? 0 : 1.4 + groundH(p.x, p.z)) - this.camLook.y) * k;
     this.camDist += ((F ? this.camDistT * 0.55 : this.camDistT) - this.camDist) * (1 - Math.exp(-(F ? 4 : 8) * rawDt));
     const cp = Math.cos(this.camPitch), sp = Math.sin(this.camPitch), s = this.shakeAmt, d = this.camDist;
+    // Temblor = trauma² con ruido suave (suma de senos, sin saltos aleatorios de un cuadro a otro) y un leve balanceo
+    this.shakeT += rawDt;
+    const a = s * s * 0.9, t = this.shakeT * 26;
+    const nx = s > 0 ? shakeNoise(t, 1) * a : 0, ny = s > 0 ? shakeNoise(t, 2) * a : 0;
     this.camera.position.set(
-      this.camLook.x + this.camSin * d * cp + (Math.random() - 0.5) * s * 1.2,
-      this.camLook.y + d * sp + (Math.random() - 0.5) * s * 1.2,
-      this.camLook.z + this.camCos * d * cp);
+      this.camLook.x + this.camSin * d * cp + nx * this.camCos,
+      this.camLook.y + d * sp + ny,
+      this.camLook.z + this.camCos * d * cp - nx * this.camSin);
     this.camera.lookAt(this.camLook);
+    if (s > 0) this.camera.rotateZ(shakeNoise(t, 3) * a * 0.035);
+    // Golpe de FOV: decae solo (~0,2 s)
+    const fov = 48 + this.fovP;
+    if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
+    this.fovP = this.fovP > 0.02 ? this.fovP * Math.exp(-rawDt / 0.2) : 0;
     this.backdrop.follow(this.camera, this.night);
     this.shakeAmt = Math.max(0, s - rawDt * 2.6);
   }
@@ -2673,7 +2695,7 @@ class Game {
     } else if (s === 'transform') {                                   // cinemática: el mundo se congela, el personaje carga
       const done = this.cine.update(rawDt);
       const p = this.player;
-      p.animT += rawDt; p.pose();
+      p.animT += rawDt; p.updSquash(rawDt); p.pose();
       this.fx.update(rawDt);
       this.syncSprites();
       this.updateCamera(rawDt, rawDt, false);
@@ -2692,7 +2714,7 @@ class Game {
       (s === 'intro' ? this.intro : this.ultCine).update(rawDt);
       if (this.faceT > 0 && (this.faceT -= rawDt) <= 0 && this.faceGo) { const f = this.faceGo; this.faceGo = null; f(); }   // corte del retrato terminado
       const p = this.player;
-      p.animT += rawDt; p.pose();
+      p.animT += rawDt; p.updSquash(rawDt); p.pose();
       this.fx.update(rawDt);
       this.syncSprites();
       this.updateCamera(rawDt, rawDt, false);
@@ -2715,6 +2737,30 @@ class Game {
     if (vf) this.vfx.flush(s === 'play' ? (this.hitstop > 0 ? 0 : rawDt) : rawDt, this.player);
     // En el mapa del inicio no se ve el mundo 3D: no se dibuja (ahorra batería en el móvil)
     if (!(s === 'menu' && this.ui.screen === 'home' && this.ui.el.menu.classList.contains('show'))) this.renderer.render(this.scene, this.camera);
+    this.perfHud.frame(rawDt, this.renderer);
+  }
+}
+
+/* ---------- Monitor de rendimiento (Opciones → «Mostrar FPS») ----------
+   Idea del PerformanceMonitor de threejs-gamedev-template (SahilK-027, Apache-2.0), reescrito sin librerías:
+   FPS medios, ms por cuadro, el peor cuadro del medio segundo, llamadas de dibujo, triángulos y resolución */
+class PerfHud {
+  constructor() { this.el = null; this.acc = 0; this.n = 0; this.worst = 0; }
+  frame(dt, renderer) {
+    const on = !!Save.d.opt.fps;
+    if (!on) { if (this.el) { this.el.remove(); this.el = null; } return; }
+    if (!this.el) {
+      this.el = document.createElement('div'); this.el.id = 'perfHud';
+      this.el.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:60;pointer-events:none;font:11px/1.35 ui-monospace,Consolas,monospace;color:#bfffc0;background:rgba(0,0,0,.6);padding:4px 7px;border-radius:5px;white-space:pre';
+      document.body.appendChild(this.el);
+    }
+    this.acc += dt; this.n++; this.worst = Math.max(this.worst, dt);
+    if (this.acc < 0.5) return;
+    const fps = this.n / this.acc, ms = this.acc / this.n * 1000, R = renderer.info.render;
+    this.el.style.color = fps >= 55 ? '#bfffc0' : fps >= 40 ? '#ffe28a' : '#ff9a8a';
+    this.el.textContent = Math.round(fps) + ' FPS · ' + ms.toFixed(1) + ' ms (peor ' + (this.worst * 1000).toFixed(0) + ')\n' +
+      R.calls + ' dibujos · ' + (R.triangles / 1000).toFixed(1) + 'k triáng. · res ×' + renderer.getPixelRatio().toFixed(2);
+    this.acc = 0; this.n = 0; this.worst = 0;
   }
 }
 

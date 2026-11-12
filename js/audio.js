@@ -12,7 +12,7 @@ const NOTE = (n) => 440 * Math.pow(2, (n - 69) / 12);         // número MIDI ->
 
 class SoundEngine {
   constructor() {
-    this.ctx = null; this.last = {}; this.track = ''; this.step = 0; this.nextT = 0; this.timer = 0; this.duck = 1;
+    this.ctx = null; this.pv = 1; this.last = {}; this.track = ''; this.step = 0; this.nextT = 0; this.timer = 0; this.duck = 1;
   }
 
   /** Se crea con el primer gesto del usuario (los navegadores lo exigen) */
@@ -49,6 +49,7 @@ class SoundEngine {
   /** Oscilador con envolvente y barrido de frecuencia */
   tone(type, f0, f1, t, dur, vol, out, attack) {
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    const k = this.pv; f0 *= k; if (f1) f1 *= k;                 // tono variado (solo en los efectos, ver play)
     o.type = type; o.frequency.setValueAtTime(f0, t);
     if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
     const a = attack || 0.005;
@@ -61,6 +62,7 @@ class SoundEngine {
   hiss(type, f0, f1, q, t, dur, vol, out, attack) {
     const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
     s.buffer = this.noise; s.loop = true;
+    const k = this.pv; f0 *= k; if (f1) f1 *= k;
     f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t);
     if (f1 && f1 !== f0) f.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
     const a = attack || 0.004;
@@ -76,7 +78,9 @@ class SoundEngine {
     if (t - (this.last[name] || 0) < gap) return;
     this.last[name] = t;
     const fn = this['s_' + name];
-    if (fn) fn.call(this, t, arg);
+    // Cada repetición suena un poco distinta (±6% de tono): cien impactos seguidos ya no suenan a «ametralladora»
+    this.pv = 1 + (Math.random() - 0.5) * 0.12;
+    try { if (fn) fn.call(this, t, arg); } finally { this.pv = 1; }
   }
   s_ki(t) { this.tone('triangle', 900, 420, t, 0.09, 0.06); this.hiss('bandpass', 3000, 1200, 2, t, 0.06, 0.03); }
   s_zap(t) { this.tone('sawtooth', 1600, 500, t, 0.08, 0.035); this.tone('square', 2400, 900, t, 0.05, 0.02); }

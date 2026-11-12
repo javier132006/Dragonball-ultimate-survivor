@@ -17,6 +17,19 @@ const PAD_MAP = {
   over: { 0: 'Enter', 9: 'Enter', 1: 'KeyM' }
 };
 
+/** Vibración del mando (si lo admite). ms: duración · strong/weak: motores grande y pequeño (0-1).
+    Respeta el temblor de pantalla de Opciones (a 0 no vibra) */
+function rumble(ms, strong, weak) {
+  const k = typeof Save !== 'undefined' ? Save.d.opt.shake : 1;
+  if (!(k > 0) || !navigator.getGamepads) return;
+  let list; try { list = navigator.getGamepads(); } catch (e) { return; }
+  for (const p of list || []) {
+    const act = p && p.connected && p.vibrationActuator;
+    if (!act || !act.playEffect) continue;
+    act.playEffect('dual-rumble', { duration: ms, strongMagnitude: Math.min(1, strong * k), weakMagnitude: Math.min(1, weak * k) }).catch(() => {});
+  }
+}
+
 class PadInput {
   constructor(game) {
     this.g = game; this.held = {}; this.stickOwn = false; this.axisT = 0;

@@ -53,7 +53,7 @@ class Player {
     this.buffT = 0; this.buffDmg = 0;
     this.x = 0; this.z = 0; this.vx = 0; this.vz = 0; this.flip = 0;
     this.level = 1; this.xp = 0; this.xpNext = this.xpFor(1);
-    this.dashT = 0; this.dashCd = 0; this.dashX = 1; this.dashZ = 0; this.iframes = 0; this.ghostT = 0;
+    this.sq = 1; this.sqV = 0; this.dashT = 0; this.dashCd = 0; this.dashX = 1; this.dashZ = 0; this.iframes = 0; this.ghostT = 0;
     this.charging = false; this.shockT = 0; this.prevSpace = false; this.auraAcc = 0;
     this.animT = 0; this.atkT = 0; this.beamT = 0; this.atkFrame = 0; this.hurtT = 0; this.moving = false;
     this.dying = false; this.deathT = 0;
@@ -159,6 +159,15 @@ class Player {
   }
 
   /** Devuelve true si el golpe entra (para el empujón de los enemigos grandes) */
+  /** Squash & stretch: v < 1 aplasta, v > 1 estira; un muelle lo devuelve a 1 con un pequeño rebote */
+  squash(v) { this.sq = v; this.sqV = 0; }
+  /** Muelle amortiguado (con rebote) del squash & stretch */
+  updSquash(dt) {
+    dt = Math.min(dt, 0.05);
+    this.sqV += (-(this.sq - 1) * 420 - this.sqV * 17) * dt;
+    this.sq = clamp(this.sq + this.sqV * dt, 0.6, 1.5);
+  }
+
   takeDamage(amount, game) {
     if (this.iframes > 0 || game.state !== 'play' || this.godT > 0) return false;   // Poder de los dioses: invencible
     // Rasgo Ultra Instinto: esquiva todo mientras quede Ki
@@ -179,7 +188,7 @@ class Player {
     game.onPlayerHit();
     SFX.play('hurt');
     this.hp -= real;
-    this.iframes = 0.55; this.hurtT = 0.3;
+    this.iframes = 0.55; this.hurtT = 0.3; this.squash(0.8); rumble(180, 0.6, 0.35);
     if (this.tr.ego) this.egoStk = Math.min(this.tr.ego, this.egoStk + 0.03);
     game.run.taken += real;
     game.ui.flash = 1;
@@ -217,7 +226,7 @@ class Player {
     if (this.confT > 0) { ix = -ix; iz = -iz; }
     const wx = ix * game.camCos + iz * game.camSin, wz = -ix * game.camSin + iz * game.camCos;
 
-    this.animT += dt;
+    this.animT += dt; this.updSquash(dt);
     this.iframes = Math.max(0, this.iframes - dt); this.dashCd = Math.max(0, this.dashCd - dt);
     this.atkT = Math.max(0, this.atkT - dt); this.hurtT = Math.max(0, this.hurtT - dt); this.beamT = Math.max(0, this.beamT - dt);
     this.charging = !!keys.KeyC && this.dashT <= 0;
@@ -247,7 +256,7 @@ class Player {
       this.dashT *= this.dashBoost > 1 ? 1.25 : 1;                 // gravedad baja: dash más largo
       this.iframes = Math.max(this.iframes, CFG.DASH_TIME + 0.1);
       game.fx.burst(game.fx.trail, this.x, 0.8, this.z, 12, 5, 0.5, 0.6, 0);
-      game.shake(0.25);
+      game.shake(0.25); game.punchFov(4); this.squash(0.78);             // dash: se aplasta (lee como velocidad) y la cámara «abre»
     }
     this.prevSpace = space;
 
@@ -413,7 +422,7 @@ class Player {
     }
     // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
     const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.form.tint;
-    this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint);
+    this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint, 0, this.dying ? 1 : this.sq);
     for (const g of this.ghosts) if (g.t > 0) this.gho[g.sheet].push(g.x, 0.5, g.z, g.frame, g.flip, 0, 1, g.t / 0.3, this.form.tint);
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
     // Aura de fuego (sprites): forma transformada, carga de ki o Kaio-ken. En las formas altas, rayos sueltos alrededor
@@ -752,10 +761,10 @@ class HordeManager {
       if (ty === T_BOSS && bossOwn) {                                  // el jefe usa su hoja: caminar, golpe, técnica o aturdido
         const A = this.bossAnim, base = this.bossRow * this.bossCols;
         const col = hit > 0.05 ? A.hit : st ? A.stun : this.bossPose > 0 ? this.bossPoseC : A.walk[(ph | 0) % A.walk.length];
-        bsb.push(this.x[i], y, this.z[i], base + col, this.flip[i], hit * 8, sc * (1 + hit * 1.2), 1, this.bossTint ? tint : 0xffffff);
+        bsb.push(this.x[i], y, this.z[i], base + col, this.flip[i], hit * 8, sc * (1 + hit * 0.5), 1, this.bossTint ? tint : 0xffffff, 0, 1 - hit * 1.3);
       } else {
         const col = hit > 0.05 || st ? 4 : this.pose[i] > 0 ? this.poseC[i] : walk[(ph | 0) % 4];
-        sb.push(this.x[i], y, this.z[i], rows[ty] * 8 + col, this.flip[i], hit * 8, sc * (1 + hit * 1.2), 1, tint);
+        sb.push(this.x[i], y, this.z[i], rows[ty] * 8 + col, this.flip[i], hit * 8, sc * (1 + hit * 0.5), 1, tint, 0, 1 - hit * 1.3);   // golpe: se aplasta (squash)
       }
       shadows.push(this.x[i], 0.06, this.z[i], 0, 0, 0, (T.fly ? 1.2 : 1.9) * sc, T.fly ? 0.6 : 1);
     }
