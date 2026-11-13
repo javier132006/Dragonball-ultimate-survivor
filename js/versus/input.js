@@ -9,18 +9,18 @@
    La simulación (sim.js) solo ve órdenes: no sabe quién las genera. Por
    eso el mismo luchador sirve para jugador, bot y online sin tocar nada.
    ===================================================================== */
-const VB = { ATK: 1, HEAVY: 2, KI: 4, GUARD: 8, DASH: 16, TP: 32, CHARGE: 64, ULT: 128, UP: 256, DOWN: 512 };
+const VB = { ATK: 1, HEAVY: 2, KI: 4, GUARD: 8, DASH: 16, TP: 32, CHARGE: 64, ULT: 128, UP: 256, DOWN: 512, TRANS: 1024 };
 const VS_Q = (v) => Math.round(Math.max(-1, Math.min(1, v)) * 4) / 4;      // ejes en pasos de 1/4: una orden cabe en 2 bytes
 
 /* Teclas por defecto. Jugador 1: mano izquierda mueve, mano derecha pega. Jugador 2: flechas + teclado numérico */
 const VS_KEYS = [
-  { l: 'KeyA', r: 'KeyD', f: 'KeyW', k: 'KeyS', UP: 'Space', DOWN: 'ShiftLeft', ATK: 'KeyJ', HEAVY: 'KeyK', KI: 'KeyL', GUARD: 'KeyU', DASH: 'KeyI', TP: 'KeyO', CHARGE: 'KeyH', ULT: 'KeyY' },
+  { l: 'KeyA', r: 'KeyD', f: 'KeyW', k: 'KeyS', UP: 'Space', DOWN: 'ShiftLeft', ATK: 'KeyJ', HEAVY: 'KeyK', KI: 'KeyL', GUARD: 'KeyU', DASH: 'KeyI', TP: 'KeyO', CHARGE: 'KeyH', ULT: 'KeyY', TRANS: 'KeyT' },
   { l: 'ArrowLeft', r: 'ArrowRight', f: 'ArrowUp', k: 'ArrowDown', UP: 'ShiftRight', DOWN: 'ControlRight', ATK: 'Numpad1', HEAVY: 'Numpad2', KI: 'Numpad3', GUARD: 'Numpad4', DASH: 'Numpad5', TP: 'Numpad6',
-    CHARGE: 'Numpad0', ULT: 'NumpadEnter' }
+    CHARGE: 'Numpad0', ULT: 'NumpadEnter', TRANS: 'NumpadAdd' }
 ];
-/* Mando estándar: X golpe · Y fuerte · B ki · A dash · LB guardia · RB teletransporte · LT cargar · RT Ultimate · cruceta ↑↓ subir/bajar */
-const VS_PAD = { ATK: 2, HEAVY: 3, KI: 1, DASH: 0, GUARD: 4, TP: 5, CHARGE: 6, ULT: 7, UP: 12, DOWN: 13 };
-const VS_BTNS = ['ATK', 'HEAVY', 'KI', 'GUARD', 'DASH', 'TP', 'CHARGE', 'ULT', 'UP', 'DOWN'];
+/* Mando estándar: X golpe · Y fuerte · B ki · A dash · LB guardia · RB teletransporte · LT cargar · RT Ultimate · cruceta ↑↓ subir/bajar · pulsar un stick transformarse */
+const VS_PAD = { ATK: 2, HEAVY: 3, KI: 1, DASH: 0, GUARD: 4, TP: 5, CHARGE: 6, ULT: 7, UP: 12, DOWN: 13, TRANS: 11 };
+const VS_BTNS = ['ATK', 'HEAVY', 'KI', 'GUARD', 'DASH', 'TP', 'CHARGE', 'ULT', 'UP', 'DOWN', 'TRANS'];
 
 /** Teclado (lee el estado global `keys` de core.js) */
 class VsKeyboard {
@@ -43,6 +43,7 @@ class VsGamepad {
     const p = this.pad(); if (!p) return { mx: 0, mz: 0, b: 0 };
     let b = 0; const dz = (v) => (Math.abs(v) < 0.22 ? 0 : v);
     for (const k of VS_BTNS) { const q = p.buttons[VS_PAD[k]]; if (q && (q.pressed || q.value > 0.4)) b |= VB[k]; }
+    if (p.buttons[10] && p.buttons[10].pressed) b |= VB.TRANS;       // vale cualquiera de los dos sticks
     const ry = dz(p.axes[3] || 0);                                   // el stick derecho también sube y baja
     if (ry < -0.5) b |= VB.UP; else if (ry > 0.5) b |= VB.DOWN;
     return { mx: VS_Q(dz(p.axes[0] || 0)), mz: VS_Q(-dz(p.axes[1] || 0)), b };
@@ -96,12 +97,15 @@ class VsAI {
       return c;
     }
     if (this.gHold > 0) { if ((this.gWait -= dt) <= 0) c.b |= VB.GUARD; return c; }
+    // --- Transformación: en cuanto tiene la barra llena y un respiro ---
+    if (me.tm >= 100 && me.fi < me.chain.length - 1 && !sim.ult && d > 3.5 && rnd() < (0.4 + L.ult) * dt * 2) { c.b |= VB.TRANS; return c; }
     // --- Ataque ---
     if (me.ki >= 100 && d < 22 && foe.st !== 'down' && this.cool <= 0 && rnd() < L.ult * dt * 3) { c.b |= VB.ULT; return c; }
     if (this.pt <= 0) {                                               // elegir qué hacer el próximo rato
       const r = rnd(); this.side = rnd() < 0.5 ? 1 : -1;
       if (d > 13) this.plan = me.ki < 55 && r < 0.4 ? 'charge' : r < 0.4 + 0.3 * (1 - L.aggro) && me.ki > 20 ? 'shoot' : 'close';
       else this.plan = r < L.aggro ? 'close' : r < L.aggro + 0.12 ? 'circle' : me.ki > 20 ? 'shoot' : 'close';
+      if (me.ki >= 55 && me.ki < 100 && d > 8 && rnd() < 0.35 * L.ult) this.plan = 'charge';   // le falta poco para la Ultimate: la carga
       this.pt = 0.5 + rnd() * 0.9;
     }
     if (foe.st === 'launched' && me.ki >= 5 && rnd() < L.combo * dt * 8) { c.b |= VB.DASH; c.mx = toward; return c; }   // persecución
