@@ -44,7 +44,7 @@ class VsFighter {
 
 class VsSim {
   constructor(defA, defB, opt) {
-    opt = opt || {};
+    opt = opt || {}; this.o = opt;       // opt.noKO: la vida no baja de 1 · opt.noTime: sin reloj (entrenamiento)
     this.f = [new VsFighter(0, defA), new VsFighter(1, defB)];
     this.seed = (opt.seed || 12345) >>> 0; this.rounds = opt.rounds || 2; this.roundTime = opt.time || 99;
     this.ev = []; this.shots = []; this.tick = 0; this.round = 0; this.winner = -1;
@@ -74,7 +74,7 @@ class VsSim {
     this.pt += VS_DT;
     if (this.phase === 'intro' && this.pt > 2.3) { this.phase = 'fight'; this.pt = 0; this.emit('fight'); }
     else if (this.phase === 'ko' && this.pt > 3.0) this.endRound();
-    else if (this.phase === 'fight' && !this.ult) {
+    else if (this.phase === 'fight' && !this.ult && !this.o.noTime) {
       this.time -= VS_DT;
       if (this.time <= 0) { this.time = 0; const w = a.hp / a.hpMax >= b.hp / b.hpMax ? 0 : 1; this.phase = 'ko'; this.pt = 0; this.ko = w; this.emit('timeup', { w }); }
     }
@@ -211,7 +211,7 @@ class VsSim {
 
   /* ---------------- Daño ---------------- */
   damage(att, def, dmg) {
-    def.hp = Math.max(0, def.hp - dmg); def.flash = 0.1;
+    def.hp = Math.max(this.o.noKO ? 1 : 0, def.hp - dmg); def.flash = 0.1;
     att.ki = Math.min(100, att.ki + dmg * 0.07); def.ki = Math.min(100, def.ki + dmg * 0.035); att.gain(dmg * VS.TR_DEAL); def.gain(dmg * VS.TR_TAKE);
     att.cmb++; att.cmbT = 1.3; att.cmbDmg += dmg; this.emit('dmg', { i: def.i, dmg, cmb: att.cmb, tot: att.cmbDmg });
     if (def.hp <= 0 && def.st !== 'ko') {

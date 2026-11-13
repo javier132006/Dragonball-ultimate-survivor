@@ -211,7 +211,19 @@ void main() {
 const VS_ARENAS = {
   dia:    { name: 'Mediodía', top: 0x2a78dc, hor: 0xbfe6ff, sun: 0xfff2d6, sunI: 0.62, hemiS: 0xcfe6ff, hemiG: 0x6a5a48, hemiI: 0.42, dir: [-0.55, 0.8, 0.42], stone: 0xb8a98c, stars: 0 },
   ocaso:  { name: 'Atardecer', top: 0x33245e, hor: 0xff9455, sun: 0xffb46a, sunI: 0.7, hemiS: 0xffb89a, hemiG: 0x4a3340, hemiI: 0.34, dir: [-0.8, 0.42, 0.3], stone: 0xb89878, stars: 0.25 },
-  noche:  { name: 'Noche', top: 0x04051a, hor: 0x26357a, sun: 0x9ab6ff, sunI: 0.5, hemiS: 0x5a6ec8, hemiG: 0x1a1a30, hemiI: 0.34, dir: [0.5, 0.75, 0.4], stone: 0x8088aa, stars: 1 }
+  noche:  { name: 'Noche', top: 0x04051a, hor: 0x26357a, sun: 0x9ab6ff, sunI: 0.5, hemiS: 0x5a6ec8, hemiG: 0x1a1a30, hemiI: 0.34, dir: [0.5, 0.75, 0.4], stone: 0x8088aa, stars: 1 },
+  // Opcionales: mt = color de montañas y rocas · sea = mar bajo la plataforma · glow = rocas que brillan · amb = partículas de ambiente
+  //   amb: { kind (tipo de partícula), add (aditiva), col, n (por segundo), vy (velocidad vertical), s (tamaño), life, a (opacidad), vx (viento) }
+  jade:   { name: 'Planeta esmeralda', top: 0x12805a, hor: 0xc9ffd6, sun: 0xf6ffd8, sunI: 0.6, hemiS: 0xc8ffe0, hemiG: 0x3a6a5a, hemiI: 0.44, dir: [0.45, 0.82, -0.35], stone: 0x9cc0b4, stars: 0, mt: 0x3f7f8a, sea: 0x2fae8a,
+    amb: { kind: 0, add: true, col: 0xb8ffd0, n: 10, vy: 1.2, s: 0.35, life: 5, a: 0.6 } },
+  yermo:  { name: 'Yermo rojo', top: 0x9a5a34, hor: 0xffdca6, sun: 0xfff0c8, sunI: 0.66, hemiS: 0xffd6a8, hemiG: 0x7a4a30, hemiI: 0.4, dir: [-0.3, 0.7, -0.6], stone: 0xcf9060, stars: 0, mt: 0x8a4a2e,
+    amb: { kind: 4, add: false, col: 0xd9a070, n: 14, vy: 0.6, vx: 7, s: 2.2, life: 4, a: 0.22 } },
+  hielo:  { name: 'Glaciar', top: 0x3f86c2, hor: 0xeaf7ff, sun: 0xffffff, sunI: 0.58, hemiS: 0xe6f4ff, hemiG: 0x7a94b0, hemiI: 0.5, dir: [0.6, 0.6, 0.5], stone: 0xd4e6f2, stars: 0, mt: 0x9fc4e0, sea: 0x5aa0c8,
+    amb: { kind: 5, add: false, col: 0xffffff, n: 45, vy: -5, vx: 2.5, s: 0.16, life: 5, a: 0.9 } },
+  volcan: { name: 'Volcán', top: 0x140606, hor: 0xd8481a, sun: 0xff9a5a, sunI: 0.55, hemiS: 0xff8a5a, hemiG: 0x40120a, hemiI: 0.36, dir: [-0.5, 0.5, -0.6], stone: 0x6a5450, stars: 0, mt: 0x241414, sea: 0xff5a14, glow: 0xff4a10,
+    amb: { kind: 0, add: true, col: 0xff8a3a, n: 30, vy: 5, s: 0.3, life: 4, a: 0.9 } },
+  vacio:  { name: 'Vacío estelar', top: 0x04020e, hor: 0x5a1e96, sun: 0xd8b0ff, sunI: 0.5, hemiS: 0x9a70e0, hemiG: 0x1a1030, hemiI: 0.4, dir: [0.2, 0.7, -0.7], stone: 0x7a6aa0, stars: 1.6, mt: 0x2a1a4a, glow: 0x6a2ad0,
+    amb: { kind: 0, add: true, col: 0xc8a0ff, n: 12, vy: 0.8, s: 0.4, life: 6, a: 0.7 } }
 };
 class VsArena {
   constructor(scene, key, lowQ) {
@@ -243,7 +255,8 @@ class VsArena {
     const stone = (c, r) => new THREE.MeshStandardMaterial({ color: c, roughness: r === undefined ? 0.9 : r, metalness: 0.02, flatShading: true });
     const floor = new THREE.Mesh(new THREE.CircleGeometry(30, 72), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.82, metalness: 0.04 }));
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; this.grp.add(floor);
-    const col = new THREE.Color(P.stone), dark = col.clone().multiplyScalar(0.62), darker = col.clone().multiplyScalar(0.4);
+    const col = new THREE.Color(P.stone), dark = col.clone().multiplyScalar(0.62), darker = P.mt !== undefined ? new THREE.Color(P.mt) : col.clone().multiplyScalar(0.4);
+    if (P.sea !== undefined) { const sea = new THREE.Mesh(new THREE.CircleGeometry(460, 40), new THREE.MeshBasicMaterial({ color: P.sea })); sea.rotation.x = -Math.PI / 2; sea.position.y = -36; this.grp.add(sea); }   // mar (agua, hielo o lava) bajo la plataforma
     const rim = new THREE.Mesh(new THREE.CylinderGeometry(30.9, 30.9, 1.1, 72, 1, true), stone(col)); rim.position.y = -0.55; this.grp.add(rim);
     const lip = new THREE.Mesh(new THREE.TorusGeometry(30.5, 0.45, 6, 72), stone(col.clone().multiplyScalar(1.08), 0.7)); lip.rotation.x = Math.PI / 2; lip.position.y = 0.05; lip.receiveShadow = true; this.grp.add(lip);
     const under = new THREE.Mesh(new THREE.ConeGeometry(30.9, 34, 14, 3), stone(dark)); under.rotation.x = Math.PI; under.position.y = -18.1; this.grp.add(under);
@@ -259,6 +272,7 @@ class VsArena {
     for (let i = 0; i < 26; i++) {
       const a = rnd() * 6.283, r = 62 + rnd() * 90, s = 1.5 + rnd() * 6;
       const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), stone(rnd() < 0.5 ? dark : darker)); m.position.set(Math.cos(a) * r, -14 + rnd() * 46, Math.sin(a) * r); m.scale.y = 0.6 + rnd() * 0.9;
+      if (P.glow !== undefined && i % 3 === 0) { m.material.emissive.setHex(P.glow); m.material.emissiveIntensity = 0.55; }      // algunas rocas arden o brillan
       m.userData = { y: m.position.y, p: rnd() * 6.28, v: 0.2 + rnd() * 0.4 }; this.grp.add(m); this.rocks.push(m);
     }
     for (let i = 0; i < 16; i++) {                                        // montañas lejanas, medio hundidas en la niebla
@@ -270,7 +284,7 @@ class VsArena {
   /** Textura del suelo dibujada en un lienzo: losas en anillos, cenefas y un emblema geométrico propio en el centro */
   floorCanvas(P) {
     const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), m = S / 2, col = new THREE.Color(P.stone);
-    const css = (k) => '#' + col.clone().multiplyScalar(k).getHexString();
+    const css = (k) => { const q = col.clone().multiplyScalar(k); q.r = Math.min(1, q.r); q.g = Math.min(1, q.g); q.b = Math.min(1, q.b); return '#' + q.getHexString(); };   // sin pasarse de 1: en piedra clara el color se desbordaba
     g.fillStyle = css(0.92); g.fillRect(0, 0, S, S);
     const rings = [0.99, 0.9, 0.74, 0.56, 0.38, 0.2]; let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     for (let r = 0; r < rings.length - 1; r++) {                          // losas: cada anillo con su número de piezas y un tono algo distinto por losa

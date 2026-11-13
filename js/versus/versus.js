@@ -58,8 +58,13 @@ const VS_CSS = `
 #vs .grid em{position:absolute;left:3px;top:2px;font:800 11px var(--disp);font-style:normal;text-shadow:0 1px 2px #000}
 #vs .pick{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;border:3px solid transparent;cursor:pointer;margin-bottom:8px;background:rgba(0,0,0,.25)}#vs .pick.on{border-color:#fff;background:rgba(255,255,255,.08)}
 #vs .pick canvas{width:62px;height:62px;border-radius:10px;background:#141826;image-rendering:pixelated;flex:none}#vs .pick b{display:block;font-size:17px;line-height:1.1}#vs .pick small{font:600 12px var(--body);color:var(--t2)}
+#vs .vst{display:grid;grid-template-columns:1fr;gap:3px;font:600 12px var(--body)}#vs .vst div{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.08)}#vs .vst span{color:var(--t2)}
+#vs .twi{font:600 13px/1.5 var(--body);color:var(--t2);padding:10px;border-radius:12px;background:rgba(0,0,0,.25);margin-bottom:8px}#vs .twi b{color:#ffc531}
+#vs .trn{position:absolute;left:18px;bottom:38px;display:none;pointer-events:auto;background:rgba(20,24,44,.78);border:2px solid rgba(255,255,255,.25);border-radius:12px;padding:8px 10px;font:600 12px/1.5 var(--body);max-width:330px}#vs .trn.on{display:block}#vs.cine .trn{opacity:0}#vs.touch .trn{bottom:auto;top:96px}
+#vs .trn b{color:#ffc531}#vs .trn .vseg{margin-top:5px}#vs .trn .vseg button{padding:4px 8px;font-size:12px}#vs .trn kbd{font:inherit;color:#141826;background:#fff;border-radius:3px;padding:0 4px;margin-right:4px}
 #vs .keys{font:600 12px/1.55 var(--body);color:var(--t2)}#vs .keys b{color:#fff}#vs .fight{width:100%;margin-top:10px;padding:13px;font-size:22px;border-radius:14px;border:3px solid #fff;background:var(--yel);color:#141826}
-@media (max-width:900px){#vs .sel{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto;overflow:auto}#vs .pt{width:52px;height:52px}#vs .nm{font-size:14px}#vs .clock{font-size:28px;width:52px}}
+#vs .clock small{white-space:nowrap}#vs.touch .trl kbd,#vs.touch .keys,#vs.touch .trn kbd{display:none}
+@media (max-width:900px),(max-height:520px){#vs .sel.on{display:block;overflow:auto}#vs .sel h1{font-size:24px;margin-bottom:10px}#vs .col{overflow:visible;margin-bottom:10px}#vs .grid{grid-template-columns:repeat(auto-fill,minmax(58px,1fr))}#vs .pt{width:52px;height:52px}#vs .nm{font-size:14px}#vs .clock{font-size:28px;width:52px}}
 `;
 const VS_HINT = '<b>WASD</b> mover · <b>Espacio/Mayús</b> subir/bajar · <b>J</b> golpe · <b>K</b> fuerte · <b>L</b> ki · <b>U</b> guardia · <b>I</b> dash · <b>O</b> teletransporte · <b>H</b> cargar · <b>Y</b> Ultimate · <b>T</b> transformarse · <b>Esc</b> pausa';
 const VS_KEYS_HTML = '<h4>JUGADOR 1 · TECLADO</h4><b>WASD</b> mover · <b>Espacio</b>/<b>Mayús izq.</b> subir y bajar<br><b>J</b> golpe · <b>K</b> golpe fuerte · <b>L</b> ki<br><b>U</b> guardia · <b>I</b> dash · <b>O</b> teletransporte<br><b>H</b> cargar ki · <b>Y</b> Ultimate · <b>T</b> transformarse' +
@@ -122,26 +127,28 @@ class VsActor {
 
 class Versus {
   constructor(game) {
-    this.g = game; this.active = false; this.cfg = { mode: 'cpu', level: 'normal', arena: 'dia', rounds: 2, pick: [null, null], side: 0 };
+    this.g = game; this.active = false; this.cfg = { mode: 'cpu', level: 'normal', arena: 'dia', rounds: 2, pick: [null, null], side: 0, dummy: 'still', tki: '1', ttm: '1' }; this.tw = null;
     const st = document.createElement('style'); st.textContent = VS_CSS; document.head.appendChild(st);
     const el = this.el = document.createElement('div'); el.id = 'vs';
     const side = (c) => '<div class="side ' + c + '"><canvas class="pt" width="74" height="74"></canvas><div class="inf"><div class="nm"><span></span><small></small></div><div class="hp"><i class="g"></i><i class="v"></i></div>' +
       '<div class="row"><div class="ki"><i></i></div><div class="gd"><i></i></div><div class="pips"></div></div><div class="row"><div class="tr"><i></i></div><span class="trl"></span></div></div></div>';
     el.innerHTML = '<div class="bars"><i></i><i></i></div><div class="top">' + side('l') + '<div class="clock"><small>RONDA 1</small><span>99</span></div>' + side('r') + '</div>' +
-      '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="ult"><b></b></div><div class="hint">' + VS_HINT + '</div>' +
+      '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="ult"><b></b></div><div class="hint">' + VS_HINT + '</div><div class="trn"></div>' +
       '<div class="pnl pause"><div class="box"><h2>PAUSA</h2><p>Modo Versus</p><button class="go" data-v="resume">Seguir</button><button data-v="reselect">Cambiar luchadores</button><button data-v="exit">Salir al menú</button></div></div>' +
-      '<div class="pnl end"><div class="box"><h2></h2><p></p><button class="go" data-v="rematch">Revancha</button><button data-v="reselect">Cambiar luchadores</button><button data-v="exit">Salir al menú</button></div></div>' +
+      '<div class="pnl end"><div class="box"></div></div>' +
       '<div class="sel"></div>';
     document.body.appendChild(el);
+    if (typeof IS_TOUCH !== 'undefined' && IS_TOUCH) { this.touch = new VsTouchPad(el, () => this.cmd('pause')); el.classList.add('touch'); }   // móvil y tableta: mandos en pantalla
     const q = (s) => el.querySelector(s), qa = (s) => [...el.querySelectorAll(s)];
     this.ui = { sides: qa('.side').map((s) => ({ pt: s.querySelector('.pt'), nm: s.querySelector('.nm span'), fm: s.querySelector('.nm small'), hp: s.querySelector('.hp'), g: s.querySelector('.hp .g'), v: s.querySelector('.hp .v'),
       ki: s.querySelector('.ki'), kiI: s.querySelector('.ki i'), gd: s.querySelector('.gd i'), pips: s.querySelector('.pips'), tr: s.querySelector('.tr'), trI: s.querySelector('.tr i'), trl: s.querySelector('.trl'), ghost: 1 })), cmb: qa('.cmb'), big: q('.big'), tag: q('.tag'), ult: q('.ult b'), ultBox: q('.ult'),
-      clock: q('.clock span'), rnd: q('.clock small'), pause: q('.pause'), end: q('.end'), sel: q('.sel') };
+      clock: q('.clock span'), rnd: q('.clock small'), pause: q('.pause'), end: q('.end'), sel: q('.sel'), trn: q('.trn') };
     el.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) { e.stopPropagation(); this.cmd(b.dataset.v, b.dataset.a); } });
     window.addEventListener('keydown', (e) => {
       if (!this.active || e.repeat) return;
       if (e.code === 'Escape') { if (this.sim && this.sim.phase !== 'end') this.cmd(this.paused ? 'resume' : 'pause'); else if (!this.sim) this.cmd('exit'); }
       else if (e.code === 'Enter' && !this.sim) this.cmd('fight');
+      else if (this.trn && !this.paused) { const k = { Digit1: 'dummy', Digit2: 'ki', Digit3: 'tm', KeyR: 'pos', Digit4: 'base' }[e.code]; if (k) this.cmd('trn', k); }
     });
   }
 
@@ -158,21 +165,25 @@ class Versus {
   }
   showSelect() {
     this.clearFight(); this.sim = null; this.paused = false; this.ui.pause.classList.remove('on'); this.ui.end.classList.remove('on'); this.el.classList.remove('cine');
-    for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r']) for (const n of this.el.querySelectorAll(k)) n.style.display = 'none';
+    for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r', '.tc']) for (const n of this.el.querySelectorAll(k)) n.style.display = 'none';
+    this.ui.trn.classList.remove('on'); this.trn = null; if (this.touch) this.touch.clear();
     this.ui.sel.classList.add('on'); this.renderSelect(); SFX.music('menu');
   }
   renderSelect() {
     const c = this.cfg, R = this.roster(), seg = (k, list) => '<div class="vseg">' + list.map(([v, t]) => '<button data-v="set" data-a="' + k + ':' + v + '"' + (String(c[k]) === String(v) ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>';
+    const p2 = c.mode === 'cpu' ? 'CPU' : c.mode === 'train' ? 'RIVAL DE PRÁCTICA' : 'JUGADOR 2';
     const who = (i) => { const ch = charById(c.pick[i].id), f = ch.forms[c.pick[i].f] || ch.forms[0]; return '<div class="pick' + (c.side === i ? ' on' : '') + '" data-v="side" data-a="' + i + '"><canvas width="62" height="62" data-pt="' + f.sheet + '"></canvas><div><small>' +
-      (i ? (c.mode === 'cpu' ? 'CPU' : 'JUGADOR 2') : 'JUGADOR 1') + '</small><b>' + nice(ch.name) + '</b><small>' + nice(f.name) + '</small></div></div>'; };
-    const cur = charById(c.pick[c.side].id);
+      (i ? p2 : 'JUGADOR 1') + '</small><b>' + nice(ch.name) + '</b><small>' + nice(f.name) + '</small></div></div>'; };
+    const cur = charById(c.pick[c.side].id), lad = c.mode === 'ladder', trn = c.mode === 'train', L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal;
     this.ui.sel.innerHTML = '<h1>MODO VERSUS <small>Combate 1 contra 1 en arena 3D</small><button data-v="exit">◀ Volver</button></h1>' +
-      '<div class="col"><h4>MODO</h4>' + seg('mode', [['cpu', 'Contra la CPU'], ['local', '2 jugadores']]) + (c.mode === 'cpu' ? '<h4>DIFICULTAD</h4>' + seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']]) : '') +
-      '<h4>ARENA</h4>' + seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name])) + '<h4>RONDAS PARA GANAR</h4>' + seg('rounds', [[1, '1'], [2, '2'], [3, '3']]) + '<div class="keys">' + VS_KEYS_HTML + '</div></div>' +
-      '<div class="col"><h4>ELIGE LUCHADOR PARA ' + (c.side ? (c.mode === 'cpu' ? 'LA CPU' : 'EL JUGADOR 2') : 'EL JUGADOR 1') + '</h4><div class="grid">' + R.map((ch) => '<button data-v="char" data-a="' + ch.id + '" class="' + (c.pick[0].id === ch.id ? 'p0 ' : '') + (c.pick[1].id === ch.id ? 'p1' : '') +
-        '" title="' + nice(ch.name) + '"><canvas width="74" height="74" data-pt="' + ch.forms[0].sheet + '"></canvas><em>' + (c.pick[0].id === ch.id ? 'J1 ' : '') + (c.pick[1].id === ch.id ? (c.mode === 'cpu' ? 'CPU' : 'J2') : '') + '</em></button>').join('') + '</div>' +
+      '<div class="col"><h4>MODO</h4>' + seg('mode', [['cpu', 'Contra la CPU'], ['local', '2 jugadores'], ['ladder', 'Torre'], ['train', 'Entrenamiento']]) + (c.mode === 'cpu' || lad ? '<h4>DIFICULTAD</h4>' + seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']]) : '') +
+      (trn ? '<h4>RIVAL DE PRÁCTICA</h4>' + seg('dummy', Object.keys(VS_DUMMY).map((k) => [k, VS_DUMMY[k]])) + '<h4>AYUDAS</h4>' + seg('tki', [['1', 'Ki infinito'], ['0', 'Ki normal']]) + '<div style="height:6px"></div>' + seg('ttm', [['1', 'Barra de transformación llena'], ['0', 'Barra normal']]) : '') +
+      (lad ? '' : '<h4>ARENA</h4>' + seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', '🎲 Al azar']]))) + (trn ? '' : '<h4>RONDAS PARA GANAR</h4>' + seg('rounds', [[1, '1'], [2, '2'], [3, '3']])) + '<div class="keys">' + VS_KEYS_HTML + '</div></div>' +
+      '<div class="col"><h4>ELIGE LUCHADOR PARA ' + (c.side ? (c.mode === 'cpu' ? 'LA CPU' : trn ? 'EL RIVAL DE PRÁCTICA' : 'EL JUGADOR 2') : 'EL JUGADOR 1') + '</h4><div class="grid">' + R.map((ch) => '<button data-v="char" data-a="' + ch.id + '" class="' + (c.pick[0].id === ch.id ? 'p0 ' : '') + (!lad && c.pick[1].id === ch.id ? 'p1' : '') +
+        '" title="' + nice(ch.name) + '"><canvas width="74" height="74" data-pt="' + ch.forms[0].sheet + '"></canvas><em>' + (c.pick[0].id === ch.id ? 'J1 ' : '') + (!lad && c.pick[1].id === ch.id ? (c.mode === 'cpu' ? 'CPU' : trn ? 'RIVAL' : 'J2') : '') + '</em></button>').join('') + '</div>' +
       '<h4>FORMA INICIAL · en combate se transforma hasta la última</h4>' + '<div class="vseg">' + cur.forms.map((f, i) => (SPRITE_DATA[f.sheet] ? '<button data-v="form" data-a="' + i + '"' + (c.pick[c.side].f === i ? ' class="on"' : '') + '>' + nice(f.name) + '</button>' : '')).join('') + '</div></div>' +
-      '<div class="col">' + who(0) + who(1) + '<button class="fight" data-v="fight">¡LUCHAR!</button></div>';
+      '<div class="col">' + who(0) + (lad ? '<div class="twi"><b>TORRE</b> · ' + VS_TOWER.n + ' rivales al azar, cada uno más duro que el anterior; el último es un <b>jefe</b> ya transformado. Tienes una continuación.<br>Premio: zeni y cristales en cada victoria y <b>' + L.cry + ' cristales</b> al superarla' +
+        (VsStats.d().tower[c.level] ? '' : ' (<b>el doble</b> la primera vez)') + '.</div>' : who(1)) + '<button class="fight" data-v="fight">' + (lad ? '¡SUBIR A LA TORRE!' : trn ? '¡ENTRENAR!' : '¡LUCHAR!') + '</button>' + VsStats.html(c.pick[0].id) + '</div>';
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-pt]')) this.portrait(cv, cv.dataset.pt);
   }
   /** Retrato: el busto del primer fotograma de la hoja, ampliado sin suavizar */
@@ -184,13 +195,25 @@ class Versus {
   }
   cmd(v, a) {
     const c = this.cfg;
-    if (v === 'set') { const [k, val] = a.split(':'); c[k] = k === 'rounds' ? +val : val; this.renderSelect(); }
+    if (v === 'set') { const [k, val] = a.split(':'); c[k] = k === 'rounds' ? +val : val; if (c.mode === 'ladder') c.side = 0; this.renderSelect(); }
     else if (v === 'side') { c.side = +a; this.renderSelect(); }
     else if (v === 'char') { c.pick[c.side] = { id: a, f: 0 }; SFX.play('ki'); this.renderSelect(); }
     else if (v === 'form') { c.pick[c.side].f = +a; this.renderSelect(); }
-    else if (v === 'fight' || v === 'rematch') this.start();
+    else if (v === 'fight') { if (c.mode === 'ladder') { this.tw = VS_TOWER.build(this.roster(), c.pick[0].id, VS_TOWER.levels[c.level] ? c.level : 'normal'); VsStats.d().towerRuns++; } this.start(); }
+    else if (v === 'rematch') this.start();
+    else if (v === 'next' && this.tw) { this.tw.i++; this.start(); }                    // Torre: siguiente rival
+    else if (v === 'retry' && this.tw && this.tw.cont > 0) { this.tw.cont--; this.start(); }
+    else if (v === 'trn' && this.trn && this.sim) {                                       // ajustes del entrenamiento, en caliente
+      const s = this.sim, K = Object.keys(VS_DUMMY);
+      if (a === 'dummy') { c.dummy = K[(K.indexOf(c.dummy) + 1) % K.length]; this.inputs[1] = new VsDummy(c.dummy); }
+      else if (a === 'ki') c.tki = c.tki === '1' ? '0' : '1';
+      else if (a === 'tm') c.ttm = c.ttm === '1' ? '0' : '1';
+      else if (a === 'pos' && !s.ult && !s.tr) { s.f[0].reset(7); s.f[1].reset(-7); s.shots.length = 0; s.blasts.length = 0; }
+      else if (a === 'base') { this.start(); return; }
+      SFX.play('ki'); this.renderTrn();
+    }
     else if (v === 'reselect') this.showSelect();
-    else if (v === 'pause') { this.paused = true; this.ui.pause.classList.add('on'); }
+    else if (v === 'pause') { if (!this.sim || this.sim.phase === 'end') return; this.paused = true; this.ui.pause.classList.add('on'); if (this.touch) this.touch.clear(); }
     else if (v === 'resume') { this.paused = false; this.ui.pause.classList.remove('on'); }
     else if (v === 'exit') this.close();
   }
@@ -202,7 +225,8 @@ class Versus {
   /* ---------------- Combate ---------------- */
   async start() {
     if (this.loading) return; this.loading = true;
-    const c = this.cfg, chains = c.pick.map((p) => vsChain(charById(p.id), p.f)), sheets = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))));
+    const c = this.cfg, tw = c.mode === 'ladder' ? this.tw : null, train = c.mode === 'train', picks = [c.pick[0], tw ? tw.foes[tw.i] : c.pick[1]], AK = Object.keys(VS_ARENAS);
+    const chains = picks.map((p) => vsChain(charById(p.id), p.f)), sheets = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))));
     this.loading = false; if (!this.active || sheets.some((s) => !s[0])) return;
     chains.forEach((ch, i) => { const n = sheets[i].findIndex((s) => !s); if (n > 0) { ch.length = n; sheets[i].length = n; } });   // si una hoja no carga, la cadena acaba antes
     const defs = chains.map((ch) => ch[0]);
@@ -210,20 +234,24 @@ class Versus {
     // Estado del renderizador que tocamos: se guarda y se devuelve al salir
     this.saved = { auto: r.shadowMap.autoUpdate, clear: r.getClearColor(new THREE.Color()).getHex() }; r.shadowMap.autoUpdate = true;
     const scene = this.scene = new THREE.Scene(), low = Save.d.opt.quality === 'low';
-    this.arena = new VsArena(scene, c.arena, low); this.cam = new VsCamera(); this.post = low ? null : new VsPost(r);
+    // La Torre cambia de arena en cada combate
+    this.arena = new VsArena(scene, tw || c.arena === 'azar' ? AK[(Math.random() * AK.length) | 0] : c.arena, low); this.cam = new VsCamera(); this.post = low ? null : new VsPost(r);
     this.fxA = new VsParticles(scene, 700, false, 3); this.fx = new VsParticles(scene, 1100, true, 9); this.beam = new VsBeam(scene);
     this.actors = chains.map((ch, i) => new VsActor(this, ch, sheets[i]));
     this.ghosts = []; for (let i = 0; i < 14; i++) { const s = new VsSprite(scene, false); s.mesh.visible = false; s.life = 0; s.mesh.renderOrder = 2; this.ghosts.push(s); }
-    this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: c.rounds });
-    const p1 = new VsMulti([new VsKeyboard(VS_KEYS[0]), new VsGamepad(0)]);
-    this.inputs = [p1, c.mode === 'cpu' ? new VsAI(c.level) : new VsMulti([new VsKeyboard(VS_KEYS[1]), new VsGamepad(1)])];
-    this.acc = 0; this.time = 0; this.scale = 1; this.slow = 0; this.dim = 0; this.dimCol = 0; this.blur = 0; this.chroma = 0; this.flash = 0; this.paused = false; this.chargeSnd = 0; this.trCol = 0xffffff; this.p2cpu = c.mode === 'cpu';
+    this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train ? 1 : c.rounds, noKO: train, noTime: train });
+    const p1 = new VsMulti([new VsKeyboard(VS_KEYS[0]), new VsGamepad(0)].concat(this.touch ? [this.touch] : []));
+    this.inputs = [p1, tw ? VS_TOWER.ai(tw) : train ? new VsDummy(c.dummy) : c.mode === 'cpu' ? new VsAI(c.level) : new VsMulti([new VsKeyboard(VS_KEYS[1]), new VsGamepad(1)])];
+    this.run = { tr: 0, ult: 0, sup: 0, parry: 0, maxCombo: 0, maxDmg: 0 };       // lo que hace el jugador 1 en este combate (estadísticas)
+    this.trn = train ? { cmb: 0, dmg: 0, max: 0 } : null; this.sfx2 = c.mode === 'local' ? '' : train ? ' · PRÁCTICA' : ' · CPU'; this.shownT = null;
+    this.acc = 0; this.time = 0; this.scale = 1; this.slow = 0; this.dim = 0; this.dimCol = 0; this.blur = 0; this.chroma = 0; this.flash = 0; this.paused = false; this.chargeSnd = 0; this.trCol = 0xffffff; this.p2cpu = c.mode !== 'local';
     this.prev = this.sim.f.map((f) => ({ x: f.x, y: f.y, z: f.z }));
     // HUD
     this.ui.sel.classList.remove('on'); this.ui.end.classList.remove('on'); this.ui.pause.classList.remove('on');
-    for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r']) for (const n of this.el.querySelectorAll(k)) n.style.display = '';
-    this.ui.sides.forEach((s, i) => { s.nm.textContent = defs[i].name; s.fm.textContent = nice(defs[i].form) + (i && c.mode === 'cpu' ? ' · CPU' : ''); s.ghost = 1; s.can = null; s.trl.textContent = ''; this.portrait(s.pt, defs[i].sheet);
-      s.kiI.style.background = ''; s.pips.innerHTML = '<b></b>'.repeat(c.rounds); });
+    for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r', '.tc']) for (const n of this.el.querySelectorAll(k)) n.style.display = '';
+    this.ui.trn.classList.toggle('on', train); if (train) this.renderTrn(); if (this.touch) this.touch.clear();
+    this.ui.sides.forEach((s, i) => { s.nm.textContent = defs[i].name; s.fm.textContent = nice(defs[i].form) + (i ? this.sfx2 : ''); s.ghost = 1; s.can = null; s.trl.textContent = ''; this.portrait(s.pt, defs[i].sheet);
+      s.kiI.style.background = ''; s.pips.innerHTML = train ? '' : '<b></b>'.repeat(c.rounds); s.wins = -1; });
     this.cam.update(0.016, this.sim, true); SFX.music('boss');
   }
   clearFight() {
@@ -245,6 +273,10 @@ class Versus {
         this.acc -= VS_DT; for (let i = 0; i < 2; i++) { const f = sim.f[i], p = this.prev[i]; p.x = f.x; p.y = f.y; p.z = f.z; }
         sim.step(this.inputs[0].read(sim, 0), this.inputs[1].read(sim, 1));
         for (const e of sim.ev) this.onEvent(e); sim.ev.length = 0;
+        if (this.trn) {                                                    // entrenamiento: nadie muere y las ayudas rellenan las barras
+          const a = sim.f[0], b = sim.f[1], c = this.cfg; a.hp = a.hpMax; if (a.cmb === 0 && b.st !== 'hurt' && b.st !== 'launched' && b.st !== 'held' && b.st !== 'down') b.hp = b.hpMax;
+          if (c.tki === '1' && !sim.ult) a.ki = 100; if (c.ttm === '1' && a.fi < a.chain.length - 1) a.tm = 100;
+        }
         this.simFx();
       }
       this.draw(dt, rawDt);
@@ -281,7 +313,9 @@ class Versus {
   onEvent(e) {
     const sim = this.sim, cam = this.cam, fx = this.fx;
     switch (e.t) {
-      case 'round': this.say('RONDA ' + e.n, 1.5); this.ui.rnd.textContent = 'RONDA ' + e.n; cam.update(0.016, sim, true); break;
+      case 'round': { const tw = this.cfg.mode === 'ladder' && this.tw;
+        this.say(this.trn ? 'ENTRENAMIENTO' : tw && e.n === 1 ? (tw.i === VS_TOWER.n - 1 ? 'JEFE FINAL' : 'RIVAL ' + (tw.i + 1) + ' DE ' + VS_TOWER.n) : 'RONDA ' + e.n, 1.5);
+        this.ui.rnd.textContent = this.trn ? 'PRÁCTICA' : tw ? 'TORRE ' + (tw.i + 1) + '/' + VS_TOWER.n + ' · R' + e.n : 'RONDA ' + e.n; } cam.update(0.016, sim, true); break;
       case 'fight': this.say('¡LUCHA!', 0.9); SFX.play('crit'); break;
       case 'swing': if (e.heavy) SFX.play('slash'); break;
       case 'hit': {
@@ -292,7 +326,7 @@ class Versus {
         SFX.play(e.heavy ? 'crit' : 'hit'); g_rumble(e.heavy ? 160 : 60, e.heavy ? 0.8 : 0.35); break;
       }
       case 'guard': fx.add(1, e.x, e.y, e.z, 1.5, 0x9adcff, { s1: 4.6, life: 0.2 }); this.burst(e.x, e.y, e.z, 0x9adcff, 5, 9, 1); cam.shake(0.16); SFX.play('block'); break;
-      case 'parry': fx.add(3, e.x, e.y, e.z, 3, 0xffffff, { s1: 6, life: 0.22 }); fx.add(1, e.x, e.y, e.z, 1.5, 0xffe27a, { s1: 6.5, life: 0.28 }); this.burst(e.x, e.y, e.z, 0xffe27a, 14, 20, 1.1); this.flash = 0.3; cam.shake(0.5); this.tag('¡CONTRAATAQUE!'); SFX.play('crit'); break;
+      case 'parry': if (e.i === 0) this.run.parry++; fx.add(3, e.x, e.y, e.z, 3, 0xffffff, { s1: 6, life: 0.22 }); fx.add(1, e.x, e.y, e.z, 1.5, 0xffe27a, { s1: 6.5, life: 0.28 }); this.burst(e.x, e.y, e.z, 0xffe27a, 14, 20, 1.1); this.flash = 0.3; cam.shake(0.5); this.tag('¡CONTRAATAQUE!'); SFX.play('crit'); break;
       case 'break': this.burst(e.x, e.y, e.z, 0x9adcff, 22, 22, 1.2); fx.add(1, e.x, e.y, e.z, 1.5, 0x9adcff, { s1: 7.5, life: 0.32 }); cam.shake(0.6); this.tag('¡GUARDIA ROTA!'); SFX.play('boom'); break;
       case 'shot': fx.add(3, e.x, e.y, e.z, 1.2, 0xffffff, { s1: 2.2, life: 0.1, a: 0.8 }); SFX.play('ki'); break;
       case 'pop': fx.add(0, e.x, e.y, e.z, 1.6, e.col, { s1: 3.2, life: 0.18, a: 0.6 }); fx.add(1, e.x, e.y, e.z, 0.8, e.col, { s1: 3.4, life: 0.2 }); this.burst(e.x, e.y, e.z, e.col, 6, 12, 1); break;
@@ -302,7 +336,8 @@ class Versus {
       case 'pursue': this.blur = 0.8; fx.add(1, e.x, e.y + 1.6, e.z, 7, this.actors[e.i].def.col, { s1: 1, life: 0.2 }); this.tag('¡PERSECUCIÓN!'); SFX.play('dash'); break;
       case 'land': this.dust(e.x, e.z, e.hard ? 16 : 8, e.hard ? 11 : 6); if (e.hard) { this.fxA.add(1, e.x, 0.07, e.z, 2, 0x4a4038, { s1: 11, life: 0.5, flat: true, a: 0.7 }); cam.shake(0.62); SFX.play('boom'); } break;
       case 'wall': this.burst(e.x, e.y, e.z, 0xffffff, 16, 20, 1.6); fx.add(1, e.x, e.y, e.z, 2, 0xffffff, { s1: 13, life: 0.3 }); cam.shake(0.8); SFX.play('boom'); break;
-      case 'dmg': { const c = this.ui.cmb[1 - e.i]; if (e.cmb >= 2) { c.firstChild.textContent = e.cmb + ' GOLPES'; c.lastChild.textContent = Math.round(e.tot) + ' DE DAÑO'; c.classList.add('on'); c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); c.t = 1.4; } break; }
+      case 'dmg': { if (e.i === 1) { const r = this.run; r.maxCombo = Math.max(r.maxCombo, e.cmb); r.maxDmg = Math.max(r.maxDmg, e.tot); if (this.trn) { const t = this.trn; t.cmb = e.cmb; t.dmg = e.tot; t.max = Math.max(t.max, e.tot); this.renderTrn(true); } }
+        const c = this.ui.cmb[1 - e.i]; if (e.cmb >= 2) { c.firstChild.textContent = e.cmb + ' GOLPES'; c.lastChild.textContent = Math.round(e.tot) + ' DE DAÑO'; c.classList.add('on'); c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); c.t = 1.4; } break; }
       case 'ko': this.say('K.O.', 2.4); this.slow = 1.5; this.flash = 0.28; cam.shake(1.2); this.boomLite(e); SFX.play('bigboom'); g_rumble(400, 1);
         { const l = sim.f[1 - e.w]; cam.play(1.4, (k, P, L) => { const dx = P.x - l.x, dy = P.y - l.y - 1.6, dz = P.z - l.z, d = Math.hypot(dx, dy, dz) || 1, r = Math.max(10, d * 0.62);   // se acerca al derrotado sin atravesarlo
           L.set(l.x, l.y + 1.6, l.z); P.set(l.x + dx / d * r, l.y + 2.4 + dy / d * r, l.z + dz / d * r); return 34; }); } break;
@@ -319,8 +354,8 @@ class Versus {
         this.flash = 0.3; SFX.play('charge'); if (SFX.scream) SFX.scream(VS.TR_SWAP + 0.3, 165); break;
       }
       case 'trSwap': {                                                  // estallido: nueva forma, onda expansiva y nombre
-        const a = this.actors[e.i], f = sim.f[e.i], h = this.ui.sides[e.i]; a.setForm(f.fi); a.pop = 1; const col = a.def.col, x = e.x, y = e.y + 1.7, z = e.z;
-        h.fm.textContent = nice(a.def.form) + (e.i && this.p2cpu ? ' · CPU' : ''); this.portrait(h.pt, a.def.sheet);
+        if (e.i === 0) this.run.tr++; const a = this.actors[e.i], f = sim.f[e.i], h = this.ui.sides[e.i]; a.setForm(f.fi); a.pop = 1; const col = a.def.col, x = e.x, y = e.y + 1.7, z = e.z;
+        h.fm.textContent = nice(a.def.form) + (e.i ? this.sfx2 : ''); this.portrait(h.pt, a.def.sheet);
         this.ui.ult.textContent = nice(a.def.form); this.ui.ult.style.setProperty('--c', '#' + col.toString(16).padStart(6, '0')); this.ui.ultBox.classList.remove('off'); this.dimCol = col;
         fx.add(0, x, y, z, 4, 0xffffff, { s1: 11, life: 0.4, a: 0.6 }); fx.add(0, x, y, z, 6, col, { s1: 20, life: 0.8, a: 0.3 }); fx.add(3, x, y, z, 6, 0xffffff, { s1: 13, life: 0.3, a: 0.8 });
         for (let k = 0; k < 3; k++) { fx.add(1, x, 0.1, z, 2, k ? col : 0xffffff, { s1: 44 + k * 24, life: 0.55 + k * 0.22, flat: true, a: 0.5 }); fx.add(1, x, y, z, 2, k ? col : 0xffffff, { s1: 20 + k * 14, life: 0.4 + k * 0.15, a: 0.5 }); }
@@ -333,7 +368,7 @@ class Versus {
       case 'beamGnd': this.dust(e.x, e.z, 7, 12); fx.add(1, e.x, 0.1, e.z, 2, e.col, { s1: 13, life: 0.3, flat: true, a: 0.8 }); this.burst(e.x, 0.6, e.z, e.col, 8, 20, 1.5);
         for (let k = 0; k < 3; k++) { const an = Math.random() * 6.283, v = 6 + Math.random() * 10; this.fxA.add(5, e.x, 0.3, e.z, 0.3 + Math.random() * 0.3, 0x2a2430, { vx: Math.cos(an) * v, vz: Math.sin(an) * v, vy: 8 + Math.random() * 9, g: 28, life: 1.1, bounce: true, s1: 0.2 }); } break;
       case 'ultStart': {
-        this.ui.ultBox.classList.remove('off'); if (e.sup) { this.tag('¡ULTIMATE SUPERIOR!'); const f0 = sim.f[e.i]; for (let k = 0; k < 6; k++) { const an = k * 1.05; this.bolt(f0.x + Math.cos(an) * 7, f0.y + 13, f0.z + Math.sin(an) * 7, f0.x, f0.y + 1.5, f0.z, k & 1 ? e.col : 0xffffff, 1, 0.2); } }
+        if (e.i === 0) { this.run.ult++; if (e.sup) this.run.sup++; } this.ui.ultBox.classList.remove('off'); if (e.sup) { this.tag('¡ULTIMATE SUPERIOR!'); const f0 = sim.f[e.i]; for (let k = 0; k < 6; k++) { const an = k * 1.05; this.bolt(f0.x + Math.cos(an) * 7, f0.y + 13, f0.z + Math.sin(an) * 7, f0.x, f0.y + 1.5, f0.z, k & 1 ? e.col : 0xffffff, 1, 0.2); } }
         this.el.classList.add('cine'); this.ui.ult.textContent = e.name; this.ui.ult.style.setProperty('--c', '#' + e.col.toString(16).padStart(6, '0')); this.dim = 1; this.dimCol = e.col;
         const f = sim.f[e.i], a0 = cam.ang, s = e.i ? -1 : 1;
         cam.play(VS.ULT_CINE, (k, P, L) => { const a = a0 + s * (0.5 - k * 1.0), r = 8.4 - 3 * k; L.set(f.x, f.y + 1.9, f.z); P.set(f.x + Math.cos(a) * r, f.y + 2.6 - k * 1.1, f.z + Math.sin(a) * r); return 36 - 8 * k; });
@@ -363,10 +398,31 @@ class Versus {
   }
   boomLite(e) { this.fx.add(0, e.x, e.y, e.z, 2, 0xffffff, { s1: 4.5, life: 0.3, a: 0.5 }); this.fx.add(1, e.x, e.y, e.z, 1.5, 0xffffff, { s1: 9, life: 0.4, a: 0.8 }); this.burst(e.x, e.y, e.z, 0xffffff, 22, 26, 1.1); }
   finish(w) {
-    const d = this.actors[w].def, c = this.cfg; this.ui.end.querySelector('h2').textContent = '¡GANA ' + d.name + '!';
-    this.ui.end.querySelector('p').textContent = (w === 0 ? 'Jugador 1' : c.mode === 'cpu' ? 'CPU' : 'Jugador 2') + ' · ' + this.sim.f[0].wins + ' - ' + this.sim.f[1].wins;
+    const d = this.actors[w].def, c = this.cfg, sim = this.sim, tw = c.mode === 'ladder' ? this.tw : null, win = w === 0, S = VsStats.d(), N = VS_TOWER.n;
+    VsStats.fight(c.pick[0].id, win, win && sim.f[1].wins === 0, Math.round(sim.tick / 60), this.run, c.mode === 'local');
+    let h2 = '¡GANA ' + d.name + '!', p = (win ? 'Jugador 1' : c.mode === 'local' ? 'Jugador 2' : 'CPU') + ' · ' + sim.f[0].wins + ' - ' + sim.f[1].wins, btn = [['rematch', 'Revancha'], ['reselect', 'Cambiar luchadores'], ['exit', 'Salir al menú']];
+    if (tw) {                                                           // Torre: premio por victoria, siguiente rival o fin
+      if (win) {
+        const z = 100 * (tw.i + 1), cr = 15; tw.zeni += z; tw.cry += cr; Save.d.zeni += z; Save.d.crystals = (Save.d.crystals || 0) + cr; S.towerBest = Math.max(S.towerBest, tw.i + 1);
+        if (tw.i >= N - 1) {
+          const first = !S.tower[tw.level], bonus = VS_TOWER.levels[tw.level].cry * (first ? 2 : 1); S.tower[tw.level] = (S.tower[tw.level] || 0) + 1; Save.d.crystals += bonus; tw.cry += bonus;
+          h2 = '¡TORRE SUPERADA!'; p = N + ' rivales derrotados · +' + tw.zeni + ' zeni · +' + tw.cry + ' cristales' + (first ? ' (primera vez: premio doble)' : ''); btn = [['reselect', 'Volver al Versus'], ['exit', 'Salir al menú']]; SFX.play('stinger');
+        } else { h2 = '¡VICTORIA!'; p = 'Rival ' + (tw.i + 1) + ' de ' + N + ' superado · +' + z + ' zeni · +' + cr + ' cristales<br>Siguiente: <b>' + nice(charById(tw.foes[tw.i + 1].id).name) + '</b>' + (tw.i + 1 === N - 1 ? ' · jefe final' : ''); btn = [['next', 'Siguiente combate'], ['reselect', 'Abandonar la torre']]; }
+      } else { h2 = 'DERROTA'; p = 'Has caído ante ' + d.name + ' en el combate ' + (tw.i + 1) + ' de ' + N + '.'; btn = tw.cont > 0 ? [['retry', 'Reintentar (queda 1 continuación)'], ['reselect', 'Abandonar la torre']] : [['reselect', 'Volver al Versus'], ['exit', 'Salir al menú']]; }
+      Save.write();
+    }
+    this.ui.end.firstChild.innerHTML = '<h2>' + h2 + '</h2><p>' + p + '</p>' + btn.map((b, i) => '<button' + (i ? '' : ' class="go"') + ' data-v="' + b[0] + '">' + b[1] + '</button>').join(''); if (this.touch) this.touch.clear();
     setTimeout(() => { if (this.sim && this.sim.phase === 'end') this.ui.end.classList.add('on'); }, 900); SFX.music('menu');
   }
+
+  /** Panel del entrenamiento: último combo, récord de la sesión y ajustes (también con las teclas 1-4 y R) */
+  renderTrn(onlyNums) {
+    const t = this.trn, c = this.cfg, el = this.ui.trn; if (!t) return;
+    if (onlyNums && el.firstChild) { el.firstChild.innerHTML = this.trnNums(); return; }
+    const b = (k, key, txt) => '<button data-v="trn" data-a="' + k + '"><kbd>' + key + '</kbd>' + txt + '</button>';
+    el.innerHTML = '<div>' + this.trnNums() + '</div><div class="vseg">' + b('dummy', '1', 'Rival: ' + VS_DUMMY[c.dummy]) + b('ki', '2', 'Ki ' + (c.tki === '1' ? 'infinito' : 'normal')) + b('tm', '3', 'Barra ' + (c.ttm === '1' ? 'llena' : 'normal')) + b('pos', 'R', 'Recolocar') + b('base', '4', 'Volver a base') + '</div>';
+  }
+  trnNums() { const t = this.trn; return 'Último combo: <b>' + t.cmb + ' golpes</b> · <b>' + Math.round(t.dmg) + '</b> de daño · Récord: <b>' + Math.round(t.max) + '</b>'; }
 
   /** Efectos que dependen del estado de cada paso (estelas, carga, chispas del rayo) */
   simFx() {
@@ -386,6 +442,11 @@ class Versus {
       if (f.st === 'stun' && T % 5 === 0) { const a = T * 0.2; fx.add(3, f.x + Math.cos(a) * 1.1, f.y + 3.5, f.z + Math.sin(a) * 1.1, 1.1, 0xffe27a, { life: 0.25 }); }
     }
     for (const s of sim.shots) if (!s.big && (T & 1) === 0) fx.add(0, s.x, s.y, s.z, 1.7, s.col, { s1: 0.3, life: 0.2, a: 0.7 });
+    const am = this.arena.P.amb;                                        // ambiente de la arena: nieve, ascuas, polvo, motas...
+    if (am && Math.random() < am.n / 60) {
+      const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * 38, up = am.vy > 0;
+      (am.add ? fx : this.fxA).add(am.kind, Math.cos(a) * r, up ? Math.random() * 3 : 16 + Math.random() * 10, Math.sin(a) * r, am.s * (0.6 + Math.random() * 0.8), am.col, { vx: (am.vx || 0) + (Math.random() - 0.5) * 2, vy: am.vy * (0.7 + Math.random() * 0.6), vz: (Math.random() - 0.5) * 2, life: am.life || 4, a: am.a || 0.7, s1: am.s * 0.5 });
+    }
     const tr = sim.tr;
     if (tr) {                                                           // transformación en marcha
       const f = sim.f[tr.who], col = this.trCol, x = f.x, y = f.y, z = f.z, R = Math.random;
@@ -497,7 +558,8 @@ class Versus {
       if (h.wins !== f.wins) { h.wins = f.wins; [...h.pips.children].forEach((b, n) => b.classList.toggle('w', n < f.wins)); }
       const c = this.ui.cmb[i]; if (c.t > 0 && (c.t -= rawDt) <= 0) c.classList.remove('on');
     }
-    const tt = Math.ceil(sim.time); if (tt !== this.shownT) { this.shownT = tt; this.ui.clock.textContent = tt; }
+    const tt = Math.ceil(sim.time); if (tt !== this.shownT) { this.shownT = tt; this.ui.clock.textContent = this.trn ? '∞' : tt; }
+    if (this.touch) this.touch.ready(sim.f[0].ki >= 100 && sim.phase === 'fight', sim.f[0].canTrans && sim.phase === 'fight');
     for (const g of this.ghosts) if (g.life > 0) { g.life -= dt; g.u.uAlpha.value = Math.max(0, g.life / g.max) * 0.42; if (g.life <= 0) g.mesh.visible = false; }
     this.fx.update(dt); this.fxA.update(dt); this.fx.flush(); this.fxA.flush();
   }
