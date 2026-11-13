@@ -102,6 +102,7 @@ const TRANSFORM_FX = {
     null,
     { c1: '#ffd400', c2: '#fff6a0', quote: '¡¡KAKAROTTO!!', frames: 'BIWIC', charge: 1.9, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#fff27a', shake: 1.3, kanji: '超サイヤ人' },
     { c1: '#7dff5a', c2: '#e8ffd0', quote: '¡¡GRAAAAAAAAAAAHHH!!', frames: 'BIWIBIWC', charge: 2.6, fx: ['rocks', 'cracks', 'bolts', 'quake', 'shatter'], bolt: '#b8ff8a', shake: 1.6, kanji: '伝説の超サイヤ人' },
+    { c1: '#ffc400', c2: '#fff0a0', quote: '¡¡KAKAROTTOOOOO!!', frames: 'BIWIBIWC', charge: 2.6, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#ffe14a', shake: 1.5, kanji: '超サイヤ人３' },
     { c1: '#ff2a1a', c2: '#ffb090', quote: 'Soy el demonio...', frames: 'BIWIBC', charge: 2.2, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#ff8a6a', shake: 1.4, kanji: '超サイヤ人４' }
   ]
 };

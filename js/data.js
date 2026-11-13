@@ -11,7 +11,7 @@ const SHEET_NAMES = ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku
   'vegeta', 'vegeta_ss', 'vegeta_grade', 'vegeta_majin', 'vegeta_ss4', 'vegeta_god', 'vegeta_blue', 'vegeta_bfp',
   'black', 'black_ss', 'black_rose', 'black_boss', 'gohan', 'gohan_ss', 'gohan_ss2', 'gohan_ul',
   'freezer1', 'freezer3', 'freezer', 'freezer_fp', 'freezer_gold', 'trunks', 'trunks_ss', 'cell_imp', 'cell_semi', 'cell', 'piccolo', 'krilin',
-  'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4', 'gogeta_base', 'gogeta', 'gogeta_ss2', 'gogeta_blue',
+  'vegito', 'vegito_ss', 'vegito_ss2', 'vegito_blue', 'broly', 'broly_ss', 'broly_lss', 'broly_ss3', 'broly_ss4', 'bardock', 'bardock_ss', 'bardock_ss4', 'gogeta_base', 'gogeta', 'gogeta_ss2', 'gogeta_blue',
   'goku_chg', 'vegeta_chg', 'black_chg', 'gohan_chg', 'freezer_chg', 'trunks_chg', 'cell_chg', 'piccolo_chg', 'vegito_chg', 'broly_chg', 'bardock_chg', 'gogeta_chg', 'krilin_chg', 'kefla_chg', 'gotenks_chg', 'trunksarm_chg', 'caulifla_chg', 'kale_chg', 'kyabe_chg', 'toppo_chg', 'janemba_chg', 'jiren_chg', 'turles_chg', 'saibaman_chg', 'bills_chg', 'cooler_chg', 'hitto_chg', 'raditz_chg', 'andro16_chg', 'andro17_chg', 'andro18_chg', 'majin_chg', 'superbuu_chg', 'zamasu_chg', 'zamasuf_chg',
   'vegito_intro', 'gogeta_intro',
   'enemies', 'bosses', 'fx', 'fxbig', 'fxzip', 'kefla', 'gotenks', 'trunksarm', 'caulifla', 'kale', 'kyabe', 'toppo', 'janemba', 'jiren', 'turles', 'saibaman', 'bills', 'cooler', 'hitto', 'raditz', 'andro16', 'andro17', 'andro18', 'majin', 'superbuu', 'zamasu', 'zamasuf', 'zamasuf_cor', 'zamasuf_div', 'zamasuf_intro', 'props', 'tall', 'icons', 'tiles'];
@@ -216,6 +216,7 @@ const CHARACTERS = [
       form('BROLY CONTENIDO', 1, 'broly', A_HD, 1.0, 1.0, 0x9fe8c0, 0, 0xffffff),
       form('SUPER SAIYAN', 11, 'broly_ss', A_HD, 1.55, 1.08, 0xffe14a, 0xffd84a, 0xffffff),
       form('SUPER SAIYAN LEGENDARIO', 22, 'broly_lss', A_HD, 2.4, 1.12, 0x9aff6a, 0x7dff5a, 0xffffff),
+      form('SUPER SAIYAN 3', 28, 'broly_ss3', packAnim('broly_ss3'), 2.9, 1.16, 0xffe14a, 0xffd84a, 0xffffff),   // hoja propia (assets/broly3.js) con su tabla de animación
       form('SUPER SAIYAN 4', 34, 'broly_ss4', A_HD, 3.4, 1.2, 0xff6a5a, 0xff3a2a, 0xffffff)
     ]
   },
@@ -1333,6 +1334,7 @@ const TRAITS = {
   broly: [null,
     { name: 'Furia creciente', good: 'Cada golpe recibido sube tu daño (hasta +30%)', bad: '-10% de velocidad', m: { spd: -0.1 }, t: { ego: 0.3 } },
     { name: 'Poder sin control', good: '+30% de daño y tu aura quema a los enemigos', bad: 'Gasta 4 de Ki/s sin regenerarlo y recibes un 10% más de daño', m: { dmg: 0.3, armor: -0.1 }, t: { aura: 36, kiDrain: 4 } },
+    { name: 'Poder desbordado', good: '+35% de daño y +10% de velocidad', bad: '-25% de regeneración de Ki', m: { dmg: 0.35, spd: 0.1, kiRegen: -0.25 } },
     { name: 'Bestia primigenia', good: '+40% de vida máxima y +15% de armadura', bad: '-15% de velocidad', m: { maxHp: 0.4, armor: 0.15, spd: -0.15 } }
   ]
 };
@@ -1379,7 +1381,7 @@ const FORM_FX = {
   bardock: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { bolt: 0xff6a4a, burst: 'tfRose' }],
   vegito: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { spark: 'lightB', bolt: 0x8ad8ff, burst: 'tfStar' }],
   gogeta: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraSS2', bolt: 0xbfe8ff, spark: 'sparkY', burst: 'tfGold' }, { spark: 'lightB', bolt: 0x8ad8ff, burst: 'tfStar' }, { a: 'auraSS1', bolt: 0xff5a4a, spark: 'sparkY', burst: 'tfGold' }],
-  broly: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraGold', bolt: 0x9aff6a, spark: 'sparkG', burst: 'tfGold' }, { bolt: 0xff6a4a, burst: 'tfRose' }]
+  broly: [null, { a: 'auraGold', spark: 'sparkY', burst: 'tfGold2' }, { a: 'auraGold', bolt: 0x9aff6a, spark: 'sparkG', burst: 'tfGold' }, { a: 'auraSS3', bolt: 0xfff27a, spark: 'sparkY', burst: 'tfGold' }, { bolt: 0xff6a4a, burst: 'tfRose' }]
 };
 const formFx = (ch, idx) => (FORM_FX[ch.id] || [])[idx] || null;
 
@@ -1397,7 +1399,7 @@ const FORM_CHG = {
   cell: [[0, 3], [3, 3], [6, 3], [6, 3]],
   piccolo: [[0, 2], [0, 2], [0, 2], [0, 2]],
   vegito: [[0, 3], [3, 3], [6, 3], [9, 3]],
-  broly: [[0, 3], [3, 2], [5, 3], [8, 3]],
+  broly: [[0, 3], [3, 2], [5, 3], null, [8, 3]],     // el SSJ3 carga con la pose de su propia hoja
   bardock: [[0, 3], [3, 2], [5, 3]],
   gogeta: [[0, 3], [3, 3], [6, 3], [9, 3]],
   // Zamasu fusionado: una tira de 3 fotogramas por forma
@@ -1449,6 +1451,7 @@ const SPRITE_CREDITS = [
   { author: "papurotekikujimo", what: ["Gohan Mistico"] },
   { author: "Vsouza", what: ["Vegeta Ssj God"] },
   { author: "Woothrad", what: ["Vegeta Blue Full Power"] },
+  { author: "Andrés Gamen", what: ["Broly SSJ 3"] },
   { author: "reeck495", what: ["Caulifla"] },
   { author: "KEEGIXE", what: ["Jiren"] },
   { author: "Bite035", what: ["Kale SSJ"] },

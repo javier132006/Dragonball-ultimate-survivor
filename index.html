@@ -1676,6 +1676,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
     LOAD.step('sprites', 0.02, 'Cargando personajes, enemigos y efectos…');
     try { await bigScript('assets/sprites.js', 'sprites', 'Cargando personajes, enemigos y efectos'); } catch (e) { console.error(e); }
     try { await script('assets/zl3.js'); } catch (e) { console.error(e); }       // sprites de Z Legends 3 para el 3D
+    try { await script('assets/broly3.js'); } catch (e) { console.error(e); }    // Broly Super Saiyan 3 (sprites de Andrés Gamen)
     try { await script('assets/pfx.js'); } catch (e) { console.error(e); }       // efectos de pixel art de pixelfx (MIT)
     try { await script('assets/summons.js'); } catch (e) { console.error(e); }  // guerreros y transformaciones del Altar de Shenron
     LOAD.step('sprites', 1, 'Preparando el código del juego…');
