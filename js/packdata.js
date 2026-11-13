@@ -1,7 +1,9 @@
 /* =====================================================================
    packdata.js · Altar de Shenron: invocaciones con Cristales del Dragón
    Guerreros y transformaciones de los «PACK DE SPRITES V3, V4 y V5»
-   (assets/summons.js · tools/make_summons.py). Todos traen animaciones
+   (assets/summons.js) y, en la segunda tanda (assets/summons2.js), de
+   los packs de Andrés Gamen y del pack de SSJ5 de Vianjo. Todo sale de
+   tools/make_summons.py. Todos traen animaciones
    de verdad: quieto, andar, golpes, rayo, dash, golpe recibido, caída,
    cargar ki con su aura y un retrato grande.
    Se carga ANTES de data.js; data.js llama a packInstall() en cada punto
@@ -31,18 +33,37 @@ const GUNITS = [
   ['yamcha', 'char', null, 'YAMCHA', 1, 0xffe07a, 0x7ad0ff],
   ['gohankid', 'char', null, 'GOHAN (NIÑO)', 1, 0x8ad8ff, 0x8ad8ff],
   ['ginyu', 'char', null, 'CAPITÁN GINYU', 1, 0xc88aff, 0xe8f0ff],
-  ['dabura', 'char', null, 'DABURA', 1, 0xff6a4a, 0x6a8aff]
+  ['dabura', 'char', null, 'DABURA', 1, 0xff6a4a, 0x6a8aff],
+  // Segunda tanda (assets/summons2.js)
+  ['goku_ss4g', 'form', 'goku', 'SUPER SAIYAN 4 DIOS', 3, 0xff5a8a, 0xff3a5a],
+  ['black_uir', 'form', 'black', 'ULTRA INSTINTO ROSÉ', 3, 0xff9ad8, 0xff5ac8],
+  ['bardock_ss5', 'form', 'bardock', 'SUPER SAIYAN 5', 3, 0xe8f0ff, 0xc8d8ff],
+  ['gohan_ss5', 'form', 'gohan', 'SUPER SAIYAN 5', 3, 0xe8f0ff, 0xc8d8ff],
+  ['goku_ssjgb', 'form', 'goku', 'DIOS BERSERKER', 2, 0xff6a5a, 0xff3a2a],
+  ['goku_lssj', 'form', 'goku', 'SUPER SAIYAN LEGENDARIO', 2, 0x9aff6a, 0x7dff5a],
+  ['jiren_fp', 'form', 'jiren', 'PODER TOTAL', 2, 0xff5a7a, 0xff3a8a],
+  ['black_rkk', 'form', 'black', 'ROSÉ KAIOKEN', 2, 0xff6ab8, 0xff2a7a],
+  ['vegito_gkk', 'form', 'vegito', 'DIOS KAIOKEN', 2, 0xff5a4a, 0xff2a2a],
+  ['trunks_ss5', 'form', 'trunks', 'SUPER SAIYAN 5', 2, 0xe8f0ff, 0xc8d8ff],
+  ['goku_jacket', 'form', 'goku', 'SUPER SAIYAN (CHAQUETA)', 1, 0xffe14a, 0xffc83a],
+  ['broly_fssj', 'form', 'broly', 'FALSO SUPER SAIYAN', 1, 0xffd84a, 0xffc83a]
+].map(([id, kind, ch, name, r, ki, aura]) => ({ id, kind, ch: ch || id, name, r, ki, aura, sheet: 'u_' + id, chg: 'u_' + id + '_chg', face: 'u_' + id + '_pt' }));
+/* Guerreros con hoja del mismo formato que NO salen en el altar: se compran con zeni o se ganan con un reto */
+const XUNITS = [
+  ['bardockb', 'char', null, 'BARDOCK BLACK', 2, 0x8ad8ff, 0x6fb8ff],
+  ['gotenss5', 'char', null, 'GOTEN SSJ5', 2, 0xe8f0ff, 0xc8d8ff]
 ].map(([id, kind, ch, name, r, ki, aura]) => ({ id, kind, ch: ch || id, name, r, ki, aura, sheet: 'u_' + id, chg: 'u_' + id + '_chg', face: 'u_' + id + '_pt' }));
 const GFORMS = GUNITS;                                     // nombre antiguo (lo usan summon.js y ui.js)
-const gformById = (id) => GUNITS.find((g) => g.id === id);
+const gformById = (id) => GUNITS.find((g) => g.id === id) || XUNITS.find((g) => g.id === id);
 const unitBig = (g) => (window.SPRITE_DATA && SPRITE_DATA['u_' + g.id + '_big'] ? 'u_' + g.id + '_big' : null);
-const PACK_SHEETS = [].concat(...GUNITS.map((g) => [g.sheet, g.chg, g.face])).concat(GUNITS.map(unitBig).filter(Boolean));
+const PACK_SHEETS = [].concat(...GUNITS.concat(XUNITS).map((g) => [g.sheet, g.chg, g.face])).concat(GUNITS.map(unitBig).filter(Boolean));
 
 /* ---------- Guerreros nuevos del altar ---------- */
 const sumChar = (o) => {
   const id = o.id, g = gformById(id), sh = g.sheet, k = g.ki, A = packAnim(sh), m = [1, 1, 1.06, 1.12][g.r];
   return {
-    id, name: o.name, role: o.role, cost: 0, summon: true, pack: true, chgSheet: g.chg, chgN: chgFrames(g.chg), face: g.face,
+    id, name: o.name, role: o.role, cost: o.cost || 0, summon: !o.cost && !o.req, req: o.req, pack: true,     // o.cost: se compra con zeni · o.req: reto · si no, sale en el altar
+    chgSheet: g.chg, chgN: chgFrames(g.chg), face: g.face,
     hp: o.hp, ki: o.kiMax || 110, spd: o.spd, dmg: 1.0, start: [id + '_1'], unique: [id + '_1', id + '_2', id + '_3', id + '_4'],
     passive: o.passive, ult: o.ult, portrait: { sheet: sh, frame: A.idle || 0 },
     forms: [
@@ -78,7 +99,14 @@ const PACK_CHARS = () => [
     ult: { name: 'EXPLOSIÓN MALIGNA', key: 'Q', cost: 100, type: 'bomb', dmg: 160, r: 23, sty: 'db', col: 0xff3a4a, fx: ['#000', '#fff', '#ff3a4a', '#2a0008', '#ff3a4a'], debuff: DB('RESACA MALIGNA', '-20% de velocidad durante 7 s', 7, { spd: 0.2 }) } }),
   sumChar({ id: 'babyv', name: 'SUPER BABY', role: 'Parásito tsufur · Vegeta poseído', hp: 125, kiMax: 145, spd: 1.08, f: ['SUPER BABY 1', 'SUPER BABY 2', 'VENGANZA TSUFUR', 'REY DE LOS TSUFUR'],
     passive: { name: 'Parásito', desc: '+10% de daño y +20% de daño crítico.', stat: { dmg: 0.1, critDmg: 0.2 } },
-    ult: { name: 'REVENGE DEATH BALL', key: 'Q', cost: 100, type: 'bomb', dmg: 170, r: 24, sty: 'db', col: 0xd04aff, fx: ['#000', '#fff', '#d04aff', '#ff6ad8', '#2a0040'], debuff: DB('AGOTADO', '-25% de velocidad durante 7 s', 7, { spd: 0.25 }) } })
+    ult: { name: 'REVENGE DEATH BALL', key: 'Q', cost: 100, type: 'bomb', dmg: 170, r: 24, sty: 'db', col: 0xd04aff, fx: ['#000', '#fff', '#d04aff', '#ff6ad8', '#2a0040'], debuff: DB('AGOTADO', '-25% de velocidad durante 7 s', 7, { spd: 0.25 }) } }),
+  // Segunda tanda: uno se compra con zeni y el otro se gana con un reto
+  sumChar({ id: 'bardockb', name: 'BARDOCK BLACK', role: 'Saiyajin corrompido · Ki oscuro', cost: 14000, hp: 125, kiMax: 125, spd: 1.08, f: ['BASE', 'IRA OSCURA', 'SAIYAJIN CORROMPIDO', 'DESTINO NEGRO'],
+    passive: { name: 'Ki oscuro', desc: '+10% de daño y +8% de crítico.', stat: { dmg: 0.1, crit: 0.08 } },
+    ult: { name: 'LANZA DEL DESTINO NEGRO', key: 'Q', cost: 100, type: 'beam', dmg: 11, len: 56, hw: 3.2, life: 1.6, col: 0x8ad8ff, fx: ['#000', '#fff', '#8ad8ff', '#2a2f5a', '#6fb8ff'], debuff: DB('VISIÓN BORROSA', '-20% de daño durante 7 s', 7, { dmg: 0.2 }) } }),
+  sumChar({ id: 'gotenss5', name: 'GOTEN SSJ5', role: 'Hijo de Goku · Super Saiyan 5', req: { stat: 'bosses', goal: 30, text: 'Derrota a 30 jefes' }, hp: 110, kiMax: 135, spd: 1.14, f: ['SUPER SAIYAN 5', 'FURIA PLATEADA', 'HEREDERO DE GOKU', 'SSJ5 AL LÍMITE'],
+    passive: { name: 'Sangre de Goku', desc: '+8% de velocidad y +10% de cadencia.', stat: { spd: 0.08, rate: 0.1 } },
+    ult: { name: 'KAMEHAMEHA PLATEADO', key: 'Q', cost: 100, type: 'beam', dmg: 11, len: 60, hw: 3.3, life: 1.7, col: 0xbfe8ff, fx: ['#000', '#fff', '#bfe8ff', '#fff', '#8ad8ff'], debuff: DB('SIN ALIENTO', '-20% de velocidad durante 7 s', 7, { spd: 0.2 }) } })
 ];
 const T4 = (id, n, c1, c2, nm) => ({
   [id + '_1']: { name: nm[0], icon: '✦', kind: 'bullet', unique: id, color: c1, lv: [n + ' lanza ráfagas de ki al enemigo más cercano.', '+20% de daño.', '+1 proyectil.', '+25% de daño.', 'Recarga reducida.'] },
@@ -94,7 +122,9 @@ const PACK_WEAPONS = Object.assign({},
   T4('gohanf', 'Gohan', 0xffe14a, 0xfff07a, ['Ráfagas del Futuro', 'Esferas de Esperanza', 'Masenko del Futuro', 'Ráfaga Desesperada']),
   T4('andro35', 'El Androide 35', 0xff5a8a, 0xffe14a, ['Láser Doble', 'Minas de Energía', 'Cañón de Fotones', 'Ráfaga Infinita']),
   T4('kamba', 'Kamba', 0xff3a4a, 0xff8a4a, ['Ráfaga Maligna', 'Esferas Rojas', 'Rayo del Mal', 'Tormenta Maligna']),
-  T4('babyv', 'Baby', 0xd04aff, 0xff6ad8, ['Ráfaga Tsufur', 'Esferas Parásitas', 'Big Bang Tsufur', 'Lluvia de Venganza'])
+  T4('babyv', 'Baby', 0xd04aff, 0xff6ad8, ['Ráfaga Tsufur', 'Esferas Parásitas', 'Big Bang Tsufur', 'Lluvia de Venganza']),
+  T4('bardockb', 'Bardock Black', 0x8ad8ff, 0x6a5aff, ['Ráfaga Oscura', 'Esferas del Destino', 'Cañón Rebelde Negro', 'Lluvia Corrompida']),
+  T4('gotenss5', 'Goten', 0xbfe8ff, 0xfff07a, ['Ráfagas de Goten', 'Esferas Plateadas', 'Kamehameha de Goten', 'Lluvia Plateada'])
 );
 const PACK_TECH = {
   yamcha_f: ['yamcha', 'Colmillo de Lobo', 'rush', 0xffe07a, { len: 12, n: 4, dmg: 26, cd: 3 }, 'Yamcha se lanza a la horda con una ráfaga de zarpazos.'],
@@ -112,9 +142,13 @@ const PACK_TECH = {
   kamba_f: ['kamba', 'Puño Maligno', 'quake', 0xff3a4a, { r: 6.5, dmg: 28, cd: 4.6 }, 'Kamba golpea el suelo con energía maligna.'],
   kamba_k: ['kamba', 'Esfera del Mal', 'zshot', 0xff3a4a, { n: 1, spd: 16, dmg: 22, cd: 4, size: 3.6, look: 'zblastY', aoe: 4.5, life: 1.6 }, 'Una esfera roja que arrasa la zona.'],
   babyv_f: ['babyv', 'Ataque Tsufur', 'whirl', 0xd04aff, { n: 7, r: 3.8, dmg: 3.0, cd: 2.3 }, 'Baby gira golpeando a toda velocidad.'],
-  babyv_k: ['babyv', 'Big Bang Tsufur', 'zshot', 0xd04aff, { n: 2, spd: 22, dmg: 8.5, cd: 2.6, size: 2.6, look: 'zkiP', aoe: 3.2, spread: 0.18 }, 'Dos esferas de energía oscura que explotan.']
+  babyv_k: ['babyv', 'Big Bang Tsufur', 'zshot', 0xd04aff, { n: 2, spd: 22, dmg: 8.5, cd: 2.6, size: 2.6, look: 'zkiP', aoe: 3.2, spread: 0.18 }, 'Dos esferas de energía oscura que explotan.'],
+  bardockb_f: ['bardockb', 'Puño del Destino', 'rush', 0x8ad8ff, { len: 12, n: 4, dmg: 27, cd: 3 }, 'Bardock Black embiste a la horda con golpes cargados de ki oscuro.'],
+  bardockb_k: ['bardockb', 'Cañón Rebelde Negro', 'pbolt', 0x8ad8ff, { len: 28, dmg: 22, cd: 2.2, hw: 1.1 }, 'El rayo de Bardock, ahora teñido de oscuridad.'],
+  gotenss5_f: ['gotenss5', 'Combo de Goten', 'meteor', 0xbfe8ff, { dmg: 19, cd: 4.6 }, 'Goten salta de enemigo en enemigo a toda velocidad.'],
+  gotenss5_k: ['gotenss5', 'Kamehameha Plateado', 'pbolt', 0xbfe8ff, { len: 28, dmg: 22, cd: 2.2, hw: 1.1 }, 'El Kamehameha de la familia, con el brillo del SSJ5.']
 };
-const PACK_ATK = { yamcha: [1.15, 1.0], gohankid: [1.0, 1.15], ginyu: [1.1, 1.05], dabura: [1.2, 1.0], gohanf: [1.1, 1.1], andro35: [1.0, 1.2], kamba: [1.25, 1.0], babyv: [1.05, 1.2] };
+const PACK_ATK = { yamcha: [1.15, 1.0], gohankid: [1.0, 1.15], ginyu: [1.1, 1.05], dabura: [1.2, 1.0], gohanf: [1.1, 1.1], andro35: [1.0, 1.2], kamba: [1.25, 1.0], babyv: [1.05, 1.2], bardockb: [1.15, 1.1], gotenss5: [1.1, 1.15] };
 
 /* =====================================================================
    INVOCACIONES (Cristales del Dragón)
@@ -142,6 +176,10 @@ const BANNERS = [
   { id: 'buu', name: 'SAGA DE MAJIN BUU', sub: 'El mago Babidi despierta al monstruo', feat: ['buu_zamasu', 'buu_gordo'], col: ['#ff7ac8', '#5a1a8a'], units: ['buu_zamasu', 'buu_gordo', 'dabura', 'gohankid', 'vegito_b3', 'ginyu'] },
   { id: 'pride', name: 'ORGULLO SAIYAJIN', sub: 'Padre e hijo, la misma sangre guerrera', feat: ['bardock_ssjl', 'goku_mui'], col: ['#ffb81c', '#2a8a3a'], units: ['bardock_ssjl', 'goku_mui', 'kamba', 'gohanf', 'trunks_dbs', 'yamcha'] },
   { id: 'gt', name: 'AMENAZA DE GT', sub: 'Baby y Super 17 contra la Tierra', feat: ['babyv', 'super17'], col: ['#c04dff', '#1a3a7a'], units: ['babyv', 'super17', 'kamba', 'andro35', 'ginyu', 'buu_gordo'] },
+  // Segunda tanda
+  { id: 'ssj5', name: 'MÁS ALLÁ DEL SSJ4', sub: 'El pelo plateado del Super Saiyan 5', feat: ['bardock_ss5', 'gohan_ss5'], col: ['#c8d8ff', '#3a4a8a'], units: ['bardock_ss5', 'gohan_ss5', 'trunks_ss5', 'goku_ss4g', 'goku_jacket', 'broly_fssj', 'yamcha'] },
+  { id: 'rose', name: 'ROSÉ DESATADO', sub: 'Goku Black rompe sus propios límites', feat: ['black_uir', 'black_rkk'], col: ['#ff5ac8', '#3a0a3a'], units: ['black_uir', 'black_rkk', 'vegito_gkk', 'jiren_fp', 'goku_jacket', 'ginyu', 'dabura'] },
+  { id: 'gods', name: 'DIOSES SAIYAJIN', sub: 'El ki divino se mezcla con la furia', feat: ['goku_ss4g', 'goku_ssjgb'], col: ['#ff3a5a', '#ff9a2a'], units: ['goku_ss4g', 'goku_ssjgb', 'goku_lssj', 'vegito_gkk', 'jiren_fp', 'broly_fssj', 'gohankid'] },
   { id: 'legends', name: 'LEYENDAS DEL ALTAR', sub: 'Vuelven todos los ULTRA a la vez', feat: ['vegito_ego', 'goku_mui', 'babyv'], col: ['#ff3d7a', '#ffb81c'], units: ['vegito_ego', 'goku_mui', 'babyv', 'buu_zamasu', 'vegito_b3', 'trunks_dbs', 'kamba', 'bardock_ssjl', 'dabura'] }
 ];
 /** Estandarte de ahora: índice, datos y milisegundos hasta que cambie */
@@ -207,6 +245,14 @@ const GU_TRAIT = {
     m: { crit: 0.2, critDmg: 0.6, maxHp: -0.15 }, t: { lowHp: 0.4 } },
   bardock_ssjl: { name: 'Último combate', good: '+25% de daño, +15% de velocidad y +60% de daño con poca vida', bad: 'Pierdes un 0,8% de vida por segundo',
     m: { dmg: 0.25, spd: 0.15 }, t: { lowHp: 0.6, hpDrain: 0.008 } },
+  goku_ss4g: { name: 'Ki divino primigenio', good: '+40% de daño, +15% de velocidad y tu aura quema a los enemigos', bad: 'Gasta 4 de Ki/s sin regenerarlo (carga con C)',
+    m: { dmg: 0.4, spd: 0.15 }, t: { aura: 40, kiDrain: 4 } },
+  black_uir: { name: 'Instinto de un dios', good: 'Esquivas TODOS los ataques y contraatacas (4 de Ki por esquiva), +30% de daño y +25% de cadencia',
+    bad: 'Sin Ki el cuerpo no aguanta: recibes un 30% más de daño', m: { dmg: 0.3, rate: 0.25, armor: -0.3 }, t: { dodgeKi: 4 } },
+  bardock_ss5: { name: 'Padre de leyendas', good: '+35% de daño, +15% de crítico y +60% de daño con poca vida', bad: 'Pierdes un 0,6% de vida por segundo',
+    m: { dmg: 0.35, crit: 0.15 }, t: { lowHp: 0.6, hpDrain: 0.006 } },
+  gohan_ss5: { name: 'Poder oculto absoluto', good: '+45% de daño, +20% de experiencia y rayos a tu alrededor', bad: '-20% de regeneración de Ki y recibes un 10% más de daño',
+    m: { dmg: 0.45, xp: 0.2, kiRegen: -0.2, armor: -0.1 }, t: { bolt: 38 } },
   buu_gordo: { name: 'Buu enfurecido', good: '+40% de vida máxima, cada golpe recibido sube tu daño (hasta +40%) y tu vapor quema',
     bad: '-15% de velocidad', m: { maxHp: 0.4, spd: -0.15 }, t: { ego: 0.4, aura: 32 } }
 };
@@ -233,6 +279,12 @@ const PACK_TRAITS = {
   kamba: [null, { name: 'Energía maligna', good: 'Cada golpe recibido sube tu daño (hasta +30%)', bad: '-5% de velocidad', m: { spd: -0.05 }, t: { ego: 0.3 } },
     { name: 'Saiyajin del mal', good: '+20% de daño y +10% de crítico', bad: 'Recibes un 10% más de daño', m: { dmg: 0.2, crit: 0.1, armor: -0.1 } },
     { name: 'SSJ4 maligno', good: '+35% de daño y tu aura quema a los enemigos', bad: 'Gasta 4 de Ki/s sin regenerarlo (carga con C)', m: { dmg: 0.35 }, t: { aura: 36, kiDrain: 4 } }],
+  bardockb: [null, { name: 'Ira oscura', good: '+12% de daño y +8% de crítico', bad: '-10% de regeneración de Ki', m: { dmg: 0.12, crit: 0.08, kiRegen: -0.1 } },
+    { name: 'Saiyajin corrompido', good: '+20% de daño y cada golpe recibido sube tu daño (hasta +30%)', bad: 'Recibes un 10% más de daño', m: { dmg: 0.2, armor: -0.1 }, t: { ego: 0.3 } },
+    { name: 'Destino negro', good: '+30% de daño y tu aura quema a los enemigos', bad: 'Gasta 3 de Ki/s sin regenerarlo (carga con C)', m: { dmg: 0.3 }, t: { aura: 32, kiDrain: 3 } }],
+  gotenss5: [null, { name: 'Furia plateada', good: '+10% de velocidad y +12% de cadencia', bad: 'Recibes un 8% más de daño', m: { spd: 0.1, rate: 0.12, armor: -0.08 } },
+    { name: 'Heredero de Goku', good: '+20% de daño y +15% de experiencia', bad: '-15% de regeneración de Ki', m: { dmg: 0.2, xp: 0.15, kiRegen: -0.15 } },
+    { name: 'SSJ5 al límite', good: '+35% de daño y rayos a tu alrededor', bad: 'Gasta 4 de Ki/s sin regenerarlo (carga con C)', m: { dmg: 0.35 }, t: { bolt: 34, kiDrain: 4 } }],
   babyv: [null, { name: 'Parásito', good: '+1,5 de vida/s y curas 0,5 por enemigo', bad: 'Recibes un 8% más de daño', m: { regen: 1.5, killHeal: 0.5, armor: -0.08 } },
     { name: 'Venganza Tuffle', good: '+20% de daño y +10% de cadencia', bad: '-15% de regeneración de Ki', m: { dmg: 0.2, rate: 0.1, kiRegen: -0.15 } },
     { name: 'Gran mono artificial', good: '+40% de vida máxima y +25% de daño', bad: '-15% de velocidad', m: { maxHp: 0.4, dmg: 0.25, spd: -0.15 } }]

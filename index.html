@@ -1678,7 +1678,8 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
     try { await script('assets/zl3.js'); } catch (e) { console.error(e); }       // sprites de Z Legends 3 para el 3D
     try { await script('assets/broly3.js'); } catch (e) { console.error(e); }    // Broly Super Saiyan 3 (sprites de Andrés Gamen)
     try { await script('assets/pfx.js'); } catch (e) { console.error(e); }       // efectos de pixel art de pixelfx (MIT)
-    try { await script('assets/summons.js'); } catch (e) { console.error(e); }  // guerreros y transformaciones del Altar de Shenron
+    try { await script('assets/summons.js'); } catch (e) { console.error(e); }
+    try { await script('assets/summons2.js'); } catch (e) { console.error(e); }   // segunda tanda: packs de Andrés Gamen y SSJ5 de Vianjo  // guerreros y transformaciones del Altar de Shenron
     LOAD.step('sprites', 1, 'Preparando el código del juego…');
     for (let i = 0; i < CODE.length; i++) { await script(CODE[i]); LOAD.step('code', (i + 1) / CODE.length); }
     LOAD.step('online', 0.2, 'Conectando con el ranking mundial…');

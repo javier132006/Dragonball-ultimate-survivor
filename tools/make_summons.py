@@ -11,11 +11,13 @@ caída…) como capturas AMPLIADAS con un factor distinto en cada imagen. Aquí:
   4. Retrato grande (u_<id>_pt) para la invocación, la Ultimate y la ficha del guerrero.
 
 Uso: python3 tools/make_summons.py "CARPETA/PACK DE SPRITES V3" "…/V4" "…/V5" [--ver CARPETA]
+     python3 tools/make_summons.py --pack G3="…/V3 ✓" --pack G4="…/V4 ✓" --pack VJ="…/Vianjo" --out assets/summons2.js [--ver CARPETA]   (segunda tanda)
 Salida: assets/summons.js (mismo formato que assets/sprites.js)
 """
 import base64, glob, io, json, os, re, sys
 import numpy as np
 from PIL import Image
+from scipy import ndimage
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'assets', 'summons.js')
@@ -39,6 +41,21 @@ SPEC = {
     'trunks_dbs': ('V4', 'MIRAI TRUNKS (DBS)', dict(idle=[0, 1, 2, 3], walk=[9, 10], atk=5, crit=44, beam=64, hurt=49, dash=11, death=[50, 51, 52], chg=[59, 60], pt=81)),
     'bardock_ssjl': ('V4', 'BARDOCK SSJ', dict(idle=[13, 14, 15, 14], walk=[16, 21], atk=19, crit=23, beam=63, hurt=41, dash=17, death=[42, 43, 44], chg=[48, 49], pt=94)),
     'buu_gordo': ('V3', 'MAJIN BUU (GORDO)', dict(idle=[0, 9], walk=[14, 15], atk=11, crit=10, beam=37, hurt=21, dash=38, death=[21, 30, 30], chg=[34, 35], pt=66)),
+    # --- Segunda tanda (assets/summons2.js): packs «V3 ✓» y «V4 ✓» de Andrés Gamen (G3, G4) y pack de SSJ5 de Vianjo (VJ) ---
+    'goku_ss4g': ('G3', 'GOKU SSJ 4 DIOS*', dict(idle=[8, 9, 10, 9], walk=[6, 7], atk=31, crit=44, beam=32, hurt=37, dash=80, death=[39, 36, 35], chg=[25, 26], combo=1, pt=0)),
+    'goku_ssjgb': ('G3', 'GOKU SSJ DIOS*', dict(idle=[11, 12], walk=[7, 8], atk=21, crit=23, beam=30, hurt=25, dash=14, death=[26, 27, 28], chg=[38, 39], combo=1, pt=45)),
+    'goku_lssj': ('G3', 'GOKU SSJ LEGENDARIO*', dict(idle=[16, 17, 18, 17], walk=[20, 21], atk=91, crit=47, beam=34, hurt=80, dash=65, death=[80, 79, 2], chg=[53, 55], combo=1, pt=0)),
+    'goku_jacket': ('G3', 'GOKU SSJ 1*', dict(idle=[21, 22], walk=[8, 9], atk=26, crit=11, beam=18, hurt=36, dash=10, death=[35, 49, 33], chg=[39, 40, 41, 40], combo=1, pt=0)),
+    'jiren_fp': ('G3', 'JIREN FULL POWER*', dict(idle=[57, 58], walk=[50, 49], atk=36, crit=31, beam=37, hurt=21, dash=34, death=[9, 11, 7], chg=[2, 3], combo=1, pt=0)),
+    'bardockb': ('G4', 'BARDOCK BLACK*', dict(idle=[11, 12], walk=[59, 60], atk=57, crit=52, beam=34, hurt=40, dash=77, death=[41, 54, 39], chg=[29, 30], combo=1, pt=1)),
+    'broly_fssj': ('G4', 'BROLY SSJ FALSO*', dict(idle=[71, 72], walk=[45, 46], atk=47, crit=52, beam=19, hurt=44, dash=57, death=[55, 65, 43], chg=[36, 37, 38, 37], combo=1, pt=0)),
+    'black_rkk': ('G4', 'GOKU BLACK SSJ ROSE KAIOKEN*', dict(idle=[4, 5], walk=[14, 15], atk=78, crit=69, beam=37, hurt=55, dash=24, death=[51, 53, 50], chg=[46, 118], combo=1, pt=0)),
+    'black_uir': ('G4', 'GOKU BLACK ULTRA*', dict(idle=[4, 5], walk=[124, 125], atk=102, crit=92, beam=53, hurt=82, dash=104, death=[77, 79, 76], chg=[65, 66], combo=1, pt=0)),
+    'vegito_gkk': ('G4', 'VEGETTO SSJ DIOS*', dict(idle=[4, 5], walk=[114, 116], atk=106, crit=86, beam=45, hurt=68, dash=120, death=[65, 66, 66], chg=[143, 144], combo=1, pt=0)),
+    'bardock_ss5': ('VJ', 'Bardock SSJ5', dict(idle=[13, 16], walk=[18, 19], atk=20, crit=22, beam=24, hurt=25, dash=17, death=[26, 27, 27], chg=[28, 29, 30, 29], combo=1, pt=1)),
+    'gohan_ss5': ('VJ', 'Gohan Ssj5', dict(idle=[6, 29], walk=[7, 8], atk=13, crit=26, beam=15, hurt=21, dash=9, death=[16, 17, 23], chg=[27, 28], combo=1, pt=0)),
+    'gotenss5': ('VJ', 'Goten ssj5', dict(idle=[10, 11], walk=[14, 18], atk=16, crit=15, beam=20, hurt=12, dash=17, death=[13, 12, 21], chg=[19, 28], combo=1, pt=0)),
+    'trunks_ss5': ('VJ', 'Trunks SSJ5', dict(idle=[6, 13], walk=[14, 17], atk=19, crit=23, beam=26, hurt=16, dash=10, death=[15, 15, 15], chg=[18, 20], combo=1, pt=0)),
     'dabura': ('V5', 'DABURA', dict(idle=[0, 1, 2, 1], walk=[3, 4], atk=18, crit=16, beam=20, hurt=11, dash=56, death=[34, 35, 35], chg=[30, 31, 32, 31], pt=74)),
 }
 
@@ -68,6 +85,13 @@ def native(path):
     if py - s / 2 > 0: cy = np.r_[int(py - s / 2), cy]
     n = a[np.ix_(cy[cy < H], cx[cx < W])].copy()
     n[:, :, 3] = np.where(n[:, :, 3] > 127, 255, 0); n[n[:, :, 3] == 0] = 0
+    # Motas sueltas (restos del recorte): fuera las manchas diminutas que quedan lejos del cuerpo; descolocaban el fotograma
+    lab, k = ndimage.label(n[:, :, 3] > 0, structure=np.ones((3, 3)))
+    if k > 1:
+        size = ndimage.sum(n[:, :, 3] > 0, lab, range(1, k + 1)); big = int(np.argmax(size)) + 1
+        near = ndimage.binary_dilation(lab == big, iterations=5)
+        for j in range(1, k + 1):
+            if j != big and size[j - 1] < 9 and not (near & (lab == j)).any(): n[lab == j] = 0
     im = Image.fromarray(n, 'RGBA'); b = im.getbbox()
     return im.crop(b) if b else im
 
@@ -106,17 +130,28 @@ def char_sheet(F, sp):
     anim['walk'] = [add(i) for i in sp['walk']]
     anim['atk'] = add(sp['atk']); anim['crit'] = add(sp['crit']); anim['atk2'] = add(sp['beam'])
     anim['hurt'] = add(sp['hurt']); anim['dash'] = add(sp['dash']); anim['death'] = [add(i) for i in sp['death']]
+    if sp.get('combo'): anim['atkSeq'] = [anim['atk'], anim['atk2'], anim['crit']]      # combo de tres golpes: puñetazo, palmada y golpe fuerte
     S, CW, CH, rows = build(cells, 4)
     return S, meta(S, CW, CH, 4, rows, {'anim': anim})
 
 if __name__ == '__main__':
-    packs = dict(zip(('V3', 'V4', 'V5'), sys.argv[1:4]))
+    pos = []
+    for a in sys.argv[1:]:
+        if a.startswith('--'): break
+        pos.append(a)
+    packs = dict(zip(('V3', 'V4', 'V5'), pos))
+    # Otros packs: --pack CLAVE=CARPETA (varias veces) · --solo id1,id2 (solo esos) · --out ARCHIVO (otra salida, p. ej. assets/summons2.js)
+    for i, a in enumerate(sys.argv):
+        if a == '--pack': k, v = sys.argv[i + 1].split('=', 1); packs[k] = v
+    solo = set(sys.argv[sys.argv.index('--solo') + 1].split(',')) if '--solo' in sys.argv else None
+    if '--out' in sys.argv: OUT = sys.argv[sys.argv.index('--out') + 1]
     ver = sys.argv[sys.argv.index('--ver') + 1] if '--ver' in sys.argv else None
     lines = ['// Generado por tools/make_summons.py — guerreros del Altar de Shenron (PACK DE SPRITES V3-V5, no editar a mano)',
              'window.SPRITE_DATA = window.SPRITE_DATA || {};']
     for uid, (pk, folder, sp) in SPEC.items():
+        if (solo and uid not in solo) or pk not in packs: continue
         d = [p for p in glob.glob(os.path.join(packs[pk], '*')) if re.fullmatch(folder.replace('(', r'\(').replace(')', r'\)').replace('*', '.*'), os.path.basename(p))][0]
-        files = sorted(glob.glob(os.path.join(d, '*.png')), key=lambda p: int(re.sub(r'\D', '', os.path.basename(p))))
+        files = sorted(glob.glob(os.path.join(d, '*.png')), key=lambda p: int(re.sub(r'\D', '', os.path.basename(p)) or 0))
         cache = {}
         F = lambda i: cache.setdefault(i, native(files[i]))
         S, m = char_sheet(F, sp)
@@ -132,4 +167,4 @@ if __name__ == '__main__':
                 Image.open(io.BytesIO(base64.b64decode(v['src'].split(',')[1]))).save(os.path.join(ver, k + '.png'))
         print(uid, 'celdas', len(m['anim']['idleSeq']) + len(m['anim']['walk']) + 8, 'hoja', S.size, flush=True)
     open(OUT, 'w', encoding='utf-8').write('\n'.join(lines) + '\n')
-    print(len(SPEC), 'personajes ·', os.path.getsize(OUT) // 1024, 'KB ->', OUT)
+    print(len(lines) - 2, 'hojas ·', os.path.getsize(OUT) // 1024, 'KB ->', OUT)
