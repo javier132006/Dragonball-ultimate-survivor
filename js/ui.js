@@ -786,6 +786,7 @@ class UIManager {
     const rows = [['Partidas', f('runs')], ['Victorias', f('wins')], ['Tiempo jugado', fmtTime(n('time'))], ['Mapa más lejano', n('maxStage') + ' / ' + ROUTE_LEN], ['Nivel máximo', n('maxLevel')],
       ['Enemigos derrotados', f('kills')], ['Élites', f('elites')], ['Jefes', f('bosses')], ['Daño total', f('damage')], ['Daño recibido', f('taken')], ['Dashes', f('dashes')],
       ['Cápsulas abiertas', f('capsules')], ['Maldiciones', f('curses')], ['Desafíos aceptados', f('temples')], ['Habitaciones del Tiempo', f('rooms')], ['Deseos a Shenron', f('wishes')], ['Combo máximo', f('maxCombo')], ['Golpe más fuerte', f('bestHit')], ['Transformaciones', f('transforms')], ['Fusiones', f('fusions')], ['Eventos', f('events')], ['Rivales derrotados', f('rivals')], ['Teletransportes', f('tps')], ['Desafíos diarios', f('dailies')]];
+    { const v = Save.d.vs; if (v && (v.fights || v.towerRuns)) rows.push(['Versus · combates', v.fights || 0], ['Versus · victorias', v.wins || 0], ['Versus · torre (récord)', (v.towerBest || 0) + ' / 8']); }   // Modo Versus
     // Guerrero elegido en la lista (por defecto, el primero que hayas jugado)
     const cs = Save.d.cs || {}, sel = this.stch && cs[this.stch] ? this.stch : ((CHARACTERS.find((c) => cs[c.id]) || {}).id || '');
     const best = CHARACTERS.filter((c) => Save.d.best[c.id]).sort((a, b) => Save.d.best[b.id].time - Save.d.best[a.id].time)
@@ -809,11 +810,12 @@ class UIManager {
   }
   /** Estadísticas de un guerrero (Rastreador): partidas, bajas, daño y récords */
   charStatsHtml(id) {
-    const c = id && charById(id), s = id && (Save.d.cs || {})[id];
+    const c = id && charById(id), v = id && Save.d.vs && Save.d.vs.ch && Save.d.vs.ch[id], s = id && ((Save.d.cs || {})[id] || (v && v.fights ? {} : null));   // v: sus combates del Modo Versus
     if (!c || !s) return '<h4 class="sec">Por guerrero</h4><p class="dim">Juega una partida con un guerrero para ver sus estadísticas aquí.</p>';
     const f = (k) => Math.floor(s[k] || 0).toLocaleString('es-ES');
     const rows = [['Partidas', f('runs')], ['Victorias', f('wins')], ['Tiempo jugado', fmtTime(s.time || 0)], ['Enemigos derrotados', f('kills')], ['Jefes', f('bosses')], ['Daño total', f('damage')],
       ['Daño recibido', f('taken')], ['Dashes', f('dashes')], ['Nivel máximo', f('maxLevel')], ['Mapa más lejano', (s.maxStage || 0) + ' / ' + ROUTE_LEN], ['Combo máximo', f('maxCombo')], ['Golpe más fuerte', f('bestHit')]];
+    if (v && v.fights) rows.push(['Versus · combates', v.fights], ['Versus · victorias', v.wins], ['Versus · transformaciones', v.tr], ['Versus · Ultimates', v.ult]);   // Modo Versus
     return '<h4 class="sec">' + nice(c.name) + '</h4><div class="stt">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div>';
   }
 

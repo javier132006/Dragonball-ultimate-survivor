@@ -74,8 +74,14 @@ const VS_AI = {
   normal: { react: 0.24, guard: 0.5, aggro: 0.65, combo: 0.75, escape: 0.3, ult: 0.7, dodge: 0.4 },
   hard:   { react: 0.12, guard: 0.78, aggro: 0.85, combo: 0.95, escape: 0.6, ult: 1, dodge: 0.7 }
 };
+/** Dificultad intermedia: t = 0 fácil · 1 normal · 2 difícil (la Torre sube poco a poco) */
+function vsAiMix(t) {
+  const a = t < 1 ? VS_AI.easy : VS_AI.normal, b = t < 1 ? VS_AI.normal : VS_AI.hard, k = Math.max(0, Math.min(1, t < 1 ? t : t - 1)), o = {};
+  for (const p in a) o[p] = a[p] + (b[p] - a[p]) * k; return o;
+}
 class VsAI {
-  constructor(level) { this.L = VS_AI[level] || VS_AI.normal; this.plan = 'wait'; this.pt = 0; this.cool = 0; this.tap = 0; this.gHold = 0; this.side = 1; this.seen = ''; this.seenT = 0; this.gWait = 0; }
+  /** level: 'easy' | 'normal' | 'hard' o una tabla de parámetros (vsAiMix) */
+  constructor(level) { this.L = typeof level === 'object' ? level : VS_AI[level] || VS_AI.normal; this.plan = 'wait'; this.pt = 0; this.cool = 0; this.tap = 0; this.gHold = 0; this.side = 1; this.seen = ''; this.seenT = 0; this.gWait = 0; }
   read(sim, i) {
     const L = this.L, me = sim.f[i], foe = sim.f[1 - i], dt = VS_DT, rnd = () => sim.rand();
     const c = { mx: 0, mz: 0, b: 0 };
