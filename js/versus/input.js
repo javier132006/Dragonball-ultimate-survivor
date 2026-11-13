@@ -23,11 +23,15 @@ const VS_PAD = { ATK: 2, HEAVY: 3, KI: 1, DASH: 0, GUARD: 4, TP: 5, CHARGE: 6, U
 const VS_BTNS = ['ATK', 'HEAVY', 'KI', 'GUARD', 'DASH', 'TP', 'CHARGE', 'ULT', 'UP', 'DOWN', 'TRANS'];
 
 /** Teclado (lee el estado global `keys` de core.js) */
+/* Toques de tecla: se apunta cuándo se pulsó cada una. Así una pulsación rápida (bajar y soltar entre dos fotogramas,
+   algo normal si el juego va a pocos FPS) cuenta igual, sin tener que dejar la tecla apretada */
+const VS_TAPS = {};
+window.addEventListener('keydown', (e) => { if (!e.repeat) VS_TAPS[e.code] = performance.now(); });
 class VsKeyboard {
   constructor(map) { this.map = map; }
   read() {
-    const m = this.map; let b = 0;
-    for (const k of VS_BTNS) if (keys[m[k]]) b |= VB[k];
+    const m = this.map, now = performance.now(); let b = 0;
+    for (const k of VS_BTNS) { const c = m[k]; if (keys[c] || now - VS_TAPS[c] < 200) b |= VB[k]; if (VS_TAPS[c]) VS_TAPS[c] = 0; }
     return { mx: (keys[m.r] ? 1 : 0) - (keys[m.l] ? 1 : 0), mz: (keys[m.f] ? 1 : 0) - (keys[m.k] ? 1 : 0), b };
   }
 }

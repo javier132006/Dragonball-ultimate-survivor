@@ -34,7 +34,7 @@ class VsFighter {
   }
   reset(x) {
     this.x = x; this.y = 0; this.z = 0; this.vx = this.vy = this.vz = 0;
-    this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.stun = 0;
+    this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.pend = 0; this.q = 0; this.qt = 0; this.stun = 0;
     this.c = 0; this.n = 0; this.ok = false; this.buf = ''; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.dx = 1; this.dz = 0; this.flash = 0;
     this.set('idle');
   }
@@ -67,7 +67,10 @@ class VsSim {
   screenX(dx, dz) { return dx * this.cz - dz * this.cx; }
 
   step(c0, c1) {
-    if (this.freeze > 0) { this.freeze--; return; }                    // hitstop: unos pasos congelados al impactar
+    if (this.freeze > 0) {                                              // hitstop: unos pasos congelados al impactar
+      this.freeze--; for (let i = 0; i < 2; i++) { const f = this.f[i], b = (i ? c1 : c0) ? (i ? c1 : c0).b : 0; f.pend |= b & ~f.pb; f.pb = b; }   // ...pero lo que se pulse mientras tanto no se pierde
+      return;
+    }
     this.tick++;
     const a = this.f[0], b = this.f[1], cmd = [c0, c1];
     // La cámara se queda en el lado en el que ya estaba (los luchadores pueden cruzarse sin que gire 180°)
@@ -103,7 +106,10 @@ class VsSim {
 
   /* ---------------- Un luchador ---------------- */
   stepFighter(f, foe, cmd) {
-    const dt = VS_DT, press = cmd.b & ~f.pb, held = cmd.b; f.pb = cmd.b;
+    const dt = VS_DT, held = cmd.b, AQ = VB.ATK | VB.HEAVY; let press = (cmd.b & ~f.pb) | f.pend; f.pb = cmd.b; f.pend = 0;
+    // Cola de golpes: cada pulsación de golpe cuenta aunque llegue un instante antes de poder pegar (saliendo de un dash, de un golpe recibido, del hitstop...)
+    if (press & AQ) { f.q = press & AQ; f.qt = 0.25; } else if (f.qt > 0 && (f.qt -= dt) <= 0) f.q = 0;
+    press |= f.q;
     const ctl = this.phase === 'fight' && !(this.ult && (this.ult.who === f.i || this.ult.lock));
     f.t += dt; f.inv = Math.max(0, f.inv - dt); f.flash = Math.max(0, f.flash - dt);
     if (f.st !== 'ko' && this.phase === 'fight') f.ki = Math.min(100, f.ki + VS.KI_REGEN * dt);
@@ -124,8 +130,8 @@ class VsSim {
           if ((press & VB.ULT) && f.ki >= 100 && foe.st !== 'ko') { this.startUlt(f, foe); break; }
           if ((press & VB.TP) && f.ki >= VS.COST_TP) { this.vanish(f, foe, VS.COST_TP); break; }
           if ((press & VB.DASH) && f.ki >= VS.COST_DASH) { this.dash(f, foe, wx, wz, my, nx, nz, ty / td); break; }
-          if (press & VB.HEAVY) { f.set('heavy'); this.emit('swing', { i: f.i, heavy: 1 }); break; }
-          if (press & VB.ATK) { f.c = 0; f.buf = ''; f.set('atk'); this.emit('swing', { i: f.i }); break; }
+          if (press & VB.HEAVY) { f.q = 0; f.set('heavy'); this.emit('swing', { i: f.i, heavy: 1 }); break; }
+          if (press & VB.ATK) { f.q = 0; f.c = 0; f.buf = ''; f.set('atk'); this.emit('swing', { i: f.i }); break; }
           if ((press & VB.KI) && f.ki >= VS.SHOT.cost) { f.shots = 0; f.set('shot'); break; }
           if (held & VB.GUARD) { f.set('guard'); break; }
           if (held & VB.CHARGE) { f.set('charge'); this.emit('charge', { i: f.i }); break; }
@@ -140,14 +146,14 @@ class VsSim {
       case 'dash':
         f.vx = f.dx * VS.DASH; f.vz = f.dz * VS.DASH; f.vy = f.dy * VS.DASH;
         if (f.t >= VS.DASH_T) { f.vx *= 0.3; f.vy *= 0.3; f.vz *= 0.3; f.set('idle'); }
-        else if (press & VB.ATK) f.buf = 'atk'; else if (press & VB.HEAVY) f.buf = 'heavy';
+        else if (press & VB.ATK) { f.buf = 'atk'; f.q = 0; } else if (press & VB.HEAVY) { f.buf = 'heavy'; f.q = 0; }
         if (f.st === 'idle' && f.buf) { if (f.buf === 'atk') { f.c = 0; f.set('atk'); } else f.set('heavy'); f.buf = ''; this.emit('swing', { i: f.i }); }
         break;
       case 'atk': {
         const last = f.c >= VS.LIGHT.length - 1, a0 = 0.07, a1 = 0.16, end = last ? 0.42 : 0.33;
         if (f.t < a1 && td < 8 && td > 1.7) { const s = 26; f.vx = nx * s * (th / td); f.vz = nz * s * (th / td); f.vy = (ty / td) * s; } else brake(18);   // se pega al rival
         if (f.t >= a0 && f.t < a1 && !f.done && td < VS.REACH) { f.done = true; f.ok = this.hit(f, foe, VS.LIGHT[f.c], nx, nz) === 1; }
-        if (f.t > 0.08) { if (press & VB.ATK) f.buf = 'atk'; else if (press & VB.HEAVY) f.buf = 'heavy'; }
+        if (f.t > 0.08) { if (press & VB.ATK) { f.buf = 'atk'; f.q = 0; } else if (press & VB.HEAVY) { f.buf = 'heavy'; f.q = 0; } }
         if (f.t >= end || (f.buf && f.t >= a1 + 0.06 && f.done)) {
           if (f.buf === 'atk' && !last) { f.c++; f.buf = ''; f.ok = false; f.set('atk'); this.emit('swing', { i: f.i }); }
           else if (f.buf === 'atk' && f.ok && td < VS.REACH + 1 && foe.st === 'hurt') { f.buf = ''; f.n = 0; f.set('flurry'); this.emit('flurry', { i: f.i }); }   // quinta pulsación: ráfaga automática

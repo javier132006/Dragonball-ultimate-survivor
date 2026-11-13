@@ -88,7 +88,7 @@ const VS_TOUCH_CSS = `
 `;
 class VsTouchPad {
   constructor(root, onPause) {
-    this.s = { mx: 0, mz: 0, b: 0 }; this.jid = null; this.btn = {};
+    this.s = { mx: 0, mz: 0, b: 0 }; this.tap = 0; this.jid = null; this.btn = {};
     const st = document.createElement('style'); st.textContent = VS_TOUCH_CSS; document.head.appendChild(st);
     const el = this.el = document.createElement('div'); el.className = 'tc';
     el.innerHTML = '<div class="tcz"></div><div class="tcj"><i></i></div><button class="tcp" aria-label="Pausa">⏸</button>' +
@@ -109,15 +109,15 @@ class VsTouchPad {
     for (const b of el.querySelectorAll('.tcb')) {
       const bit = VB[b.dataset.b]; this.btn[b.dataset.b] = b;
       const up = () => { this.s.b &= ~bit; b.classList.remove('on'); };
-      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.s.b |= bit; b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch (x) { /* puntero ya suelto */ } });
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.s.b |= bit; this.tap |= bit; b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch (x) { /* puntero ya suelto */ } });
       b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up);
     }
     el.querySelector('.tcp').addEventListener('click', (e) => { e.stopPropagation(); onPause(); });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   /** Suelta todo (al pausar o salir del combate) */
-  clear() { this.s.mx = this.s.mz = 0; this.s.b = 0; this.jid = null; this.base.style.display = 'none'; for (const k in this.btn) this.btn[k].classList.remove('on'); }
+  clear() { this.s.mx = this.s.mz = 0; this.s.b = 0; this.tap = 0; this.jid = null; this.base.style.display = 'none'; for (const k in this.btn) this.btn[k].classList.remove('on'); }
   /** Resalta Ultimate y transformación cuando están listas */
   ready(ult, tr) { if (ult !== this.rU) { this.rU = ult; this.btn.ULT.classList.toggle('rdy', ult); } if (tr !== this.rT) { this.rT = tr; this.btn.TRANS.classList.toggle('rdy', tr); } }
-  read() { return this.s; }
+  read() { const s = this.s, b = s.b | this.tap; this.tap = 0; return { mx: s.mx, mz: s.mz, b }; }       // un toque rápido cuenta aunque se suelte antes del siguiente fotograma
 }
