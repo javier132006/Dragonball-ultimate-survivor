@@ -12,7 +12,10 @@ const VS = {
   R: 27, TOP: 17,                         // límites de la arena
   SPD: 10.5, FLY: 8.5, DASH: 36, DASH_T: 0.2,
   REACH: 2.9,                             // distancia a la que conecta un golpe
-  LIGHT: [{ dmg: 22, stun: 0.34, kb: 4 }, { dmg: 24, stun: 0.34, kb: 4 }, { dmg: 34, stun: 0.42, kb: 9 }],
+  // Golpe normal: un golpe por pulsación (4). La quinta pulsación, si el cuarto ha conectado, suelta sola la RÁFAGA:
+  // FLURRY.n golpes rápidos y un remate que manda al rival volando
+  LIGHT: [{ dmg: 18, stun: 0.36, kb: 4 }, { dmg: 18, stun: 0.36, kb: 4 }, { dmg: 20, stun: 0.38, kb: 4 }, { dmg: 24, stun: 0.46, kb: 5 }],
+  FLURRY: { n: 6, every: 0.065, hit: { dmg: 8, stun: 0.3, kb: 0.5, gbreak: 6, fz: 1, rush: 1 }, end: { dmg: 60, stun: 0.95, kb: 32, up: 9, launch: true, gbreak: 40, heavy: true } },
   HEAVY: { dmg: 72, stun: 0.9, kb: 34, up: 7, launch: true, gbreak: 45, heavy: true },
   SHOT: { dmg: 26, stun: 0.24, kb: 5, gbreak: 8, cost: 6, spd: 42 },
   KI_REGEN: 2.5, KI_CHARGE: 32, COST_DASH: 5, COST_TP: 20, COST_ESC: 30,
@@ -32,7 +35,7 @@ class VsFighter {
   reset(x) {
     this.x = x; this.y = 0; this.z = 0; this.vx = this.vy = this.vz = 0;
     this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.stun = 0;
-    this.c = 0; this.buf = ''; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.dx = 1; this.dz = 0; this.flash = 0;
+    this.c = 0; this.n = 0; this.ok = false; this.buf = ''; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.dx = 1; this.dz = 0; this.flash = 0;
     this.set('idle');
   }
   set(st) { this.st = st; this.t = 0; this.done = false; }
@@ -141,15 +144,25 @@ class VsSim {
         if (f.st === 'idle' && f.buf) { if (f.buf === 'atk') { f.c = 0; f.set('atk'); } else f.set('heavy'); f.buf = ''; this.emit('swing', { i: f.i }); }
         break;
       case 'atk': {
-        const last = f.c >= 2, a0 = 0.07, a1 = 0.16, end = last ? 0.42 : 0.33;
+        const last = f.c >= VS.LIGHT.length - 1, a0 = 0.07, a1 = 0.16, end = last ? 0.42 : 0.33;
         if (f.t < a1 && td < 8 && td > 1.7) { const s = 26; f.vx = nx * s * (th / td); f.vz = nz * s * (th / td); f.vy = (ty / td) * s; } else brake(18);   // se pega al rival
-        if (f.t >= a0 && f.t < a1 && !f.done && td < VS.REACH) { f.done = true; this.hit(f, foe, VS.LIGHT[f.c], nx, nz); }
+        if (f.t >= a0 && f.t < a1 && !f.done && td < VS.REACH) { f.done = true; f.ok = this.hit(f, foe, VS.LIGHT[f.c], nx, nz) === 1; }
         if (f.t > 0.08) { if (press & VB.ATK) f.buf = 'atk'; else if (press & VB.HEAVY) f.buf = 'heavy'; }
         if (f.t >= end || (f.buf && f.t >= a1 + 0.06 && f.done)) {
-          if (f.buf === 'atk' && !last) { f.c++; f.buf = ''; f.set('atk'); this.emit('swing', { i: f.i }); }
+          if (f.buf === 'atk' && !last) { f.c++; f.buf = ''; f.ok = false; f.set('atk'); this.emit('swing', { i: f.i }); }
+          else if (f.buf === 'atk' && f.ok && td < VS.REACH + 1 && foe.st === 'hurt') { f.buf = ''; f.n = 0; f.set('flurry'); this.emit('flurry', { i: f.i }); }   // quinta pulsación: ráfaga automática
           else if (f.buf === 'heavy') { f.buf = ''; f.set('heavy'); this.emit('swing', { i: f.i, heavy: 1 }); }
           else if (f.t >= end) f.set('idle');
         }
+        break;
+      }
+      case 'flurry': {                                                   // ráfaga: golpes rápidos pegado al rival y remate que lo lanza
+        const F = VS.FLURRY, T = F.n * F.every;
+        if (!f.done && (foe.st !== 'hurt' || foe.inv > 0 || td > VS.REACH + 1.6)) { f.set('idle'); break; }     // se ha escapado
+        if (!f.done) { f.vx = foe.vx + nx * (th - 1.9) * 12; f.vz = foe.vz + nz * (th - 1.9) * 12; f.vy = ty * 12; } else brake(14);
+        if (f.n < F.n && f.t >= f.n * F.every) { f.n++; foe.stun = 0.3; this.emit('swing', { i: f.i }); if (this.hit(f, foe, F.hit, nx, nz) !== 1) { f.set('idle'); break; } }
+        if (!f.done && f.t >= T + 0.1) { f.done = true; this.emit('swing', { i: f.i, heavy: 1 }); this.hit(f, foe, F.end, nx, nz); }
+        if (f.t >= T + 0.42) f.set('idle');
         break;
       }
       case 'heavy':
@@ -235,9 +248,9 @@ class VsSim {
       else this.emit('guard', { i: def.i, x: px, y: py, z: pz });
       return 2;
     }
-    const scale = Math.max(0.4, 1 - 0.07 * att.cmb);                    // los combos largos pegan cada vez menos
-    this.emit('hit', { i: def.i, x: px, y: py, z: pz, heavy: !!s.heavy, col: att.def.col, nx, nz });
-    this.freeze = Math.max(this.freeze, s.heavy ? 8 : 3);
+    const scale = s.raw ? 1 : Math.max(0.4, 1 - 0.07 * att.cmb);        // los combos largos pegan cada vez menos (las Ultimates no: raw)
+    this.emit('hit', { i: def.i, x: px, y: py, z: pz, heavy: !!s.heavy, rush: s.rush, col: att.def.col, nx, nz });
+    this.freeze = Math.max(this.freeze, s.fz !== undefined ? s.fz : s.heavy ? 8 : 3);
     if (this.damage(att, def, s.dmg * att.pow * scale)) { def.vx = nx * 20; def.vz = nz * 20; def.vy = 11; return 1; }
     if (s.launch) { def.set('launched'); def.stun = s.stun; def.vx = nx * s.kb; def.vz = nz * s.kb; def.vy = s.up || 0; }
     else { def.set('hurt'); def.stun = s.stun; def.vx = nx * s.kb; def.vz = nz * s.kb; def.vy *= 0.3; }
@@ -246,25 +259,34 @@ class VsSim {
   stepShots() {
     const dt = VS_DT;
     for (let k = this.shots.length - 1; k >= 0; k--) {
-      const s = this.shots[k], def = this.f[1 - s.o], att = this.f[s.o]; s.t += dt; s.life -= dt;
+      const s = this.shots[k]; if (!s) continue;                        // un K.O. vacía la lista a mitad de recorrido
+      const def = this.f[1 - s.o], att = this.f[s.o]; s.t += dt; s.life -= dt;
       if (s.big) { if (this.stepBomb(s, att, def)) this.shots.splice(k, 1); continue; }
-      if (s.t < 0.5) {                                                  // persigue un poco al principio
-        const dx = def.x - s.x, dy = def.y + 1.5 - s.y, dz = def.z - s.z, d = Math.hypot(dx, dy, dz) || 1, sp = Math.hypot(s.vx, s.vy, s.vz), k2 = 3 * dt;
+      if (s.cd > 0) s.cd -= dt;
+      if (s.t < (s.hm || 0.5) && s.t >= (s.hold || 0)) {                // persigue un poco al principio (los discos, mucho más: hm, tr)
+        const dx = def.x - s.x, dy = def.y + 1.5 - s.y, dz = def.z - s.z, d = Math.hypot(dx, dy, dz) || 1, sp = s.sp || Math.hypot(s.vx, s.vy, s.vz), k2 = (s.tr || 3) * dt;
         s.vx += (dx / d * sp - s.vx) * k2; s.vy += (dy / d * sp - s.vy) * k2; s.vz += (dz / d * sp - s.vz) * k2;
       }
       s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
+      if (s.disc && s.y < 0.5) { s.y = 0.5; s.vy = Math.abs(s.vy); }      // los discos rozan el suelo, no se clavan
       const d = Math.hypot(def.x - s.x, def.y + 1.5 - s.y, def.z - s.z);
-      if (d < s.r + 0.6) {
+      if (d < s.r + 0.6 && !(s.cd > 0)) {
         const h = Math.hypot(s.vx, s.vz) || 1;
-        if (this.hit(att, def, Object.assign({ shot: 1 }, VS.SHOT), s.vx / h, s.vz / h)) { this.emit('pop', { x: s.x, y: s.y, z: s.z, col: s.col }); this.shots.splice(k, 1); continue; }
+        if (this.hit(att, def, s.hs || Object.assign({ shot: 1 }, VS.SHOT), s.vx / h, s.vz / h)) {
+          this.emit('pop', { x: s.x, y: s.y, z: s.z, col: s.col });
+          if (s.pierce > 1) { s.pierce--; s.cd = 0.4; } else { this.shots.splice(k, 1); continue; }                // el disco gigante atraviesa y vuelve
+        }
       }
       if (s.life <= 0 || s.y < 0 || Math.hypot(s.x, s.z) > VS.R + 6) { this.emit('pop', { x: s.x, y: Math.max(0.2, s.y), z: s.z, col: s.col }); this.shots.splice(k, 1); }
     }
     for (let k = this.blasts.length - 1; k >= 0; k--) {                 // explosiones retardadas de las Ultimates superiores
       const b = this.blasts[k]; if ((b.t -= dt) > 0) continue;
-      this.blasts.splice(k, 1); this.emit('boom', { x: b.x, y: 1.5, z: b.z, col: b.col, big: b.big });
+      this.blasts.splice(k, 1); this.emit('boom', { x: b.x, y: 1.5, z: b.z, col: b.col, big: b.big, lite: b.sky === 1, pil: b.pil });
       const def = this.f[1 - b.o], dx = def.x - b.x, dz = def.z - b.z, h = Math.hypot(dx, dz) || 1;
-      if (b.r && Math.hypot(h, def.y) < b.r && def.st !== 'ko' && def.inv <= 0) this.hit(this.f[b.o], def, { dmg: b.dmg, stun: 0.8, kb: 14, up: 13, launch: true, heavy: true, gbreak: 40, shot: 1 }, dx / h, dz / h);
+      if (b.r && Math.hypot(h, b.tall ? 0 : def.y) < b.r && def.st !== 'ko' && def.inv <= 0) {
+        if (b.raw) this.hit(this.f[b.o], def, { dmg: b.dmg, raw: 1, stun: b.stun || 0.8, kb: b.kb === undefined ? 14 : b.kb, up: b.up === undefined ? 13 : b.up, launch: !!b.launch, heavy: !!b.heavy, gbreak: b.gbreak || 40, fz: b.fz, shot: 1 }, dx / h, dz / h);
+        else this.hit(this.f[b.o], def, { dmg: b.dmg, stun: 0.8, kb: 14, up: 13, launch: true, heavy: true, gbreak: 40, shot: 1 }, dx / h, dz / h);
+      }
     }
   }
 
@@ -290,112 +312,313 @@ class VsSim {
     if (r.t >= VS.TR_CINE) { f.inv = 0.5; f.set('idle'); this.tr = null; this.emit('trEnd', { i: f.i }); }
   }
 
-  /* ---------------- Ultimates (coreografías propias, tres familias) ----------------
-     beam: rayo gigante que avanza · rush: embestida y lluvia de golpes · bomb: esfera enorme que cae.
-     ph 0 = presentación (mundo parado, cámara de cine) · ph 1 = ejecución · ph 2 = final
-     Transformado (def.ult.sup) cada familia tiene su versión SUPERIOR, con otra coreografía:
-     beam: aparece en lo alto al otro lado y barre hacia abajo · rush: más golpes, lo eleva y lo estrella como un meteoro
-     bomb: esfera mayor y más rápida que deja un anillo de explosiones */
+  /* ---------------- Ultimates ----------------
+     Diez coreografías (type), cada una con tres variantes (v = 0, 1, 2). Qué Ultimate tiene cada forma de cada
+     guerrero está en versus/ults.js. ph 0 = presentación (mundo parado, cámara de cine) · ph 1 = ejecución.
+       beam   rayo: recto · desde lo alto barriendo hacia abajo · gigante con cadena de explosiones
+       rush   lluvia de golpes: estampa contra el suelo · meteoro desde el cielo · puño que atraviesa
+       bomb   esfera: grande · enorme con anillo de explosiones · tres seguidas
+       storm  lluvia de ki del cielo: dispersa · con gran impacto final · anillos que se cierran
+       discs  discos teledirigidos: en abanico · rodean y convergen · uno gigante que vuelve
+       slash  cortes atravesando al rival: con cruz final · con tajo desde el cielo · todos estallan a la vez
+       rift   grieta por el suelo que acaba en pilar: una · tres en abanico · cuatro que convergen
+       nova   explosión del propio cuerpo (atrae primero): una · doble · enorme a costa de su vida
+       grab   agarre (rompe la guardia): sube y estrella · gira y lanza + esfera · explosiones a quemarropa
+       volley ráfaga de ki: recta · con disparo final · desde todas direcciones
+     u.sup (transformado durante el combate) = +30 % de daño */
   startUlt(f, foe) {
     f.ki = 0; f.vx = f.vy = f.vz = 0; f.inv = 99; f.set('ult');
-    const type = f.def.ult.type;
-    this.ult = { who: f.i, type, sup: !!f.def.ult.sup, t: 0, ph: 0, hitT: 0, n: 0, lock: false, y0: f.y };
-    this.emit('ultStart', { i: f.i, type, sup: this.ult.sup, name: f.def.ult.name, col: f.def.col });
+    const U = f.def.ult;
+    this.ult = { who: f.i, type: U.type, v: U.v || 0, sup: !!U.sup, t: 0, ph: 0, hitT: 0, n: 0, lock: false, y0: f.y, D: 300 * (U.sup ? 1.3 : 1) };
+    this.emit('ultStart', { i: f.i, type: U.type, v: this.ult.v, sup: this.ult.sup, name: U.name, col: f.def.col });
   }
-  endUlt(rec) { const f = this.f[this.ult.who]; f.inv = 0; f.set('stun'); f.stun = rec; this.ult = null; this.emit('ultEnd'); }
+  endUlt(rec) { const f = this.f[this.ult.who], foe = this.f[1 - f.i]; if (foe.st === 'held') foe.set('idle'); f.inv = 0; f.set('stun'); f.stun = rec; this.ult = null; this.emit('ultEnd'); }
+  /** Daño directo de una Ultimate (rival agarrado). Si lo noquea, la Ultimate se acaba: devuelve true */
+  ultDmg(f, foe, dmg) { if (!this.damage(f, foe, dmg)) return false; this.ult = null; f.inv = 0; f.set('idle'); this.emit('ultEnd'); return true; }
+  /** Explosión retardada en el suelo, con aviso. o: {t, r, dmg, big, up, kb, stun, launch, tall, sky, pil} */
+  blast(f, x, z, o) {
+    const r = Math.hypot(x, z); if (r > VS.R) { x *= VS.R / r; z *= VS.R / r; }
+    const b = Object.assign({ o: f.i, x, z, col: f.def.col, big: 1, raw: 1 }, o); this.blasts.push(b);
+    this.emit('mark', { x, z, t: b.t, r: b.r, col: b.col, sky: b.sky, pil: b.pil });
+  }
   stepUlt() {
-    const u = this.ult, dt = VS_DT, f = this.f[u.who], foe = this.f[1 - u.who], P = f.pow, D = 300 * (u.sup ? 1.3 : 1);
+    const u = this.ult, dt = VS_DT, f = this.f[u.who], foe = this.f[1 - u.who];
     u.t += dt;
     let dx = foe.x - f.x, dy = foe.y - f.y, dz = foe.z - f.z, dh = Math.hypot(dx, dz) || 0.001, d = Math.hypot(dh, dy) || 0.001;
     if (u.ph === 0) {
-      if (u.type === 'bomb') f.y = u.y0 + Math.min(1, u.t / VS.ULT_CINE) * Math.min(9, VS.TOP - u.y0 - 4);     // sube mientras se presenta
+      const k = Math.min(1, u.t / VS.ULT_CINE);
+      if (u.type === 'bomb' || u.type === 'storm') f.y = u.y0 + k * Math.max(0, Math.min(u.type === 'bomb' ? 9 : 6, VS.TOP - u.y0 - 4));     // sube mientras se presenta
+      else if (u.type === 'rift') f.y = u.y0 * (1 - k);                 // baja al suelo: la grieta nace de un golpe en tierra
       if (u.t >= VS.ULT_CINE) {
-        if (u.sup && u.type === 'beam') {                                // superior: desaparece y reaparece en lo alto, al otro lado del rival
+        if (u.type === 'beam' && u.v === 1) {                           // desaparece y reaparece en lo alto, al otro lado del rival
           this.emit('vanish', { i: f.i, x: f.x, y: f.y, z: f.z });
           let px = foe.x + dx / dh * 9, pz = foe.z + dz / dh * 9; if (Math.hypot(px, pz) > VS.R - 1) { px = foe.x - dx / dh * 9; pz = foe.z - dz / dh * 9; }
           f.x = px; f.z = pz; f.y = Math.min(VS.TOP - 0.5, foe.y + 8.5); u.w = 0.42;
           this.emit('appear', { i: f.i, x: f.x, y: f.y, z: f.z });
           dx = foe.x - f.x; dy = foe.y - f.y; dz = foe.z - f.z; dh = Math.hypot(dx, dz) || 0.001; d = Math.hypot(dh, dy) || 0.001;
         }
+        if (u.type === 'beam' && u.v === 2) u.w = 0.3;
         u.ph = 1; u.t = 0; u.dx = dx / d; u.dy = dy / d; u.dz = dz / d; u.hx = dx / dh; u.hz = dz / dh;
-        if (u.type === 'bomb') { this.shots.push({ o: f.i, big: 1, sup: u.sup, x: f.x, y: f.y + 5.5, z: f.z, vx: 0, vy: 0, vz: 0, life: 6, r: 0.5, t: 0, col: f.def.col }); }
-        this.emit('ultGo', { i: f.i, type: u.type, sup: u.sup, col: f.def.col });
+        if (u.type === 'bomb') {
+          const m = u.sup ? 1.15 : 1, col = f.def.col, S = (o) => this.shots.push(Object.assign({ o: f.i, big: 1, x: f.x, y: f.y + 5.5, z: f.z, vx: 0, vy: 0, vz: 0, life: 7, r: 0.5, t: 0, col, wait: 0, off: 0 }, o));
+          if (u.v === 0) S({ R: 3.4, sp: 27, dm: 340 * m, AR: 10 });
+          else if (u.v === 1) S({ R: 4.9, sp: 33, dm: 350 * m, AR: 13, ring: 1 });
+          else for (let i = 0; i < 3; i++) S({ R: 2.3, sp: 37, dm: 135 * m, AR: 7.5, wait: i * 0.42, off: (i - 1) * 5.2 });
+        }
+        this.emit('ultGo', { i: f.i, type: u.type, v: u.v, sup: u.sup, col: f.def.col });
       }
       return;
     }
-    if (foe.st === 'ko' && u.type !== 'rush') { this.endUlt(0.4); return; }
-    if (u.type === 'beam') {
-      // El rayo sale de las manos y avanza a 95 u/s: de lejos da tiempo a esquivarlo de lado o a teletransportarse
-      if (u.w > 0) { u.w -= dt; u.t = 0; u.dx = dx / d; u.dy = dy / d; u.dz = dz / d; u.hx = dx / dh; u.hz = dz / dh; return; }   // apunta un instante antes de disparar: es la ventana para esquivar
-      const ox = f.x + u.dx * 1.4, oy = f.y + 1.7 + u.dy * 1.4, oz = f.z + u.dz * 1.4;
-      let len = Math.min(80, u.t * 95);
-      if (u.dy < -0.05 && len >= (oy - 0.1) / -u.dy) {                   // el rayo muere en el suelo
-        len = (oy - 0.1) / -u.dy; if (u.t < 1.35 && (u.g = (u.g || 0) + 1) % 5 === 1) this.emit('beamGnd', { x: ox + u.dx * len, z: oz + u.dz * len, col: f.def.col });
-      }
-      u.len = len; u.ox = ox; u.oy = oy; u.oz = oz;
-      const rx = foe.x - ox, ry = foe.y + 1.5 - oy, rz = foe.z - oz, along = rx * u.dx + ry * u.dy + rz * u.dz;
-      const perp = Math.hypot(rx - u.dx * along, ry - u.dy * along, rz - u.dz * along);
-      if (u.t < 1.35 && along > -1 && along < len + 1.5 && perp < (u.sup ? 4.3 : 3.1) && foe.inv <= 0 && foe.st !== 'ko') {
-        const g = foe.st === 'guard'; u.hitT += dt;
-        if (g) { foe.gm -= 40 * dt; if (foe.gm <= 0) { foe.gm = 50; foe.set('hurt'); } } else if (foe.st !== 'hurt') foe.set('hurt');
-        foe.stun = 0.25; if (u.sup) { foe.vx = foe.vz = 0; foe.vy = -17; } else { foe.vx = u.dx * 17; foe.vy = u.dy * 17; foe.vz = u.dz * 17; }   // el superior lo clava contra el suelo
-        if ((u.n++ & 3) === 0) { this.emit('beamHit', { x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col }); this.damage(f, foe, (g ? 0.3 : 1) * D * P * (4 * dt / 1.35)); }
-      }
-      if (u.t >= 1.35 && !u.fin) { u.fin = true; if (u.hitT > 0.45 && foe.st !== 'ko') { this.emit('boom', { x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, big: u.sup ? 2 : 1 }); this.hit(f, foe, { dmg: u.sup ? 60 : 40, stun: 0.9, kb: 26, up: 8, launch: true, heavy: true, gbreak: 60 }, u.hx, u.hz); } }
-      if (u.t >= 1.7) this.endUlt(0.35);
-    } else if (u.type === 'rush') {
-      if (!u.lock) {
-        f.vx = dx / d * 60; f.vy = dy / d * 60; f.vz = dz / d * 60; f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt;
-        if (d < 2.8 && foe.inv <= 0 && foe.st !== 'ko') { u.lock = true; u.t = 0; u.n = 0; u.g = foe.st === 'guard' ? 0.35 : 1; foe.set('held'); foe.vx = foe.vy = foe.vz = 0; f.vx = f.vy = f.vz = 0; this.emit('rushLock', { i: f.i }); }
-        else if (u.t > 0.6) { f.vx *= 0.2; f.vy *= 0.2; f.vz *= 0.2; this.endUlt(0.75); }
-        return;
-      }
-      const N = u.sup ? 22 : 14, every = u.sup ? 0.06 : 0.085, k = Math.floor(u.t / every);
-      if (k > u.n && u.n < N) {
-        u.n++; const a = this.rand() * 6.283, e = (this.rand() - 0.5) * 1.6;                                   // cada golpe llega desde un lado distinto
-        f.x = foe.x + Math.cos(a) * 2.0; f.z = foe.z + Math.sin(a) * 2.0; f.y = Math.max(0, foe.y + e);
-        this.emit('hit', { i: foe.i, x: foe.x + Math.cos(a) * 0.5, y: foe.y + 1.6 + e * 0.5, z: foe.z + Math.sin(a) * 0.5, col: f.def.col, rush: 1 }); this.freeze = 1;
-        this.emit('rushHit', { i: f.i, n: u.n });
-        if (this.damage(f, foe, D * P * (u.sup ? 0.5 : 0.6) / N * u.g)) { this.ult = null; f.inv = 0; f.set('idle'); this.emit('ultEnd'); return; }
-      }
-      if (u.sup && u.n >= N && u.t > N * every + 0.2) {                  // remate superior: lo manda al cielo, aparece encima y lo estrella como un meteoro
-        if (!u.up) {
-          u.up = u.t; f.x = foe.x - u.hx * 1.6; f.z = foe.z - u.hz * 1.6; f.y = Math.max(0, foe.y - 0.6); foe.set('idle');
-          this.hit(f, foe, { dmg: D * 0.15 * u.g, stun: 1.6, kb: 1, up: 31, launch: true, heavy: true, gbreak: 100 }, u.hx, u.hz);
-          if (foe.st === 'ko') this.endUlt(0.3); else this.emit('rushUp', { i: f.i });
-        } else if (u.t > u.up + 0.5) {
-          this.emit('vanish', { i: f.i, x: f.x, y: f.y, z: f.z }); f.x = foe.x; f.z = foe.z; f.y = Math.min(VS.TOP, foe.y + 1.9); this.emit('appear', { i: f.i, x: f.x, y: f.y, z: f.z });
-          foe.stun = 0; foe.inv = 0; this.blasts.push({ o: f.i, x: foe.x, z: foe.z, t: Math.max(0.05, foe.y / 50), col: f.def.col, big: 2, r: 0 });
-          this.hit(f, foe, { dmg: D * 0.35 * u.g, stun: 1.1, kb: 1, up: -50, launch: true, heavy: true, gbreak: 100 }, u.hx, u.hz);
-          u.lock = false; this.endUlt(0.45);
-        }
-        return;
-      }
-      if (u.n >= N && u.t > N * every + 0.28) {                          // remate: lo estampa contra el suelo
-        f.x = foe.x - u.hx * 1.8; f.z = foe.z - u.hz * 1.8; f.y = foe.y + 1.2; foe.set('idle'); u.lock = false;
-        this.hit(f, foe, { dmg: 300 * 0.4 * u.g, stun: 1.0, kb: 14, up: -34, launch: true, heavy: true, gbreak: 100 }, u.hx, u.hz);
-        this.emit('boom', { x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col }); this.endUlt(0.3);
-      }
-    } else {                                                            // bomb: la esfera la mueve stepBomb()
-      if (u.t > 6 || !this.shots.some((s) => s.big && s.o === f.i)) this.endUlt(0.3);
+    const melee = u.type === 'rush' || u.type === 'slash' || u.type === 'grab';
+    if (foe.st === 'ko' && !melee) { this.endUlt(0.4); return; }
+    this['u_' + u.type](u, f, foe, { dx, dy, dz, dh, d });
+  }
+  /** Embestida inicial de las Ultimates cuerpo a cuerpo: vuela hacia el rival y lo engancha. Devuelve true mientras no lo tenga */
+  ultReach(u, f, foe, c, grab) {
+    if (u.lock) return false;
+    const dt = VS_DT; f.vx = c.dx / c.d * 60; f.vy = c.dy / c.d * 60; f.vz = c.dz / c.d * 60; f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt;
+    if (c.d < 2.8 && foe.inv <= 0 && foe.st !== 'ko') { u.lock = true; u.t = 0; u.n = 0; u.g = foe.st === 'guard' && !grab ? 0.35 : 1; foe.set('held'); foe.vx = foe.vy = foe.vz = 0; f.vx = f.vy = f.vz = 0; this.emit('rushLock', { i: f.i, type: u.type }); }
+    else if (u.t > 0.6) { f.vx *= 0.2; f.vy *= 0.2; f.vz *= 0.2; this.endUlt(0.75); }
+    return true;
+  }
+  /** Suelta al rival agarrado y le da el golpe final */
+  ultRelease(u, f, foe, s, nx, nz) { foe.set('idle'); u.lock = false; return this.hit(f, foe, Object.assign({ raw: 1, launch: true, heavy: true, gbreak: 100 }, s), nx === undefined ? u.hx : nx, nz === undefined ? u.hz : nz); }
+
+  u_beam(u, f, foe, c) {
+    const dt = VS_DT, D = u.D, P = f.pow, { dx, dy, dz, dh, d } = c;
+    // El rayo sale de las manos y avanza a 95 u/s: de lejos da tiempo a esquivarlo de lado o a teletransportarse
+    if (u.w > 0) { u.w -= dt; u.t = 0; u.dx = dx / d; u.dy = dy / d; u.dz = dz / d; u.hx = dx / dh; u.hz = dz / dh; return; }   // apunta un instante antes de disparar: es la ventana para esquivar
+    const ox = f.x + u.dx * 1.4, oy = f.y + 1.7 + u.dy * 1.4, oz = f.z + u.dz * 1.4;
+    let len = Math.min(80, u.t * 95);
+    if (u.dy < -0.05 && len >= (oy - 0.1) / -u.dy) {                   // el rayo muere en el suelo
+      len = (oy - 0.1) / -u.dy; if (u.t < 1.35 && (u.g = (u.g || 0) + 1) % 5 === 1) this.emit('beamGnd', { x: ox + u.dx * len, z: oz + u.dz * len, col: f.def.col });
     }
+    u.len = len; u.ox = ox; u.oy = oy; u.oz = oz;
+    const rx = foe.x - ox, ry = foe.y + 1.5 - oy, rz = foe.z - oz, along = rx * u.dx + ry * u.dy + rz * u.dz;
+    const perp = Math.hypot(rx - u.dx * along, ry - u.dy * along, rz - u.dz * along);
+    if (u.t < 1.35 && along > -1 && along < len + 1.5 && perp < [3.1, 4.3, 5.2][u.v] && foe.inv <= 0 && foe.st !== 'ko') {
+      const g = foe.st === 'guard'; u.hitT += dt;
+      if (g) { foe.gm -= 40 * dt; if (foe.gm <= 0) { foe.gm = 50; foe.set('hurt'); } } else if (foe.st !== 'hurt') foe.set('hurt');
+      foe.stun = 0.25; if (u.v === 1) { foe.vx = foe.vz = 0; foe.vy = -17; } else { foe.vx = u.dx * 17; foe.vy = u.dy * 17; foe.vz = u.dz * 17; }   // desde lo alto lo clava contra el suelo
+      if ((u.n++ & 3) === 0) { this.emit('beamHit', { x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col }); this.damage(f, foe, (g ? 0.3 : 1) * D * P * (u.v === 2 ? 0.85 : 1) * (4 * dt / 1.35)); }
+    }
+    if (u.t >= 1.35 && !u.fin) {
+      u.fin = true;
+      if (u.v === 2) for (let i = 0; i < 5; i++) this.blast(f, foe.x + u.hx * (i - 1) * 5, foe.z + u.hz * (i - 1) * 5, { t: 0.12 + i * 0.1, r: 5.5, dmg: D * 0.05, up: 11, kb: 10, stun: 0.7, launch: true, tall: true });   // el suelo revienta a lo largo del rayo
+      if (u.hitT > 0.45 && foe.st !== 'ko') { this.emit('boom', { x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, big: u.v ? 2 : 1 }); this.hit(f, foe, { dmg: u.sup ? 60 : 40, stun: 0.9, kb: 26, up: 8, launch: true, heavy: true, gbreak: 60 }, u.hx, u.hz); }
+    }
+    if (u.t >= (u.v === 2 ? 2.1 : 1.7)) this.endUlt(0.35);
+  }
+  u_rush(u, f, foe, c) {
+    if (this.ultReach(u, f, foe, c)) return;
+    const D = u.D, P = f.pow, N = [14, 22, 18][u.v], every = [0.085, 0.06, 0.07][u.v], k = Math.floor(u.t / every);
+    if (k > u.n && u.n < N) {
+      u.n++; const a = this.rand() * 6.283, e = (this.rand() - 0.5) * 1.6;                                   // cada golpe llega desde un lado distinto
+      f.x = foe.x + Math.cos(a) * 2.0; f.z = foe.z + Math.sin(a) * 2.0; f.y = Math.max(0, foe.y + e);
+      this.emit('hit', { i: foe.i, x: foe.x + Math.cos(a) * 0.5, y: foe.y + 1.6 + e * 0.5, z: foe.z + Math.sin(a) * 0.5, col: f.def.col, rush: 1 }); this.freeze = 1;
+      this.emit('rushHit', { i: f.i, n: u.n });
+      if (this.ultDmg(f, foe, D * P * (u.v ? 0.5 : 0.6) / N * u.g)) return;
+    }
+    if (u.n < N) return;
+    if (u.v === 1 && u.t > N * every + 0.2) {                          // lo manda al cielo, aparece encima y lo estrella como un meteoro
+      if (!u.up) {
+        u.up = u.t; f.x = foe.x - u.hx * 1.6; f.z = foe.z - u.hz * 1.6; f.y = Math.max(0, foe.y - 0.6); foe.set('idle');
+        this.hit(f, foe, { dmg: D * 0.15 * u.g, stun: 1.6, kb: 1, up: 31, launch: true, heavy: true, gbreak: 100 }, u.hx, u.hz);
+        if (foe.st === 'ko') this.endUlt(0.3); else this.emit('rushUp', { i: f.i });
+      } else if (u.t > u.up + 0.5) {
+        this.emit('vanish', { i: f.i, x: f.x, y: f.y, z: f.z }); f.x = foe.x; f.z = foe.z; f.y = Math.min(VS.TOP, foe.y + 1.9); this.emit('appear', { i: f.i, x: f.x, y: f.y, z: f.z });
+        foe.stun = 0; foe.inv = 0; this.blasts.push({ o: f.i, x: foe.x, z: foe.z, t: Math.max(0.05, foe.y / 50), col: f.def.col, big: 2, r: 0 });
+        this.hit(f, foe, { dmg: D * 0.35 * u.g, stun: 1.1, kb: 1, up: -50, launch: true, heavy: true, gbreak: 100 }, u.hx, u.hz);
+        u.lock = false; this.endUlt(0.45);
+      }
+    } else if (u.v === 2 && u.t > N * every + 0.34) {                  // toma impulso y lo atraviesa con el puño por delante
+      f.x = foe.x - u.hx * 2; f.z = foe.z - u.hz * 2; f.y = foe.y;
+      this.ultRelease(u, f, foe, { dmg: D * 0.5 * u.g, stun: 1.2, kb: 44, up: 9 });
+      this.emit('cut', { i: f.i, x0: f.x - u.hx * 4, y0: f.y + 1.6, z0: f.z - u.hz * 4, x1: f.x + u.hx * 9, y1: f.y + 1.6, z1: f.z + u.hz * 9, col: f.def.col, w: 2.6 });
+      this.emit('boom', { x: f.x + u.hx * 2, y: f.y + 1.5, z: f.z + u.hz * 2, col: f.def.col, big: 2 });
+      f.x += u.hx * 7; f.z += u.hz * 7; this.endUlt(0.45);
+    } else if (u.v === 0 && u.t > N * every + 0.28) {                  // lo estampa contra el suelo
+      f.x = foe.x - u.hx * 1.8; f.z = foe.z - u.hz * 1.8; f.y = foe.y + 1.2; foe.set('idle'); u.lock = false;
+      this.hit(f, foe, { dmg: 300 * 0.4 * u.g, stun: 1.0, kb: 14, up: -34, launch: true, heavy: true, gbreak: 100 }, u.hx, u.hz);
+      this.emit('boom', { x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col }); this.endUlt(0.3);
+    }
+  }
+  u_bomb(u, f) { if (u.t > 7 || !this.shots.some((s) => s.big && s.o === f.i)) this.endUlt(0.3); }     // las esferas las mueve stepBomb()
+  u_storm(u, f, foe) {
+    const D = u.D, N = [12, 16, 18][u.v], every = [0.13, 0.1, 0.085][u.v];
+    while (u.n < N && u.t >= u.n * every) {
+      let x, z;
+      if (u.v === 2) {                                                  // tres anillos que se cierran sobre donde estaba el rival
+        const ring = (u.n / 6) | 0, a = u.n * 1.0472 + ring * 0.52, r = [10.5, 6.2, 2.4][ring];
+        if (u.n % 6 === 0) { u.cx = foe.x + foe.vx * 0.25; u.cz = foe.z + foe.vz * 0.25; }
+        x = u.cx + Math.cos(a) * r; z = u.cz + Math.sin(a) * r;
+      } else { const a = this.rand() * 6.283, r = this.rand() * 3.4; x = foe.x + foe.vx * 0.3 + Math.cos(a) * r; z = foe.z + foe.vz * 0.3 + Math.sin(a) * r; }
+      const w = u.v === 2 ? [0.06, 0.06, 0.16][(u.n / 6) | 0] : [1.05, 0.7][u.v] / N;   // en los anillos, el que pega de verdad es el último (el que se cierra)
+      this.blast(f, x, z, { t: 0.55, r: 4.1, dmg: D * w, stun: 0.45, kb: 3, up: 0, gbreak: 9, fz: 2, tall: true, sky: 1 });
+      this.emit('stormShot', { i: f.i, x: f.x, y: f.y + 2.4, z: f.z });
+      u.n++;
+    }
+    if (u.v === 1 && !u.fin && u.t >= N * every + 0.2) { u.fin = true; this.blast(f, foe.x, foe.z, { t: 0.75, r: 8.5, dmg: D * 0.4, big: 2, stun: 1, kb: 20, up: 13, launch: true, heavy: true, gbreak: 60, tall: true, sky: 2 }); }
+    if (u.t >= N * every + (u.v === 1 ? 1.25 : 0.85)) this.endUlt(0.3);
+  }
+  u_discs(u, f, foe, c) {
+    const D = u.D, N = [5, 8, 1][u.v], every = [0.16, 0.06, 0][u.v], col = f.def.col;
+    while (u.n < N && u.t >= 0.1 + u.n * every) {
+      const px = -u.hz, pz = u.hx, s = { o: f.i, disc: 1, x: f.x + u.hx * 1.2, y: f.y + 2.2, z: f.z + u.hz * 1.2, t: 0, col, life: 2.6, r: 1.3, sp: 34 };
+      if (u.v === 0) {                                                  // abanico: cada disco sale por un lado y se cierra sobre el rival
+        const a = (u.n - 2) * 0.55; s.vx = (u.hx * Math.cos(a) + px * Math.sin(a)) * s.sp; s.vz = (u.hz * Math.cos(a) + pz * Math.sin(a)) * s.sp; s.vy = 7; s.hm = 1.8; s.tr = 4.5;
+        s.hs = { dmg: D * 1.05 / N, stun: 0.42, kb: 7, gbreak: 30, raw: 1, fz: 3, shot: 1 };
+      } else if (u.v === 1) {                                           // salen en círculo, rodean al rival y caen todos a la vez
+        const a = u.n * 0.7854; s.vx = (px * Math.cos(a) + u.hx * 0.45) * 20; s.vz = (pz * Math.cos(a) + u.hz * 0.45) * 20; s.vy = Math.sin(a) * 17 + 4; s.hold = 0.5 - u.n * every; s.hm = 2.4; s.tr = 9; s.life = 2.8;
+        s.hs = { dmg: D * 1.1 / N, stun: 0.42, kb: 5, gbreak: 22, raw: 1, fz: 2, shot: 1 };
+      } else {                                                          // un disco gigante que atraviesa y vuelve
+        s.r = 3.1; s.sp = 31; s.vx = u.hx * s.sp; s.vz = u.hz * s.sp; s.vy = c.dy / c.d * s.sp; s.hm = 3.4; s.tr = 3.2; s.life = 3.5; s.pierce = 4;
+        s.hs = { dmg: D * 0.29, stun: 0.5, kb: 4, gbreak: 45, raw: 1, heavy: true, fz: 4, shot: 1 };
+      }
+      this.shots.push(s); this.emit('shot', { i: f.i, x: s.x, y: s.y, z: s.z, disc: 1 }); u.n++;
+    }
+    if (u.n >= N && (u.t > 4.6 || !this.shots.some((s) => s.disc && s.o === f.i))) this.endUlt(0.3);
+  }
+  u_slash(u, f, foe, c) {
+    if (this.ultReach(u, f, foe, c)) return;
+    const D = u.D, P = f.pow, N = [5, 8, 10][u.v], every = [0.13, 0.1, 0.06][u.v], k = Math.floor(u.t / every), col = f.def.col;
+    const cut = (a, e, L, w) => { const ox = Math.cos(a) * L, oz = Math.sin(a) * L, y = foe.y + 1.6; this.emit('cut', { i: f.i, x0: foe.x + ox, y0: Math.max(0.2, y + e), z0: foe.z + oz, x1: foe.x - ox, y1: Math.max(0.2, y - e), z1: foe.z - oz, col, w }); };
+    if (k > u.n && u.n < N) {                                           // cada corte lo atraviesa de lado a lado
+      u.n++; const a = (u.a0 = (u.a0 === undefined ? this.rand() * 6.283 : u.a0 + 2.4)), e = (this.rand() - 0.5) * 2.4;
+      f.x = foe.x - Math.cos(a) * 3.1; f.z = foe.z - Math.sin(a) * 3.1; f.y = Math.max(0, foe.y - e * 0.5);
+      cut(a, e, 4.6, 1); this.emit('rushHit', { i: f.i, n: u.n }); this.freeze = 1;
+      if (u.v !== 2) { this.emit('hit', { i: foe.i, x: foe.x, y: foe.y + 1.6, z: foe.z, col, rush: 1 }); if (this.ultDmg(f, foe, D * P * 0.55 / N * u.g)) return; }
+    }
+    if (u.n < N) return;
+    const T = N * every;
+    if (u.v === 0 && u.t > T + 0.25) {                                  // cruz final
+      cut(u.a0 + 0.8, 3, 6, 2); cut(u.a0 - 0.8, -3, 6, 2); this.emit('boom', { x: foe.x, y: foe.y + 1.5, z: foe.z, col, big: 1 });
+      this.ultRelease(u, f, foe, { dmg: D * 0.5 * u.g, stun: 1, kb: 22, up: 10 }); this.endUlt(0.35);
+    } else if (u.v === 1 && u.t > T + 0.2) {                            // lo eleva y cae sobre él con un tajo vertical
+      if (!u.up) {
+        u.up = u.t; f.x = foe.x - u.hx * 1.6; f.z = foe.z - u.hz * 1.6; f.y = Math.max(0, foe.y - 0.6);
+        this.ultRelease(u, f, foe, { dmg: D * 0.12 * u.g, stun: 1.6, kb: 1, up: 30 }); u.lock = true;
+        if (foe.st === 'ko') { u.lock = false; this.endUlt(0.3); } else this.emit('rushUp', { i: f.i });
+      } else if (u.t > u.up + 0.5) {
+        this.emit('vanish', { i: f.i, x: f.x, y: f.y, z: f.z }); f.x = foe.x; f.z = foe.z; f.y = Math.min(VS.TOP, foe.y + 2.2); this.emit('appear', { i: f.i, x: f.x, y: f.y, z: f.z });
+        this.emit('cut', { i: f.i, x0: foe.x, y0: foe.y + 7, z0: foe.z, x1: foe.x, y1: 0.2, z1: foe.z, col, w: 2.4 });
+        foe.stun = 0; foe.inv = 0; this.blasts.push({ o: f.i, x: foe.x, z: foe.z, t: Math.max(0.05, foe.y / 50), col, big: 2, r: 0 });
+        this.hit(f, foe, { dmg: D * 0.38 * u.g, raw: 1, stun: 1.1, kb: 1, up: -50, launch: true, heavy: true, gbreak: 100 }, u.hx, u.hz);
+        u.lock = false; this.endUlt(0.45);
+      }
+    } else if (u.v === 2) {                                             // se aleja de espaldas... y todos los cortes estallan a la vez
+      if (!u.w2 && u.t > T + 0.12) { u.w2 = u.t; f.x = foe.x + u.hx * 5.5; f.z = foe.z + u.hz * 5.5; f.y = foe.y; this.emit('sheath', { i: f.i }); }
+      else if (u.w2 && u.t > u.w2 + 0.6) {
+        for (let i = 0; i < 6; i++) cut(i * 1.05 + 0.3, (i % 3 - 1) * 3, 5.5, 1.6);
+        this.emit('boom', { x: foe.x, y: foe.y + 1.5, z: foe.z, col, big: 2 });
+        this.ultRelease(u, f, foe, { dmg: D * 1.05 * u.g, stun: 1.1, kb: 18, up: 12 }, -u.hx, -u.hz); this.endUlt(0.35);
+      }
+    }
+  }
+  u_rift(u, f, foe) {
+    const dt = VS_DT, D = u.D, col = f.def.col;
+    if (!u.heads) {                                                     // golpe en el suelo: nacen las grietas
+      f.y = 0; u.heads = []; const a = Math.atan2(foe.z - f.z, foe.x - f.x);
+      if (u.v === 2) for (let i = 0; i < 4; i++) { const b = a + 0.785 + i * 1.5708; let x = foe.x + Math.cos(b) * 15, z = foe.z + Math.sin(b) * 15; const r = Math.hypot(x, z); if (r > VS.R - 1) { x *= (VS.R - 1) / r; z *= (VS.R - 1) / r; } u.heads.push({ x, z, a: b + Math.PI, s: 0, t: 0 }); }
+      else for (const o of (u.v === 1 ? [-0.6, 0, 0.6] : [0])) u.heads.push({ x: f.x + Math.cos(a) * 1.5, z: f.z + Math.sin(a) * 1.5, a: a + o, s: 0, t: 0 });
+      this.emit('slam', { x: f.x, z: f.z, col });
+    }
+    let live = 0;
+    for (const h of u.heads) {
+      if (h.done) continue; live++; h.t += dt;
+      let da = Math.atan2(foe.z - h.z, foe.x - h.x) - h.a; while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832;
+      const tr = (u.v === 2 ? 5 : 2.4) * dt, sp = 27 * dt; h.a += Math.max(-tr, Math.min(tr, da));
+      h.x += Math.cos(h.a) * sp; h.z += Math.sin(h.a) * sp; h.s += sp;
+      if (h.s >= 2.3) { h.s = 0; this.emit('crack', { x: h.x, z: h.z, col }); }
+      if (Math.hypot(foe.x - h.x, foe.z - h.z) < 2.3 || h.t > 1.7 || Math.hypot(h.x, h.z) > VS.R) {   // llega bajo el rival: pilar de energía
+        h.done = true; u.last = u.t;
+        this.blast(f, h.x, h.z, { t: 0.28, r: [6.2, 5, 5.2][u.v], dmg: D * [1, 0.36, 0.28][u.v], big: 2, stun: 1, kb: 8, up: 21, launch: true, heavy: true, gbreak: 70, tall: true, pil: 1 });
+      }
+    }
+    if (!live && u.t > u.last + 0.9) this.endUlt(0.3);
+  }
+  u_nova(u, f, foe, c) {
+    const dt = VS_DT, D = u.D, pull = 0.42, T = 0.5, gap = 0.2, n = u.v === 1 ? 2 : 1, t = u.t - pull;
+    if (t < 0) {                                                        // primero atrae al rival hacia sí
+      if (c.d < 26 && c.d > 3 && foe.inv <= 0 && foe.st !== 'ko') { const s = 15 * dt / c.d; foe.x -= c.dx * s; foe.y = Math.max(0, foe.y - c.dy * s); foe.z -= c.dz * s; }
+      u.r = 0; return;
+    }
+    const k = Math.floor(t / (T + gap)), q = (t - k * (T + gap)) / T;
+    if (k >= n) { u.r = 0; if (t > n * (T + gap) + 0.15) this.endUlt(0.5); return; }
+    if (k !== u.k) {
+      u.k = k; u.hitP = false; this.emit('novaGo', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col, big: k || u.v === 2 ? 2 : 1 });
+      if (u.v === 2) f.hp = Math.max(1, f.hp - f.hpMax * 0.08);         // lo da todo: le cuesta parte de su vida
+    }
+    u.r = [13, 13, 19][u.v] * (k ? 1.3 : 1) * Math.min(1, q * 1.15); u.a = q < 0.8 ? 1 : Math.max(0, (1 - q) / 0.2);
+    if (!u.hitP && q <= 1 && c.d < u.r + 1 && foe.inv <= 0 && foe.st !== 'ko') {
+      u.hitP = true; const g = foe.st === 'guard' ? 0.35 : 1; if (g < 1) foe.set('idle');
+      if (u.v === 1 && k === 0) this.hit(f, foe, { dmg: D * 0.42 * g, raw: 1, stun: 0.95, kb: 5, heavy: true, gbreak: 100 }, c.dx / c.dh, c.dz / c.dh);   // la primera onda lo deja clavado para la segunda
+      else this.hit(f, foe, { dmg: D * [1.05, 0.62, 1.3][u.v] * g, raw: 1, stun: 1, kb: 30, up: 12, launch: true, heavy: true, gbreak: 100 }, c.dx / c.dh, c.dz / c.dh);
+    }
+  }
+  u_grab(u, f, foe, c) {
+    if (!u.thrown && this.ultReach(u, f, foe, c, true)) return;
+    const D = u.D, P = f.pow, col = f.def.col, t = u.t;
+    if (u.gy === undefined) { u.gy = foe.y; u.gx = foe.x; u.gz = foe.z; }
+    if (u.v === 0) {                                                    // lo sube a lo más alto entre rodillazos y lo estrella
+      const top = VS.TOP - 2.5, up = 0.55, dn = 0.24;
+      foe.y = t < up ? u.gy + (top - u.gy) * (t / up) : Math.max(0, top * (1 - (t - up) / dn)); foe.x = u.gx; foe.z = u.gz;
+      f.x = foe.x - u.hx * 1.5; f.z = foe.z - u.hz * 1.5; f.y = t < up ? Math.max(0, foe.y - 0.5) : foe.y + 1.3;
+      if (u.n < 3 && t >= 0.14 * (u.n + 1)) { u.n++; this.emit('hit', { i: foe.i, x: foe.x, y: foe.y + 1.4, z: foe.z, col, rush: 1 }); this.emit('rushHit', { i: f.i, n: u.n }); if (this.ultDmg(f, foe, D * P * 0.08)) return; }
+      if (t >= up + dn) {
+        foe.y = 0; f.y = 0.6; this.emit('boom', { x: foe.x, y: 1.2, z: foe.z, col, big: 2 }); this.emit('land', { x: foe.x, z: foe.z, hard: true });
+        this.ultRelease(u, f, foe, { dmg: D * 0.62, stun: 1.1, kb: 7, up: 15 }); this.endUlt(0.4);
+      }
+    } else if (u.v === 1) {                                             // lo hace girar, lo lanza contra el borde y lo remata con una esfera
+      if (!u.thrown) {
+        const T = 0.95, a = (u.a0 === undefined ? (u.a0 = Math.atan2(foe.z - f.z, foe.x - f.x)) : u.a0) + t * t * 14;
+        f.y = Math.max(f.y, 0.6); foe.x = f.x + Math.cos(a) * 2.7; foe.z = f.z + Math.sin(a) * 2.7; foe.y = f.y + 0.3;
+        if ((u.n = (u.n || 0) + 1) % 4 === 0) this.emit('rushHit', { i: 1 - f.i, n: 1 });
+        if (t >= T) {
+          u.thrown = t; const ox = foe.x, oz = foe.z, r = Math.hypot(ox, oz) || 1, tx = r > 4 ? ox / r : Math.cos(a), tz = r > 4 ? oz / r : Math.sin(a);   // hacia el borde más cercano
+          this.ultRelease(u, f, foe, { dmg: D * 0.35, stun: 1.5, kb: 46, up: 7 }, tx, tz); u.hx = tx; u.hz = tz;
+          if (foe.st !== 'ko') this.shots.push({ o: f.i, big: 1, x: f.x, y: f.y + 3, z: f.z, vx: 0, vy: 0, vz: 0, life: 5, r: 0.5, t: 0, col, wait: 0, off: 0, R: 2.3, sp: 48, dm: D * 0.62, AR: 7.5, grow: 0.32 });
+        }
+      } else if (t > u.thrown + 0.4 && (t > u.thrown + 5 || !this.shots.some((s) => s.big && s.o === f.i))) this.endUlt(0.3);
+    } else {                                                            // lo sujeta en alto y le revienta la energía a quemarropa
+      f.y = Math.max(f.y, 0.4); foe.x = f.x + u.hx * 1.9; foe.z = f.z + u.hz * 1.9; foe.y = f.y + 1.1;
+      if (u.n < 3 && t >= 0.36 * (u.n + 1)) { u.n++; this.emit('boom', { x: foe.x, y: foe.y + 1.4, z: foe.z, col, big: u.n - 1 }); if (this.ultDmg(f, foe, D * P * 0.18)) return; }
+      if (t >= 1.36) { this.ultRelease(u, f, foe, { dmg: D * 0.32, stun: 1.1, kb: 32, up: 10 }); this.endUlt(0.4); }
+    }
+  }
+  u_volley(u, f, foe, c) {
+    const D = u.D, N = [18, 22, 24][u.v], every = 0.055, col = f.def.col, sp = 46;
+    while (u.n < N && u.t >= u.n * every) {
+      const s = { o: f.i, vol: 1, t: 0, col, life: 1.5, r: 1.4, hs: { dmg: D * [1.1, 0.8, 1.15][u.v] / N, stun: 0.3, kb: 2.5, gbreak: 5, raw: 1, fz: 1, shot: 1, rush: 1 } };
+      if (u.v === 2) {                                                  // aparecen alrededor del rival y caen sobre él desde todas partes
+        const a = this.rand() * 6.283, e = 0.15 + this.rand() * 1.1, R = 13; s.x = foe.x + Math.cos(a) * Math.cos(e) * R; s.z = foe.z + Math.sin(a) * Math.cos(e) * R; s.y = foe.y + 1.5 + Math.sin(e) * R;
+        const ax = foe.x + foe.vx * 0.2 - s.x, ay = foe.y + 1.5 - s.y, az = foe.z + foe.vz * 0.2 - s.z, ad = Math.hypot(ax, ay, az) || 1; s.vx = ax / ad * sp; s.vy = ay / ad * sp; s.vz = az / ad * sp;
+      } else {
+        const side = (u.n & 1 ? 1 : -1) * 0.9, oy = 1.4 + this.rand() * 1.2; s.x = f.x + u.hx * 1.2 - u.hz * side; s.z = f.z + u.hz * 1.2 + u.hx * side; s.y = f.y + oy;
+        const ax = foe.x + (this.rand() - 0.5) * 2.4 - s.x, ay = foe.y + 1.5 + (this.rand() - 0.5) * 2 - s.y, az = foe.z + (this.rand() - 0.5) * 2.4 - s.z, ad = Math.hypot(ax, ay, az) || 1; s.vx = ax / ad * sp; s.vy = ay / ad * sp; s.vz = az / ad * sp;
+      }
+      this.shots.push(s); this.emit('shot', { i: f.i, x: s.x, y: s.y, z: s.z, vol: 1 }); u.n++;
+    }
+    const T = N * every;
+    if (u.v === 1 && !u.fin && u.t >= T + 0.15) { u.fin = true; this.shots.push({ o: f.i, big: 1, x: f.x, y: f.y + 3, z: f.z, vx: 0, vy: 0, vz: 0, life: 5, r: 0.5, t: 0, col, wait: 0, off: 0, R: 2.5, sp: 46, dm: D * 0.42, AR: 7.5, grow: 0.4 }); }
+    if (u.t > T + 0.5 && (u.t > T + 5 || !this.shots.some((s) => (s.vol || s.big) && s.o === f.i))) this.endUlt(0.3);
   }
   /** Esfera gigante: crece sobre quien la lanza, cae hacia el rival y revienta en un área grande */
   stepBomb(s, att, def) {
-    const dt = VS_DT, grow = 0.95;
-    if (s.t < grow) { s.r = 0.5 + (s.sup ? 4.9 : 3.4) * (s.t / grow); s.x = att.x; s.z = att.z; s.y = att.y + 3.2 + s.r; return false; }
+    const dt = VS_DT, grow = s.grow || 0.95, t = s.t - s.wait, px = -(def.z - att.z), pz = def.x - att.x, pl = Math.hypot(px, pz) || 1;
+    if (t < grow) { s.r = 0.4 + (s.R - 0.4) * Math.max(0, t / grow); s.x = att.x + px / pl * s.off; s.z = att.z + pz / pl * s.off; s.y = att.y + 3.2 + s.r; return false; }
     if (!s.go) { s.go = true; this.emit('bombGo', { x: s.x, y: s.y, z: s.z }); }
-    const dx = def.x - s.x, dy = def.y + 1 - s.y, dz = def.z - s.z, d = Math.hypot(dx, dy, dz) || 1, sp = s.sup ? 33 : 27, k = Math.min(1, 2.2 * dt);
+    const dx = def.x - s.x, dy = def.y + 1 - s.y, dz = def.z - s.z, d = Math.hypot(dx, dy, dz) || 1, sp = s.sp, k = Math.min(1, 2.2 * dt);
     s.vx += (dx / d * sp - s.vx) * k * 3; s.vy += (dy / d * sp - s.vy) * k * 3; s.vz += (dz / d * sp - s.vz) * k * 3;
     s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
     if (d < s.r + 0.8 || s.y - s.r * 0.5 <= 0 || s.life <= 0) {
-      const R = s.sup ? 13 : 10, dd = Math.hypot(def.x - s.x, def.y + 1.5 - Math.max(s.y, 1), def.z - s.z);
-      this.emit('boom', { x: s.x, y: Math.max(1.5, s.y), z: s.z, col: s.col, big: 2 });
-      if (s.sup) for (let i = 0; i < 6; i++) { const a = i * 1.0472 + 0.5; this.blasts.push({ o: s.o, x: s.x + Math.cos(a) * 8.5, z: s.z + Math.sin(a) * 8.5, t: 0.2 + i * 0.09, col: s.col, big: 1, r: 5.5, dmg: 42 }); }
+      const R = s.AR, dd = Math.hypot(def.x - s.x, def.y + 1.5 - Math.max(s.y, 1), def.z - s.z);
+      this.emit('boom', { x: s.x, y: Math.max(1.5, s.y), z: s.z, col: s.col, big: s.R > 3 ? 2 : 1 });
+      if (s.ring) for (let i = 0; i < 6; i++) { const a = i * 1.0472 + 0.5; this.blasts.push({ o: s.o, x: s.x + Math.cos(a) * 8.5, z: s.z + Math.sin(a) * 8.5, t: 0.2 + i * 0.09, col: s.col, big: 1, r: 5.5, dmg: 42 }); }
       if (dd < R && def.st !== 'ko' && def.inv <= 0) {
         const fall = 1 - 0.55 * (dd / R), g = def.st === 'guard' ? 0.35 : 1, h = Math.hypot(def.x - s.x, def.z - s.z) || 1;
         if (g < 1) def.set('idle');
-        this.hit(att, def, { dmg: (s.sup ? 400 : 340) * fall * g, stun: 1.0, kb: 24, up: 12, launch: true, heavy: true, gbreak: 100 }, (def.x - s.x) / h, (def.z - s.z) / h);
+        this.hit(att, def, { dmg: s.dm * fall * g, stun: 1.0, kb: 24, up: 12, launch: true, heavy: true, gbreak: 100 }, (def.x - s.x) / h, (def.z - s.z) / h);
       }
       return true;
     }

@@ -106,7 +106,8 @@ class VsAI {
     // --- Transformación: en cuanto tiene la barra llena y un respiro ---
     if (me.tm >= 100 && me.fi < me.chain.length - 1 && !sim.ult && d > 3.5 && rnd() < (0.4 + L.ult) * dt * 2) { c.b |= VB.TRANS; return c; }
     // --- Ataque ---
-    if (me.ki >= 100 && d < 22 && foe.st !== 'down' && this.cool <= 0 && rnd() < L.ult * dt * 3) { c.b |= VB.ULT; return c; }
+    const ut = me.def.ult.type, uR = ut === 'nova' ? 9 : ut === 'rift' || ut === 'storm' || ut === 'discs' ? 30 : 22;     // cada Ultimate tiene su distancia
+    if (me.ki >= 100 && d < uR && foe.st !== 'down' && this.cool <= 0 && rnd() < L.ult * dt * 3) { c.b |= VB.ULT; return c; }
     if (this.pt <= 0) {                                               // elegir qué hacer el próximo rato
       const r = rnd(); this.side = rnd() < 0.5 ? 1 : -1;
       if (d > 13) this.plan = me.ki < 55 && r < 0.4 ? 'charge' : r < 0.4 + 0.3 * (1 - L.aggro) && me.ki > 20 ? 'shoot' : 'close';
@@ -116,14 +117,15 @@ class VsAI {
     }
     if (foe.st === 'launched' && me.ki >= 5 && rnd() < L.combo * dt * 8) { c.b |= VB.DASH; c.mx = toward; return c; }   // persecución
     if (d < 3.1 && Math.abs(dy) < 2.2 && this.plan !== 'charge') {    // a distancia de golpe: combo
+      if (me.st === 'flurry') { this.cool = 0.45 + (1 - L.aggro) * 0.8; return c; }                    // la ráfaga sale sola
       if (this.tap <= 0 && this.cool <= 0) {
-        this.tap = 0.11; this.hits = (this.hits || 0) + 1;
-        if (this.hits > 3) { if (rnd() < L.combo) c.b |= VB.HEAVY; this.hits = 0; this.cool = 0.5 + (1 - L.aggro) * 0.8; }
-        else if (rnd() < 0.55 + L.combo * 0.45) c.b |= VB.ATK; else { this.hits = 0; this.cool = 0.4; }
+        this.tap = 0.11;
+        if (me.st === 'atk' && me.c >= VS.LIGHT.length - 1) {            // cuarto golpe dado: ráfaga, golpe fuerte o lo deja ahí
+          if (me.done) { if (rnd() < L.combo) c.b |= rnd() < 0.7 ? VB.ATK : VB.HEAVY; this.cool = 0.5 + (1 - L.aggro) * 0.8; }
+        } else if (rnd() < 0.8 + L.combo * 0.2) c.b |= VB.ATK; else this.cool = 0.4;
       }
       return c;
     }
-    this.hits = 0;
     if (this.plan === 'charge') { if (d < 8 || me.ki >= 100) this.pt = 0; else c.b |= VB.CHARGE; return c; }
     if (this.plan === 'shoot') { if (me.ki < 8) this.pt = 0; else if (this.tap <= 0) { this.tap = 0.3; c.b |= VB.KI; } c.mz = this.side * 0.5; return c; }
     if (this.plan === 'circle') { c.mz = this.side; c.mx = d > 6 ? toward : 0; }
