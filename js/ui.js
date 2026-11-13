@@ -464,6 +464,7 @@ class UIManager {
   homeBar() {
     return '<div class="wlogo"><b>DRAGON BALL</b><span>ULTIMATE SURVIVOR</span></div>' +
       '<div class="wico"><span class="wchip" title="Días seguidos entrando">🔥 ' + Save.d.login.streak + '</span>' +
+      '<button class="wib" data-versus title="Modo Versus: combate 1 contra 1"><i>⚔</i><span>Versus</span></button>' +
       '<button class="wib" data-go="stats" title="Rastreador: tus estadísticas"><i class="scout"></i><span>Rastreador</span></button>' +
       '<button class="wib" data-go="account" title="Cuenta"><i>👤</i><span>' + this.accountLabel() + '</span></button>' +
       '<button class="wib" data-go="options" title="Opciones"><i>⚙</i></button><button class="wib" data-go="credits" title="Créditos"><i>★</i></button><button class="wib" data-exit title="Salir"><i>⏻</i></button></div>';

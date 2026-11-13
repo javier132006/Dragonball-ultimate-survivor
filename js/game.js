@@ -116,6 +116,7 @@ class Game {
     this.capsules = new Capsules(this.scene, tex);
     this.weapons = new WeaponSystem(this.scene, tex);
     this.points = new Points(this.scene, tex);          // santuarios, comerciantes, altar y grieta
+    this.versus = new Versus(this);                       // Modo Versus: módulo aparte (js/versus/), con su escena y su HUD
     this.tuto = new Tutor(this);                          // consejos la primera vez que pasa algo
     this.summon = new Summon(this);                     // Altar de Shenron: gachapón de transformaciones
     this.gacha = new Gacha(this);                       // Gachapón de Shenron (ventana de las 7 esferas)
@@ -257,7 +258,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-versus]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -287,6 +288,7 @@ class Game {
       else if (D.otab) { ui.otab = D.otab; ui.renderMenu(); }
       else if (D.ctab) { ui.ctab = D.ctab; ui.renderMenu(); }
       else if (D.stch) { ui.stch = D.stch; ui.renderMenu(); }
+      else if (D.versus !== undefined) this.versus.open();
       else if (D.lsel !== undefined) { ui.lsel = +D.lsel; ui.renderMenu(); }
       else if (D.book !== undefined) { ui.book = +D.book < 0 ? null : +D.book; ui.lchap = null; ui.renderMenu(); }
       else if (D.lchap !== undefined) { ui.lchap = +D.lchap; ui.renderMenu(); }
@@ -2734,6 +2736,7 @@ class Game {
   loop() {
     requestAnimationFrame(this.loop);
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
+    if (this.versus.active) { this.versus.frame(rawDt); this.perfHud.frame(rawDt, this.renderer); return; }   // el Modo Versus lleva su propio fotograma
     const s = this.state;
     const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine' || s === 'bosscine' || s === 'talk';
     if (vf) this.vfx.begin(this.camera);
