@@ -96,13 +96,20 @@ class VsAI {
     if (foe.st !== this.seen) { this.seenT += dt; if (this.seenT >= L.react) { this.seen = foe.st; this.seenT = 0; this.fresh = true; } } else this.seenT = 0;
     const foeAtk = this.seen === 'atk' || this.seen === 'heavy';
     this.pt -= dt; this.cool -= dt; this.tap -= dt; this.gHold -= dt;
+    if (this.upT > 0) { this.upT -= dt; c.b |= VB.UP; }                 // gancho: ARRIBA pulsado mientras sale
     // --- Defensa ---
     if (this.fresh && foeAtk && d < 4.5) { this.fresh = false; if (rnd() < L.guard) { this.gHold = 0.35 + rnd() * 0.25; this.gWait = rnd() < 0.3 ? 0 : 0.05 + rnd() * 0.12; } else if (rnd() < L.dodge && me.ki >= 5) { c.b |= VB.DASH; c.mz = rnd() < 0.5 ? 1 : -1; return c; } }
+    if (me.st === 'grabd') { if (me.t < 0.03 && rnd() < 0.25 + L.escape * 0.7) this.techAt = 0.05 + rnd() * 0.22 * (1.3 - L.escape); if (this.techAt !== undefined && me.t >= this.techAt) { c.b |= VB.ATK; this.techAt = undefined; } return c; }   // agarrado: a veces se suelta a tiempo
+    this.techAt = undefined;
+    if (me.ctr > 0 && d < 14 && rnd() < L.combo) { c.b |= rnd() < 0.6 ? VB.ATK : VB.HEAVY; return c; }           // esquiva perfecta: contraataca
     if ((me.st === 'hurt' || me.st === 'launched') && me.ki >= 30 && me.t > 0.1 && rnd() < L.escape * dt * 6) c.b |= VB.TP;
     let shotNear = false;
     for (const s of sim.shots) if (s.o !== i && Math.hypot(s.x - me.x, s.y - me.y - 1.5, s.z - me.z) < (s.big ? 16 : 7)) shotNear = s;
     if (shotNear && this.gHold <= 0 && rnd() < L.guard * dt * 14) { if (shotNear.big && me.ki >= 5) { c.b |= VB.DASH; c.mz = this.side; } else this.gHold = 0.3; }
     if (sim.ult && sim.ult.who !== i && sim.ult.ph > 0) {              // Ultimate rival en marcha: esquivar de lado o cubrirse
+      const ty = sim.ult.type;
+      if (ty === 'wave' && rnd() < 0.35 + L.dodge * 0.65) { c.b |= VB.UP; return c; }                            // la onda va por el suelo: arriba
+      if (ty === 'spin' && rnd() < 0.2 + L.dodge * 0.7) { c.b |= me.y > 4 ? VB.UP : dy < 0 ? VB.UP : me.y > 3.2 ? VB.DOWN : VB.UP; return c; }   // el rayo giratorio pasa a una altura: salir de ella
       if (rnd() < L.dodge) { c.mz = this.side; if (me.ki >= 5 && rnd() < 0.2) c.b |= VB.DASH; } else c.b |= VB.GUARD;
       return c;
     }
@@ -110,7 +117,7 @@ class VsAI {
     // --- Transformación: en cuanto tiene la barra llena y un respiro ---
     if (me.tm >= 100 && me.fi < me.chain.length - 1 && !sim.ult && d > 3.5 && rnd() < (0.4 + L.ult) * dt * 2) { c.b |= VB.TRANS; return c; }
     // --- Ataque ---
-    const ut = me.def.ult.type, uR = ut === 'nova' ? 9 : ut === 'rift' || ut === 'storm' || ut === 'discs' ? 30 : 22;     // cada Ultimate tiene su distancia
+    const ut = me.def.ult.type, uR = ut === 'nova' ? 9 : ut === 'drain' ? 14 : ut === 'rift' || ut === 'storm' || ut === 'discs' || ut === 'clone' || ut === 'spin' ? 30 : ut === 'wave' ? 45 : 22;     // cada Ultimate tiene su distancia
     if (me.ki >= 100 && d < uR && foe.st !== 'down' && this.cool <= 0 && rnd() < L.ult * dt * 3) { c.b |= VB.ULT; return c; }
     if (this.pt <= 0) {                                               // elegir qué hacer el próximo rato
       const r = rnd(); this.side = rnd() < 0.5 ? 1 : -1;
@@ -122,16 +129,23 @@ class VsAI {
     if (foe.st === 'launched' && me.ki >= 5 && rnd() < L.combo * dt * 8) { c.b |= VB.DASH; c.mx = toward; return c; }   // persecución
     if (d < 3.1 && Math.abs(dy) < 2.2 && this.plan !== 'charge') {    // a distancia de golpe: combo
       if (me.st === 'flurry') { this.cool = 0.45 + (1 - L.aggro) * 0.8; return c; }                    // la ráfaga sale sola
+      if (me.st === 'grab') return c;
+      if (this.seen === 'guard' && foe.st === 'guard' && this.cool <= 0 && (me.st === 'idle' || me.st === 'move') && rnd() < L.combo * dt * 5) { c.b |= VB.GUARD | VB.ATK; this.cool = 0.6; return c; }   // se cubre: agarre
+      if (foe.st === 'launched' && foe.jug >= 2 && foe.y > 1.5 && this.tap <= 0 && rnd() < L.combo * 0.5) { this.tap = 0.2; c.b |= VB.HEAVY; return c; }   // combo aéreo: lo remata contra el suelo
       if (this.tap <= 0 && this.cool <= 0) {
         this.tap = 0.11;
         if (me.st === 'atk' && me.c >= VS.LIGHT.length - 1) {            // cuarto golpe dado: ráfaga, golpe fuerte o lo deja ahí
-          if (me.done) { if (rnd() < L.combo) c.b |= rnd() < 0.7 ? VB.ATK : VB.HEAVY; this.cool = 0.5 + (1 - L.aggro) * 0.8; }
+          if (me.done) { if (rnd() < L.combo) { const r = rnd(); c.b |= r < 0.55 ? VB.ATK : r < 0.8 ? VB.HEAVY : VB.HEAVY | VB.UP; if (r >= 0.8) this.upT = 0.5; } this.cool = 0.5 + (1 - L.aggro) * 0.8; if (this.upT > 0) this.cool = 0.25; }
         } else if (rnd() < 0.8 + L.combo * 0.2) c.b |= VB.ATK; else this.cool = 0.4;
       }
       return c;
     }
     if (this.plan === 'charge') { if (d < 8 || me.ki >= 100) this.pt = 0; else c.b |= VB.CHARGE; return c; }
-    if (this.plan === 'shoot') { if (me.ki < 8) this.pt = 0; else if (this.tap <= 0) { this.tap = 0.3; c.b |= VB.KI; } c.mz = this.side * 0.5; return c; }
+    if (this.plan === 'shoot') {                                      // de lejos, a veces carga el disparo
+      if (me.st === 'shot' && this.kHold > 0) { this.kHold -= dt; c.b |= VB.KI; return c; }
+      if (me.ki < 8) this.pt = 0; else if (this.tap <= 0) { this.tap = 0.3; c.b |= VB.KI; this.kHold = d > 11 && me.ki > 40 && rnd() < 0.3 ? 0.45 + rnd() * 0.5 : 0; if (this.kHold) this.tap = this.kHold + 0.4; }
+      c.mz = this.side * 0.5; return c;
+    }
     if (this.plan === 'circle') { c.mz = this.side; c.mx = d > 6 ? toward : 0; }
     else { c.mx = toward; if (d > 9 && me.ki >= 25 && rnd() < L.aggro * dt * 2.5) c.b |= VB.DASH; }
     if (dy > 1.2) c.b |= VB.UP; else if (dy < -1.2) c.b |= VB.DOWN;

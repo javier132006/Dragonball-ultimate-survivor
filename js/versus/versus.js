@@ -67,10 +67,11 @@ const VS_CSS = `
 @media (max-width:900px),(max-height:520px){#vs .sel.on{display:block;overflow:auto}#vs .sel h1{font-size:24px;margin-bottom:10px}#vs .col{overflow:visible;margin-bottom:10px}#vs .grid{grid-template-columns:repeat(auto-fill,minmax(58px,1fr))}#vs .pt{width:52px;height:52px}#vs .nm{font-size:14px}#vs .clock{font-size:28px;width:52px}}
 `;
 const VS_HINT = '<b>WASD</b> mover · <b>Espacio/Mayús</b> subir/bajar · <b>J</b> golpe · <b>K</b> fuerte · <b>L</b> ki · <b>U</b> guardia · <b>I</b> dash · <b>O</b> teletransporte · <b>H</b> cargar · <b>Y</b> Ultimate · <b>T</b> transformarse · <b>Esc</b> pausa';
-const VS_KEYS_HTML = '<h4>JUGADOR 1 · TECLADO</h4><b>WASD</b> mover · <b>Espacio</b>/<b>Mayús izq.</b> subir y bajar<br><b>J</b> golpe (4 seguidos + otra vez = <b>ráfaga</b>) · <b>K</b> golpe fuerte · <b>L</b> ki<br><b>U</b> guardia · <b>I</b> dash · <b>O</b> teletransporte<br><b>H</b> cargar ki · <b>Y</b> Ultimate · <b>T</b> transformarse' +
+const VS_KEYS_HTML = '<h4>JUGADOR 1 · TECLADO</h4><b>WASD</b> mover · <b>Espacio</b>/<b>Mayús izq.</b> subir y bajar<br><b>J</b> golpe (4 seguidos + otra vez = <b>ráfaga</b>) · <b>K</b> golpe fuerte · <b>L</b> ki (mantener = <b>cargado</b>)<br><b>U</b> guardia · <b>I</b> dash · <b>O</b> teletransporte<br><b>H</b> cargar ki · <b>Y</b> Ultimate · <b>T</b> transformarse' +
   '<h4>JUGADOR 2 · TECLADO</h4><b>Flechas</b> mover · <b>Mayús der.</b>/<b>Ctrl der.</b> subir y bajar<br>Numérico: <b>1</b> golpe · <b>2</b> fuerte · <b>3</b> ki · <b>4</b> guardia · <b>5</b> dash · <b>6</b> teletransporte · <b>0</b> cargar · <b>Intro</b> Ultimate · <b>+</b> transformarse' +
   '<h4>MANDO</h4><b>X</b> golpe · <b>Y</b> fuerte · <b>B</b> ki · <b>A</b> dash · <b>LB</b> guardia · <b>RB</b> teletransporte · <b>LT</b> cargar · <b>RT</b> Ultimate · <b>pulsar un stick</b> transformarse · cruceta ↑↓ subir/bajar<br>El primer mando es del jugador 1; el segundo, del jugador 2.' +
   '<h4>COMBO</h4>Cada pulsación de <b>golpe</b> es un golpe. Si conectas los 4, pulsa una vez más: sale sola una <b>ráfaga</b> de golpes rápidos que manda al rival volando. Tras cualquier golpe puedes cortar con el <b>golpe fuerte</b>.' +
+  '<h4>TÉCNICAS</h4><b>Agarre</b>: guardia + golpe. Rompe la guardia; si te agarran, pulsa golpe al instante para soltarte. <b>Gancho</b>: golpe fuerte con «subir» pulsado; levanta al rival para seguir pegándole en el aire, y un golpe fuerte en el aire lo <b>estrella</b> contra el suelo. <b>Esquiva perfecta</b>: haz dash justo cuando llega el golpe y tu siguiente ataque aparece a su espalda y pega más. <b>Ki cargado</b>: mantén el botón de ki. Los disparos de los dos <b>chocan</b> entre sí: gana el más fuerte.' +
   '<h4>TRANSFORMACIÓN</h4>La barra naranja se llena al pegar y al recibir daño. Llena, <b>transfórmate</b>: más fuerza, algo de vida y una <b>Ultimate distinta</b>, la de esa forma. Puedes encadenar todas las formas del guerrero.' +
   '<h4>TRUCOS</h4>Guardia justo antes del golpe: <b>contraataque</b>. Dash cuando el rival sale volando: <b>persecución</b>. Teletransporte mientras te pegan: <b>escapas</b> (30 de ki).';
 
@@ -109,7 +110,9 @@ class VsActor {
       case 'atk': return A.atkSeq ? A.atkSeq[f.c % A.atkSeq.length] : f.c & 1 ? A.atk2 : A.atk;
       case 'flurry': return f.done ? A.crit : A.atkSeq ? A.atkSeq[f.n % 2] : f.n & 1 ? A.atk2 : A.atk;
       case 'heavy': return f.t < 0.17 ? (A.atkSeq ? A.atkSeq[0] : A.atk) : A.crit;
-      case 'shot': return A.atk2;
+      case 'shot': return !f.done && f.chg ? chg : A.atk2;
+      case 'grab': return f.done ? A.atk : A.dash;
+      case 'grabd': return A.hurt;
       case 'charge': case 'trans': return chg;
       case 'hurt': case 'stun': case 'held': return A.hurt;
       case 'launched': return first(A.death);
@@ -119,7 +122,9 @@ class VsActor {
         if (!u || u.ph === 0) return chg;
         switch (u.type) {
           case 'beam': return A.atk2;
-          case 'bomb': case 'storm': case 'rift': return A.crit;
+          case 'bomb': case 'storm': case 'rift': case 'wave': return A.crit;
+          case 'spin': case 'drain': case 'cage': return A.atk2;
+          case 'clone': return u.k >= 0 && u.cl && u.cl[u.k].s === 1 ? A.dash : u.fin ? A.crit : seq(A.idleSeq || A.idle, 6);
           case 'nova': return u.r > 0 ? A.crit : chg;
           case 'discs': case 'volley': return u.n & 1 ? A.atk2 : A.atk;
           case 'grab': return !u.lock ? (u.thrown ? A.atk2 : A.dash) : u.v === 2 ? A.atk2 : u.v === 0 && u.t > 0.55 ? A.crit : A.atk;
@@ -243,7 +248,7 @@ class Versus {
     const scene = this.scene = new THREE.Scene(), low = Save.d.opt.quality === 'low';
     // La Torre cambia de arena en cada combate
     this.arena = new VsArena(scene, tw || c.arena === 'azar' ? AK[(Math.random() * AK.length) | 0] : c.arena, low); this.cam = new VsCamera(); this.post = low ? null : new VsPost(r);
-    this.fxA = new VsParticles(scene, 700, false, 3); this.fx = new VsParticles(scene, 1100, true, 9); this.beam = new VsBeam(scene);
+    this.fxA = new VsParticles(scene, 700, false, 3); this.fx = new VsParticles(scene, 1100, true, 9); this.beam = new VsBeam(scene); this.beam2 = new VsBeam(scene);
     this.actors = chains.map((ch, i) => new VsActor(this, ch, sheets[i]));
     this.ghosts = []; for (let i = 0; i < 14; i++) { const s = new VsSprite(scene, false); s.mesh.visible = false; s.life = 0; s.mesh.renderOrder = 2; this.ghosts.push(s); }
     this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train ? 1 : c.rounds, noKO: train, noTime: train });
@@ -265,7 +270,7 @@ class Versus {
     if (!this.scene) return; const r = this.g.renderer;
     this.scene.traverse((o) => { if (o.geometry && o.geometry !== VS_QUAD) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.customDepthMaterial) o.customDepthMaterial.dispose(); });
     if (this.post) this.post.dispose(); r.setRenderTarget(null); r.shadowMap.autoUpdate = this.saved.auto; this.g.shadowDirty = true;
-    this.scene = this.arena = this.post = this.fx = this.fxA = this.beam = this.actors = this.ghosts = null;
+    this.scene = this.arena = this.post = this.fx = this.fxA = this.beam = this.beam2 = this.actors = this.ghosts = null;
   }
 
   /** Un fotograma: lo llama el bucle del juego mientras el modo está activo */
@@ -317,6 +322,8 @@ class Versus {
     const a = this.actors[i], g = this.ghosts.find((s) => s.life <= 0); if (!g) return;
     g.setSheet(a.spr.s); g.pose(a.fr, a.flip, a.roll, 1, 1); g.u.uRight.value.copy(a.spr.u.uRight.value); g.mesh.position.set(a.px, a.py, a.pz); g.u.uTint.value.setHex(col); g.life = g.max = life || 0.24; g.mesh.visible = true;
   }
+  /** Imagen del luchador i en otro punto (las copias de la Ultimate de imágenes múltiples) */
+  ghostAt(i, x, y, z, col, life) { const a = this.actors[i], px = a.px, py = a.py, pz = a.pz; a.px = x; a.py = y; a.pz = z; this.ghost(i, col, life); a.px = px; a.py = py; a.pz = pz; }
   onEvent(e) {
     const sim = this.sim, cam = this.cam, fx = this.fx;
     switch (e.t) {
@@ -325,6 +332,29 @@ class Versus {
         this.ui.rnd.textContent = this.trn ? 'PRÁCTICA' : tw ? 'TORRE ' + (tw.i + 1) + '/' + VS_TOWER.n + ' · R' + e.n : 'RONDA ' + e.n; } cam.update(0.016, sim, true); break;
       case 'fight': this.say('¡LUCHA!', 0.9); SFX.play('crit'); break;
       case 'swing': if (e.heavy) SFX.play('slash'); break;
+      case 'dodge': this.tag('¡ESQUIVA PERFECTA!'); this.slow = Math.max(this.slow, 0.22); this.ghost(e.i, 0xffffff, 0.4); fx.add(1, e.x, e.y, e.z, 1.5, 0xffffff, { s1: 8, life: 0.3 }); this.blur = Math.max(this.blur, 0.6); SFX.play('tp'); break;
+      case 'counter': this.tag('¡CONTRAGOLPE!'); fx.add(3, e.x, e.y + 1.6, e.z, 2, 0xffffff, { s1: 6, life: 0.16 }); this.burst(e.x, e.y + 1.6, e.z, this.actors[e.i].def.col, 12, 18, 1.2); this.flash = Math.max(this.flash, 0.15); break;
+      case 'juggle': this.tag('¡COMBO AÉREO!'); break;
+      case 'spike': this.tag('¡REMATE!'); fx.add(1, e.x, e.y, e.z, 2, 0xffffff, { s1: 10, life: 0.25 }); fx.add(2, e.x, e.y, e.z, 2.2, 0xffffff, { vy: -60, life: 0.25, stretch: 8 }); this.blur = 1; cam.shake(0.7); SFX.play('slash'); break;
+      case 'crater': this.fxA.add(1, e.x, 0.08, e.z, 3, 0x2a2430, { s1: 15, life: 1.2, flat: true, a: 0.8 }); fx.add(1, e.x, 0.1, e.z, 2, e.col, { s1: 20, life: 0.4, flat: true, a: 0.9 }); this.burst(e.x, 0.8, e.z, e.col, 20, 26, 1.6); this.dust(e.x, e.z, 22, 16);
+        for (let k = 0; k < 10; k++) this.fxA.add(5, e.x, 0.3, e.z, 0.4, 0x2a2430, { vx: (Math.random() - 0.5) * 16, vz: (Math.random() - 0.5) * 16, vy: 9 + Math.random() * 9, g: 28, life: 1.1, bounce: true, s1: 0.2 }); this.flash = Math.max(this.flash, 0.2); cam.shake(1.1); cam.kick = 1; SFX.play('bigboom'); g_rumble(260, 1); break;
+      case 'grabTry': SFX.play('dash'); break;
+      case 'grab': this.tag('¡AGARRE!'); fx.add(1, e.x, e.y, e.z, 5, 0xffffff, { s1: 1, life: 0.18 }); cam.shake(0.3); SFX.play('hit'); break;
+      case 'throw': this.blur = Math.max(this.blur, 0.7); SFX.play('slash'); break;
+      case 'tech': this.tag('¡SE SUELTA!'); fx.add(3, e.x, e.y, e.z, 2, 0xffffff, { s1: 5, life: 0.18 }); fx.add(1, e.x, e.y, e.z, 1, 0xffe27a, { s1: 6, life: 0.25 }); this.burst(e.x, e.y, e.z, 0xffe27a, 10, 16, 1); cam.shake(0.4); SFX.play('guard'); break;
+      case 'clash': { const k = e.big ? 1.8 : 1; fx.add(3, e.x, e.y, e.z, 2 * k, 0xffffff, { s1: 6 * k, life: 0.18, a: 0.9 }); fx.add(1, e.x, e.y, e.z, 1, e.col, { s1: 7 * k, life: 0.28 }); fx.add(1, e.x, e.y, e.z, 1, e.col2, { s1: 5 * k, life: 0.22 });
+        this.burst(e.x, e.y, e.z, e.col, 8 * k, 20, 1.1); this.burst(e.x, e.y, e.z, e.col2, 8 * k, 20, 1.1); if (e.big) { this.flash = Math.max(this.flash, 0.18); cam.shake(0.5); this.tag('¡CHOQUE DE KI!'); } SFX.play(e.big ? 'boom' : 'guard'); break; }
+      case 'kiCharge': SFX.play('pulse'); break;
+      case 'clones': this.tag('¡IMÁGENES MÚLTIPLES!'); for (let k = 0; k < 14; k++) fx.add(2, e.x + (Math.random() - 0.5) * 2, e.y + Math.random() * 3, e.z + (Math.random() - 0.5) * 2, 1.3, 0xffffff, { vx: (Math.random() - 0.5) * 50, vz: (Math.random() - 0.5) * 50, life: 0.25, stretch: 5 }); SFX.play('tp'); break;
+      case 'cloneGo': this.blur = Math.max(this.blur, 0.6); SFX.play('dash'); break;
+      case 'cageOpen': SFX.play('pulse'); break;
+      case 'cageShut': this.tag('¡ATRAPADO!'); fx.add(3, e.x, e.y, e.z, 4, 0xffffff, { s1: 9, life: 0.2 }); fx.add(1, e.x, e.y, e.z, 12, e.col, { s1: 6, life: 0.25 }); this.burst(e.x, e.y, e.z, e.col, 20, 16, 1.3); this.flash = Math.max(this.flash, 0.2); cam.shake(0.6); SFX.play('guard'); break;
+      case 'drainOn': this.tag('¡ABSORCIÓN!'); SFX.play('pulse'); break;
+      case 'drainMiss': this.tag('FALLO'); break;
+      case 'drainTick': { const me = sim.f[e.i], dx = me.x - e.x, dy = me.y + 1.6 - e.y, dz = me.z - e.z; for (let k = 0; k < 3; k++) fx.add(0, e.x + (Math.random() - 0.5), e.y + (Math.random() - 0.5) * 2, e.z + (Math.random() - 0.5), 1.1, k ? e.col : 0xffffff, { vx: dx / 0.3, vy: dy / 0.3, vz: dz / 0.3, life: 0.3, s1: 0.4, a: 0.9 });
+        fx.add(2, me.x + (Math.random() - 0.5) * 1.6, me.y + Math.random() * 2, me.z + (Math.random() - 0.5) * 1.6, 0.9, 0x7dffb0, { vy: 9, life: 0.4, stretch: 3 }); if (((this.dtk = (this.dtk || 0) + 1) & 1) === 0) SFX.play('ki'); break; }
+      case 'waveGo': fx.add(1, e.x, 0.1, e.z, 2, 0xffffff, { s1: 16, life: 0.3, flat: true, a: 0.9 }); cam.shake(0.8); this.flash = Math.max(this.flash, 0.15); SFX.play(e.back ? 'pulse' : 'bigboom'); break;
+      case 'spinGo': this.tag('¡BARRIDO!'); SFX.play('bigbeam'); break;
       case 'flurry': this.tag('¡RÁFAGA!'); this.blur = Math.max(this.blur, 0.5); SFX.play('dash'); break;
       case 'mark': {                                                    // aviso en el suelo de una explosión que está al caer
         this.fxA.add(1, e.x, 0.09, e.z, e.r * 2.3, e.col, { s1: e.r * 0.5, life: e.t, flat: true, a: 0.85 }); fx.add(1, e.x, 0.1, e.z, e.r * 0.4, 0xffffff, { s1: e.r * 2.1, life: e.t, flat: true, a: 0.5 });
@@ -350,7 +380,8 @@ class Versus {
       case 'guard': fx.add(1, e.x, e.y, e.z, 1.5, 0x9adcff, { s1: 4.6, life: 0.2 }); this.burst(e.x, e.y, e.z, 0x9adcff, 5, 9, 1); cam.shake(0.16); SFX.play('block'); break;
       case 'parry': if (e.i === 0) this.run.parry++; fx.add(3, e.x, e.y, e.z, 3, 0xffffff, { s1: 6, life: 0.22 }); fx.add(1, e.x, e.y, e.z, 1.5, 0xffe27a, { s1: 6.5, life: 0.28 }); this.burst(e.x, e.y, e.z, 0xffe27a, 14, 20, 1.1); this.flash = 0.3; cam.shake(0.5); this.tag('¡CONTRAATAQUE!'); SFX.play('crit'); break;
       case 'break': this.burst(e.x, e.y, e.z, 0x9adcff, 22, 22, 1.2); fx.add(1, e.x, e.y, e.z, 1.5, 0x9adcff, { s1: 7.5, life: 0.32 }); cam.shake(0.6); this.tag('¡GUARDIA ROTA!'); SFX.play('boom'); break;
-      case 'shot': fx.add(3, e.x, e.y, e.z, e.disc ? 2.4 : 1.2, 0xffffff, { s1: e.disc ? 4 : 2.2, life: 0.1, a: 0.8 }); if (e.vol) fx.add(1, e.x, e.y, e.z, 0.6, this.actors[e.i].def.col, { s1: 3, life: 0.16, a: 0.7 }); SFX.play(e.disc ? 'slash' : 'ki'); break;
+      case 'shot': if (e.chg) { fx.add(3, e.x, e.y, e.z, 2.6 * e.chg, 0xffffff, { s1: 6 * e.chg, life: 0.16, a: 0.9 }); fx.add(1, e.x, e.y, e.z, 1, this.actors[e.i].def.col, { s1: 7 * e.chg, life: 0.25 }); cam.shake(0.3 * e.chg); SFX.play('boom'); break; }
+        fx.add(3, e.x, e.y, e.z, e.disc ? 2.4 : 1.2, 0xffffff, { s1: e.disc ? 4 : 2.2, life: 0.1, a: 0.8 }); if (e.vol) fx.add(1, e.x, e.y, e.z, 0.6, this.actors[e.i].def.col, { s1: 3, life: 0.16, a: 0.7 }); SFX.play(e.disc ? 'slash' : 'ki'); break;
       case 'pop': fx.add(0, e.x, e.y, e.z, 1.6, e.col, { s1: 3.2, life: 0.18, a: 0.6 }); fx.add(1, e.x, e.y, e.z, 0.8, e.col, { s1: 3.4, life: 0.2 }); this.burst(e.x, e.y, e.z, e.col, 6, 12, 1); break;
       case 'dash': fx.add(1, e.x, e.y + 1.5, e.z, 1.2, 0xffffff, { s1: 6.5, life: 0.22 }); if (e.y < 0.4) this.dust(e.x, e.z, 7, 8); this.blur = Math.max(this.blur, 0.55); SFX.play('dash'); break;
       case 'vanish': this.ghost(e.i, 0xffffff, 0.3); for (let i = 0; i < 9; i++) fx.add(2, e.x + (Math.random() - 0.5) * 1.6, e.y + Math.random() * 3.2, e.z + (Math.random() - 0.5) * 1.6, 1.3, 0xffffff, { vy: 16 + Math.random() * 14, life: 0.2, stretch: 4 }); SFX.play('tp'); break;
@@ -396,7 +427,7 @@ class Versus {
         cam.play(VS.ULT_CINE, (k, P, L) => { const a = a0 + s * (0.5 - k * 1.0), r = 8.4 - 3 * k; L.set(f.x, f.y + 1.9, f.z); P.set(f.x + Math.cos(a) * r, f.y + 2.6 - k * 1.1, f.z + Math.sin(a) * r); return 36 - 8 * k; });
         this.flash = 0.35; SFX.play('charge'); break;
       }
-      case 'ultGo': this.el.classList.remove('cine'); cam.shake(0.9); this.blur = 1; this.flash = 0.3; SFX.play(e.type === 'beam' ? 'bigbeam' : e.type === 'rush' || e.type === 'slash' || e.type === 'grab' ? 'dash' : 'pulse'); break;
+      case 'ultGo': this.el.classList.remove('cine'); cam.shake(0.9); this.blur = 1; this.flash = 0.3; SFX.play(e.type === 'beam' ? 'bigbeam' : e.type === 'rush' || e.type === 'slash' || e.type === 'grab' || e.type === 'clone' ? 'dash' : 'pulse'); break;
       case 'beamHit': this.burst(e.x, e.y, e.z, e.col, 7, 22, 1.5); fx.add(0, e.x, e.y, e.z, 3, e.col, { s1: 5, life: 0.14, a: 0.5 }); cam.shake(0.42); SFX.play('hit'); break;
       case 'rushLock': { const f = sim.f[1 - e.i], a0 = cam.ang; cam.play(1.5, (k, P, L) => { const a = a0 + k * 2.6; L.set(f.x, f.y + 1.6, f.z); P.set(f.x + Math.cos(a) * 9, f.y + 2.2 + Math.sin(k * 3.1) * 1.4, f.z + Math.sin(a) * 9); return 34; }); break; }
       case 'rushUp': { const f = sim.f[e.i], foe = sim.f[1 - e.i], a0 = cam.ang;                       // remate superior: contrapicado que sigue al rival hasta el cielo y de vuelta al suelo
@@ -466,6 +497,8 @@ class Versus {
       if (f.st === 'dash' && (T & 1) === 0) this.ghost(f.i, col, 0.22);
       if (f.st === 'launched' && (T & 3) === 0) this.ghost(f.i, 0xffffff, 0.16);
       if (f.st === 'flurry' && (T & 1) === 0) this.ghost(f.i, col, 0.13);
+      if (f.st === 'shot' && !f.done && f.chg && T % 2 === 0) { const a = Math.random() * 6.283, r = 3 + Math.random() * 2; fx.add(2, f.x + Math.cos(a) * r, f.y + 1.7 + (Math.random() - 0.5) * 3, f.z + Math.sin(a) * r, 0.8, T % 4 ? col : 0xffffff, { vx: -Math.cos(a) * r / 0.2, vz: -Math.sin(a) * r / 0.2, life: 0.18, stretch: 4 }); }   // ki cargándose
+      if (f.ctr > 0 && T % 3 === 0) fx.add(0, f.x, f.y + 1.6, f.z, 3.2, 0xffffff, { s1: 1.5, life: 0.15, a: 0.35 });                        // ventana de contraataque
       if (f.st === 'charge' || (f.st === 'ult' && sim.ult && sim.ult.ph === 0)) {
         if ((T & 1) === 0) { const a = Math.random() * 6.283, r = 1 + Math.random() * 1.8; fx.add(2, f.x + Math.cos(a) * r, f.y + Math.random() * 1.5, f.z + Math.sin(a) * r, 0.9, T % 6 ? col : 0xffffff, { vy: 9 + Math.random() * 9, life: 0.4, stretch: 3 }); }
         if (T % 14 === 0 && f.y < 0.5) { fx.add(1, f.x, 0.09, f.z, 2, col, { s1: 10, life: 0.45, flat: true, a: 0.8 }); this.fxA.add(5, f.x + (Math.random() - 0.5) * 4, 0.2, f.z + (Math.random() - 0.5) * 4, 0.3, 0x3a3038, { vy: 5 + Math.random() * 4, life: 0.8, s1: 0.1 }); }
@@ -514,6 +547,12 @@ class Versus {
       if (u.type === 'grab' && u.lock && u.v === 2 && T % 3 === 0) this.bolt(uf.x, uf.y + 2, uf.z, uo.x + (R() - 0.5) * 2, uo.y + 1 + R() * 2, uo.z + (R() - 0.5) * 2, T % 2 ? c : 0xffffff, 0.5, 0.1);
       if (u.type === 'grab' && u.lock && u.v === 0 && (T & 1) === 0) { this.ghost(u.who, c, 0.2); this.ghost(1 - u.who, 0xffffff, 0.2); }
       if (u.type === 'slash' && u.w2 && T % 4 === 0) { const a = R() * 6.283; this.bolt(uo.x, uo.y + 1.6, uo.z, uo.x + Math.cos(a) * 3, uo.y + 0.5 + R() * 2.5, uo.z + Math.sin(a) * 3, c, 0.35, 0.1); }
+      if (u.type === 'clone' && u.cl && T % 3 === 0) for (const q of u.cl) if (q.s === 0 && (q !== u.cl[0] || u.k >= 0)) this.ghostAt(u.who, q.x, q.y, q.z, T % 6 ? c : 0xffffff, 0.12);   // las copias que esperan su turno
+      if (u.type === 'clone' && u.k >= 0 && u.cl[u.k].s === 1) this.ghost(u.who, c, 0.2);
+      if (u.type === 'cage' && u.cr > 0 && T % 2 === 0) { const a = R() * 6.283, e = (R() - 0.5) * 3, r = u.cr; this.bolt(u.cx + Math.cos(a) * r, u.cy + e, u.cz + Math.sin(a) * r, u.cx + Math.cos(a + 1.2) * r, u.cy - e, u.cz + Math.sin(a + 1.2) * r, T % 4 ? c : 0xffffff, 0.3, 0.1); }
+      if (u.type === 'drain' && u.link && T % 2 === 0) this.bolt(uf.x, uf.y + 1.9, uf.z, uo.x, uo.y + 1.6, uo.z, T % 4 ? c : 0xffffff, 0.55, 0.09);
+      if (u.type === 'wave' && u.rings) for (const g of u.rings) if (!g.done) for (let n = 0; n < 5; n++) { const a = R() * 6.283; fx.add(2, u.wx + Math.cos(a) * g.r, 0.2, u.wz + Math.sin(a) * g.r, 1.3, n % 3 ? c : 0xffffff, { vy: 14 + R() * 10, life: 0.18, stretch: 4, a: 0.45 }); }
+      if (u.type === 'spin' && u.len) { const nb = u.v === 2 ? 2 : 1; for (let k = 0; k < nb; k++) { const a = u.ang + k * Math.PI, d = 4 + R() * Math.min(u.len, 30); fx.add(2, u.px + Math.cos(a) * d, u.py, u.pz + Math.sin(a) * d, 1.2, R() < 0.5 ? c : 0xffffff, { vx: (R() - 0.5) * 16, vy: (R() - 0.5) * 16, vz: (R() - 0.5) * 16, life: 0.2, stretch: 3 }); } this.cam.shake(0.25); }
       if (u.type === 'rift' && u.heads) for (const h of u.heads) if (!h.done && (T & 1) === 0) fx.add(0, h.x, 0.5, h.z, 3.4, c, { s1: 1, life: 0.2, a: 0.8 });
     }
     if (u && u.type === 'beam' && u.ph === 1 && u.t < 1.35 && u.len) {
@@ -539,6 +578,7 @@ class Versus {
       const x = s.x + s.vx * VS_DT * k, y = s.y + s.vy * VS_DT * k, z = s.z + s.vz * VS_DT * k;
       if (s.big) { const r = s.r, p = 1 + Math.sin(T * 30) * 0.05; fx.now(0, x, y, z, r * 3.1 * p, s.col, 0.7); fx.now(0, x, y, z, r * 1.7, 0xffffff, 0.8); fx.now(3, x, y, z, r * 2.3, 0xffffff, 0.4, T * 2);
         for (let i = 0; i < 4; i++) { const a = T * 5 + i * 1.57; fx.now(0, x + Math.cos(a) * r * 1.3, y + Math.sin(a * 1.3) * r * 0.7, z + Math.sin(a) * r * 1.3, r * 0.5, 0xffffff, 0.7); } light(x, y, z, s.col, 1.3 + r * 0.25); }
+      else if (s.chg) { const r = s.r, p = 1 + Math.sin(T * 40) * 0.08; fx.now(0, x, y, z, r * 2.4 * p, s.col, 0.8); fx.now(0, x, y, z, r * 1.2, 0xffffff, 1); fx.now(3, x, y, z, r * 2, 0xffffff, 0.5, T * 9); fx.now(1, x, y, z, r * 1.7, s.col, 0.8); light(x, y, z, s.col, 1.2); }   // ki cargado
       else if (s.disc) { const r = s.r; fx.now(1, x, y, z, r * 2.5, s.col, 1, 0, VS_FLAT); fx.now(1, x, y, z, r * 1.6, 0xffffff, 0.9, 0, VS_FLAT); fx.now(0, x, y, z, r * 1.7, s.col, 0.55); fx.now(3, x, y, z, r * 1.9, 0xffffff, 0.55, T * 22); light(x, y, z, s.col, 0.9); }   // disco cortante
       else { fx.now(0, x, y, z, 2.0, s.col, 0.75); fx.now(0, x, y, z, 0.85, 0xffffff, 1); light(x, y, z, s.col, 0.8); }
     }
@@ -550,7 +590,30 @@ class Versus {
       const hx = u.ox + u.dx * u.len, hy = u.oy + u.dy * u.len, hz = u.oz + u.dz * u.len;
       fx.now(0, u.ox, u.oy, u.oz, 4.6 * pw, c, 0.6); fx.now(0, u.ox, u.oy, u.oz, 2.3 * pw, 0xffffff, 0.9); fx.now(3, u.ox, u.oy, u.oz, 4.6 * pw, 0xffffff, 0.45, T * 3); fx.now(0, hx, hy, hz, 5 * pw, c, 0.55);
       light(u.ox + u.dx * 6, u.oy, u.oz + u.dz * 6, c, 1.5 * pw); light(u.ox + u.dx * Math.min(u.len, 24), u.oy, u.oz + u.dz * Math.min(u.len, 24), c, 1.2 * pw);
+    } else if (u && u.type === 'spin' && u.ph === 1 && u.len) {          // rayo giratorio (dos, opuestos, en la variante 2)
+      const c = this.actors[u.who].def.col, b2 = this.beam2, bx = Math.cos(u.ang), bz = Math.sin(u.ang);
+      for (const [m, k] of [[bm, 1], [b2, -1]]) {
+        m.mesh.visible = k > 0 || u.v === 2; if (!m.mesh.visible) continue;
+        m.u.uA.value.set(u.px + bx * k * 1.2, u.py, u.pz + bz * k * 1.2); m.u.uDir.value.set(bx * k, 0, bz * k); m.u.uLen.value = u.len; m.u.uW.value = 3.6; m.u.uCol.value.setHex(c); m.u.uT.value = T; m.u.uPow.value = 1;
+        light(u.px + bx * k * 8, u.py, u.pz + bz * k * 8, c, 1.3);
+      }
+      fx.now(0, u.px, u.py, u.pz, 5, c, 0.6); fx.now(0, u.px, u.py, u.pz, 2.4, 0xffffff, 0.9); fx.now(3, u.px, u.py, u.pz, 5, 0xffffff, 0.5, T * 6);
     } else bm.mesh.visible = false;
+    if (!(u && u.type === 'spin' && u.ph === 1 && u.len && u.v === 2)) this.beam2.mesh.visible = false;
+    if (u && u.ph === 1 && u.type === 'cage' && u.cr > 0) {              // prisión de ki
+      const c = this.actors[u.who].def.col, r = u.cr, p = 1 + Math.sin(T * 30) * 0.04, a = u.lock ? 1 : 0.55;
+      fx.now(1, u.cx, u.cy, u.cz, r * 2.1 * p, c, a); fx.now(1, u.cx, u.cy, u.cz, r * 1.95, 0xffffff, a * 0.8); fx.now(0, u.cx, u.cy, u.cz, r * 2.5, c, 0.35 * a); fx.now(1, u.cx, Math.max(0.1, u.cy - r * 0.2), u.cz, r * 2.1, c, a * 0.8, 0, VS_FLAT); fx.now(1, u.cx, u.cy + r * 0.5, u.cz, r * 1.7, c, a * 0.6, 0, VS_FLAT);
+      fx.now(1, u.cx, 0.1, u.cz, r * 2, c, 0.5 * a, 0, VS_FLAT); light(u.cx, u.cy, u.cz, c, 1.4 * a);
+    }
+    if (u && u.ph === 1 && u.type === 'wave' && u.rings) {               // onda por el suelo
+      const c = this.actors[u.who].def.col;
+      for (const g of u.rings) if (!g.done) { fx.now(1, u.wx, 0.12, u.wz, g.r * 2, c, 1, 0, VS_FLAT); fx.now(1, u.wx, 0.14, u.wz, g.r * 2 - 1.2, 0xffffff, 0.8, 0, VS_FLAT); fx.now(1, u.wx, 1.6, u.wz, g.r * 2 - 0.4, c, 0.55, 0, VS_FLAT); fx.now(1, u.wx, 3, u.wz, g.r * 2 - 1, c, 0.3, 0, VS_FLAT); }
+    }
+    if (u && u.ph === 1 && u.type === 'drain' && u.link) { const f = sim.f[u.who], o = sim.f[1 - u.who], c = this.actors[u.who].def.col; fx.now(0, o.x, o.y + 1.6, o.z, 3.4 + Math.sin(T * 30) * 0.5, c, 0.6); fx.now(0, f.x, f.y + 1.9, f.z, 2.2, 0x7dffb0, 0.7); light(o.x, o.y + 1.6, o.z, c, 1.2); }
+    for (const f of sim.f) if (f.st === 'shot' && !f.done && f.chg) {     // esfera de ki creciendo en las manos
+      const k = Math.min(1, (f.t - VS.CSHOT.t0) / (VS.CSHOT.max - VS.CSHOT.t0)), c = this.actors[f.i].def.col, o = sim.f[1 - f.i], dx = o.x - f.x, dz = o.z - f.z, h = Math.hypot(dx, dz) || 1, x = f.x + dx / h * 1.3, y = f.y + 1.7, z = f.z + dz / h * 1.3, r = 1 + 1.6 * k;
+      fx.now(0, x, y, z, r * 2.2, c, 0.8); fx.now(0, x, y, z, r, 0xffffff, 1); fx.now(3, x, y, z, r * 2, 0xffffff, 0.5, T * 8); light(x, y, z, c, 0.8 + k);
+    }
     if (u && u.type === 'nova' && u.ph === 1 && u.r > 0) {               // explosión corporal: cúpula de energía que crece
       const f = sim.f[u.who], c = this.actors[u.who].def.col, a = u.a === undefined ? 1 : u.a, y = f.y + 1.6, p = 1 + Math.sin(T * 40) * 0.03;
       fx.now(0, f.x, y, f.z, u.r * 2.9 * p, c, 0.6 * a); fx.now(0, f.x, y, f.z, u.r * 1.9, 0xffffff, 0.55 * a); fx.now(1, f.x, y, f.z, u.r * 2.15, 0xffffff, 0.9 * a); fx.now(1, f.x, 0.1, f.z, u.r * 2.3, c, 0.9 * a, 0, VS_FLAT);
@@ -567,6 +630,7 @@ class Versus {
       let roll = 0, sx = 1, sy = 1;
       if (f.st === 'launched') roll = -dir * f.t * 11; else if (f.st === 'dash') { roll = -dir * 0.3; sx = 1.14; sy = 0.9; } else if (f.st === 'ko' && (f.y > 0.05 || f.vy > 0)) roll = -dir * f.t * 7;
       else if (f.st === 'move' && f.y > 0.2) roll = -dir * Math.min(0.26, Math.hypot(f.vx, f.vz) * 0.026) * Math.sign((f.vx * RX + f.vz * RZ) * dir || 1);
+      else if (f.st === 'grabd') roll = dir * 0.35;
       else if (f.st === 'held' && u && u.type === 'grab') roll = u.v === 1 ? T * 22 : u.v === 0 && u.t > 0.55 ? Math.PI : dir * 0.3;     // agarrado: gira o cae de cabeza
       else if (f.st === 'hurt') roll = dir * 0.12; else if (f.st === 'charge') { sx = 1 + Math.sin(T * 40) * 0.015; }
       if (f.st === 'down' && f.t < 0.12) { sy = 0.8; sx = 1.15; }
@@ -581,7 +645,7 @@ class Versus {
       let rI = 0, rc = a.def.col, rdx = 0, rdy = 1;
       const src = (lx, ly, lz, col, I) => { const d = Math.hypot(lx - x, ly - y - 1.6, lz - z), w = I / (1 + d * d * 0.03); if (w > rI) { rI = w; rc = col; rdx = (lx - x) * m[0] + (ly - y - 1.6) * m[1] + (lz - z) * m[2]; rdy = (lx - x) * m[4] + (ly - y - 1.6) * m[5] + (lz - z) * m[6]; } };
       for (const s of sim.shots) src(s.x, s.y, s.z, s.col, s.big ? 2.2 : 0.9);
-      if (bm.mesh.visible) { const al = Math.max(0, Math.min(u.len, (x - u.ox) * u.dx + (y + 1.6 - u.oy) * u.dy + (z - u.oz) * u.dz)); src(u.ox + u.dx * al, u.oy + u.dy * al, u.oz + u.dz * al, bm.u.uCol.value.getHex(), 1.8); }
+      if (bm.mesh.visible && u.type === 'beam') { const al = Math.max(0, Math.min(u.len, (x - u.ox) * u.dx + (y + 1.6 - u.oy) * u.dy + (z - u.oz) * u.dz)); src(u.ox + u.dx * al, u.oy + u.dy * al, u.oz + u.dz * al, bm.u.uCol.value.getHex(), 1.8); }
       // Aura: al cargar, con el ki lleno y en la Ultimate
       const want = f.st === 'trans' ? 0.7 : f.st === 'charge' ? 1 : f.fi > 0 && f.st !== 'ko' && f.st !== 'ult' && f.ki < 100 && f.st !== 'dash' ? 0.3 : f.st === 'ult' ? (u && u.lock ? 0.3 : 0.95) : f.st === 'ko' ? 0 : f.ki >= 100 ? 0.5 : f.st === 'dash' ? 0.35 : 0;
       a.pow += (want - a.pow) * Math.min(1, dt * 9);
