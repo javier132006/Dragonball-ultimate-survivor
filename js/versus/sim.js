@@ -361,8 +361,8 @@ class VsSim {
       return 2;
     }
     const scale = s.raw ? 1 : Math.max(0.4, 1 - 0.07 * att.cmb);        // los combos largos pegan cada vez menos (las Ultimates no: raw)
-    this.emit('hit', { i: def.i, x: px, y: py, z: pz, heavy: !!s.heavy, rush: s.rush, col: att.def.col, nx, nz });
-    this.freeze = Math.max(this.freeze, s.fz !== undefined ? s.fz : s.heavy ? 8 : 3);
+    this.emit('hit', { i: def.i, x: px, y: py, z: pz, heavy: !!s.heavy, rush: s.rush, col: att.def.col, nx, nz, up: s.up > 10 ? 1 : s.up < 0 ? -1 : 0 });
+    this.freeze = Math.max(this.freeze, s.fz !== undefined ? s.fz : s.heavy ? 10 : 3);   // pausa de impacto: los golpes fuertes «pesan» más
     const air = def.st === 'launched' && !s.raw;                        // ya estaba en el aire: combo aéreo
     if (this.damage(att, def, s.dmg * att.pow * scale, !!(s.heavy && s.launch))) { def.vx = nx * 20; def.vz = nz * 20; def.vy = 11; return 1; }
     if (air) {

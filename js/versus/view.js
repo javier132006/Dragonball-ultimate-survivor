@@ -109,19 +109,24 @@ void main() {
   else { float c = cos(iData.y), s = sin(iData.y); p = vec2(c * p.x - s * p.y, s * p.x + c * p.y); }
   mv.xy += p * iData.x; gl_Position = projectionMatrix * mv;
 }`;
-/* Formas dibujadas por fórmula (sin texturas): 0 resplandor · 1 anillo · 2 chispa alargada · 3 estrella · 4 humo · 5 disco de sombra */
+/* Formas dibujadas por fórmula (sin texturas): 0 resplandor · 1 anillo · 2 chispa alargada · 3 estrella · 4 humo · 5 disco de sombra
+   Duras (borde nítido, sin difuminar): 6 esquirla afilada · 7 anillo fino · 8 escombro · 9 cristal */
 const VSP_FS = `
 varying vec2 vP; varying vec3 vC; varying float vA; varying float vK;
 void main() {
-  vec2 p = vP * 2.0; float r = length(p), a = 0.0;
+  vec2 p = vP * 2.0; float r = length(p), a = 0.0; vec3 c = vC;
   if (vK < 0.5) a = exp(-r * r * 4.5) * (1.0 - smoothstep(0.8, 1.0, r));
   else if (vK < 1.5) a = smoothstep(0.62, 0.84, r) * (1.0 - smoothstep(0.86, 1.0, r));
   else if (vK < 2.5) a = pow(max(0.0, 1.0 - abs(p.y)), 3.0) * pow(max(0.0, 1.0 - abs(p.x)), 0.6);
   else if (vK < 3.5) a = max(exp(-abs(p.x) * 16.0 - abs(p.y) * 2.2), exp(-abs(p.y) * 16.0 - abs(p.x) * 2.2)) + exp(-r * r * 9.0) * 0.8;
   else if (vK < 4.5) a = (1.0 - smoothstep(0.25, 1.0, r)) * 0.8;
-  else a = (1.0 - smoothstep(0.1, 1.0, r));
+  else if (vK < 5.5) a = (1.0 - smoothstep(0.1, 1.0, r));
+  else if (vK < 6.5) a = step(abs(p.y), 0.92 * (1.0 - abs(p.x)));
+  else if (vK < 7.5) a = step(0.915, r) * step(r, 0.985);
+  else if (vK < 8.5) { a = step(max(max(-p.y * 1.3 - 0.6, p.y * 0.8 + p.x * 1.2 - 0.75), p.y * 0.9 - p.x * 1.3 - 0.7), 0.0); c *= 0.62 + 0.38 * step(p.x * 0.7 + p.y, 0.05); }   // dos caras: una en sombra
+  else { float d = abs(p.x) * 1.9 + abs(p.y); a = step(d, 0.96); c = mix(c, vec3(1.0), step(0.66, d) * 0.75 + step(p.x, 0.0) * step(d, 0.66) * 0.3); }                        // cristal: canto brillante
   a *= vA; if (a < 0.004) discard;
-  gl_FragColor = vec4(vC * a, a);
+  gl_FragColor = vec4(c * a, a);
 }`;
 class VsParticles {
   constructor(scene, max, additive, order) {
@@ -138,12 +143,12 @@ class VsParticles {
     this.mesh.frustumCulled = false; this.mesh.renderOrder = order; scene.add(this.mesh);
     this.pool = []; for (let i = 0; i < max; i++) this.pool.push({});
   }
-  /** Partícula con vida propia. o: {vx,vy,vz,g,drag,s1,life,a,rot,vr,stretch,flat} */
+  /** Partícula con vida propia. o: {vx,vy,vz,g,drag,s1,life,a,rot,vr,stretch,flat,bounce,hard}. hard: no se desvanece; solo cambia de tamaño (de size a s1) */
   add(kind, x, y, z, size, col, o) {
     if (this.list.length >= this.max - 40) return null;
     const p = this.pool.pop() || {}; o = o || {};
     p.k = kind; p.x = x; p.y = y; p.z = z; p.s0 = size; p.s1 = o.s1 === undefined ? size : o.s1; p.c = col; p.vx = o.vx || 0; p.vy = o.vy || 0; p.vz = o.vz || 0; p.g = o.g || 0; p.drag = o.drag || 0;
-    p.life = o.life || 0.4; p.t = 0; p.a = o.a === undefined ? 1 : o.a; p.rot = o.rot || 0; p.vr = o.vr || 0; p.st = o.stretch || 0; p.flat = !!o.flat; p.bounce = !!o.bounce;
+    p.life = o.life || 0.4; p.t = 0; p.a = o.a === undefined ? 1 : o.a; p.rot = o.rot || 0; p.vr = o.vr || 0; p.st = o.stretch || 0; p.flat = !!o.flat; p.bounce = !!o.bounce; p.hard = !!o.hard;
     this.list.push(p); return p;
   }
   /** Instancia de un solo fotograma (núcleos de esferas, destellos que siguen a algo) */
@@ -162,7 +167,7 @@ class VsParticles {
       if (p.t >= p.life) { L[i] = L[L.length - 1]; L.pop(); this.pool.push(p); continue; }
       const m = Math.max(0, 1 - p.drag * dt); p.vx *= m; p.vy = p.vy * m - p.g * dt; p.vz *= m; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.rot += p.vr * dt;
       if (p.bounce && p.y < 0.08) { p.y = 0.08; p.vy = -p.vy * 0.4; p.vx *= 0.6; p.vz *= 0.6; }
-      const f = p.t / p.life, s = p.s0 + (p.s1 - p.s0) * (1 - (1 - f) * (1 - f)), a = p.a * (1 - f * f);
+      const f = p.t / p.life, s = p.hard ? p.s0 + (p.s1 - p.s0) * f : p.s0 + (p.s1 - p.s0) * (1 - (1 - f) * (1 - f)), a = p.hard ? p.a : p.a * (1 - f * f);
       if (p.flat) { ax[3] = -1; this.put(p.k, p.x, p.y, p.z, s, p.c, a, 0, ax); }
       else if (p.st) { const v = Math.hypot(p.vx, p.vy, p.vz) || 1; ax[0] = p.vx / v; ax[1] = p.vy / v; ax[2] = p.vz / v; ax[3] = p.st; this.put(p.k, p.x, p.y, p.z, s, p.c, a, 0, ax); }
       else this.put(p.k, p.x, p.y, p.z, s, p.c, a, p.rot, null);
@@ -331,16 +336,22 @@ class VsPost {
     this.uL = { t: { value: null }, d: { value: new THREE.Vector2() } };
     this.mBlur = M('uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main() { vec3 c = texture2D(t, vUv).rgb * 0.227; c += (texture2D(t, vUv + d * 1.385).rgb + texture2D(t, vUv - d * 1.385).rgb) * 0.316;' +
       ' c += (texture2D(t, vUv + d * 3.23).rgb + texture2D(t, vUv - d * 3.23).rgb) * 0.0703; gl_FragColor = vec4(c, 1.0); }', this.uL);
-    this.uC = { t: { value: null }, b1: { value: null }, b2: { value: null }, uBloom: { value: 0.9 }, uBlur: { value: 0 }, uChroma: { value: 0 }, uVig: { value: 0.32 }, uFlash: { value: 0 }, uSat: { value: 1 },
+    this.uC = { t: { value: null }, b1: { value: null }, b2: { value: null }, uBloom: { value: 0.9 }, uBlur: { value: 0 }, uChroma: { value: 0 }, uVig: { value: 0.32 }, uFlash: { value: 0 }, uSat: { value: 1 }, uLines: { value: 0 }, uLT: { value: 0 },
       uCenter: { value: new THREE.Vector2(0.5, 0.5) } };
-    this.mComp = M(`uniform sampler2D t, b1, b2; uniform float uBloom, uBlur, uChroma, uVig, uFlash, uSat; uniform vec2 uCenter; varying vec2 vUv;
+    this.mComp = M(`uniform sampler2D t, b1, b2; uniform float uBloom, uBlur, uChroma, uVig, uFlash, uSat, uLines, uLT; uniform vec2 uCenter; varying vec2 vUv;
       void main() { vec2 d = vUv - uCenter; vec3 c;
         if (uBlur > 0.001) { c = vec3(0.0); for (int i = 0; i < 8; i++) { float k = 1.0 - uBlur * float(i) / 8.0 * dot(d, d) * 2.2; c += texture2D(t, uCenter + d * k).rgb; } c /= 8.0; }   // desenfoque radial: sensación de velocidad
         else c = texture2D(t, vUv).rgb;
         if (uChroma > 0.001) { c.r = texture2D(t, vUv + d * uChroma).r; c.b = texture2D(t, vUv - d * uChroma).b; }
         c += (texture2D(b1, vUv).rgb * 0.55 + texture2D(b2, vUv).rgb * 0.75) * uBloom;
         float l = dot(c, vec3(0.3, 0.59, 0.11)); c = mix(vec3(l), c, uSat);
-        c *= 1.0 - uVig * dot(d, d) * 2.0; c += uFlash;
+        c *= 1.0 - uVig * dot(d, d) * 2.0;
+        if (uLines > 0.001) {                                             // líneas de velocidad de manga: rayas blancas desde los bordes hacia el centro, que cambian varias veces por segundo
+          float an = atan(d.y, d.x) * 22.0, id = floor(an), n = fract(sin(id * 91.7 + floor(uLT) * 37.3) * 43758.5), tri = abs(fract(an) - 0.5) * 2.0;
+          float r0 = 0.3 + 0.22 * fract(n * 7.3) - 0.12 * uLines, k = smoothstep(r0, r0 + 0.3, length(d) * 1.25);
+          c = mix(c, vec3(1.0), step(tri, (n - 0.5) * 1.5 * k) * step(0.5, n) * min(1.0, uLines * 1.6));
+        }
+        c += uFlash;
         gl_FragColor = vec4(c, 1.0); }`, this.uC);
     this.size = new THREE.Vector2(); this.resize();
   }
@@ -371,7 +382,8 @@ class VsPost {
 /* ---------------- Cámara compartida ---------------- */
 class VsCamera {
   constructor() { this.cam = new THREE.PerspectiveCamera(40, 1, 0.5, 900); this.ang = -Math.PI / 2; this.pos = new THREE.Vector3(0, 6, -24); this.look = new THREE.Vector3(0, 2, 0); this.trauma = 0; this.t = 0; this.fov = 40; this.cine = null; this.kick = 0; }
-  shake(a) { this.trauma = Math.min(1.3, Math.max(this.trauma, a)); }
+  /** m: 0 en todas direcciones · 1 de lado a lado (golpes rápidos) · 2 de arriba abajo (ganchos, remates, caídas) */
+  shake(a, m) { if (a >= this.trauma) this.sm = m || 0; this.trauma = Math.min(1.3, Math.max(this.trauma, a)); }
   /** Plano de cine: fn(k 0-1, pos, look) → fov. Mientras dura manda sobre la cámara de combate */
   play(dur, fn) { this.cine = { t: 0, dur, fn }; }
   update(dt, sim, snap) {
@@ -392,7 +404,9 @@ class VsCamera {
     if (c.position.y < 0.6) c.position.y = 0.6;
     if (this.trauma > 0) {                                                // temblor por «trauma²»: los golpes flojos casi no mueven, los fuertes sacuden
       const s = this.trauma * this.trauma, t = this.t * 31;
-      c.position.x += (Math.sin(t) + Math.sin(t * 2.3 + 1.7)) * 0.3 * s; c.position.y += (Math.sin(t * 1.3 + 4.1) + Math.sin(t * 2.9)) * 0.3 * s; c.position.z += Math.sin(t * 1.7 + 2.2) * 0.3 * s;
+      if (this.sm === 1) { const w = (Math.sin(t) + Math.sin(t * 2.3 + 1.7)) * 0.42 * s; c.position.x += -nz * w; c.position.z += nx * w; }
+      else if (this.sm === 2) c.position.y += (Math.sin(t * 1.3 + 4.1) + Math.sin(t * 2.9)) * 0.5 * s;
+      else { c.position.x += (Math.sin(t) + Math.sin(t * 2.3 + 1.7)) * 0.3 * s; c.position.y += (Math.sin(t * 1.3 + 4.1) + Math.sin(t * 2.9)) * 0.3 * s; c.position.z += Math.sin(t * 1.7 + 2.2) * 0.3 * s; }
       this.trauma = Math.max(0, this.trauma - dt * 2.2);
     }
     c.lookAt(this.look); if (Math.abs(c.fov - this.fov) > 0.01) { c.fov = this.fov; c.updateProjectionMatrix(); }
