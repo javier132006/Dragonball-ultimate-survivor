@@ -275,9 +275,11 @@ class VsArena {
       if (P.glow !== undefined && i % 3 === 0) { m.material.emissive.setHex(P.glow); m.material.emissiveIntensity = 0.55; }      // algunas rocas arden o brillan
       m.userData = { y: m.position.y, p: rnd() * 6.28, v: 0.2 + rnd() * 0.4 }; this.grp.add(m); this.rocks.push(m);
     }
+    this.mts = [];
     for (let i = 0; i < 16; i++) {                                        // montañas lejanas, medio hundidas en la niebla
       const a = i / 16 * 6.283 + rnd() * 0.3, r = 210 + rnd() * 50, h = 60 + rnd() * 90;
-      const m = new THREE.Mesh(new THREE.ConeGeometry(34 + rnd() * 30, h, 5, 1), stone(darker)); m.position.set(Math.cos(a) * r, h / 2 - 62, Math.sin(a) * r); m.rotation.y = rnd() * 3; this.grp.add(m);
+      const R = 34 + rnd() * 30, m = new THREE.Mesh(new THREE.ConeGeometry(R, h, 5, 1), stone(darker)); m.position.set(Math.cos(a) * r, h / 2 - 62, Math.sin(a) * r); m.rotation.y = rnd() * 3; this.grp.add(m);
+      m.userData = { h, R, y: m.position.y }; this.mts.push(m);          // el final destructivo estrella al perdedor contra una de ellas
     }
     this.dim = 0; this.ultCol = new THREE.Color(0, 0, 0);
   }

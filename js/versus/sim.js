@@ -39,12 +39,13 @@ class VsFighter {
   constructor(i, chain) {
     this.chain = Array.isArray(chain) ? chain : [chain]; this.fi = 0; this.tm = 0; const def = this.chain[0];
     this.i = i; this.def = def; this.hpMax = def.hp; this.pow = def.pow; this.spd = def.spd; this.wins = 0;
+    this.pas = def.pas ? def.pas.type : ''; this.zk = 0;      // pasiva del guerrero (versus/extras.js) · zk: veces que el Zenkai le ha subido la fuerza
     this.reset(i ? -7 : 7);
   }
   reset(x) {
     this.x = x; this.y = 0; this.z = 0; this.vx = this.vy = this.vz = 0;
     this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.pend = 0; this.q = 0; this.qt = 0; this.stun = 0;
-    this.c = 0; this.n = 0; this.ok = false; this.buf = ''; this.jug = 0; this.spk = 0; this.ctr = 0; this.bo = 0; this.gt = 0; this.ft = 0; this.chg = 0; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.dx = 1; this.dz = 0; this.flash = 0;
+    this.c = 0; this.n = 0; this.ok = false; this.buf = ''; this.jug = 0; this.spk = 0; this.ctr = 0; this.bo = 0; this.gt = 0; this.ft = 0; this.chg = 0; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.pu = 0; this.lh = 9; this.dx = 1; this.dz = 0; this.flash = 0;
     this.set('idle');
   }
   set(st) { this.st = st; this.t = 0; this.done = false; }
@@ -69,7 +70,8 @@ class VsSim {
   newRound() {
     this.round++; this.f[0].reset(7); this.f[1].reset(-7);                // con la cámara en -z, la derecha de la pantalla es -x: el jugador 1 empieza a la izquierda
      this.shots.length = 0; this.blasts = []; this.ult = null; this.tr = null; this.freeze = 0;
-    this.time = this.roundTime; this.phase = 'intro'; this.pt = 0; this.cx = 0; this.cz = -1;
+    this.time = this.roundTime; this.phase = 'intro'; this.pt = 0; this.cx = 0; this.cz = -1; this.df = 0;
+    this.introT = this.round === 1 && this.o.intro ? this.o.intro : 2.3;   // la primera ronda puede llevar las entradas de los luchadores
     this.emit('round', { n: this.round });
   }
   /** Coordenada X en pantalla de un vector horizontal (la cámara mira desde c hacia -c; su derecha es (cz, -cx)) */
@@ -87,8 +89,8 @@ class VsSim {
     if (h > 0.8) { let nx = -dz / h, nz = dx / h; if (nx * this.cx + nz * this.cz < 0) { nx = -nx; nz = -nz; } this.cx = nx; this.cz = nz; }
     if (this.tr) { this.stepTrans(); return; }                          // transformación: el mundo espera
     this.pt += VS_DT;
-    if (this.phase === 'intro' && this.pt > 2.3) { this.phase = 'fight'; this.pt = 0; this.emit('fight'); }
-    else if (this.phase === 'ko' && this.pt > 3.0) this.endRound();
+    if (this.phase === 'intro' && this.pt > this.introT) { this.phase = 'fight'; this.pt = 0; this.emit('fight'); }
+    else if (this.phase === 'ko' && this.pt > (this.df ? 4.7 : 3.0)) this.endRound();   // el final destructivo dura más
     else if (this.phase === 'fight' && !this.ult && !this.o.noTime) {
       this.time -= VS_DT;
       if (this.time <= 0) { this.time = 0; const w = a.hp / a.hpMax >= b.hp / b.hpMax ? 0 : 1; this.phase = 'ko'; this.pt = 0; this.ko = w; this.emit('timeup', { w }); }
@@ -122,7 +124,12 @@ class VsSim {
     if (f.ctr > 0) f.ctr -= dt;
     const ctl = this.phase === 'fight' && !(this.ult && (this.ult.who === f.i || this.ult.lock));
     f.t += dt; f.inv = Math.max(0, f.inv - dt); f.flash = Math.max(0, f.flash - dt);
-    if (f.st !== 'ko' && this.phase === 'fight') f.ki = Math.min(100, f.ki + VS.KI_REGEN * dt);
+    const pas = f.pas, tpk = pas === 'tp' ? 0.5 : 1, RE = VS.REACH + (pas === 'espada' ? 0.5 : 0);
+    if (f.st !== 'ko' && this.phase === 'fight') {
+      f.ki = Math.min(100, f.ki + VS.KI_REGEN * (pas === 'infinito' ? 3 : 1) * dt); f.lh += dt;
+      if (pas === 'regen' && f.lh > 3 && f.hp < f.hpMax) f.hp = Math.min(f.hpMax, f.hp + f.hpMax * 0.008 * dt);     // Regeneración: se cura si lleva 3 s sin recibir
+      if (foe.pas === 'maligno' && foe.st !== 'ko' && Math.hypot(foe.x - f.x, foe.y - f.y, foe.z - f.z) < 6) f.ki = Math.max(0, f.ki - 6 * dt);   // Aura maligna del rival: cerca de él se pierde ki
+    }
     if (f.st !== 'guard') f.gm = Math.min(100, f.gm + 14 * dt);
     if (f.cmbT > 0 && (f.cmbT -= dt) <= 0) { f.cmb = 0; f.cmbDmg = 0; }
     // Dirección hacia el rival (horizontal y en 3D)
@@ -133,13 +140,13 @@ class VsSim {
     const brake = (k) => { const m = Math.max(0, 1 - k * dt); f.vx *= m; f.vy *= m; f.vz *= m; };
     switch (f.st) {
       case 'idle': case 'move': {
-        const k = Math.min(1, 14 * dt), sp = VS.SPD * f.spd;
+        const k = Math.min(1, 14 * dt), sp = VS.SPD * f.spd * (pas === 'lobo' ? 1.08 : 1);
         f.vx += ((ctl ? wx * sp : 0) - f.vx) * k; f.vz += ((ctl ? wz * sp : 0) - f.vz) * k; f.vy += ((ctl ? my * VS.FLY : 0) - f.vy) * k;
         if (ctl) {
           if ((press & VB.TRANS) && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
           if ((press & VB.ULT) && f.ki >= 100 && foe.st !== 'ko') { this.startUlt(f, foe); break; }
-          if ((press & VB.TP) && f.ki >= VS.COST_TP) { this.vanish(f, foe, VS.COST_TP); break; }
-          if ((press & VB.DASH) && f.ki >= VS.COST_DASH) { this.dash(f, foe, wx, wz, my, nx, nz, ty / td); break; }
+          if ((press & VB.TP) && f.ki >= VS.COST_TP * tpk) { this.vanish(f, foe, VS.COST_TP * tpk); break; }
+          if ((press & VB.DASH) && (pas === 'lobo' || f.ki >= VS.COST_DASH)) { this.dash(f, foe, wx, wz, my, nx, nz, ty / td); break; }
           if ((held & VB.GUARD) && (press & VB.ATK) && foe.st !== 'ko') { f.q = 0; f.set('grab'); this.emit('grabTry', { i: f.i }); break; }
           if (press & VB.HEAVY) { f.q = 0; f.set('heavy'); this.emit('swing', { i: f.i, heavy: 1 }); break; }
           if (press & VB.ATK) { f.q = 0; f.c = 0; f.buf = ''; f.set('atk'); this.emit('swing', { i: f.i }); break; }
@@ -153,7 +160,7 @@ class VsSim {
       }
       case 'guard': brake(12);
         if ((press & VB.ATK) && ctl && foe.st !== 'ko') { f.q = 0; f.set('grab'); this.emit('grabTry', { i: f.i }); break; }   // guardia + golpe = agarre
-        if (!(held & VB.GUARD) && f.t > 0.12) f.set('idle'); if ((press & VB.TP) && f.ki >= VS.COST_TP && ctl) this.vanish(f, foe, VS.COST_TP); break;
+        if (!(held & VB.GUARD) && f.t > 0.12) f.set('idle'); if ((press & VB.TP) && f.ki >= VS.COST_TP * tpk && ctl) this.vanish(f, foe, VS.COST_TP * tpk); break;
       case 'charge': brake(12); f.ki = Math.min(100, f.ki + VS.KI_CHARGE * dt);
         if ((press & VB.TRANS) && ctl && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
         if (!(held & VB.CHARGE) || !ctl) f.set('idle'); break;
@@ -167,7 +174,7 @@ class VsSim {
         const last = f.c >= VS.LIGHT.length - 1, a0 = 0.07, a1 = 0.16, end = last ? 0.42 : 0.33;
         if (f.c === 0 && f.t < dt * 1.5 && f.ctr > 0) { this.counter(f, foe); break; }
         if (f.t < a1 && td < 8 && td > 1.7) { const s = 26; f.vx = nx * s * (th / td); f.vz = nz * s * (th / td); f.vy = (ty / td) * s; } else brake(18);   // se pega al rival
-        if (f.t >= a0 && f.t < a1 && !f.done && td < VS.REACH) { f.done = true; f.ok = this.hit(f, foe, this.boost(f, VS.LIGHT[f.c]), nx, nz) === 1; }
+        if (f.t >= a0 && f.t < a1 && !f.done && td < RE) { f.done = true; f.ok = this.hit(f, foe, this.boost(f, VS.LIGHT[f.c]), nx, nz) === 1; }
         if (f.t > 0.08) { if (press & VB.ATK) { f.buf = 'atk'; f.q = 0; } else if (press & VB.HEAVY) { f.buf = 'heavy'; f.q = 0; } }
         if (f.t >= end || (f.buf && f.t >= a1 + 0.06 && f.done)) {
           if (f.buf === 'atk' && !last) { f.c++; f.buf = ''; f.ok = false; f.set('atk'); this.emit('swing', { i: f.i }); }
@@ -189,7 +196,7 @@ class VsSim {
       case 'heavy':
         if (f.t < dt * 1.5 && f.ctr > 0) { this.counter(f, foe); break; }
         if (f.t < 0.2 && td < 7 && td > 1.7) { f.vx = nx * 20 * (th / td); f.vz = nz * 20 * (th / td); f.vy = (ty / td) * 20; } else brake(16);
-        if (f.t >= 0.2 && f.t < 0.3 && !f.done && td < VS.REACH + 0.3) {  // con ARRIBA pulsado es un gancho que lo levanta; a un rival en el aire lo estrella contra el suelo
+        if (f.t >= 0.2 && f.t < 0.3 && !f.done && td < RE + 0.3) {  // con ARRIBA pulsado es un gancho que lo levanta; a un rival en el aire lo estrella contra el suelo
           f.done = true; const up = (held & VB.UP) && foe.st !== 'launched'; f.ok = this.hit(f, foe, this.boost(f, up ? VS.UPPER : VS.HEAVY), nx, nz) === 1 && up;
         }
         if (f.t >= (f.ok && f.done ? 0.4 : 0.62)) f.set('idle');             // tras el gancho se recupera antes: da tiempo a seguirlo
@@ -211,7 +218,11 @@ class VsSim {
           foe.x = f.x + f.gx * 1.7; foe.z = f.z + f.gz * 1.7; foe.y = f.y + 0.35; f.gt += dt;
           if (f.gt >= G.hold) {                                           // lo lanza hacia donde apunte el jugador (por defecto, hacia delante)
             const m = Math.hypot(wx, wz), dx = m > 0.3 ? wx / m : f.gx, dz = m > 0.3 ? wz / m : f.gz;
-            foe.set('idle'); this.hit(f, foe, { dmg: G.dmg, stun: G.stun, kb: G.kb, up: G.up, launch: true, heavy: true }, dx, dz); this.emit('throw', { i: f.i });
+            foe.set('idle');
+            if (pas === 'cambio' && !f.pu && f.hp / f.hpMax < foe.hp / foe.hpMax) {                             // Cambio de cuerpo: una vez por ronda, el agarre intercambia la vida de los dos
+              const a = f.hp / f.hpMax, b = foe.hp / foe.hpMax; f.pu = 1; f.hp = f.hpMax * b; foe.hp = foe.hpMax * a; this.emit('pas', { i: f.i, k: 'cambio', x: foe.x, y: foe.y + 1.6, z: foe.z });
+            }
+            this.hit(f, foe, { dmg: G.dmg, stun: G.stun, kb: G.kb, up: G.up, launch: true, heavy: true }, dx, dz); this.emit('throw', { i: f.i });
             f.set('stun'); f.stun = 0.22;
           }
         }
@@ -233,10 +244,12 @@ class VsSim {
             let k = f.chg && can ? Math.min(1, (f.t - C.t0) / (C.max - C.t0)) : -1; if (k >= 0) k = Math.min(k, Math.max(0, (f.ki - C.cost) / C.costK));
             const big = k >= 0, sp = big ? C.spd : VS.SHOT.spd, oy = 1.7, ay = (foe.y + 1.5) - (f.y + oy), ad = Math.hypot(th, ay) || 1;
             const sh = { o: f.i, x: f.x + nx * 1.2, y: f.y + oy, z: f.z + nz * 1.2, vx: tx / ad * sp, vy: ay / ad * sp, vz: tz / ad * sp, life: 1.5, r: 1.5, t: 0, col: f.def.col };
+            if (pas === 'hakai') sh.pw = 5;                                 // Destrucción: sus disparos ganan cualquier choque de ki
             if (big) {
               f.ki -= C.cost + C.costK * k; sh.chg = 1; sh.r = 1.9 + 1.3 * k; sh.pw = 2 + Math.round(k * 2); sh.life = 1.7;
               sh.hs = { dmg: C.dmg + C.dmgK * k, stun: 0.55 + 0.3 * k, kb: 14 + 10 * k, up: 6, launch: k >= 0.5, heavy: true, gbreak: 25 + 35 * k, fz: 5, shot: 1 };
-            } else f.ki -= VS.SHOT.cost;
+            } else if (pas === 'tirano') { f.ki -= VS.SHOT.cost * 0.6; sh.hs = Object.assign({ shot: 1 }, VS.SHOT, { dmg: VS.SHOT.dmg * 1.35 }); }   // Tirano: ki más barato y más dañino
+            else f.ki -= VS.SHOT.cost;
             this.shots.push(sh); this.emit('shot', { i: f.i, x: sh.x, y: sh.y, z: sh.z, chg: big ? 1 + k : 0 }); f.chg = 0;
           }
         } else {
@@ -246,20 +259,20 @@ class VsSim {
       }
       case 'hurt':
         brake(7); f.stun -= dt;
-        if ((press & VB.TP) && f.ki >= VS.COST_ESC && this.phase === 'fight' && !this.ult) { this.vanish(f, foe, VS.COST_ESC); break; }
+        if ((press & VB.TP) && f.ki >= VS.COST_ESC * tpk && this.phase === 'fight' && !this.ult) { this.vanish(f, foe, VS.COST_ESC * tpk); break; }
         if (f.stun <= 0) f.set('idle');
         break;
       case 'launched':
         f.stun -= dt; { const m = Math.max(0, 1 - 1.4 * dt); f.vx *= m; f.vz *= m; } if (f.t > 0.22) f.vy -= 22 * dt;
-        if ((press & VB.TP) && f.ki >= VS.COST_ESC && this.phase === 'fight' && !this.ult) { this.vanish(f, foe, VS.COST_ESC); break; }
+        if ((press & VB.TP) && f.ki >= VS.COST_ESC * tpk && this.phase === 'fight' && !this.ult) { this.vanish(f, foe, VS.COST_ESC * tpk); break; }
         if (f.y <= 0 && f.vy < 0) {
           this.emit('land', { x: f.x, z: f.z, hard: f.vy < -16 }); if (f.vy < -16) this.freeze = 4; f.vx *= 0.2; f.vz *= 0.2; f.vy = 0;
-          if (f.spk) { const a = this.f[f.spk - 1]; f.spk = 0; this.emit('crater', { x: f.x, z: f.z, col: a.def.col }); this.freeze = 7; if (this.damage(a, f, VS.SPIKE * a.pow)) break; }   // estrellado contra el suelo
+          if (f.spk) { const a = this.f[f.spk - 1]; f.spk = 0; this.emit('crater', { x: f.x, z: f.z, col: a.def.col }); this.freeze = 7; if (this.damage(a, f, VS.SPIKE * a.pow, true)) break; }   // estrellado contra el suelo
           f.set('down');
         }
         else if (f.stun <= 0 && f.y > 0.5) { f.vy *= 0.3; f.inv = 0.15; f.set('idle'); }
         break;
-      case 'down': brake(10); if (f.t >= 0.65) { f.inv = 0.5; f.set('idle'); } break;
+      case 'down': brake(10); if (f.t >= 0.65) { f.inv = 0.5; f.set('idle'); if (pas === 'zenkai' && f.zk < 5 && this.phase === 'fight') { f.zk++; this.emit('pas', { i: f.i, k: 'zenkai', x: f.x, y: f.y + 1.6, z: f.z }); } } break;   // Zenkai: cada vez que se levanta pega más
       case 'stun': brake(10); f.stun -= dt; if (f.stun <= 0) f.set('idle'); break;
       case 'ko': { const m = Math.max(0, 1 - 1.2 * dt); f.vx *= m; f.vz *= m; if (f.y > 0 || f.vy > 0) f.vy -= 22 * dt; else { if (f.vy < -4 && !f.done) { f.done = true; this.emit('land', { x: f.x, z: f.z, hard: true }); } f.vy = 0; f.vx *= 0.8; f.vz *= 0.8; } break; }
       case 'ult': case 'held': case 'trans': break;                                    // los mueve stepUlt()
@@ -268,7 +281,7 @@ class VsSim {
   }
 
   dash(f, foe, wx, wz, my, nx, nz, ny) {
-    f.ki -= VS.COST_DASH;
+    if (f.pas !== 'lobo') f.ki -= VS.COST_DASH;
     // Persecución: si el rival sale volando, el dash te planta a su lado para seguir el combo
     if (foe.st === 'launched' && Math.hypot(foe.x - f.x, foe.y - f.y, foe.z - f.z) > 5) {
       this.emit('vanish', { i: f.i, x: f.x, y: f.y, z: f.z });
@@ -278,7 +291,7 @@ class VsSim {
     }
     let dx = wx, dy = my, dz = wz; const m = Math.hypot(dx, dy, dz);
     if (m < 0.2) { dx = nx; dz = nz; dy = ny * 0.6; } else { dx /= m; dy /= m; dz /= m; }
-    const n = Math.hypot(dx, dy, dz) || 1; f.dx = dx / n; f.dy = dy / n; f.dz = dz / n; f.inv = 0.12; f.buf = '';
+    const n = Math.hypot(dx, dy, dz) || 1; f.dx = dx / n; f.dy = dy / n; f.dz = dz / n; f.inv = f.pas === 'tiempo' ? 0.2 : 0.12; f.buf = '';
     f.set('dash'); this.emit('dash', { i: f.i, x: f.x, y: f.y, z: f.z });
   }
   /** Contraataque tras una esquiva perfecta: aparece a la espalda del rival y su golpe pega más */
@@ -305,13 +318,25 @@ class VsSim {
   }
 
   /* ---------------- Daño ---------------- */
-  damage(att, def, dmg) {
-    def.hp = Math.max(this.o.noKO ? 1 : 0, def.hp - dmg); def.flash = 0.1;
-    att.ki = Math.min(100, att.ki + dmg * 0.07); def.ki = Math.min(100, def.ki + dmg * 0.035); att.gain(dmg * VS.TR_DEAL); def.gain(dmg * VS.TR_TAKE);
+  /** big: golpe de los que mandan volando (decide si el K.O. que cierra el combate es un FINAL DESTRUCTIVO) */
+  damage(att, def, dmg, big) {
+    const ap = att.pas, dp = def.pas;
+    if (ap === 'orgullo' && att.hp < att.hpMax * 0.35) dmg *= 1.18;      // Orgullo: con poca vida pega más
+    else if (ap === 'rose') dmg *= 1 + 0.2 * (1 - att.hp / att.hpMax);   // cuanto más daño lleva encima, más pega
+    else if (ap === 'zenkai') dmg *= 1 + 0.04 * att.zk;
+    def.hp = Math.max(this.o.noKO ? 1 : 0, def.hp - dmg); def.flash = 0.1; def.lh = 0;
+    if (ap === 'parasito') att.hp = Math.min(att.hpMax, att.hp + dmg * 0.12);          // roba vida con cada golpe
+    if (dp === 'senzu' && !def.pu && def.hp > 0 && def.hp < def.hpMax * 0.25) { def.pu = 1; def.hp += def.hpMax * 0.22; this.emit('pas', { i: def.i, k: 'senzu', x: def.x, y: def.y + 1.6, z: def.z }); }   // una judía por ronda
+    att.ki = Math.min(100, att.ki + dmg * 0.07 * (ap === 'fusion' ? 1.4 : 1)); def.ki = Math.min(100, def.ki + dmg * 0.035 * (dp === 'fusion' ? 1.4 : 1)); att.gain(dmg * VS.TR_DEAL); def.gain(dmg * VS.TR_TAKE * (dp === 'ira' ? 1.5 : 1));
     att.cmb++; att.cmbT = 1.3; att.cmbDmg += dmg; this.emit('dmg', { i: def.i, dmg, cmb: att.cmb, tot: att.cmbDmg });
     if (def.hp <= 0 && def.st !== 'ko') {
       def.set('ko'); this.phase = 'ko'; this.pt = 0; this.ko = att.i; this.freeze = 16; this.shots.length = 0;
-      this.emit('ko', { w: att.i, x: def.x, y: def.y + 1.5, z: def.z }); return true;
+      this.emit('ko', { w: att.i, x: def.x, y: def.y + 1.5, z: def.z });
+      if (dp === 'kamikaze' && att.hp > 1 && Math.hypot(att.x - def.x, att.y - def.y, att.z - def.z) < 8) { att.hp = Math.max(1, att.hp - 140); att.flash = 0.2; this.emit('pas', { i: def.i, k: 'kamikaze', x: def.x, y: def.y + 1.5, z: def.z }); }   // estalla al caer (no puede noquear)
+      if (att.wins + 1 >= this.rounds && (big || this.ult)) {             // el K.O. que cierra el combate, con un golpe fuerte o una Ultimate: sale despedido contra las montañas
+        const dx = def.x - att.x, dz = def.z - att.z, h = Math.hypot(dx, dz) || 1; this.df = 1; this.emit('final', { w: att.i, x: def.x, y: def.y + 1.5, z: def.z, dx: dx / h, dz: dz / h });
+      }
+      return true;
     }
     return false;
   }
@@ -320,14 +345,18 @@ class VsSim {
     if (def.st === 'dash' && def.inv > 0 && !(def.ctr > 0)) { def.ctr = VS.DODGE; def.ki = Math.min(100, def.ki + 8); this.emit('dodge', { i: def.i, x: def.x, y: def.y + 1.6, z: def.z }); }   // esquiva perfecta: tiene un contraataque
     if (def.inv > 0 || def.st === 'ko' || def.st === 'held' || def.st === 'grabd') return 0;
     const px = def.x - nx * 0.6, py = def.y + 1.6, pz = def.z - nz * 0.6;
+    if (def.pas === 'armadura' && def.st === 'heavy' && def.t < 0.3 && !s.heavy && !s.raw) {     // Superarmadura: preparando el golpe fuerte, los golpes flojos no le cortan
+      this.emit('pas', { i: def.i, k: 'armadura', x: px, y: py, z: pz }); this.freeze = Math.max(this.freeze, 3); this.damage(att, def, s.dmg * att.pow * 0.7); return 1;
+    }
     if (def.st === 'guard') {
-      if (def.t < VS.PARRY && !s.shot && !s.raw) {                                // guardia perfecta: el atacante queda vendido
+      if (s.shot && !s.raw && def.pas === 'absorbe') { def.ki = Math.min(100, def.ki + 12); this.emit('pas', { i: def.i, k: 'absorbe', x: px, y: py, z: pz }); return 2; }   // Absorción: el ki bloqueado se lo queda
+      if (def.t < VS.PARRY * (def.pas === 'tiempo' ? 2 : 1) && !s.shot && !s.raw) {                                // guardia perfecta: el atacante queda vendido
         att.set('stun'); att.stun = 0.75; att.vx = -nx * 6; att.vz = -nz * 6; def.ki = Math.min(100, def.ki + 12); this.freeze = 8;
         this.emit('parry', { i: def.i, x: px, y: py, z: pz }); return 3;
       }
-      def.gm -= s.gbreak || 12; def.vx = nx * (s.kb || 3) * 0.4; def.vz = nz * (s.kb || 3) * 0.4;
-      this.damage(att, def, s.dmg * att.pow * 0.12); att.cmb = 0;
-      if (def.gm <= 0) { def.gm = 60; def.set('stun'); def.stun = 1.15; this.freeze = 8; this.emit('break', { i: def.i, x: px, y: py, z: pz }); }
+      def.gm -= (s.gbreak || 12) * (att.pas === 'espada' ? 1.8 : 1) * (def.pas === 'muralla' ? 0.5 : 1); def.vx = nx * (s.kb || 3) * 0.4; def.vz = nz * (s.kb || 3) * 0.4;
+      if (def.pas !== 'muralla') this.damage(att, def, s.dmg * att.pow * 0.12); att.cmb = 0;   // Muralla: en guardia no recibe daño
+      if (def.gm <= 0) { def.gm = 60; def.set('stun'); def.stun = att.pas === 'piedra' ? 1.8 : 1.15; this.freeze = 8; this.emit('break', { i: def.i, x: px, y: py, z: pz }); }
       else this.emit('guard', { i: def.i, x: px, y: py, z: pz });
       return 2;
     }
@@ -335,7 +364,7 @@ class VsSim {
     this.emit('hit', { i: def.i, x: px, y: py, z: pz, heavy: !!s.heavy, rush: s.rush, col: att.def.col, nx, nz });
     this.freeze = Math.max(this.freeze, s.fz !== undefined ? s.fz : s.heavy ? 8 : 3);
     const air = def.st === 'launched' && !s.raw;                        // ya estaba en el aire: combo aéreo
-    if (this.damage(att, def, s.dmg * att.pow * scale)) { def.vx = nx * 20; def.vz = nz * 20; def.vy = 11; return 1; }
+    if (this.damage(att, def, s.dmg * att.pow * scale, !!(s.heavy && s.launch))) { def.vx = nx * 20; def.vz = nz * 20; def.vy = 11; return 1; }
     if (air) {
       def.jug++; def.spk = 0;
       if (s === VS.HEAVY || (s.heavy && s.ctr && !s.upper && !s.shot)) {   // golpe fuerte: lo estrella contra el suelo
