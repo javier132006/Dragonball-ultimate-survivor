@@ -11,65 +11,7 @@
    Los luchadores salen de los guerreros que ya tiene el juego (CHARACTERS):
    cada ficha es una hoja de sprites + su mapa de animaciones.
    ===================================================================== */
-const VS_CSS = `
-#vs{position:fixed;inset:0;z-index:60;display:none;font-family:var(--disp);color:#fff;pointer-events:none;user-select:none}
-#vs.on{display:block}
-#vs .bars i{position:absolute;left:0;right:0;height:0;background:#000;transition:height .35s cubic-bezier(.2,.8,.2,1)}#vs .bars i:first-child{top:0}#vs .bars i:last-child{bottom:0}#vs.cine .bars i{height:11%}
-#vs .top{position:absolute;top:14px;left:18px;right:18px;display:flex;align-items:flex-start;gap:14px;transition:opacity .25s}#vs.cine .top,#vs.cine .hint,#vs.cine .cmb{opacity:0!important}
-#vs .side{flex:1;display:flex;gap:10px;align-items:flex-start;min-width:0}#vs .side.r{flex-direction:row-reverse}
-#vs .pt{width:74px;height:74px;flex:none;border-radius:14px;background:#141826;border:3px solid #fff;box-shadow:0 5px 0 rgba(0,0,0,.35);overflow:hidden;image-rendering:pixelated}
-#vs .inf{flex:1;min-width:0}#vs .nm{display:flex;justify-content:space-between;align-items:baseline;font-size:19px;font-weight:800;letter-spacing:.03em;text-shadow:0 2px 0 rgba(0,0,0,.5);margin-bottom:3px}
-#vs .side.r .nm{flex-direction:row-reverse}#vs .nm small{font-size:12px;color:var(--t2);font-weight:700}
-#vs .hp{position:relative;height:22px;background:#141826;border:3px solid #fff;border-radius:6px;transform:skewX(-14deg);overflow:hidden;box-shadow:0 4px 0 rgba(0,0,0,.35)}#vs .side.r .hp{transform:skewX(14deg)}
-#vs .hp i{position:absolute;inset:0;transform-origin:left;will-change:transform}#vs .side.r .hp i{transform-origin:right}
-#vs .hp .g{background:#ff4d5e}#vs .hp .v{background:linear-gradient(180deg,#b8ff8a,#33d17a 45%,#0f8a45)}#vs .hp.low .v{background:linear-gradient(180deg,#ffd0a0,#ff8a2a 45%,#c0440a)}
-#vs .row{display:flex;gap:8px;align-items:center;margin-top:5px}#vs .side.r .row{flex-direction:row-reverse}
-#vs .ki{position:relative;flex:1;max-width:62%;height:11px;background:#141826;border:2px solid #fff;border-radius:4px;overflow:hidden;transform:skewX(-14deg)}#vs .side.r .ki{transform:skewX(14deg)}
-#vs .ki i{position:absolute;inset:0;transform-origin:left;background:linear-gradient(180deg,#bfe8ff,#3aa8ff)}#vs .side.r .ki i{transform-origin:right}
-#vs .ki::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(20% - 2px),#141826 calc(20% - 2px) 20%)}
-#vs .ki.full i{background:linear-gradient(180deg,#fff6c0,#ffc531);animation:vsp .5s steps(2) infinite}@keyframes vsp{50%{filter:brightness(1.5)}}
-#vs .gd{width:22%;height:6px;background:#141826;border-radius:3px;overflow:hidden}#vs .gd i{display:block;height:100%;background:#8ad8ff;transform-origin:left}#vs .side.r .gd i{transform-origin:right}
-#vs .tr{position:relative;width:44%;height:9px;background:#141826;border:2px solid #fff;border-radius:4px;overflow:hidden;transform:skewX(-14deg)}#vs .side.r .tr{transform:skewX(14deg)}
-#vs .tr i{position:absolute;inset:0;transform-origin:left;background:linear-gradient(90deg,#ff5a2a,#ffb02a 60%,#fff2a0)}#vs .side.r .tr i{transform-origin:right}
-#vs .tr.full{box-shadow:0 0 14px 2px #ffb02a;animation:vsp .35s steps(2) infinite}#vs .tr.max{opacity:.3}
-#vs .trl{font-size:12px;font-weight:800;letter-spacing:.06em;color:#ffd75a;text-shadow:0 2px 0 rgba(0,0,0,.6);white-space:nowrap}#vs .trl kbd{font:inherit;color:#141826;background:#ffd75a;border-radius:4px;padding:0 5px;margin:0 3px}
-#vs .pips{display:flex;gap:4px}#vs .pips b{width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:#141826}#vs .pips b.w{background:#ffc531}
-#vs .clock{flex:none;width:76px;text-align:center;font-size:40px;font-weight:800;line-height:1;text-shadow:0 4px 0 rgba(0,0,0,.4);padding-top:8px}#vs .clock small{display:block;font-size:11px;letter-spacing:.14em;color:var(--t2)}
-#vs .cmb{position:absolute;top:32%;font-size:44px;font-weight:800;line-height:.95;text-shadow:0 4px 0 rgba(0,0,0,.45);opacity:0;transition:opacity .2s}#vs .cmb.on{opacity:1}#vs .cmb.l{left:26px}#vs .cmb.r{right:26px;text-align:right}
-#vs .cmb small{display:block;font-size:14px;letter-spacing:.1em;color:#ffc531}#vs .cmb.pop b{display:inline-block;animation:vsc .16s}@keyframes vsc{0%{transform:scale(1.5)}}
-#vs .big{position:absolute;left:0;right:0;top:36%;text-align:center;font-size:clamp(46px,10vw,128px);font-weight:800;letter-spacing:.02em;text-shadow:0 8px 0 rgba(0,0,0,.4),0 0 40px rgba(255,200,60,.5);opacity:0;pointer-events:none}
-#vs .big.go{animation:vsb var(--d,1.2s) cubic-bezier(.2,.9,.2,1) both}@keyframes vsb{0%{opacity:0;transform:scale(2.4)}16%{opacity:1;transform:scale(1)}80%{opacity:1;transform:scale(1.04)}100%{opacity:0;transform:scale(1.2)}}
-#vs .tag{position:absolute;left:0;right:0;top:60%;text-align:center;font-size:26px;font-weight:800;color:#ffc531;text-shadow:0 3px 0 rgba(0,0,0,.5);opacity:0}#vs .tag.go{animation:vsb .8s both}
-#vs .ult{position:absolute;left:0;right:0;bottom:14%;text-align:center;opacity:0;transform:translateX(-30px);transition:opacity .2s,transform .3s}#vs.cine .ult{opacity:1;transform:none}#vs .ult.off{opacity:0!important}
-#vs .ult b{display:inline-block;padding:8px 46px;font-size:clamp(22px,4.4vw,48px);font-weight:800;letter-spacing:.04em;transform:skewX(-12deg);background:linear-gradient(90deg,transparent,var(--c,#fff) 18%,var(--c,#fff) 82%,transparent);color:#141826;text-shadow:0 2px 0 rgba(255,255,255,.5)}
-#vs .hint{position:absolute;left:0;right:0;bottom:10px;text-align:center;font:600 12px/1.5 var(--body);color:#e8ecf8;text-shadow:0 1px 2px #000;transition:opacity .25s}#vs .hint b{color:#ffc531}
-#vs .pnl{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,12,24,.72);pointer-events:auto}#vs .pnl.on{display:flex}
-#vs .box{background:#1b2036;border:3px solid #fff;border-radius:18px;padding:22px 26px;box-shadow:0 10px 0 rgba(0,0,0,.35);text-align:center;min-width:300px}
-#vs .box h2{font-size:34px;margin:0 0 4px}#vs .box p{font:600 14px var(--body);color:var(--t2);margin:0 0 14px}#vs .box button{display:block;width:100%;margin-top:9px;padding:11px 18px;border-radius:12px;border:3px solid #fff;background:#2a3152}
-#vs .box button.go{background:var(--yel);color:#141826}
-#vs .sel{position:absolute;inset:0;display:none;background:radial-gradient(120% 90% at 50% 0%,#2a3160,#0d1022 70%);pointer-events:auto;padding:16px 20px;grid-template-columns:230px 1fr 250px;grid-template-rows:auto 1fr;gap:14px}#vs .sel.on{display:grid}
-#vs .sel h1{grid-column:1/-1;margin:0;font-size:34px;letter-spacing:.04em;display:flex;align-items:center;gap:14px}#vs .sel h1 small{font:600 14px var(--body);color:var(--t2)}#vs .sel h1 button{margin-left:auto}
-#vs .col{background:rgba(20,24,44,.82);border:2px solid rgba(255,255,255,.18);border-radius:16px;padding:12px 14px;overflow:auto;min-height:0}
-#vs .col h4{margin:10px 0 6px;font-size:12px;letter-spacing:.14em;color:var(--t3)}#vs .col h4:first-child{margin-top:0}
-#vs .vseg{display:flex;gap:6px;flex-wrap:wrap}#vs .vseg button,#vs .sel h1 button{padding:7px 11px;font-size:14px;border-radius:10px;border:2px solid rgba(255,255,255,.35);background:#2a3152}#vs .vseg button.on{background:var(--yel);color:#141826;border-color:#fff}
-#vs .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px}
-#vs .grid button{position:relative;padding:0;aspect-ratio:1;border-radius:12px;border:3px solid rgba(255,255,255,.3);background:#141826;overflow:hidden}#vs .grid canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
-#vs .grid button.p0{border-color:#5ab8ff;box-shadow:0 0 0 3px rgba(90,184,255,.45)}#vs .grid button.p1{border-color:#ff5a6a;box-shadow:0 0 0 3px rgba(255,90,106,.45)}#vs .grid button.p0.p1{border-color:#ffc531}
-#vs .grid em{position:absolute;left:3px;top:2px;font:800 11px var(--disp);font-style:normal;text-shadow:0 1px 2px #000}
-#vs .pick{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;border:3px solid transparent;cursor:pointer;margin-bottom:8px;background:rgba(0,0,0,.25)}#vs .pick.on{border-color:#fff;background:rgba(255,255,255,.08)}
-#vs .pick canvas{width:62px;height:62px;border-radius:10px;background:#141826;image-rendering:pixelated;flex:none}#vs .pick b{display:block;font-size:17px;line-height:1.1}#vs .pick small{font:600 12px var(--body);color:var(--t2)}
-#vs .vst{display:grid;grid-template-columns:1fr;gap:3px;font:600 12px var(--body)}#vs .vst div{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.08)}#vs .vst span{color:var(--t2)}
-#vs .twi{font:600 13px/1.5 var(--body);color:var(--t2);padding:10px;border-radius:12px;background:rgba(0,0,0,.25);margin-bottom:8px}#vs .twi b{color:#ffc531}
-#vs .trn{position:absolute;left:18px;bottom:38px;display:none;pointer-events:auto;background:rgba(20,24,44,.78);border:2px solid rgba(255,255,255,.25);border-radius:12px;padding:8px 10px;font:600 12px/1.5 var(--body);max-width:330px}#vs .trn.on{display:block}#vs.cine .trn{opacity:0}#vs.touch .trn{bottom:auto;top:96px}
-#vs .trn b{color:#ffc531}#vs .trn .vseg{margin-top:5px}#vs .trn .vseg button{padding:4px 8px;font-size:12px}#vs .trn kbd{font:inherit;color:#141826;background:#fff;border-radius:3px;padding:0 4px;margin-right:4px}
-#vs .keys{font:600 12px/1.55 var(--body);color:var(--t2)}#vs .keys b{color:#fff}#vs .fight{width:100%;margin-top:10px;padding:13px;font-size:22px;border-radius:14px;border:3px solid #fff;background:var(--yel);color:#141826}
-#vs .vq{position:absolute;bottom:3%;max-width:min(620px,80%);padding:10px 22px 12px;background:rgba(14,17,34,.88);border:3px solid #fff;border-radius:14px;box-shadow:0 6px 0 rgba(0,0,0,.35);opacity:0;transform:translateY(14px);transition:opacity .2s,transform .25s;font:600 clamp(15px,2.3vw,21px)/1.3 var(--body)}#vs .vq.on{opacity:1;transform:none}#vs .vq.l{left:5%}#vs .vq.r{right:5%;text-align:right}
-#vs .vq b{display:block;font:800 clamp(13px,1.8vw,17px) var(--disp);letter-spacing:.08em;color:var(--c,#ffc531);margin-bottom:2px}
-#vs .pnl.win{align-items:flex-end;background:linear-gradient(180deg,transparent 45%,rgba(10,12,24,.9))}#vs .pnl.win .box{margin-bottom:2vh;max-width:min(680px,92%);padding:12px 20px 14px}#vs .pnl.win .box h2{font-size:27px}#vs .pnl.win .box p{margin-bottom:6px}#vs .pnl.win .box button{margin-top:0;padding:9px 12px}#vs .pnl.win .box q{display:block;font:600 clamp(15px,2.2vw,20px)/1.35 var(--body);margin:0 0 10px;quotes:'«' '»'}#vs .pnl.win .box .bt{display:flex;gap:8px;flex-wrap:wrap}#vs .pnl.win .box .bt button{flex:1;min-width:150px}
-#vs .psv{font:600 12px/1.4 var(--body);color:var(--t2);padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.25);border-left:4px solid #7dffb0}#vs .psv b{color:#7dffb0;font-family:var(--disp);letter-spacing:.04em}
-#vs .clock small{white-space:nowrap}#vs.touch .trl kbd,#vs.touch .keys,#vs.touch .trn kbd{display:none}
-@media (max-width:900px),(max-height:520px){#vs .sel.on{display:block;overflow:auto}#vs .sel h1{font-size:24px;margin-bottom:10px}#vs .col{overflow:visible;margin-bottom:10px}#vs .grid{grid-template-columns:repeat(auto-fill,minmax(58px,1fr))}#vs .pt{width:52px;height:52px}#vs .nm{font-size:14px}#vs .clock{font-size:28px;width:52px}}
-`;
+/* La hoja de estilos (VS_CSS) está en versus/estilo.js */
 const VS_HINT = '<b>WASD</b> mover · <b>Espacio/Mayús</b> subir/bajar · <b>J</b> golpe · <b>K</b> fuerte · <b>L</b> ki · <b>U</b> guardia · <b>I</b> dash · <b>O</b> teletransporte · <b>H</b> cargar · <b>Y</b> Ultimate · <b>T</b> transformarse · <b>Esc</b> pausa';
 const VS_KEYS_HTML = '<h4>JUGADOR 1 · TECLADO</h4><b>WASD</b> mover · <b>Espacio</b>/<b>Mayús izq.</b> subir y bajar<br><b>J</b> golpe (4 seguidos + otra vez = <b>ráfaga</b>) · <b>K</b> golpe fuerte · <b>L</b> ki (mantener = <b>cargado</b>)<br><b>U</b> guardia · <b>I</b> dash · <b>O</b> teletransporte<br><b>H</b> cargar ki · <b>Y</b> Ultimate · <b>T</b> transformarse' +
   '<h4>JUGADOR 2 · TECLADO</h4><b>Flechas</b> mover · <b>Mayús der.</b>/<b>Ctrl der.</b> subir y bajar<br>Numérico: <b>1</b> golpe · <b>2</b> fuerte · <b>3</b> ki · <b>4</b> guardia · <b>5</b> dash · <b>6</b> teletransporte · <b>0</b> cargar · <b>Intro</b> Ultimate · <b>+</b> transformarse' +
@@ -147,7 +89,7 @@ class Versus {
     const st = document.createElement('style'); st.textContent = VS_CSS; document.head.appendChild(st);
     const el = this.el = document.createElement('div'); el.id = 'vs';
     const side = (c) => '<div class="side ' + c + '"><canvas class="pt" width="74" height="74"></canvas><div class="inf"><div class="nm"><span></span><small></small></div><div class="hp"><i class="g"></i><i class="v"></i></div>' +
-      '<div class="row"><div class="ki"><i></i></div><div class="gd"><i></i></div><div class="pips"></div></div><div class="row"><div class="tr"><i></i></div><span class="trl"></span></div></div></div>';
+      '<div class="row"><b class="kj">気</b><div class="ki"><i></i></div><div class="gd"><i></i></div><div class="pips"></div></div><div class="row"><div class="tr"><i></i></div><span class="trl"></span></div></div></div>';
     el.innerHTML = '<div class="bars"><i></i><i></i></div><div class="top">' + side('l') + '<div class="clock"><small>RONDA 1</small><span>99</span></div>' + side('r') + '</div>' +
       '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="vq"><b></b><span></span></div><div class="ult"><b></b></div><div class="hint">' + VS_HINT + '</div><div class="trn"></div>' +
       '<div class="pnl pause"><div class="box"><h2>PAUSA</h2><p>Modo Versus</p><button class="go" data-v="resume">Seguir</button><button data-v="reselect">Cambiar luchadores</button><button data-v="exit">Salir al menú</button></div></div>' +
@@ -186,28 +128,39 @@ class Versus {
     this.ui.sel.classList.add('on'); this.renderSelect(); SFX.music('menu');
   }
   renderSelect() {
-    const c = this.cfg, R = this.roster(), seg = (k, list) => '<div class="vseg">' + list.map(([v, t]) => '<button data-v="set" data-a="' + k + ':' + v + '"' + (String(c[k]) === String(v) ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>';
-    const p2 = c.mode === 'cpu' ? 'CPU' : c.mode === 'train' ? 'RIVAL DE PRÁCTICA' : 'JUGADOR 2';
-    const who = (i) => { const ch = charById(c.pick[i].id), f = ch.forms[c.pick[i].f] || ch.forms[0]; return '<div class="pick' + (c.side === i ? ' on' : '') + '" data-v="side" data-a="' + i + '"><canvas width="62" height="62" data-pt="' + f.sheet + '"></canvas><div><small>' +
-      (i ? p2 : 'JUGADOR 1') + '</small><b>' + nice(ch.name) + '</b><small>' + nice(f.name) + '</small><small style="display:block;color:#ffc531">★ ' + vsUlt(ch, f, ch.forms.indexOf(f), 0).name + '</small>' + (vsPas(ch) ? '<small style="display:block;color:#7dffb0">◆ ' + vsPas(ch).name + '</small>' : '') + '</div></div>'; };
-    const cur = charById(c.pick[c.side].id), lad = c.mode === 'ladder', trn = c.mode === 'train', L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal;
-    this.ui.sel.innerHTML = '<h1>MODO VERSUS <small>Combate 1 contra 1 en arena 3D</small><button data-v="exit">◀ Volver</button></h1>' +
-      '<div class="col"><h4>MODO</h4>' + seg('mode', [['cpu', 'Contra la CPU'], ['local', '2 jugadores'], ['ladder', 'Torre'], ['train', 'Entrenamiento']]) + (c.mode === 'cpu' || lad ? '<h4>DIFICULTAD</h4>' + seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']]) : '') +
-      (trn ? '<h4>RIVAL DE PRÁCTICA</h4>' + seg('dummy', Object.keys(VS_DUMMY).map((k) => [k, VS_DUMMY[k]])) + '<h4>AYUDAS</h4>' + seg('tki', [['1', 'Ki infinito'], ['0', 'Ki normal']]) + '<div style="height:6px"></div>' + seg('ttm', [['1', 'Barra de transformación llena'], ['0', 'Barra normal']]) : '') +
-      (lad ? '' : '<h4>ARENA</h4>' + seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', '🎲 Al azar']]))) + (trn ? '' : '<h4>RONDAS PARA GANAR</h4>' + seg('rounds', [[1, '1'], [2, '2'], [3, '3']])) + '<div class="keys">' + VS_KEYS_HTML + '</div></div>' +
-      '<div class="col"><h4>ELIGE LUCHADOR PARA ' + (c.side ? (c.mode === 'cpu' ? 'LA CPU' : trn ? 'EL RIVAL DE PRÁCTICA' : 'EL JUGADOR 2') : 'EL JUGADOR 1') + '</h4><div class="grid">' + R.map((ch) => '<button data-v="char" data-a="' + ch.id + '" class="' + (c.pick[0].id === ch.id ? 'p0 ' : '') + (!lad && c.pick[1].id === ch.id ? 'p1' : '') +
-        '" title="' + nice(ch.name) + '"><canvas width="74" height="74" data-pt="' + ch.forms[0].sheet + '"></canvas><em>' + (c.pick[0].id === ch.id ? 'J1 ' : '') + (!lad && c.pick[1].id === ch.id ? (c.mode === 'cpu' ? 'CPU' : trn ? 'RIVAL' : 'J2') : '') + '</em></button>').join('') + '</div>' +
-      '<h4>FORMA INICIAL · en combate se transforma hasta la última</h4>' + '<div class="vseg">' + cur.forms.map((f, i) => (SPRITE_DATA[f.sheet] ? '<button data-v="form" data-a="' + i + '"' + (c.pick[c.side].f === i ? ' class="on"' : '') + '>' + nice(f.name) + '</button>' : '')).join('') + '</div>' +
-      (vsPas(cur) ? '<h4>PASIVA · habilidad única, siempre activa</h4><div class="psv"><b>' + vsPas(cur).name + '</b><br>' + vsPas(cur).info + '</div>' : '') +
-      '<h4>ULTIMATES · una distinta en cada forma</h4><div class="vst">' + vsChain(cur, c.pick[c.side].f).map((d) => '<div><span>' + nice(d.form) + '</span><b>' + d.ult.name + ' <small style="font-weight:600;color:var(--t2)">· ' + VS_ULT_INFO[d.ult.type][d.ult.v] + '</small></b></div>').join('') + '</div></div>' +
-      '<div class="col">' + who(0) + (lad ? '<div class="twi"><b>TORRE</b> · ' + VS_TOWER.n + ' rivales al azar, cada uno más duro que el anterior; el último es un <b>jefe</b> ya transformado. Tienes una continuación.<br>Premio: zeni y cristales en cada victoria y <b>' + L.cry + ' cristales</b> al superarla' +
-        (VsStats.d().tower[c.level] ? '' : ' (<b>el doble</b> la primera vez)') + '.</div>' : who(1)) + '<button class="fight" data-v="fight">' + (lad ? '¡SUBIR A LA TORRE!' : trn ? '¡ENTRENAR!' : '¡LUCHAR!') + '</button>' + VsStats.html(c.pick[0].id) + '</div>';
+    const c = this.cfg, R = this.roster(), lad = c.mode === 'ladder', trn = c.mode === 'train', L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal, tab = c.tab || 'grid';
+    const seg = (k, list) => '<div class="vseg">' + list.map(([v, t]) => '<button data-v="set" data-a="' + k + ':' + v + '"' + (String(c[k]) === String(v) ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>';
+    const p2 = c.mode === 'cpu' ? 'CPU' : trn ? 'Rival de práctica' : 'Jugador 2';
+    // Ficha de un luchador: retrato, formas (se elige con cuál empieza), pasiva y la Ultimate de cada forma
+    const panel = (i) => {
+      const ch = charById(c.pick[i].id), fi = c.pick[i].f, f = ch.forms[fi] || ch.forms[0], pas = vsPas(ch);
+      return '<section class="fp p' + i + (c.side === i ? ' on' : '') + '" data-v="side" data-a="' + i + '" tabindex="0"><span class="who">' + (i ? p2 : 'Jugador 1') + '</span><canvas class="art" width="168" height="168" data-full="' + f.sheet + '"></canvas><h3>' + nice(ch.name) + '</h3>' +
+        '<h4>Empieza en</h4><div class="forms">' + ch.forms.map((g, n) => (SPRITE_DATA[g.sheet] ? '<button data-v="form" data-a="' + i + ':' + n + '"' + (fi === n ? ' class="on"' : '') + '>' + nice(g.name) + '</button>' : '')).join('') + '</div>' +
+        (pas ? '<h4>Habilidad única</h4><div class="psv"><b>' + pas.name + '</b>' + pas.info + '</div>' : '') +
+        '<h4 class="uh">Ultimate de cada forma</h4><ol class="ults">' + vsChain(ch, fi).map((d) => '<li><b>' + d.ult.name + '</b>' + nice(d.form) + ' <small>· ' + VS_ULT_INFO[d.ult.type][d.ult.v] + '</small></li>').join('') + '</ol></section>';
+    };
+    const tower = '<section class="fp tw"><span class="who">La Torre</span><h3 style="margin-top:14px">' + VS_TOWER.n + ' rivales</h3><div class="twi">Rivales al azar, cada uno más duro que el anterior. El último es un <b>jefe</b> que ya llega transformado. Tienes una continuación.<br><br>Ganas zeni y cristales en cada victoria, y <b>' + L.cry + ' cristales</b> al superarla' +
+      (VsStats.d().tower[c.level] ? '' : ' (<b>el doble</b> la primera vez)') + '.</div></section>';
+    const grid = '<div class="grid">' + R.map((ch) => '<button data-v="char" data-a="' + ch.id + '" class="' + (c.pick[0].id === ch.id ? 'p0 ' : '') + (!lad && c.pick[1].id === ch.id ? 'p1' : '') + '" title="' + nice(ch.name) + '"><canvas width="74" height="74" data-pt="' + ch.forms[0].sheet + '"></canvas><em>' +
+      (c.pick[0].id === ch.id ? 'J1' : '') + (!lad && c.pick[1].id === ch.id ? (c.pick[0].id === ch.id ? '+' : '') + (c.mode === 'cpu' ? 'CPU' : trn ? 'Rival' : 'J2') : '') + '</em></button>').join('') + '</div>';
+    const opt = (t, h) => '<span>' + t + '</span>' + h;
+    this.ui.sel.innerHTML = '<header><button class="back" data-v="exit">◀ Salir</button><h1>¡Modo Versus!</h1><nav class="vseg modes">' + [['cpu', 'Contra la CPU'], ['local', '2 jugadores'], ['ladder', 'Torre'], ['train', 'Entrenamiento']].map(([v, t]) => '<button data-v="set" data-a="mode:' + v + '"' + (c.mode === v ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</nav></header>' +
+      panel(0) +
+      '<div class="mid"><div class="tabs">' + [['grid', 'Luchadores'], ['keys', 'Controles'], ['stats', 'Historial']].map(([v, t]) => '<button data-v="tab" data-a="' + v + '"' + (tab === v ? ' class="on"' : '') + '>' + t + '</button>').join('') +
+        (tab === 'grid' ? '<span>Eliges para ' + (c.side ? (c.mode === 'cpu' ? 'la CPU' : trn ? 'el rival de práctica' : 'el jugador 2') : 'el jugador 1') + '</span>' : '') + '</div>' +
+        '<div class="pane">' + (tab === 'keys' ? '<div class="keys">' + VS_KEYS_HTML + '</div>' : tab === 'stats' ? VsStats.html(c.pick[0].id) : grid) + '</div>' +
+        '<div class="opts">' + (c.mode === 'cpu' || lad ? opt('Dificultad', seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']])) : '') +
+          (trn ? opt('El rival', seg('dummy', Object.keys(VS_DUMMY).map((k) => [k, VS_DUMMY[k]]))) + opt('Ayudas', '<div class="vseg">' + seg('tki', [['1', 'Ki infinito'], ['0', 'Ki normal']]).slice(18, -6) + seg('ttm', [['1', 'Barra de transformación llena'], ['0', 'Barra normal']]).slice(18, -6) + '</div>') : '') +
+          (lad ? '' : opt('Arena', seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', 'Al azar']])))) + (trn ? '' : opt('Rondas para ganar', seg('rounds', [[1, '1'], [2, '2'], [3, '3']]))) + '</div>' +
+        '<button class="fight" data-v="fight">' + (lad ? '¡Subir a la Torre!' : trn ? '¡A entrenar!' : '¡A luchar!') + '</button></div>' +
+      (lad ? tower : panel(1));
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-pt]')) this.portrait(cv, cv.dataset.pt);
+    for (const cv of this.ui.sel.querySelectorAll('canvas[data-full]')) this.portrait(cv, cv.dataset.full, true);
   }
   /** Retrato: el busto del primer fotograma de la hoja, ampliado sin suavizar */
-  portrait(cv, sheet) {
+  portrait(cv, sheet, full) {
     vsTexture(sheet).then((s) => {
-      if (!s) return; const g = cv.getContext('2d'), d = s.d, w = d.w * 0.62, h = w, x = (d.w - w) / 2, y = Math.max(0, d.h * (1 - (d.anc || 0)) - d.h * 0.82);
+      if (!s) return; const g = cv.getContext('2d'), d = s.d, w = full ? Math.min(d.w, d.h) * 0.94 : d.w * 0.62, h = w, x = (d.w - w) / 2, y = full ? Math.max(0, d.h * (1 - (d.anc || 0)) - h) : Math.max(0, d.h * (1 - (d.anc || 0)) - d.h * 0.82);   // full: cuerpo entero (ficha de selección)
       g.imageSmoothingEnabled = false; g.clearRect(0, 0, cv.width, cv.height); g.drawImage(s.tex.image, x, y, w, h, 0, 0, cv.width, cv.height);
     });
   }
@@ -215,8 +168,9 @@ class Versus {
     const c = this.cfg;
     if (v === 'set') { const [k, val] = a.split(':'); c[k] = k === 'rounds' ? +val : val; if (c.mode === 'ladder') c.side = 0; this.renderSelect(); }
     else if (v === 'side') { c.side = +a; this.renderSelect(); }
-    else if (v === 'char') { c.pick[c.side] = { id: a, f: 0 }; SFX.play('ki'); this.renderSelect(); }
-    else if (v === 'form') { c.pick[c.side].f = +a; this.renderSelect(); }
+    else if (v === 'char') { c.pick[c.side] = { id: a, f: 0 }; SFX.play('ki'); const pane = this.ui.sel.querySelector('.pane'), top = pane ? pane.scrollTop : 0; this.renderSelect(); const p2 = this.ui.sel.querySelector('.pane'); if (p2) p2.scrollTop = top; }   // sin perder el punto de la lista
+    else if (v === 'form') { const [i, n] = a.split(':'); c.side = +i; c.pick[c.side].f = +n; this.renderSelect(); }
+    else if (v === 'tab') { c.tab = a; this.renderSelect(); }
     else if (v === 'fight') { if (c.mode === 'ladder') { this.tw = VS_TOWER.build(this.roster(), c.pick[0].id, VS_TOWER.levels[c.level] ? c.level : 'normal'); VsStats.d().towerRuns++; } this.start(); }
     else if (v === 'rematch') this.start();
     else if (v === 'next' && this.tw) { this.tw.i++; this.start(); }                    // Torre: siguiente rival
