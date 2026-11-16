@@ -236,6 +236,7 @@ class TransformScene {
       V.crater(p.x, p.z, 4, col); V.dust(p.x - 4, p.z, 3); V.dust(p.x + 4, p.z, 3);
     }
     g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 18, 0.9, 0.5, 2, col);
+    g.fx.shock(p.x, p.z, 18, col, 0.5); g.fx.shock(p.x, p.z, 9, 0xffffff, 0.32); g.fx.debris(p.x, p.z, 20, 14);
     g.horde.shockwave(p.x, p.z, 22, 40);
     DMG_SRC = 'transform';
     g.horde.damageRadius(p.x, p.z, 14, 60 * p.damageMul(), 20, g);

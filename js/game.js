@@ -42,7 +42,7 @@ class Game {
     this.ui = new UIManager();
     this.state = 'menu';
     this.time = 0; this.kills = 0; this.spawnAcc = 0; this.zeniRun = 0; this.pendingLevels = 0;
-    this.bossUid = 0; this.nextBoss = 180; this.leashT = 0; this.hitstop = 0; this.shakeAmt = 0; this.shakeT = 0; this.fovP = 0;
+    this.bossUid = 0; this.nextBoss = 180; this.leashT = 0; this.hitstop = 0; this.shakeAmt = 0; this.shakeM = 0; this.shakeT = 0; this.fovP = 0;
     this.ultT = -1; this.ultCut = false; this.ultFx = null;   // Ultimate: secuencia de impacto (el elemento se busca al usarlo)
     this.cash = 0; this.capsOpened = 0; this.diff = DIFFS[0]; this.won = false;
     // Estructura de la partida: mapas (STAGES), enjambre final, maldiciones y desafíos
@@ -609,6 +609,7 @@ class Game {
     } else { this.world.reset(); this.world.setNight(0); this.shadowDirty = true; }
     this.horde.reset(); this.ki.reset(); this.orbs.reset(); this.fx.reset(); this.shots.reset(); this.booms.length = 0;
     this.vfx.reset(); this.env = null;
+    this.fx.rockCol = this.world.th.rock;                          // los escombros salen del color de la piedra de este mapa
     this.pickups.reset(this.world); this.capsules.reset(this.world, S.final ? 0 : S.caps || 28); this.points.reset();
     if (this.run.route[this.run.route.length - 1] !== S.name) this.run.route.push(S.name);
     if (S.pois) this.points.populate(this.world, S);
@@ -975,7 +976,7 @@ class Game {
   onCrit(dmg) {
     if (this.impCd > 0 || this.state !== 'play' || dmg < 30 * this.player.damageMul()) return;
     this.impCd = 2.5; this.impT = 0.14;
-    this.hitstop = Math.max(this.hitstop, 0.07); this.shake(0.5);
+    this.hitstop = Math.max(this.hitstop, 0.07); this.shake(0.5, 1);
     SFX.play('crit');
     this.ui.toast('¡CRÍTICO! ' + fmtK(dmg), true);
   }
@@ -1303,7 +1304,8 @@ class Game {
       const c = F.forms[k].aura || F.forms[k].ki || 0xffffff;
       if (this.vfx && this.vfx.ok) this.vfx.flash(p.x, 1.6, p.z, 8, c);
       this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 70, 24, 0.8, 0.5, c); this.horde.shockwave(p.x, p.z, 9, 22);
-      this.shake(1.2); SFX.play('bigboom'); go();
+      this.fx.shock(p.x, p.z, 9, c, 0.35); this.fx.debris(p.x, p.z, 12, 10);
+      this.shake(1.2, 2); SFX.play('bigboom'); go();
     }
   }
   updateFusion(dt) {
@@ -1735,10 +1737,11 @@ class Game {
 
   /** Temblor por «trauma»: se suma (con tope) y el temblor real es trauma², así los golpes pequeños apenas mueven
       la cámara y los grandes pegan fuerte. Los grandes también vibran el mando y abren un poco el FOV */
-  shake(a) {
+  shake(a, m) {
     const o = Save.d.opt.shake; a *= o;
     if (a <= 0) return;
     const prev = this.shakeAmt;
+    if (a >= prev) this.shakeM = m || 0;                           // dirección: 0 = todas · 1 = lateral (golpes, dash) · 2 = vertical (caídas, explosiones)
     this.shakeAmt = Math.min(1.4, Math.max(prev, a));             // se llama cada cuadro en las cargas: se queda el máximo, no se acumula
     if (a < prev + 0.3) return;                                    // FOV y vibración solo con golpes nuevos, no mientras dura un temblor
     if (a >= 0.9) this.punchFov(a * 3);
@@ -1766,7 +1769,9 @@ class Game {
     this.world.damageArea(x, z, r, dmg);
     this.fx.burst(this.fx.sparks, x, 1, z, 16, r * 2.4, 0.5, 0.4, 6, tint);
     this.fx.ring(this.fx.aura, x, 0.4, z, 28, r * 3, 0.4, 0.35, tint);
-    this.shake(0.3);
+    if (r >= 1.6) this.fx.shock(x, z, r * 1.15, tint);             // onda de choque en el suelo
+    if (r >= 3) this.fx.debris(x, z, Math.min(14, 3 + r), 5 + r * 0.5);
+    this.shake(0.3, 2);
   }
 
   /* ---------- Enemigos y jefes ---------- */
@@ -1848,6 +1853,7 @@ class Game {
       if (B.res) this.ui.toast((B.res === 'fis' ? '🛡 ' : '✦ ') + RES_TXT[B.res], true);   // qué tipo de ataque resiste
       this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.col || B.tints[0]);
       this.vfx.play('flare', x, 7, z, { size: 15, dur: 0.8, pri: 1 }); this.vfx.crater(x, z, 5); this.impact(0.12, 0);
+      this.fx.shock(x, z, 9, B.col || B.tints[0]); this.fx.shock(x, z, 5, 0xffffff, 0.3); this.fx.debris(x, z, 14, 10);
     }
   }
   /** IA del jefe: una fase por cada lista de ataques (3, o 4 en Goku Black) y en cada una sus técnicas (BOSSES[].pat).
@@ -1882,7 +1888,7 @@ class Game {
     // Embestida: tras el aviso sale disparado hacia el jugador
     if (b.dashW > 0) {
       b.dashW -= dt;
-      if (b.dashW <= 0) { h.kx[i] = Math.cos(a) * 75; h.kz[i] = Math.sin(a) * 75; this.shake(0.5); SFX.play('dash'); h.posBoss('atk', 0.5); }
+      if (b.dashW <= 0) { h.kx[i] = Math.cos(a) * 75; h.kz[i] = Math.sin(a) * 75; this.shake(0.5, 1); SFX.play('dash'); h.posBoss('atk', 0.5); }
     }
   }
   /** Posición actual del jefe (para las acciones programadas: el jefe se mueve entre medias) */
@@ -2101,7 +2107,8 @@ class Game {
     this.fx.burst(this.fx.sparks, bx, 2, bz, 50, 14, 0.8, 0.5, 2, 0xffffff);
     this.vfx.play('flare', bx, 8, bz, { size: 17, dur: 1, pri: 1 }); this.vfx.play('dome', bx, 3, bz, { size: 12, grow: 1.8, dur: 0.7, pri: 1 });
     this.vfx.crater(bx, bz, 7); for (let k = 0; k < 6; k++) this.vfx.bolt(bx + Math.cos(k) * 6, bz + Math.sin(k) * 6, 14, col);
-    this.shake(1.3); this.hitstop = 0.16;
+    this.fx.shock(bx, bz, 16, col, 0.5); this.fx.shock(bx, bz, 9, 0xffffff, 0.32); this.fx.debris(bx, bz, 18, 13);
+    this.shake(1.3, 2); this.hitstop = 0.16;
     if (!Save.d.opt.flash) this.impT = 0.2;
     SFX.scream(1.2, 150 + ph * 25);
     this.ui.toast('¡' + B.name + (B.forms ? ' · ' + B.forms[ph] : ' · FASE ' + (ph + 1)) + '!'); SFX.play('phase');
@@ -2136,7 +2143,7 @@ class Game {
   /** Barrera de Ki: un golpe parado. Destello, empujón y, con la fusión, estallido */
   onBarrierHit(p) {
     const c = p.barCol;
-    this.horde.shockwave(p.x, p.z, 7, 14);
+    this.horde.shockwave(p.x, p.z, 7, 14); this.fx.shock(p.x, p.z, 6, c);
     if (p.barBoom) { DMG_SRC = 'boombarrier'; this.horde.damageRadius(p.x, p.z, 6, p.barBoom * p.damageMul(), 12, this); DMG_SRC = 'otros'; this.vfx.boom(p.x, p.z, 3.2, c, false); }
     this.vfx.play('shBreak', p.x, 1.6, p.z, { size: 5, fps: 30, tint: c, pri: 1 });
     this.vfx.flash(p.x, 1.6, p.z, 4, c);
@@ -2165,6 +2172,7 @@ class Game {
       this.ultT = 0; this.ultCut = false;
       this.hitstop = Math.max(this.hitstop, 0.5);                // el mundo se congela mientras dura el destello
       this.shake(0.6); this.punchFov(8); rumble(400, 1, 0.6); this.player.squash(1.25); SFX.play('boom');
+      this.fx.shock(this.player.x, this.player.z, 8, 0xffffff, 0.3); this.fx.debris(this.player.x, this.player.z, 10, 9);
     };
     // Animación propia de cada personaje (el mundo espera congelado) y después la Ultimate
     const go = () => {
@@ -2242,7 +2250,7 @@ class Game {
       this.after(0.45, () => {
         DMG_SRC = 'ult'; this.horde.damageRadius(bx, bz, 9, U.dmg * 2 * dm, 18, this); this.world.damageArea(bx, bz, 9, U.dmg * 2);
         V.play('burnBig', bx, 3, bz, { size: 12, dur: 0.8, pri: 1 }); V.play('burnSwirl', bx, 2, bz, { size: 8, fps: 12, pri: 1 });
-        V.crater(bx, bz, 6, 0xff9a2a); this.shake(1.2); SFX.play('bigboom'); this.impact(0.12, 2); DMG_SRC = 'otros';
+        V.crater(bx, bz, 6, 0xff9a2a); this.fx.shock(bx, bz, 10, 0xff9a2a, 0.4); this.fx.debris(bx, bz, 16, 12); this.shake(1.2, 2); SFX.play('bigboom'); this.impact(0.12, 2); DMG_SRC = 'otros';
       });
       this.bossChunk(bx, bz, 10, 0.05);
     }
@@ -2292,6 +2300,7 @@ class Game {
     }
     this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 90, 34, 0.9, 0.6, 0xb050ff);
     this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 60, 20, 0.7, 0.5, 0xffffff);
+    this.fx.shock(p.x, p.z, 15, 0xb050ff, 0.5); this.fx.shock(p.x, p.z, 8, 0xffffff, 0.3);
     this.shake(1.6); SFX.play('bigbeam'); SFX.play('bigboom');
     p.iframes = Math.max(p.iframes, 0.8);
   }
@@ -2328,7 +2337,7 @@ class Game {
     if (type === 4) {
       this.track('elites', 1);
       this.fx.ring(this.fx.aura, x, 0.4, z, 36, 12, 0.6, 0.4, 0xffc83a);
-      this.vfx.boom(x, z, 2.8, 0xffc83a, false); this.impact(0.07, 3);
+      this.vfx.boom(x, z, 2.8, 0xffc83a, false); this.impact(0.07, 3); this.fx.shock(x, z, 4.5, 0xffc83a); this.fx.debris(x, z, 6, 7);
       for (let i = 0; i < 4; i++) this.orbs.spawn(x, z, 4);
       this.ui.toast('+' + Math.round(ENEMY_TYPES[4].cash * p.zeniMul) + ' ZENI · ÉLITE', true); SFX.play('coin');
       if (Math.random() < 0.3) this.capsules.add(x, z, false, this.world);
@@ -2344,7 +2353,7 @@ class Game {
       this.vfx.play('dome', x, 3, z, { size: 14, grow: 1.6, dur: 0.8, pri: 1 });
       for (let k = 0; k < 3; k++) this.after(0.35 + k * 0.3, () => this.vfx.pplay('Pfirework', x + rand(-5, 5), rand(5, 7), z + rand(-5, 5), rand(4.5, 5.5), { pri: 1 }));   // fuegos artificiales
       this.impact(0.26, 0);
-      this.ui.toast('¡' + this.stage.boss.name + ' DERROTADO!'); this.shake(1); SFX.play('bigboom'); SFX.music('battle');
+      this.ui.toast('¡' + this.stage.boss.name + ' DERROTADO!'); this.shake(1, 2); this.fx.shock(x, z, 14, 0xffd24a, 0.5); this.fx.shock(x, z, 7, 0xffffff, 0.3); this.fx.debris(x, z, 20, 14); SFX.play('bigboom'); SFX.music('battle');
       if (this.mode === 'gauntlet') this.gauntletKill(x, z);                // Asalto de Jefes: cristales y el siguiente jefe
       else if (this.mode === 'rush') { /* Lluvia de Cristales: se sigue en el mismo mapa hasta que acabe el tiempo */ }
       else if (this.stage.final || this.saga) this.victoryT = 2.2;
@@ -2550,13 +2559,14 @@ class Game {
     // Temblor = trauma² con ruido suave (suma de senos, sin saltos aleatorios de un cuadro a otro) y un leve balanceo
     this.shakeT += rawDt;
     const a = s * s * 0.9, t = this.shakeT * 26;
-    const nx = s > 0 ? shakeNoise(t, 1) * a : 0, ny = s > 0 ? shakeNoise(t, 2) * a : 0;
+    const sm = this.shakeM;
+    const nx = s > 0 ? shakeNoise(t, 1) * a * (sm === 1 ? 1.3 : sm === 2 ? 0.25 : 1) : 0, ny = s > 0 ? shakeNoise(t, 2) * a * (sm === 2 ? 1.35 : sm === 1 ? 0.2 : 1) : 0;
     this.camera.position.set(
       this.camLook.x + this.camSin * d * cp + nx * this.camCos,
       this.camLook.y + d * sp + ny,
       this.camLook.z + this.camCos * d * cp - nx * this.camSin);
     this.camera.lookAt(this.camLook);
-    if (s > 0) this.camera.rotateZ(shakeNoise(t, 3) * a * 0.035);
+    if (s > 0) this.camera.rotateZ(shakeNoise(t, 3) * a * (sm ? 0.014 : 0.035));
     // Golpe de FOV: decae solo (~0,2 s)
     const fov = 48 + this.fovP;
     if (Math.abs(this.camera.fov - fov) > 0.01) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
@@ -2723,7 +2733,8 @@ class Game {
         p.canRevive = false; p.reviveUsed = true; p.hp = p.maxHp * 0.5; p.iframes = 3;
         h.shockwave(p.x, p.z, 20, 30);
         this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 60, 20, 0.8, 0.45, 0xffffff);
-        this.ui.toast('¡RENACES!'); this.shake(1);
+        this.fx.shock(p.x, p.z, 16, 0xffffff, 0.45); this.fx.debris(p.x, p.z, 12, 11);
+        this.ui.toast('¡RENACES!'); this.shake(1, 2);
       } else {
         if (this.rivalUid && Save.d.rival && this.horde.uid.subarray(0, this.horde.n).includes(this.rivalUid)) { Save.d.rival.beatMe = true; Save.write(); }   // el rival te ha visto caer
         p.die(); this.state = 'dying'; this.releaseMouse();

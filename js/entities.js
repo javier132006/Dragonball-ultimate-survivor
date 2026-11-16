@@ -192,7 +192,7 @@ class Player {
     if (this.tr.ego) this.egoStk = Math.min(this.tr.ego, this.egoStk + 0.03);
     game.run.taken += real;
     game.ui.flash = 1;
-    game.shake(0.45);
+    game.shake(0.45, 1);
     game.microStop(0.04);
     game.fx.burst(game.fx.sparks, this.x, 1.3, this.z, 8, 7, 0.4, 0.35, 8);
     return true;
@@ -256,7 +256,7 @@ class Player {
       this.dashT *= this.dashBoost > 1 ? 1.25 : 1;                 // gravedad baja: dash más largo
       this.iframes = Math.max(this.iframes, CFG.DASH_TIME + 0.1);
       game.fx.burst(game.fx.trail, this.x, 0.8, this.z, 12, 5, 0.5, 0.6, 0);
-      game.shake(0.25); game.punchFov(4); this.squash(0.78);             // dash: se aplasta (lee como velocidad) y la cámara «abre»
+      game.shake(0.25, 1); game.punchFov(4); this.squash(0.78);             // dash: se aplasta (lee como velocidad) y la cámara «abre»
     }
     this.prevSpace = space;
 
@@ -301,7 +301,8 @@ class Player {
         this.shockT = 0.55;
         game.horde.shockwave(this.x, this.z, 8, 17);
         game.fx.ring(game.fx.aura, this.x, 0.5, this.z, 40, 15, 0.45, 0.3, ac);
-        game.shake(0.14);
+        game.fx.shock(this.x, this.z, 8, ac, 0.3); game.fx.debris(this.x, this.z, 3, 6);
+        game.shake(0.14, 2);
       }
     } else {
       // Las formas que gastan Ki no lo regeneran solas, salvo la parte que da formRegen
@@ -622,7 +623,7 @@ class HordeManager {
       this.phase[i] += dt * 8 * (0.6 + T.spd * 0.4);
       const R = T.r * (1 + this.grow[i]);
       if (!T.fly && d < CFG.PLAYER_R + R + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game)) {
-        if (T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6); }
+        if (T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6, 1); }
         if (T.drain) {                                            // Androide 18: te roba Ki
           player.ki = Math.max(0, player.ki - T.drain);
           game.fx.burst(game.fx.aura, px, 1.2, pz, 10, 3, 0.4, 0.4, 1, 0x6ad8ff);
@@ -684,7 +685,7 @@ class HordeManager {
           if (b.ign.indexOf(u) >= 0) continue;
           this.hurt(j, b.dmg, b.vx * 0.22, b.vz * 0.22, game);
           game.fx.burst(game.fx.sparks, b.x, 1.2, b.z, b.crit ? 8 : 3, b.crit ? 9 : 5, 0.3, b.crit ? 0.4 : 0.25, 6, b.tint);
-          if (b.crit) { game.microStop(0.04); game.shake(0.3); game.onCrit(b.dmg); if (game.time - (game.pCritT || 0) > 0.12) { game.pCritT = game.time; game.vfx.pplay('Pcrit', b.x, 1.2, b.z, 3.8, { rot: Math.random() * 6.28 }); } } else game.shake(0.05);
+          if (b.crit) { game.microStop(0.04); game.shake(0.3, 1); game.onCrit(b.dmg); if (game.time - (game.pCritT || 0) > 0.12) { game.pCritT = game.time; game.vfx.pplay('Pcrit', b.x, 1.2, b.z, 3.8, { rot: Math.random() * 6.28 }); } } else game.shake(0.05);
           if (b.pierce > 0) { b.pierce--; b.ign[b.ni++ % b.ign.length] = u; return false; }
           return true;
         }
@@ -1127,7 +1128,8 @@ class EnemyShots {
         if (m.bolt) for (let y = 0; y < 14; y += 1.4) fx.burst(fx.sparks, m.x, y, m.z, 2, 2, 0.3, 0.45, 0, m.tint);   // rayo del cielo
         fx.burst(fx.sparks, m.x, 0.8, m.z, m.big ? 40 : 18, m.r * 2.5, 0.45, m.big ? 0.6 : 0.4, 6, m.tint);
         fx.ring(fx.aura, m.x, 0.3, m.z, m.big ? 40 : 22, m.r * 3, 0.35, m.big ? 0.6 : 0.35, m.tint);
-        if (m.big) { fx.burst(fx.aura, m.x, 1.5, m.z, 30, m.r * 1.5, 0.7, 0.8, 1, 0xffffff); game.shake(0.9); SFX.play('bigboom'); }
+        fx.shock(m.x, m.z, m.r * 1.1, m.tint);
+        if (m.big) { fx.burst(fx.aura, m.x, 1.5, m.z, 30, m.r * 1.5, 0.7, 0.8, 1, 0xffffff); fx.shock(m.x, m.z, m.r * 0.6, 0xffffff, 0.3); fx.debris(m.x, m.z, 14, 11); game.shake(0.9, 2); SFX.play('bigboom'); }
         else SFX.play('boom');
         if (m.ring) this.ring(m.x, m.z, m.ring, 9, m.dmg * 0.35, Math.random() * 6.28, { tint: m.tint });
         continue;

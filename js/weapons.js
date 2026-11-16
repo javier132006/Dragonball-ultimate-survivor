@@ -470,6 +470,7 @@ class WeaponSystem {
     g.horde.damageRadius(p.x, p.z, r, dm * p.damageMul(), 20, g);
     g.world.damageArea(p.x, p.z, r, dm);
     g.horde.shockwave(p.x, p.z, r, 22);
+    g.fx.shock(p.x, p.z, r, 0xff8a3a, 0.45); g.fx.shock(p.x, p.z, r * 0.55, 0xffffff, 0.3); g.fx.debris(p.x, p.z, 16, 13);
     g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 80, r * 3.2, 0.6, 0.45, 0xff8a3a);
     g.fx.burst(g.fx.sparks, p.x, 1.4, p.z, 70, 16, 0.9, 0.5, 4, 0xffd060);
     g.shake(1.2); g.hitstop = 0.1; g.ui.toast('¡' + WEAPONS[w.id].name.toUpperCase() + '!', true); SFX.play('bigboom');
@@ -526,7 +527,7 @@ class WeaponSystem {
   pulse(g, p, r, dm, col) {
     g.horde.damageRadius(p.x, p.z, r, dm * p.damageMul(), 14, g);
     g.world.damageArea(p.x, p.z, r, dm);
-    g.horde.shockwave(p.x, p.z, r, 12);
+    g.horde.shockwave(p.x, p.z, r, 12); g.fx.shock(p.x, p.z, r, col);
     SFX.play('pulse');
     if (g.vfx && FXA.auraGen) g.vfx.play('auraGen', p.x, 0.3, p.z, { flat: true, size: r * 0.7, grow: 3, dur: 0.4, frames: FXA.auraGen.f.slice(0, 4) });
     g.fx.ring(g.fx.sparks, p.x, 0.5, p.z, 56, r * 3, 0.4, 0.3, col || p.form.ki);
@@ -647,7 +648,8 @@ class WeaponSystem {
       g.fx.ring(g.fx.aura, p.x, 0.4, p.z, 40, r * 2.2, 0.5, 0.35, col);
       for (let i = 0; i < 24; i++) { const a = (i / 24) * 6.2832; g.fx.sparks.emit(p.x + Math.cos(a) * r * 0.5, 0.4, p.z + Math.sin(a) * r * 0.5, Math.cos(a) * 9, rand(2, 5), Math.sin(a) * 9, 0.35, 0.4, 0, col); }
       if (g.vfx) { g.vfx.crater(p.x, p.z, r * 0.7, col); g.vfx.dust(p.x, p.z, r * 1.3); g.vfx.play('hitRing', p.x, 0.8, p.z, { size: r * 1.6, fps: 22, tint: col }); }
-      g.shake(0.5); SFX.play('boom');
+      g.fx.shock(p.x, p.z, r, col); g.fx.debris(p.x, p.z, 10, 9);
+      g.shake(0.5, 2); SFX.play('boom');
     };
     if (w.pend > 0) { w.pend -= dt; if (w.pend <= 0) hit(R * 1.35, dm * 0.6, 12); }
     if (!this.ready(w, dt, p)) return;
@@ -797,7 +799,7 @@ class WeaponSystem {
     if (g.horde.nearest(p.x, p.z, 5.5) < 0) return;            // solo cuando te rodean
     w.cd = C.cd || (lv >= 4 ? 7 : 10);
     p.barT = 6; p.barHits = C.hits || 2 + (lv >= 3) + (lv >= 5); p.barBoom = C.boom || 0; p.barCol = col;
-    g.horde.shockwave(p.x, p.z, rad, 18);
+    g.horde.shockwave(p.x, p.z, rad, 18); g.fx.shock(p.x, p.z, rad, col);
     if (lv >= 2) g.horde.damageRadius(p.x, p.z, lv >= 5 ? 7 : 5.5, 16 * (1 + 0.3 * (lv >= 5)) * p.damageMul(), 14, g);
     if (g.vfx) { g.vfx.play('pulse', p.x, 1.4, p.z, { size: 8, fps: 18, tint: col }); g.vfx.flash(p.x, 1.6, p.z, 5, col); }
     g.fx.ring(g.fx.aura, p.x, 0.6, p.z, 40, 14, 0.5, 0.4, col);

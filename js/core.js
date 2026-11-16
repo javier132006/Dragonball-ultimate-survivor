@@ -73,6 +73,8 @@ function makeTextures() {
   const STARS = [[6, 6], [4, 4], [8, 4], [4, 8], [8, 8], [6, 3], [6, 9]];
   return {
     spark: pixelTex(2, 2, () => [255, 255, 255, 255]),
+    // Anillo fino de borde duro (ondas de choque en el suelo)
+    shock: pixelTex(128, 128, (x, y, w) => { const r = Math.hypot(x + 0.5 - w / 2, y + 0.5 - w / 2) / (w / 2); return r < 1 && r > 0.93 ? [255, 255, 255, 255] : null; }),
     ki: pixelTex(16, 16, (x, y, w) => {
       const r = Math.hypot(x + 0.5 - w / 2, y + 0.5 - w / 2) / (w / 2);
       return r < 0.3 ? [255, 255, 255, 255] : r < 0.55 ? [235, 235, 235, 255] : r < 0.8 ? [185, 185, 185, 230] : r < 1 ? [110, 110, 110, 160] : null;
@@ -309,14 +311,18 @@ class SpriteBatch {
   reset() { this.count = 0; this.geo.instanceCount = 0; }
 }
 
-/* ---------- Partículas (pool en anillo, cuadrados de píxel, color por partícula) ---------- */
+/* ---------- Partículas (pool en anillo, cuadrados de píxel, color por partícula) ----------
+   hard = partículas sólidas (escombros): opacas, sin brillo aditivo y girando */
 class ParticleSystem {
-  constructor(scene, max, color, alpha, tex) {
+  constructor(scene, max, color, alpha, tex, hard) {
     this.max = max; this.cursor = 0; this.def = color;
     const f = () => new Float32Array(max);
     this.px = f(); this.py = f(); this.pz = f(); this.vx = f(); this.vy = f(); this.vz = f();
     this.life = f(); this.maxLife = f(); this.size = f(); this.grav = f(); this.tint = new Int32Array(max);
-    this.batch = new SpriteBatch(scene, { max, texture: tex, w: 1, h: 1, anchor: 0.5, additive: true, alpha, cut: 0.02, renderOrder: 6 });
+    this.hard = !!hard;
+    if (hard) { this.rot = f(); this.spin = f(); }
+    this.batch = new SpriteBatch(scene, hard ? { max, texture: tex, w: 1, h: 1, anchor: 0.5, cut: 0.5, renderOrder: 3 }
+      : { max, texture: tex, w: 1, h: 1, anchor: 0.5, additive: true, alpha, cut: 0.02, renderOrder: 6 });
   }
   setColor(hex) { this.def = hex; }
   emit(x, y, z, vx, vy, vz, life, size, grav, tint) {
@@ -335,8 +341,11 @@ class ParticleSystem {
       if (this.life[i] <= 0) continue;
       this.vy[i] -= this.grav[i] * dt;
       this.px[i] += this.vx[i] * dt; this.py[i] += this.vy[i] * dt; this.pz[i] += this.vz[i] * dt;
-      if (this.py[i] < 0.05) { this.py[i] = 0.05; this.vy[i] *= -0.4; this.vx[i] *= 0.8; this.vz[i] *= 0.8; }
-      b.push(this.px[i], this.py[i], this.pz[i], 0, 0, 0, this.size[i] * (this.life[i] / this.maxLife[i]), 1, this.tint[i]);
+      if (this.py[i] < 0.05) { this.py[i] = 0.05; this.vy[i] *= -0.4; this.vx[i] *= 0.8; this.vz[i] *= 0.8; if (this.hard) this.spin[i] *= 0.5; }
+      if (this.hard) {                                          // escombro: gira y solo se encoge al final (el borde sigue nítido)
+        this.rot[i] += this.spin[i] * dt;
+        b.push(this.px[i], this.py[i], this.pz[i], 0, 0, 0, this.size[i] * Math.min(1, this.life[i] / this.maxLife[i] * 3), 1, this.tint[i], this.rot[i]);
+      } else b.push(this.px[i], this.py[i], this.pz[i], 0, 0, 0, this.size[i] * (this.life[i] / this.maxLife[i]), 1, this.tint[i]);
     }
     b.end();
   }
@@ -349,7 +358,13 @@ class FX {
     this.aura = new ParticleSystem(scene, 500, 0xfff2b0, 0.85, tex.spark);
     this.trail = new ParticleSystem(scene, 240, 0x7fe8ff, 0.5, tex.spark);
     this.gore = new ParticleSystem(scene, 300, 0xc0392b, 0.95, tex.spark);
-    this.all = [this.sparks, this.aura, this.trail, this.gore];
+    this.rock = new ParticleSystem(scene, 200, 0x8a6a4a, 1, tex.spark, true);   // escombros de piedra (sólidos)
+    this.rockCol = 0x8a6a4a;                      // color de la piedra del mapa actual (lo fija Game al cargar el mapa)
+    this.all = [this.sparks, this.aura, this.trail, this.gore, this.rock];
+    // Ondas de choque: anillos finos tumbados en el suelo (pool en anillo, una sola llamada de dibujo)
+    const RN = this.RN = 24, rf = () => new Float32Array(RN);
+    this.rgX = rf(); this.rgZ = rf(); this.rgR = rf(); this.rgT = rf(); this.rgD = rf(); this.rgC = new Int32Array(RN); this.rgCur = 0; this.rgOn = 0;
+    this.rings = new SpriteBatch(scene, { max: RN, texture: tex.shock || tex.spark, w: 1, h: 1, anchor: 0.5, additive: true, flat: true, cut: 0.02, renderOrder: 4 });
     this.q = 1;                                   // calidad: en BAJA se emiten la mitad de partículas en ráfagas y anillos
     this.load = 1;                                // carga: con la horda muy grande se emiten menos (lo fija Game.update)
   }
@@ -368,6 +383,37 @@ class FX {
       sys.emit(x + c, y, z + s, c * speed, 0.3, s * speed, life, size, 0, tint);
     }
   }
-  update(dt) { for (let i = 0; i < 4; i++) this.all[i].update(dt); }
-  reset() { for (let i = 0; i < 4; i++) this.all[i].reset(); }
+  /** Escombros: piedras sólidas del color del terreno que saltan, giran y rebotan en el suelo */
+  debris(x, z, n, speed, tint) {
+    n = Math.max(2, Math.round(n * this.q * this.load));
+    const base = tint === undefined ? this.rockCol : tint, R = (base >> 16) & 255, G = (base >> 8) & 255, B = base & 255, s = this.rock;
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, 6.2832), v = speed * rand(0.3, 1), k = rand(0.5, 1), c = Math.cos(a), sn = Math.sin(a), j = s.cursor;
+      s.emit(x + c * 0.5, 0.3, z + sn * 0.5, c * v, speed * rand(0.6, 1.3), sn * v, rand(0.7, 1.2), rand(0.22, 0.55), 30, ((R * k) << 16) | ((G * k) << 8) | (B * k));
+      s.rot[j] = a; s.spin[j] = rand(-12, 12);
+    }
+  }
+  /** Onda de choque: anillo fino en el suelo que crece hasta el radio r y se corta en seco */
+  shock(x, z, r, tint, dur) {
+    const i = this.rgCur; this.rgCur = (i + 1) % this.RN;
+    this.rgX[i] = x; this.rgZ[i] = z; this.rgR[i] = r; this.rgT[i] = 0; this.rgD[i] = dur || 0.2 + Math.min(0.25, r * 0.02); this.rgC[i] = tint === undefined ? 0xffffff : tint;
+    this.rgOn = this.RN;
+  }
+  update(dt) {
+    for (let i = 0; i < this.all.length; i++) this.all[i].update(dt);
+    if (!this.rgOn) return;                       // sin ondas vivas no se toca el lote
+    const b = this.rings; let live = 0;
+    b.begin();
+    for (let i = 0; i < this.RN; i++) {
+      if (this.rgD[i] <= 0) continue;
+      this.rgT[i] += dt;
+      const u = this.rgT[i] / this.rgD[i];
+      if (u >= 1) { this.rgD[i] = 0; continue; }
+      const e = 1 - (1 - u) * (1 - u) * (1 - u);                   // sale rápido y frena
+      b.push(this.rgX[i], 0.12, this.rgZ[i], 0, 0, 0, this.rgR[i] * 2 * (0.2 + 0.8 * e), u < 0.7 ? 0.9 : u < 0.87 ? 0.45 : 0.18, this.rgC[i]);
+      live++;
+    }
+    b.end(); this.rgOn = live;
+  }
+  reset() { for (let i = 0; i < this.all.length; i++) this.all[i].reset(); this.rgD.fill(0); this.rgOn = 0; this.rings.reset(); }
 }
