@@ -145,6 +145,7 @@ class Game {
     if (this.vfx.ok) { this.ki.useFx(sheets.fx); this.shots.useFx(sheets.fx); this.pickups.useFx(sheets.props); }
     this.impCd2 = 0; this.env = null;
     this.applyQuality();
+    this.ui.applyAccess(); this.ui.refreshKeys();                  // ayudas de accesibilidad y teclas configuradas
   }
 
   /* ---------- Calidad gráfica ---------- */
@@ -215,28 +216,30 @@ class Game {
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;   // escribiendo en un formulario
       if (this.ui.el.modal.classList.contains('show') || this.ui.el.exit.classList.contains('show')) return;
       const s = this.state;
-      if (s === 'menu' && e.code === 'Enter') this.startLoad(false);
-      else if (s === 'over' && (e.code === 'Enter' || e.code === 'KeyR')) this.again();
+      // En partida, la tecla pasa por las teclas configuradas (en los menús se usan las de siempre)
+      const c = s === 'play' || s === 'pause' ? (Binds.map(e.code) || '') : e.code;
+      if (s === 'menu' && c === 'Enter') this.startLoad(false);
+      else if (s === 'over' && (c === 'Enter' || c === 'KeyR')) this.again();
       else if (s === 'chapcard') this.endChapCard();
-      else if (s === 'play' && this.practice && e.code === 'KeyL') this.practiceLevel();
-      else if (s === 'play' && this.practice && e.code === 'KeyK') this.practiceClear();
-      else if (s === 'play' && this.practice && e.code === 'KeyJ') { this.cash += 500; SFX.play('coin'); }
-      else if (s === 'over' && (e.code === 'KeyM' || e.code === 'Escape')) this.toMenu();
-      else if ((s === 'play' || s === 'pause') && (e.code === 'KeyP' || e.code === 'Escape')) this.togglePause();
-      else if (s === 'play' && e.code === 'KeyE') this.interact();
-      else if (s === 'play' && e.code === 'KeyG') this.transform();
-      else if (s === 'play' && e.code === 'KeyQ') this.ultimate();
-      else if (s === 'play' && e.code === 'KeyH') this.revertForm();
-      else if (s === 'trade' && (e.code === 'KeyE' || e.code === 'Escape')) this.closeTrade();
-      else if (s === 'gacha' && (e.code === 'KeyE' || e.code === 'Escape')) this.gacha.close();
-      else if (s === 'gacha' && /^Digit[1-7]$/.test(e.code)) this.gacha.pick(+e.code[5] - 1);
-      else if (s === 'gacha' && (e.code === 'Enter' || e.code === 'Space')) { if (this.gacha.phase === 'show') this.gacha.mix(); }
-      else if (s === 'play' && e.code === 'KeyM') { this.showMap = !this.showMap; ui.el.bigmap.style.display = this.showMap ? 'block' : 'none'; }
-      else if ((s === 'play' || s === 'pause') && e.code === 'Tab') { e.preventDefault(); this.togglePause(); }
-      else if ((s === 'levelup' || s === 'wish') && /^Digit[1-4]$/.test(e.code)) { if (this.cardsReady()) ui.pickCard(+e.code[5] - 1); }
-      else if ((s === 'levelup' || s === 'wish') && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) ui.focusCard(e.code === 'ArrowLeft' ? -1 : 1);
-      else if ((s === 'levelup' || s === 'wish') && (e.code === 'Enter' || e.code === 'Space')) { if (this.cardsReady()) ui.pickCard(ui.cardFocus); }
-      else if (s === 'levelup' && e.code === 'KeyR') this.reroll();
+      else if (s === 'play' && this.practice && c === 'KeyL') this.practiceLevel();
+      else if (s === 'play' && this.practice && c === 'KeyK') this.practiceClear();
+      else if (s === 'play' && this.practice && c === 'KeyJ') { this.cash += 500; SFX.play('coin'); }
+      else if (s === 'over' && (c === 'KeyM' || c === 'Escape')) this.toMenu();
+      else if ((s === 'play' || s === 'pause') && (c === 'KeyP' || c === 'Escape')) this.togglePause();
+      else if (s === 'play' && c === 'KeyE') this.interact();
+      else if (s === 'play' && c === 'KeyG') this.transform();
+      else if (s === 'play' && c === 'KeyQ') this.ultimate();
+      else if (s === 'play' && c === 'KeyH') this.revertForm();
+      else if (s === 'trade' && (c === 'KeyE' || c === 'Escape')) this.closeTrade();
+      else if (s === 'gacha' && (c === 'KeyE' || c === 'Escape')) this.gacha.close();
+      else if (s === 'gacha' && /^Digit[1-7]$/.test(c)) this.gacha.pick(+c[5] - 1);
+      else if (s === 'gacha' && (c === 'Enter' || c === 'Space')) { if (this.gacha.phase === 'show') this.gacha.mix(); }
+      else if (s === 'play' && c === 'KeyM') { this.showMap = !this.showMap; ui.el.bigmap.style.display = this.showMap ? 'block' : 'none'; }
+      else if ((s === 'play' || s === 'pause') && c === 'Tab') { e.preventDefault(); this.togglePause(); }
+      else if ((s === 'levelup' || s === 'wish') && /^Digit[1-4]$/.test(c)) { if (this.cardsReady()) ui.pickCard(+c[5] - 1); }
+      else if ((s === 'levelup' || s === 'wish') && (c === 'ArrowLeft' || c === 'ArrowRight')) ui.focusCard(c === 'ArrowLeft' ? -1 : 1);
+      else if ((s === 'levelup' || s === 'wish') && (c === 'Enter' || c === 'Space')) { if (this.cardsReady()) ui.pickCard(ui.cardFocus); }
+      else if (s === 'levelup' && c === 'KeyR') this.reroll();
     });
     // Cámara con el ratón: arrastra con el botón derecho (o central), rueda para el zoom
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -258,7 +261,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-versus]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-bind],[data-bindreset],[data-cb],[data-hc],[data-chtg],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-versus]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -300,6 +303,11 @@ class Game {
       else if (D.tips !== undefined) { Save.d.opt.tips = Save.d.opt.tips === false; Save.write(); ui.renderMenu(); }
       else if (D.tipsreset !== undefined) { this.tuto.reset(); ui.toast('Volverás a ver todos los consejos', true); }
       else if (D.fps !== undefined) { Save.d.opt.fps = !Save.d.opt.fps; Save.write(); ui.renderMenu(); }
+      else if (D.bind) ui.startBind(D.bind);
+      else if (D.bindreset !== undefined) { Binds.reset(); Save.write(); ui.refreshKeys(); ui.keepScroll(() => ui.renderMenu()); }
+      else if (D.cb) { Save.d.opt.cb = D.cb; Save.write(); ui.applyAccess(); ui.keepScroll(() => ui.renderMenu()); }
+      else if (D.hc !== undefined) { Save.d.opt.hc = !Save.d.opt.hc; Save.write(); ui.applyAccess(); ui.keepScroll(() => ui.renderMenu()); }
+      else if (D.chtg !== undefined) { Save.d.opt.chargeToggle = !Save.d.opt.chargeToggle; keys._charge = false; Save.write(); ui.keepScroll(() => ui.renderMenu()); }
       else if (D.z3fx !== undefined) { Save.d.opt.z3fx = Save.d.opt.z3fx === false; Save.write(); if (this.vfx) this.vfx.z3 = Save.d.opt.z3fx !== false && !!FXA.ZkbY && !!(this.ui.sheets && this.ui.sheets.zfx); ui.renderMenu(); }
       else if (D.exp !== undefined) this.exportSave();
       else if (D.imp !== undefined) this.importSave();
@@ -520,6 +528,7 @@ class Game {
     }));
   }
   start(practice, daily, mode) {
+    keys._charge = false;                                            // «cargar ki con un toque» empieza siempre suelto
     if (practice || daily || mode) this.saga = null;                 // el Modo Leyenda solo en partidas normales
     // Modos de cristales: 'rush' (Lluvia de Cristales, 5 min) · 'gauntlet' (Asalto de Jefes, jefes sin parar)
     this.mode = !practice && !daily && MODES[mode] ? mode : null; this.modeCry = 0; this.modeT = this.mode === 'rush' ? RUSH_TIME : 0; this.modeDone = false;

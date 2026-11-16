@@ -1593,6 +1593,23 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
 .ssum .coin{width:20px;height:20px}
 @keyframes ssumIn{from{opacity:0;transform:translateX(-50%) skewX(-10deg) scale(.7)}}
 .sskip{margin-right:54px;font-size:19px;padding:8px 20px;border:3px solid var(--ink);box-shadow:3px 4px 0 var(--ink)}
+/* ---------- Opciones: teclas configurables ---------- */
+.kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin:10px 0}
+.kbtn{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 8px 6px 14px;font-size:17px;transform:none;background:#0d1330;border:3px solid var(--ink);border-radius:8px;box-shadow:3px 4px 0 rgba(0,0,0,.45);color:#fff}
+.kbtn kbd{min-width:38px;padding:5px 9px 3px;font-family:var(--hero);font-size:16px;line-height:1;text-align:center;color:var(--ink);background:#fff;border-radius:5px;border-bottom:3px solid #9aa3bd;text-shadow:none}
+.kbtn.on{background:var(--stripe),var(--yel);color:var(--ink);text-shadow:none}
+.kbtn:focus-visible{outline:3px solid var(--ki);outline-offset:2px}
+.qb:disabled{opacity:.45;cursor:default}
+/* ---------- Contraste alto: fondos opacos y letra más grande en lo que se lee durante la partida ---------- */
+html.hc #hud #lhud #pl,html.hc #hud #rhud #pr{background:#05070f;outline:2px solid #fff}
+html.hc #pl .row span,html.hc #pname{font-size:17px}
+html.hc #pl .bar{border-color:#fff;background:#000}
+html.hc #pl .bar.hp em{font-size:15px}
+html.hc .ab{background:#000;border-color:#fff}.hc .ab span{font-size:21px}
+html.hc #controls{font-size:13px;background:#05070f;padding:8px 10px;border-radius:8px}
+html.hc #tuto{background:#05070f;border-color:#fff}html.hc #tuto p{color:#fff;font-size:15px}
+html.hc #pr .rw,html.hc #pr .kb span{color:#fff}
+html.hc .card p{color:#fff;font-size:15px}
 @media (min-height:521px){
   #lhud #pl{width:min(372px,46vw);padding:9px 46px 11px 12px}
   .pframe{width:66px;height:66px}
@@ -1648,12 +1665,12 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
   </div>
   <div id="bossBox"><div id="bossName">JEFE</div><div class="bar"><i id="bossBar"></i></div></div>
   <div id="abil">
-    <div class="ab" id="abDash"><div class="fill" id="dashFill"></div><kbd>ESPACIO</kbd><span>Dash</span></div>
-    <div class="ab" id="abCharge"><kbd>C</kbd><span>Cargar ki</span></div>
-        <div class="ab" id="abTp"><div class="fill" id="tpFill"></div><kbd>F</kbd><span>Teletransporte</span></div>
-    <div class="ab" id="abUlt" style="display:none"><div class="fill" id="ultFill"></div><kbd>Q</kbd><span>Ultimate</span></div>
+    <div class="ab" id="abDash"><div class="fill" id="dashFill"></div><kbd data-act="dash">ESPACIO</kbd><span>Dash</span></div>
+    <div class="ab" id="abCharge"><kbd data-act="charge">C</kbd><span>Cargar ki</span></div>
+        <div class="ab" id="abTp"><div class="fill" id="tpFill"></div><kbd data-act="tp">F</kbd><span>Teletransporte</span></div>
+    <div class="ab" id="abUlt" style="display:none"><div class="fill" id="ultFill"></div><kbd data-act="ult">Q</kbd><span>Ultimate</span></div>
   </div>
-  <div id="controls"><span><kbd>WASD</kbd>Mover</span><span><kbd>Ratón</kbd>Cámara</span><span><kbd>G</kbd>Transformarse</span><span><kbd>H</kbd>Forma base</span><span><kbd>E</kbd>Interactuar</span><span><kbd>M</kbd>Mapa</span><span><kbd>TAB</kbd>Estadísticas</span><span><kbd>ESC</kbd>Pausa</span></div>
+  <div id="controls"><span><kbd data-act="move">WASD</kbd>Mover</span><span><kbd>Ratón</kbd>Cámara</span><span><kbd data-act="transform">G</kbd>Transformarse</span><span><kbd data-act="base">H</kbd>Forma base</span><span><kbd data-act="interact">E</kbd>Interactuar</span><span><kbd data-act="map">M</kbd>Mapa</span><span><kbd>TAB</kbd>Estadísticas</span><span><kbd>ESC</kbd>Pausa</span></div>
   <div id="zoneBox"><div id="zoneName">HABITACIÓN DEL ESPÍRITU Y EL TIEMPO · <b id="zoneTxt">0%</b></div><div class="bar"><i id="zoneBar"></i></div></div>
   <div id="combo"><b id="comboN">0</b><span>COMBO</span><div class="cbar"><i id="comboBar"></i></div></div>
   <div id="tfBtn"><span class="key">G</span><div><small id="tfSub">TRANSFORMACIÓN DISPONIBLE</small><b id="tfName"></b></div></div>

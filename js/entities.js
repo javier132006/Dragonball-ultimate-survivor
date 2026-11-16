@@ -229,7 +229,7 @@ class Player {
     this.animT += dt; this.updSquash(dt);
     this.iframes = Math.max(0, this.iframes - dt); this.dashCd = Math.max(0, this.dashCd - dt);
     this.atkT = Math.max(0, this.atkT - dt); this.hurtT = Math.max(0, this.hurtT - dt); this.beamT = Math.max(0, this.beamT - dt);
-    this.charging = !!keys.KeyC && this.dashT <= 0;
+    this.charging = !!(keys.KeyC || keys._charge) && this.dashT <= 0;
     this.tpCd = Math.max(0, this.tpCd - dt); this.godT = Math.max(0, (this.godT || 0) - dt); this.tfCd = Math.max(0, this.tfCd - dt);
 
     // --- Transmisión Instantánea (F): te teletransportas 14 m hacia donde te mueves ---

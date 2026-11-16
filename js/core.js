@@ -17,8 +17,51 @@ const CFG = {
 /* ---------- Entrada: objeto global de estado (evita key-ghosting) ---------- */
 const keys = {};
 const BLOCKED = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
-window.addEventListener('keydown', (e) => { if (BLOCKED.has(e.code)) e.preventDefault(); keys[e.code] = true; });
-window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+/* Teclas configurables. El resto del juego sigue leyendo las teclas de siempre (keys.KeyC, keys.Space…):
+   aquí solo se traduce la tecla física que pulsa el jugador a la tecla por defecto de su acción. */
+const BIND_ACTS = [['up', 'Arriba', 'KeyW'], ['down', 'Abajo', 'KeyS'], ['left', 'Izquierda', 'KeyA'], ['right', 'Derecha', 'KeyD'],
+  ['dash', 'Dash', 'Space'], ['charge', 'Cargar ki', 'KeyC'], ['tp', 'Teletransporte', 'KeyF'], ['ult', 'Ultimate', 'KeyQ'],
+  ['transform', 'Transformarse', 'KeyG'], ['base', 'Forma base', 'KeyH'], ['interact', 'Interactuar', 'KeyE'], ['map', 'Mapa', 'KeyM'], ['pause', 'Pausa', 'KeyP']];
+const KEY_NAMES = { Space: 'ESPACIO', ShiftLeft: 'MAYÚS', ShiftRight: 'MAYÚS DCHA', ControlLeft: 'CTRL', ControlRight: 'CTRL DCHA', AltLeft: 'ALT', AltRight: 'ALT GR',
+  Backspace: 'RETROCESO', CapsLock: 'BLOQ MAYÚS', Comma: ',', Period: '.', Minus: '-', Slash: '/', Semicolon: 'Ñ', Quote: '´', BracketLeft: '`', BracketRight: '+', Backquote: 'º', IntlBackslash: '<', Backslash: 'Ç', Equal: '¡' };
+const keyName = (c) => KEY_NAMES[c] || (c.startsWith('Key') ? c.slice(3) : c.startsWith('Digit') ? c.slice(5) : c.startsWith('Numpad') ? 'NUM ' + c.slice(6).toUpperCase() : c.toUpperCase());
+const Binds = {
+  rev: null,
+  opt() { return typeof Save !== 'undefined' && Save.d && Save.d.opt ? Save.d.opt : {}; },
+  def(a) { return BIND_ACTS.find((x) => x[0] === a)[2]; },
+  cur(a) { const b = this.opt().binds; return (b && b[a]) || this.def(a); },
+  label(a) { return keyName(this.cur(a)); },
+  build() {
+    const r = this.rev = {};
+    for (const a of BIND_ACTS) r[a[2]] = null;                       // una tecla por defecto que ya no tiene acción no hace nada
+    for (const a of BIND_ACTS) r[this.cur(a[0])] = a[2];
+  },
+  /** Tecla física → tecla por defecto de su acción (null = sin acción; las que no son de ninguna acción pasan tal cual) */
+  map(code) {
+    if (typeof game !== 'undefined' && game && game.state === 'versus') return code;   // el Versus tiene sus propias teclas (dos jugadores)
+    if (!this.rev) this.build(); const r = this.rev[code]; return r === undefined ? code : r;
+  },
+  /** No se pueden asignar: las que usa el propio menú o el navegador */
+  ok(code) { return !/^(Escape|Tab|Enter|NumpadEnter|Arrow|F\d|Meta|ContextMenu|PrintScreen|OS)/.test(code); },
+  /** Asigna la tecla; si ya era de otra acción, se intercambian (nunca quedan dos acciones con la misma tecla) */
+  set(a, code) {
+    const o = this.opt(), b = o.binds = o.binds || {}, old = this.cur(a);
+    for (const x of BIND_ACTS) if (x[0] !== a && this.cur(x[0]) === code) b[x[0]] = old;
+    b[a] = code;
+    for (const x of BIND_ACTS) if (b[x[0]] === x[2]) delete b[x[0]];
+    this.rev = null; for (const k in keys) keys[k] = false;
+  },
+  reset() { this.opt().binds = {}; this.rev = null; for (const k in keys) keys[k] = false; },
+  changed() { const b = this.opt().binds; return !!b && Object.keys(b).length > 0; }
+};
+window.addEventListener('keydown', (e) => {
+  if (BLOCKED.has(e.code)) e.preventDefault();
+  const c = Binds.map(e.code); if (!c) return;
+  // «Cargar ki con un toque»: la tecla alterna la carga en vez de tener que mantenerla
+  if (c === 'KeyC' && Binds.opt().chargeToggle && !(typeof game !== 'undefined' && game && game.state === 'versus')) { if (!e.repeat) keys._charge = !keys._charge; return; }
+  keys[c] = true;
+});
+window.addEventListener('keyup', (e) => { const c = Binds.map(e.code); if (c) keys[c] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
 /** Técnica que está haciendo daño ahora mismo (para la gráfica de daño por técnica) */

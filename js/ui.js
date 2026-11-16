@@ -10,6 +10,12 @@ const NICE_LOW = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'en', 'a',
 const nice = (t) => String(t).toLowerCase().replace(/(^|[\s\-·(«/])(\p{L}[\p{L}']*)/gu, (m, a, w, i) => a + (i > 0 && NICE_LOW.has(w) ? w : w[0].toUpperCase() + w.slice(1)));
 const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
+/** Matriz 3×3 de daltonización: I + E·(I − S) */
+function accessMatrix(S, E) {
+  const D = S.map((v, i) => (i % 4 === 0 ? 1 : 0) - v), M = [];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) { let v = r === c ? 1 : 0; for (let k = 0; k < 3; k++) v += E[r * 3 + k] * D[k * 3 + c]; M.push(v); }
+  return M;
+}
 class UIManager {
   constructor() {
     const ids = ['hpBar', 'hpTxt', 'kiBar', 'kiTxt', 'xpBar', 'xpTxt', 'lvl', 'formName', 'chName', 'kills', 'time', 'horde', 'fps', 'zeniHud', 'balls', 'goal', 'diffName',
@@ -695,6 +701,13 @@ class UIManager {
     const pr = this.game && this.game.perf ? this.game.perf.pr : 1;
     this.el.menuBody.innerHTML = '<div class="shop">' + sl('mus', 'Música', v.mus) + sl('sfx', 'Efectos de sonido', v.sfx) +
       '<div class="item opt wide"><div><b>Calidad gráfica</b><div class="qbs">' + qb + '</div><p>AUTO ajusta la resolución sola para mantener 60 FPS y quita las sombras si hace falta. BAJA: sin sombras, menos partículas y sin suavizado de bordes (este último, al recargar la página). Resolución actual: x' + pr.toFixed(2) + '</p></div></div>' +
+      '<div class="item opt wide"><div><b>Teclas</b><p>' + (this.bindWait ? 'Pulsa la tecla nueva para «' + BIND_ACTS.find((x) => x[0] === this.bindWait)[1] + '». ESC para cancelar.' : 'Toca una acción y pulsa la tecla que quieras. Si esa tecla ya era de otra acción, se intercambian. Las flechas también mueven siempre.') + (this.bindMsg ? ' <span class="omsg">' + this.bindMsg + '</span>' : '') + '</p>' +
+      '<div class="kgrid">' + BIND_ACTS.map((x) => '<button class="kbtn' + (this.bindWait === x[0] ? ' on' : '') + '" data-bind="' + x[0] + '"><span>' + x[1] + '</span><kbd>' + (this.bindWait === x[0] ? '…' : Binds.label(x[0])) + '</kbd></button>').join('') + '</div>' +
+      '<div class="qbs"><button class="qb" data-bindreset' + (Binds.changed() ? '' : ' disabled') + '>Restablecer teclas</button></div></div></div>' +
+      '<div class="item opt wide"><div><b>Filtro para daltonismo</b><div class="qbs">' + [['off', 'Desactivado'], ['deut', 'Deuteranopía (verde)'], ['prot', 'Protanopía (rojo)'], ['trit', 'Tritanopía (azul)']].map((q) => '<button class="qb' + ((O.cb || 'off') === q[0] ? ' on' : '') + '" data-cb="' + q[0] + '">' + q[1] + '</button>').join('') + '</div>' +
+      '<p>Corrige los colores de toda la pantalla (partida y menús) para separar mejor los tonos que se confunden: rarezas, enemigos en el radar, barras y avisos. Puede costar algo de rendimiento en móviles modestos.</p></div></div>' +
+      '<div class="item opt"><div><b>Cargar ki con un toque</b><p>Pulsa la tecla una vez para empezar a cargar y otra para parar, sin tener que mantenerla.</p></div><button class="tgl' + (O.chargeToggle ? ' on' : '') + '" data-chtg>' + (O.chargeToggle ? 'Activado' : 'Desactivado') + '</button></div>' +
+      '<div class="item opt"><div><b>Contraste alto</b><p>Fondo opaco y letra más grande en la ficha, los datos de la partida, las habilidades y los consejos.</p></div><button class="tgl' + (O.hc ? ' on' : '') + '" data-hc>' + (O.hc ? 'Activado' : 'Desactivado') + '</button></div>' +
       '<div class="item opt"><div><b>Reducir destellos</b><p>Quita los fogonazos blancos/negros y los negativos de los impact frames.</p></div><button class="tgl' + (O.flash ? ' on' : '') + '" data-flash>' + (O.flash ? 'Activado' : 'Desactivado') + '</button></div>' +
       '<div class="item opt"><div><b>Efectos de Z Legends 3</b><p>Ráfagas, rayos, explosiones, impactos y llamas de aura con el pixel art de Z Legends 3. Desactívalo para volver a los efectos de siempre.</p></div><button class="tgl' + (O.z3fx !== false ? ' on' : '') + '" data-z3fx>' + (O.z3fx !== false ? 'Activado' : 'Desactivado') + '</button></div>' +
       '<div class="item opt"><div><b>Consejos</b><p>Un consejo corto la primera vez que pasa algo: tu primer jefe, la Ultimate lista, un enemigo nuevo… No pausa el juego.</p></div><button class="tgl' + (O.tips !== false ? ' on' : '') + '" data-tips>' + (O.tips !== false ? 'Activado' : 'Desactivado') + '</button><button class="tgl" data-tipsreset>Ver otra vez</button></div>' +
@@ -704,10 +717,57 @@ class UIManager {
       '<textarea id="saveTxt" spellcheck="false" placeholder="Aquí aparecerá el texto de la copia, o pega aquí una copia para importarla"></textarea>' +
       '<div class="qbs"><button class="qb" data-exp>Exportar</button><button class="qb" data-imp>Importar' + (this.impArmed ? ' (confirmar)' : '') + '</button><button class="qb" data-impfile>Elegir archivo…</button><input type="file" id="impFile" accept=".json,.txt,application/json" style="display:none"></div>' +
       (this.optMsg ? '<p class="omsg">' + this.optMsg + '</p>' : '') + '</div></div>' +
-      '<div class="item info wide"><div><b>Controles</b><p>TECLADO: WASD mover · ESPACIO dash · C cargar Ki · F Transmisión Instantánea · G transformarse (sube de una en una: cuesta Ki, y mantener la forma también) · H volver a la forma base · F11 o el botón de la esquina: pantalla completa · E interactuar · M mapa · TAB estadísticas · P pausa.<br>' +
+      '<div class="item info wide"><div><b>Controles</b><p>TECLADO: ' + ['up', 'left', 'down', 'right'].map((k) => Binds.label(k)).join(' ') + ' mover · ' + Binds.label('dash') + ' dash · ' + Binds.label('charge') + ' cargar Ki · ' + Binds.label('tp') + ' Transmisión Instantánea · ' + Binds.label('transform') + ' transformarse (sube de una en una: cuesta Ki, y mantener la forma también) · ' + Binds.label('base') + ' volver a la forma base · ' + Binds.label('ult') + ' Ultimate · F11 o el botón de la esquina: pantalla completa · ' + Binds.label('interact') + ' interactuar · ' + Binds.label('map') + ' mapa · TAB estadísticas · ' + Binds.label('pause') + ' o ESC pausa.<br>' +
       'MANDO: stick izq. mover · stick der. cámara · A dash · B Transmisión Instantánea · X interactuar · Y transformarse · RB/RT cargar Ki · cruceta ↓ forma base · START pausa · SELECT mapa. En las cartas: cruceta o stick para elegir, A para confirmar y X para cambiar las cartas.</p></div></div>' +
       '<div class="item"><div><b>Sonido sintetizado</b><p>Toda la música y los efectos se generan en el momento con Web Audio (sin archivos). En el móvil, el sonido se activa al tocar la pantalla por primera vez.</p></div></div></div>';
     this.optMsg = '';
+  }
+
+  /* ---------- Accesibilidad: teclas configurables, filtro de daltonismo y contraste alto ---------- */
+  /** Vuelve a pintar una pantalla sin perder el punto de la lista en el que estaba el jugador */
+  keepScroll(fn) { const q = () => this.el.menuBody.querySelector('.shop'), a = q(), y = a ? a.scrollTop : 0; fn(); const b = q(); if (b) b.scrollTop = y; }
+  /** Espera la siguiente tecla y la asigna a la acción (ESC cancela) */
+  startBind(act) {
+    if (this.bindOff) this.bindOff();
+    this.bindWait = act; this.bindMsg = '';
+    const on = (e) => {
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (e.code !== 'Escape') {
+        if (!Binds.ok(e.code)) { this.bindMsg = 'Esa tecla no se puede usar.'; this.keepScroll(() => this.renderMenu()); return; }
+        Binds.set(act, e.code); Save.write(); this.refreshKeys();
+      }
+      this.bindOff();
+    };
+    this.bindOff = () => { window.removeEventListener('keydown', on, true); this.bindOff = null; this.bindWait = null; this.bindMsg = ''; if (this.screen === 'options') this.keepScroll(() => this.renderMenu()); };
+    window.addEventListener('keydown', on, true);
+    this.keepScroll(() => this.renderMenu());
+  }
+  /** Pone en el HUD las teclas que tiene el jugador ahora mismo */
+  refreshKeys() {
+    for (const k of document.querySelectorAll('kbd[data-act]')) {
+      const a = k.dataset.act;
+      if (a === 'move') { const m = ['up', 'left', 'down', 'right'].map((x) => Binds.label(x)); k.textContent = m.every((x) => x.length === 1) ? m.join('') : m.join(' '); }
+      else k.textContent = Binds.label(a);
+    }
+  }
+  /** Filtro de color para daltonismo (daltonización: lo que el ojo no distingue se reparte en los canales que sí ve) y contraste alto */
+  applyAccess() {
+    const O = Save.d.opt, cb = O.cb || 'off', root = document.documentElement;
+    root.classList.toggle('hc', !!O.hc);
+    if (cb === 'off') { root.style.filter = ''; return; }
+    // Matrices de simulación de Machado et al. (2009), severidad 1, en RGB lineal
+    const SIM = {
+      prot: [0.152286, 1.052583, -0.204868, 0.114503, 0.786281, 0.099216, -0.003882, -0.048116, 1.051998],
+      deut: [0.367322, 0.860646, -0.227968, 0.280085, 0.672501, 0.047413, -0.011820, 0.042940, 0.968881],
+      trit: [1.255528, -0.076749, -0.178779, -0.078411, 0.930809, 0.147602, 0.004733, 0.691367, 0.303900] }[cb];
+    // Adónde va el error (lo que no se ve): rojo/verde → verde y azul; azul → rojo (medido: es lo que mejor separa azul/verde y amarillo/rosa)
+    const E = cb === 'trit' ? [1, 0, 0.7, 0, 1, 0, 0, 0, 0] : [0, 0, 0, 0.7, 1, 0, 0.7, 0, 1];
+    const M = accessMatrix(SIM, E);
+    let svg = document.getElementById('cbSvg');
+    if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.id = 'cbSvg'; svg.setAttribute('width', 0); svg.setAttribute('height', 0); svg.style.position = 'absolute'; document.body.appendChild(svg); }
+    svg.innerHTML = '<filter id="cbf" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="' +
+      [0, 1, 2].map((r) => M.slice(r * 3, r * 3 + 3).map((v) => v.toFixed(4)).join(' ') + ' 0 0').join(' ') + ' 0 0 0 1 0"/></filter>';
+    root.style.filter = 'url(#cbf)';
   }
 
   /* ---------- Récords: ranking local y desafíos diarios ---------- */
