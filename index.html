@@ -1512,6 +1512,103 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
   .bfp{height:52%}.sckj{font-size:60px}
   .zeni.cry::before{width:13px;height:17px}
 }
+
+/* =====================================================================
+   HUD v3 · Lectura de combate: ficha sin caja (barras inclinadas en
+   escalera), técnicas apiladas debajo, habilidades con su tecla.
+   Va al final para mandar sobre las capas anteriores; lo que cambia de
+   tamaño o de sitio queda fuera del móvil en horizontal (max-height:520px).
+   ===================================================================== */
+#lhud{position:fixed;top:12px;left:12px;display:flex;flex-direction:column;align-items:flex-start;gap:10px;pointer-events:none;z-index:2}
+#lhud #pl{position:relative;top:auto;left:auto}
+#lhud #wstrip{position:static}
+/* Ficha: velo de tinta que se deshace hacia la derecha, con el filo naranja del gi */
+#hud #lhud #pl{border:0;border-left:6px solid var(--gi);border-radius:0;box-shadow:none;
+  background:linear-gradient(96deg,rgba(5,7,15,.88) 0%,rgba(5,7,15,.74) 52%,rgba(5,7,15,0) 100%)}
+.pframe{border-radius:9px;border:3px solid var(--ink);transform:skewX(-7deg);box-shadow:4px 4px 0 var(--ink)}
+#portrait{transform:skewX(7deg) scale(1.42)}
+#pl .bar{transform:skewX(-20deg);border:3px solid var(--ink);border-radius:3px;background:#0a0d1a;box-shadow:3px 3px 0 rgba(0,0,0,.55)}
+#pl .bar em{transform:skewX(20deg);font-family:var(--hero);font-weight:400;letter-spacing:.06em;text-shadow:1px 1px 0 #000,-1px -1px 0 #000,0 0 3px #000}
+#pl .bar i::after{content:'';position:absolute;left:0;right:0;top:0;height:38%;background:rgba(255,255,255,.28)}
+#pl .row span{font-family:var(--hero);font-weight:400;letter-spacing:.06em;font-size:14px;color:#fff;text-shadow:2px 2px 0 var(--ink)}
+#pl .bar.xp em{display:none}
+#abil kbd,#controls kbd{font-family:var(--hero);font-weight:400;letter-spacing:.04em;line-height:1;color:var(--ink);background:#fff;border-radius:5px;border-bottom:3px solid #9aa3bd}
+.ab{min-width:0;gap:9px;padding:0 16px 0 8px;border:3px solid var(--ink);border-radius:8px;transform:skewX(-10deg);background:#0b0f1e;box-shadow:4px 5px 0 rgba(0,0,0,.5)}
+.ab kbd{position:relative;transform:skewX(10deg);min-width:30px;padding:5px 8px 3px;font-size:15px;text-align:center}
+.ab span{transform:skewX(10deg);font-family:var(--hero);font-weight:400;font-size:19px;letter-spacing:.05em;text-shadow:2px 2px 0 var(--ink)}
+.ab .fill{background:linear-gradient(90deg,rgba(255,122,26,.75),rgba(255,197,49,.6))}
+.ab.low{filter:none;background:#161a2a}.ab.low span{color:var(--t3)}.ab.low kbd{background:#8e97b5;border-bottom-color:#5d6684}
+.ab.on{background:var(--stripe),var(--yel)}.ab.on span{color:var(--ink);text-shadow:none}
+#abUlt.on{animation:ultOn 1.1s ease-in-out infinite}
+@keyframes ultOn{50%{box-shadow:4px 5px 0 rgba(0,0,0,.5),0 0 22px 4px rgba(255,197,49,.85)}}
+#controls{display:flex;flex-wrap:wrap;gap:5px 12px;max-width:min(330px,calc(50vw - 380px));font-size:12px;font-weight:700;opacity:.95}
+#controls span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+#controls kbd{padding:3px 6px 1px;font-size:12px;border-bottom-width:2px}
+/* Consejo: viñeta de tinta con el icono en un bloque amarillo */
+#tuto{padding:0 14px 0 0;gap:14px;align-items:stretch;border:3px solid var(--ink);border-radius:6px 18px 6px 18px;overflow:hidden;
+  background:var(--pnl);box-shadow:5px 6px 0 rgba(0,0,0,.5);color:#fff}
+#tuto i{display:flex;align-items:center;justify-content:center;width:58px;background:var(--stripe),var(--yel);border-right:3px solid var(--ink)}
+#tuto div{padding:9px 0 10px}
+#tuto small{font-family:var(--hero);font-weight:400;font-size:13px;letter-spacing:.08em;color:var(--ki)}
+#tuto b{font-family:var(--hero);font-weight:400;font-size:20px;letter-spacing:.04em;margin:0 0 2px}
+#tuto p{color:var(--t2)}
+#tuto span{align-self:center;opacity:.7}
+#abil kbd,#controls kbd{text-shadow:none}
+/* Datos de la partida: el mismo velo de tinta, en espejo */
+#hud #rhud #pr{border:0;border-right:6px solid var(--gi);border-radius:0;box-shadow:none;
+  background:linear-gradient(264deg,rgba(5,7,15,.88) 0%,rgba(5,7,15,.74) 55%,rgba(5,7,15,.2) 100%)}
+#pr .kb{border-bottom:2px solid rgba(255,255,255,.16)}
+#pr .kb span{font-family:var(--hero);font-weight:400;font-size:15px;letter-spacing:.08em;color:var(--ki)}
+#pr .goal{border-radius:4px;transform:skewX(-10deg);background:var(--ink);border:2px solid var(--gi)}
+#pr .goal>*{transform:skewX(10deg)}
+#pr .goal span,#pr .goal b{font-family:var(--hero);font-weight:400;letter-spacing:.05em}
+#pr .goal b{font-size:17px}
+/* Cartas: la descripción se lee en la letra de texto, no en la de títulos */
+.card p,.card .fh,.card .kin{font-family:var(--body);letter-spacing:0;text-shadow:none;text-transform:none}
+.card p{font-weight:700;color:#dfe5f7}
+.card p b{font-family:var(--body);font-weight:800;letter-spacing:0;text-shadow:none}
+/* ---------- Menús ---------- */
+/* Cabecera: si el subtítulo no cabe entero, no se enseña (antes se cortaba a media palabra) */
+.bnr{flex-wrap:wrap;align-content:flex-start;overflow:hidden;max-height:64px}
+.bnr span{flex:none;overflow:visible;text-overflow:clip;line-height:46px}
+.bnr h3{flex:none}
+/* Estadísticas: fichas de marcador (número grande en amarillo) */
+.stt{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.stt div{display:flex;flex-direction:column-reverse;padding:7px 14px 8px;border:2px solid var(--ink);border-left:5px solid var(--gi);border-radius:3px 12px 3px 12px;box-shadow:3px 4px 0 rgba(0,0,0,.4)}
+.stt b{font-family:var(--hero);font-weight:400;font-size:28px;line-height:1;letter-spacing:.04em;color:var(--ki);text-shadow:2px 2px 0 var(--ink)}
+.stt span{font-size:12px;letter-spacing:.02em;color:var(--t2);margin-top:3px}
+/* Pantalla vacía: cartel centrado que invita a actuar */
+.empty{margin:auto;max-width:520px;padding:30px 34px 28px;border:3px solid var(--ink);border-radius:8px 28px 8px 28px;box-shadow:7px 9px 0 var(--ink)}
+.empty b{font-family:var(--hero);font-weight:400;font-size:38px;letter-spacing:.04em;line-height:1.05;text-shadow:3px 3px 0 var(--ink)}
+.empty p{font-size:15px;margin:10px 0 20px}
+/* Opciones: los botones bajan debajo del texto cuando no caben al lado */
+.item.opt{flex-wrap:wrap;align-items:center}.item.opt>div{flex:1 1 200px;min-width:0}
+/* ---------- Invocación: resultado ---------- */
+.ssum{position:absolute;left:50%;top:18px;transform:translateX(-50%) skewX(-10deg);display:flex;align-items:center;gap:18px;padding:6px 26px 7px;white-space:nowrap;
+  border:3px solid var(--ink);border-radius:8px;background:var(--stripe),var(--yel);box-shadow:5px 6px 0 var(--ink);animation:ssumIn .3s cubic-bezier(.2,1.4,.4,1) backwards}
+.ssum>*{transform:skewX(10deg)}
+.ssum h3{font-family:var(--hero);font-weight:400;font-size:30px;letter-spacing:.05em;line-height:1;color:#fff;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--ink)}
+.ssum b{display:inline-flex;align-items:center;gap:6px;font-family:var(--hero);font-weight:400;font-size:21px;letter-spacing:.04em;color:var(--ink)}
+.ssum b.n{padding:1px 12px;color:#fff;background:var(--star);border:2px solid var(--ink);border-radius:5px;text-shadow:1px 1px 0 var(--ink)}
+.ssum .coin{width:20px;height:20px}
+@keyframes ssumIn{from{opacity:0;transform:translateX(-50%) skewX(-10deg) scale(.7)}}
+.sskip{margin-right:54px;font-size:19px;padding:8px 20px;border:3px solid var(--ink);box-shadow:3px 4px 0 var(--ink)}
+@media (min-height:521px){
+  #lhud #pl{width:min(372px,46vw);padding:9px 46px 11px 12px}
+  .pframe{width:66px;height:66px}
+  #pl .row{margin-top:7px}
+  #pl .bar.hp{height:22px}#pl .bar.hp em{font-size:13px;line-height:16px}
+  #pl .bar.ki{flex:0 1 82%;height:16px}#pl .bar.ki em{font-size:11px;line-height:10px}
+  #pl .bar.xp{flex:0 1 64%;height:10px}
+  .ab{height:46px}
+  .sgrid{inset:84px 4% 86px;grid-template-columns:repeat(5,minmax(0,190px));gap:14px}.sgrid.one{grid-template-columns:minmax(0,250px)}
+  .sface b{font-size:clamp(13px,1.6vw,21px)}
+}
+@media (max-height:520px){
+  .ssum{top:4px;padding:2px 16px 3px;gap:10px}.ssum h3{font-size:18px}.ssum b{font-size:14px}.sskip{font-size:13px;padding:4px 12px;margin-right:46px}.sgrid{top:46px}
+  #lhud{top:6px;left:max(6px,env(safe-area-inset-left));gap:6px}
+  #pl .bar em{font-size:9px}
+}
 </style>
 </head>
 <body>
@@ -1519,6 +1616,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
 <div id="storm"></div>
 
 <div id="hud">
+  <div id="lhud">
   <div class="panel" id="pl">
     <div class="head">
       <div class="pframe"><canvas id="portrait" width="108" height="79"></canvas></div>
@@ -1530,6 +1628,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
     <div class="row"><span>EXP</span><div class="bar xp"><i id="xpBar"></i><em id="xpTxt"></em></div></div>
   </div>
   <div id="wstrip"></div>
+  </div>
   <!-- Derecha: radar local (gira con la cámara) y datos de la partida -->
   <div id="rhud">
     <div id="mmWrap"><canvas id="mm" width="368" height="368"></canvas><span class="mmLbl">RADAR</span></div>
@@ -1549,12 +1648,12 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
   </div>
   <div id="bossBox"><div id="bossName">JEFE</div><div class="bar"><i id="bossBar"></i></div></div>
   <div id="abil">
-    <div class="ab" id="abDash"><div class="fill" id="dashFill"></div><span>DASH <b>[ESPACIO]</b></span></div>
-    <div class="ab" id="abCharge"><span>CARGAR KI <b>[C]</b></span></div>
-        <div class="ab" id="abTp"><div class="fill" id="tpFill"></div><span>TELETRANSP. <b>[F]</b></span></div>
-    <div class="ab" id="abUlt" style="display:none"><div class="fill" id="ultFill"></div><span>ULTIMATE <b>[Q]</b></span></div>
+    <div class="ab" id="abDash"><div class="fill" id="dashFill"></div><kbd>ESPACIO</kbd><span>Dash</span></div>
+    <div class="ab" id="abCharge"><kbd>C</kbd><span>Cargar ki</span></div>
+        <div class="ab" id="abTp"><div class="fill" id="tpFill"></div><kbd>F</kbd><span>Teletransporte</span></div>
+    <div class="ab" id="abUlt" style="display:none"><div class="fill" id="ultFill"></div><kbd>Q</kbd><span>Ultimate</span></div>
   </div>
-  <div id="controls">WASD: mover · RATÓN: cámara · ESPACIO: dash · C: cargar ki · F: teletransporte · G: transformarse · H: forma base · E: interactuar · M: mapa · TAB: estadísticas · P/ESC: pausa · También con mando</div>
+  <div id="controls"><span><kbd>WASD</kbd>Mover</span><span><kbd>Ratón</kbd>Cámara</span><span><kbd>G</kbd>Transformarse</span><span><kbd>H</kbd>Forma base</span><span><kbd>E</kbd>Interactuar</span><span><kbd>M</kbd>Mapa</span><span><kbd>TAB</kbd>Estadísticas</span><span><kbd>ESC</kbd>Pausa</span></div>
   <div id="zoneBox"><div id="zoneName">HABITACIÓN DEL ESPÍRITU Y EL TIEMPO · <b id="zoneTxt">0%</b></div><div class="bar"><i id="zoneBar"></i></div></div>
   <div id="combo"><b id="comboN">0</b><span>COMBO</span><div class="cbar"><i id="comboBar"></i></div></div>
   <div id="tfBtn"><span class="key">G</span><div><small id="tfSub">TRANSFORMACIÓN DISPONIBLE</small><b id="tfName"></b></div></div>

@@ -203,6 +203,13 @@ class Summon {
       S.phase = 'end'; grid.classList.add('show'); cards.forEach((c) => c.classList.add('up'));
       root.querySelector('.sbar').innerHTML = '<button class="salt" data-again="' + n + '"' + ((Save.d.crystals || 0) < (n === 10 ? GACHA_COST10 : GACHA_COST1) ? ' disabled' : '') + '>Otra vez ×' + n + '</button><button class="sok">Aceptar</button>';
       animIn(grid);
+      // Resumen de la tirada encima de las cartas: qué te llevas
+      const nw = res.filter((o) => o.g && o.isNew).length, rp = res.filter((o) => o.g && !o.isNew).length, zn = res.reduce((v, o) => v + (o.zeni || 0), 0);
+      const bits = [];
+      if (nw) bits.push('<b class="n">' + nw + (nw === 1 ? ' nuevo' : ' nuevos') + '</b>');
+      if (rp) bits.push('<b>' + rp + (rp === 1 ? ' repetido' : ' repetidos') + '</b>');
+      if (zn) bits.push('<b class="z"><span class="coin"></span>+' + zn.toLocaleString('es-ES') + '</b>');
+      if (bits.length && !root.querySelector('.ssum')) { const sm = document.createElement('div'); sm.className = 'ssum'; sm.innerHTML = '<h3>Resultado</h3>' + bits.join(''); root.appendChild(sm); }
     };
     const close = () => {
       S.done = true; removeEventListener('resize', fit); root.remove(); this.fx = null;
