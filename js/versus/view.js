@@ -18,7 +18,7 @@ function vsTexture(name) {
   return (VS_TEX[name] = new Promise((res) => {
     const d = window.SPRITE_DATA && SPRITE_DATA[name]; if (!d) { res(null); return; }
     const img = new Image();
-    img.onload = () => { const t = new THREE.Texture(img); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.premultiplyAlpha = true; t.needsUpdate = true; res({ tex: t, d, iw: img.width, ih: img.height }); };
+    img.onload = () => { const t = new THREE.Texture(d.recolor ? recolorSheet(img, d.recolor) : img); t.magFilter = t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.premultiplyAlpha = true; t.needsUpdate = true; res({ tex: t, d, iw: img.width, ih: img.height }); };
     img.onerror = () => res(null); img.src = d.src;
   }));
 }

@@ -1209,7 +1209,9 @@ const Save = {
     if (!Array.isArray(this.d.dayHist)) this.d.dayHist = [];
     if (!this.d.story || typeof this.d.story !== 'object') this.d.story = {};
     for (const c of ['krilin', 'trunks']) if (this.d.sel === c && !this.d.unlocked.includes(c)) this.d.sel = 'goku';
-    packSaveDefaults(); applyGachaForms();                                       // gachapón: cristales y formas conseguidas (js/packdata.js)
+    packSaveDefaults(); if (typeof Profile !== 'undefined') Profile.defaults();   // perfil y pase (js/profile.js)
+    applyGachaForms(); if (typeof Profile !== 'undefined') { Profile._av = null; Profile.backfill(); }
+                                          // gachapón: cristales y formas conseguidas (js/packdata.js)
   },
   /** Copia de seguridad: el guardado completo en texto (base64) para llevarlo a otro navegador */
   exportStr() { return btoa(unescape(encodeURIComponent(JSON.stringify(this.d)))); },

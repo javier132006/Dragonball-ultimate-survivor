@@ -12,6 +12,14 @@ create table if not exists public.profiles (
 );
 -- El nombre no se puede repetir (sin distinguir mayúsculas)
 create unique index if not exists profiles_name_lower on public.profiles (lower(name));
+-- Foto, marco y título que el jugador lleva puestos (se ven en el ranking). Son solo adornos:
+-- el juego guarda aquí su identificador y la base de datos comprueba que tenga un formato válido.
+alter table public.profiles add column if not exists avatar text not null default 'goku.0';
+alter table public.profiles add column if not exists frame text not null default 'base';
+alter table public.profiles add column if not exists title text not null default '';
+alter table public.profiles drop constraint if exists profiles_adornos;
+alter table public.profiles add constraint profiles_adornos check (
+  avatar ~ '^[a-z0-9_]{1,24}\.[a-z0-9_]{1,24}$' and frame ~ '^[a-z0-9_]{1,16}$' and title ~ '^[a-z0-9_]{0,16}$');
 
 alter table public.profiles enable row level security;
 drop policy if exists "perfiles visibles" on public.profiles;
@@ -84,7 +92,8 @@ create trigger scores_rate_limit before insert on public.scores
 -- ---------- Ranking: la mejor partida de cada jugador ----------
 create or replace view public.leaderboard with (security_invoker = true) as
 select distinct on (s.user_id)
-  s.user_id, p.name, s.score, s.ch, s.kills, s.level, s.step, s.time, s.win, s.diff, s.created_at
+  s.user_id, p.name, s.score, s.ch, s.kills, s.level, s.step, s.time, s.win, s.diff, s.created_at,
+  p.avatar, p.frame, p.title          -- columnas nuevas siempre al final (así se puede volver a ejecutar el archivo)
 from public.scores s
 join public.profiles p on p.id = s.user_id
 order by s.user_id, s.score desc, s.created_at asc;
@@ -94,6 +103,6 @@ order by s.user_id, s.score desc, s.created_at asc;
 -- y solo estas columnas (no pueden elegir el usuario, la fecha ni la puntuación).
 revoke all on public.profiles, public.scores from anon, authenticated;
 grant select on public.profiles, public.scores, public.leaderboard to anon, authenticated;
-grant update (name) on public.profiles to authenticated;
+grant update (name, avatar, frame, title) on public.profiles to authenticated;
 grant insert (ch, kills, level, bosses, step, time, win, diff, daily) on public.scores to authenticated;
 grant usage on all sequences in schema public to authenticated;

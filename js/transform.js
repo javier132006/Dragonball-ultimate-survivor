@@ -243,6 +243,7 @@ class TransformScene {
     DMG_SRC = 'otros';
     g.world.damageArea(p.x, p.z, 10, 999);
     g.track('transforms', 1);
+    if (!g.practice) Profile.trackForm(p.ch.id, this.to);          // foto de perfil de esta forma
   }
 
   showBanner() {

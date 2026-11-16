@@ -21,6 +21,7 @@ const VsStats = {
   fight(id, win, perfect, secs, r, local) {
     const s = this.d(), c = this.ch(id);
     if (local) { s.local++; Save.write(); return; }                    // entre dos jugadores no hay «victoria» que apuntar
+    Profile.addXp(win ? 90 : 40);                                      // pase de batalla
     s.fights++; c.fights++; if (win) { s.wins++; c.wins++; if (perfect) s.perfect++; }
     s.tr += r.tr; s.ult += r.ult; s.sup += r.sup; s.parry += r.parry; c.tr += r.tr; c.ult += r.ult; s.time += secs;
     s.maxCombo = Math.max(s.maxCombo, r.maxCombo); s.maxDmg = Math.max(s.maxDmg, Math.round(r.maxDmg)); Save.write();

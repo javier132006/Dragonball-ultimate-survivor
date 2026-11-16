@@ -197,13 +197,33 @@ function sheetRects(img, cols, rows) {
 }
 const NO_RECTS = new THREE.DataTexture(new Uint8Array([0, 0, 255, 255]), 1, 1, THREE.RGBAFormat);
 NO_RECTS.needsUpdate = true;
+/* Variantes de color: una hoja nueva a partir de otra, cambiando solo una gama de tonos píxel a píxel (no hace falta
+   ningún archivo nuevo). 'black' = el dorado pasa a negro azulado con brillo plateado (Freezer Negro) */
+const RECOLOR = {
+  black(r, g, b) {
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (d < 40 || mx < 60) return null;                              // grises, blancos y contornos: se quedan
+    let h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60;
+    if (h < 18 || h > 72) return null;                               // solo la gama dorada/naranja
+    const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255, v = Math.pow(l, 1.7);
+    return [18 + v * 150, 20 + v * 160, 34 + v * 200];
+  }
+};
+function recolorSheet(img, kind) {
+  const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+  const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+  const im = g.getImageData(0, 0, cv.width, cv.height), p = im.data, fn = RECOLOR[kind];
+  for (let i = 0; i < p.length; i += 4) { if (p[i + 3] < 8) continue; const c = fn(p[i], p[i + 1], p[i + 2]); if (c) { p[i] = c[0]; p[i + 1] = c[1]; p[i + 2] = c[2]; } }
+  g.putImageData(im, 0, 0);
+  return cv;
+}
 function loadSheet(name) {
   return new Promise((resolve) => {
     const d = window.SPRITE_DATA && window.SPRITE_DATA[name];
     if (!d) { resolve(null); return; }
     const img = new Image();
     img.onload = () => {
-      const tex = new THREE.Texture(img);
+      const tex = new THREE.Texture(d.recolor ? recolorSheet(img, d.recolor) : img);   // hoja derivada: variante de color hecha al cargar
       tex.magFilter = tex.minFilter = THREE.NearestFilter;
       tex.generateMipmaps = false;
       tex.needsUpdate = true;

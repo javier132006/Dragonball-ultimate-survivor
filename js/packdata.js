@@ -298,7 +298,9 @@ function applyGachaForms() {
     if (!c.baseForms) { if (!TRAITS[c.id] && PACK_TRAITS[c.id]) TRAITS[c.id] = PACK_TRAITS[c.id]; c.baseForms = c.forms; c.baseTraits = TRAITS[c.id] ? TRAITS[c.id].slice() : null; }
     // Guerrero del altar: cada estrella (repetido) le da +4% de daño
     const cst = c.summon ? (Save.d.gforms[c.id] || 1) : 1, sm = 1 + 0.04 * (cst - 1);
-    const base = sm === 1 ? c.baseForms : c.baseForms.map((f) => Object.assign({}, f, { dmg: f.dmg * sm }));
+    let base = sm === 1 ? c.baseForms : c.baseForms.map((f) => Object.assign({}, f, { dmg: f.dmg * sm }));
+    const pf = typeof passForms === 'function' ? passForms(c) : [];       // forma exclusiva del pase de batalla (js/profile.js)
+    if (pf.length) base = base.concat(pf);
     // Solo UNA transformación del altar por guerrero: la equipada (o, si no has elegido, la de más rareza). 'none' = ninguna
     const mine = GUNITS.filter((g) => g.kind === 'form' && g.ch === c.id && Save.d.gforms && Save.d.gforms[g.id]).sort((a, b) => b.r - a.r);
     const pick = Save.d.gsel && Save.d.gsel[c.id], eq = pick === 'none' ? null : mine.find((g) => g.id === pick) || mine[0];
@@ -310,8 +312,9 @@ function applyGachaForms() {
       f.gacha = g.id; f.rare = g.r; f.stars = st; f.chgS = g.chg; f.chgN = chgFrames(g.chg); f.face = g.face;
       return f;
     }));
-    if (own.length) {
-      const bt = c.baseTraits || []; while (bt.length < c.baseForms.length) bt.push(null);
+    if (own.length || pf.length) {
+      const bt = (c.baseTraits || []).slice(); while (bt.length < c.baseForms.length) bt.push(null);
+      for (const f of pf) bt.push(f.trait);
       TRAITS[c.id] = bt.concat(own.map((g) => GU_TRAIT[g.id] || GF_TRAIT[g.r]));
     } else if (c.baseTraits) TRAITS[c.id] = c.baseTraits.slice();
   }

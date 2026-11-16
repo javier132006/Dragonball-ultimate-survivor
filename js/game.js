@@ -261,10 +261,11 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-notif],[data-bind],[data-bindreset],[data-cb],[data-hc],[data-chtg],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-versus]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-notif],[data-bind],[data-bindreset],[data-cb],[data-hc],[data-chtg],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-versus],[data-ptab],[data-pset],[data-passclaim],[data-passall],[data-pweye]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
+      if (ui.profileClick(D, t)) return;                              // perfil y pase de batalla (js/profile.js)
       if (D.notif !== undefined) { const n = ui.el.menu.querySelector('.wnot'); if (n) n.classList.toggle('on'); return; }
       if (D.place) {                                                  // mapa: viaja con la Teletransportación y luego entra
         const P = placeById(D.place);
@@ -300,7 +301,7 @@ class Game {
       else if (D.rtabGo) { ui.rtab = D.rtabGo; this.go('records'); }
       else if (D.acct === 'out') this.online.signOut().then(() => { ui.atab = 'login'; ui.renderMenu(); });
       else if (D.q) { Save.d.opt.quality = D.q; Save.write(); this.perf.pr = 1; this.applyQuality(); ui.renderMenu(); }
-      else if (D.flash !== undefined) { Save.d.opt.flash = !Save.d.opt.flash; Save.write(); ui.renderMenu(); }
+      else if (D.flash !== undefined) { Save.d.opt.flash = !Save.d.opt.flash; Save.write(); ui.applyAccess(); ui.renderMenu(); }
       else if (D.tips !== undefined) { Save.d.opt.tips = Save.d.opt.tips === false; Save.write(); ui.renderMenu(); }
       else if (D.tipsreset !== undefined) { this.tuto.reset(); ui.toast('Volverás a ver todos los consejos', true); }
       else if (D.fps !== undefined) { Save.d.opt.fps = !Save.d.opt.fps; Save.write(); ui.renderMenu(); }
@@ -321,15 +322,17 @@ class Game {
       const f = e.target.closest('[data-acct-form]');
       if (!f) return;
       e.preventDefault();
-      const msg = document.getElementById('acMsg'), btn = f.querySelector('button[type=submit]'), val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+      const msg = f.querySelector('.msg'), btn = f.querySelector('button[type=submit]'), val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
       if (btn.disabled) return;
       btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Conectando…';
-      const job = f.dataset.acctForm === 'signup' ? this.online.signUp(val('acMail'), val('acPass'), val('acName')) : this.online.signIn(val('acMail'), val('acPass'));
-      job.then((r) => {
-        btn.disabled = false; msg.className = 'msg' + (r.ok ? ' ok' : ' bad'); msg.textContent = r.msg;
+      ui.acctJob(f.dataset.acctForm, val).then((r) => {
+        btn.disabled = false; if (!msg.isConnected) return;         // la pantalla cambió al entrar: ya no hay mensaje que escribir
+        msg.className = 'msg' + (r.ok ? ' ok' : ' bad'); msg.textContent = r.msg;
         if (r.ok) SFX.play('coin');
       });
     });
+    // Crear cuenta: medidor de la contraseña mientras se escribe
+    ui.el.menu.addEventListener('input', (e) => { if (e.target.id === 'acPass') ui.passStrength(e.target.value); });
     // Importar desde archivo .json
     ui.el.menu.addEventListener('change', (e) => {
       if (e.target.id !== 'impFile' || !e.target.files[0]) return;
@@ -390,6 +393,7 @@ class Game {
   go(screen) {
     if (screen === 'ach' || screen === 'missions') { this.ui.mtab = screen === 'ach' ? 'ach' : 'missions'; screen = 'missions'; }
     if (screen === 'legend') { this.ui.book = null; this.ui.lchap = null; }
+    if (screen === 'account' && this.ui.screen !== 'account') { this.ui.ptab = null; this.ui.atab = 'login'; }
     if (screen !== this.ui.screen && this.ui.el.menu.classList.contains('show')) { this.ui.itFlash(); if (screen === 'home') SFX.play('tp'); }
     this.ui.screen = screen; this.ui.renderMenu(); this.applyView();
   }
@@ -1447,6 +1451,8 @@ class Game {
     const p = this.player, id = p.ch.id, d = this.diff;
     if (this.practice) return { coins: 0, bonus: 0, score: 0, crys: 0 };    // el entrenamiento no da recompensas
     this.trackCh(id, win);                        // estadísticas de este guerrero (Rastreador)
+    // Pase de batalla: experiencia por la partida (todos los modos menos el entrenamiento)
+    const pass = Profile.addXp(Profile.runXp({ time: this.time, bosses: this.run.bosses, level: p.level, win, diff: d.id }));
     let coins = Math.floor(this.zeniRun * d.coins), bonus = 0;
     // Cristales del Dragón (gachapón): por aguantar, por jefes y por ganar
     const crys = Math.min(60, Math.floor(this.time / 60) * 3) + this.run.bosses * 5 + (win ? 20 : 0) + (this.modeCry || 0);
@@ -1458,14 +1464,14 @@ class Game {
       const k = 'mode_' + this.mode, b = Save.d.best[k];
       if (!b || this.modeCry > b.cry) Save.d.best[k] = { cry: this.modeCry, time: Math.floor(this.time), bosses: this.gN };
       this.checkAch(); Save.write();
-      return { coins, bonus: 0, score: 0, crys, mode: this.mode, modeCry: this.modeCry };
+      return { coins, bonus: 0, score: 0, crys, mode: this.mode, modeCry: this.modeCry, pass };
     }
     if (this.saga) {                              // Modo Historia: monedas de la partida (los premios del capítulo van aparte); sin ranking
       Save.d.zeni += coins; this.track('runs', 1); this.track('time', Math.floor(this.time)); this.trackMax('maxLevel', p.level);
       if (win) this.track('wins', 1);
       this.track('damage', Math.floor(this.run.damage)); this.track('taken', Math.floor(this.run.taken)); this.track('dashes', this.run.dashes); this.trackMax('maxCombo', this.run.maxCombo); this.trackMax('bestHit', Math.floor(this.run.best));
       this.checkAch(); Save.write();
-      return { coins, bonus: 0, score: 0, crys };
+      return { coins, bonus: 0, score: 0, crys, pass };
     }
     if (win) {                                    // primera victoria con ese personaje y dificultad = premio completo; después, un 20%
       const key = id + ':' + d.id, first = !Save.d.clears[key];
@@ -1497,7 +1503,7 @@ class Game {
     if (!b || this.time > b.time) Save.d.best[id] = { time: Math.floor(this.time), kills: this.kills, level: p.level };
     Save.write();
     this.sendOnline({ ch: id, kills: this.kills, level: p.level, bosses: this.run.bosses, step: this.step, time: Math.floor(this.time), win: !!win, diff: d.id, daily: !!this.daily });
-    return { coins, bonus, score, record: score > prevTop, dayBonus, crys };
+    return { coins, bonus, score, record: score > prevTop, dayBonus, crys, pass };
   }
   abandon() { this.finishRun(false); this.toMenu(); }
   /** Sube la partida al ranking mundial (si hay sesión) y escribe el resultado en el resumen */
@@ -1525,6 +1531,7 @@ class Game {
     if (this.practice) return h + '<div class="reward">ENTRENAMIENTO<small>El modo práctica no da monedas ni cuenta para misiones y logros</small></div>';
     h += '<div class="reward">+' + r.coins + ' MONEDAS' + (r.bonus ? '<small>incluye ' + r.bonus + ' de bonificación por completar el nivel</small>' : '') + (r.dayBonus ? '<small>incluye ' + r.dayBonus + ' por terminar el desafío de hoy</small>' : '') + '</div>';
     if (r.crys) h += '<div class="crew">+' + r.crys + ' CRISTALES DEL DRAGÓN' + (r.mode ? '<small>' + r.modeCry + ' de ' + MODES[r.mode].name + '</small>' : '') + '</div>';
+    if (r.pass) { const P = Profile.pass(); h += '<div class="pxpr' + (r.pass.up ? ' up' : '') + '"><span>PASE DE BATALLA · +' + r.pass.xp + ' EXP</span><b>' + (r.pass.up ? '¡NIVEL ' + P.lv + '!' : 'NIVEL ' + P.lv) + '</b><i><s style="width:' + (P.need ? P.xp / P.need * 100 : 100) + '%"></s></i></div>'; }
     return h;
   }
   /* ---------- Modos de cristales ---------- */
@@ -1694,7 +1701,9 @@ class Game {
     if (!m || Save.isClaimed(m) || Save.progress(m) < m.goal) return;
     if (m.weekly) Save.d.weekly.claimed[id] = true; else if (m.daily) Save.d.daily.claimed[id] = true; else Save.d.claimed[id] = true;
     const cr = m.weekly ? m.cry : m.daily ? 20 : 50, zn = m.reward || 0;
-    Save.d.zeni += zn; Save.d.crystals = (Save.d.crystals || 0) + cr; Save.write();
+    Save.d.zeni += zn; Save.d.crystals = (Save.d.crystals || 0) + cr;
+    Profile.addXp(m.weekly ? 150 : m.daily ? 60 : 40);            // las misiones también suben el pase de batalla
+    Save.write();
     this.ui.renderMenu();
     // Shenron concede el premio
     Shenron.summon({ kicker: m.weekly ? 'Misión semanal cumplida' : m.daily ? 'Misión del día cumplida' : 'Misión cumplida', title: '¡Deseo concedido!', sub: m.name, html: (zn ? '<span class="big">+' + zn + ' monedas</span>' : '') + '<span class="bigc">+' + cr + ' cristales</span>' });

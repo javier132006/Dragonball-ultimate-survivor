@@ -453,16 +453,18 @@ class UIManager {
     e.menu.classList.toggle('ishome', s === 'home');
     this.hdr = { t: '', s: '', c: '', tabs: '' };
     const R = { home: this.renderHome, legend: this.renderLegend, play: this.renderPlay, shop: this.renderShopScreen, stats: this.renderStatsScreen, options: this.renderOptions,
-      records: this.renderRecords, summon: this.renderSummon, account: this.renderAccount, credits: this.renderCredits, missions: this.renderMissions };
+      records: this.renderRecords, summon: this.renderSummon, account: this.renderAccount, pass: this.renderPass, credits: this.renderCredits, missions: this.renderMissions };
     (R[s] || this.renderMissions).call(this);
     const H = this.hdr;
-    const KJ = { play: '戦', legend: '龍', shop: '店', missions: '亀', records: '武', summon: '願', stats: '計', options: '設', account: '名', credits: '謝' };
+    const KJ = { play: '戦', legend: '龍', shop: '店', missions: '亀', records: '武', summon: '願', stats: '計', options: '設', account: '名', pass: '道', credits: '謝' };
     e.menu.dataset.kj = s === 'home' ? '' : (this.hdr.k || KJ[s] || '気');
     e.menu.dataset.loc = SCREEN_LOC[s] || '';                         // ilustración del lugar de fondo (assets/menu)
     e.menuNav.innerHTML = s === 'home' ? this.homeBar()
       : '<button class="back" ' + (H.back || 'data-go="home"') + '><i>◀</i>' + (H.back ? 'Volver' : 'Mapa') + '</button><div class="bnr ' + H.c + '"' + (H.st ? ' style="' + H.st + '"' : '') + '><i class="kj">' + (H.k || KJ[s] || '気') + '</i><h3>' + H.t + '</h3>' + (H.s ? '<span>' + H.s + '</span>' : '') + '</div>' + (H.tabs ? '<div class="seg nav">' + H.tabs + '</div>' : '');
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menu.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
+    this.drawFaces(e.menu);                                           // fotos de perfil (js/profile.js)
+    if (s === 'account') this.profileRank();
     // El mapa del inicio tiene su propia animación (solo mientras se ve)
     const wm = s === 'home' && e.menuBody.querySelector('.wm');
     if (wm) this.map.mount(wm); else this.map.unmount();
@@ -483,25 +485,31 @@ class UIManager {
   homeBar() {
     const info = this.homeInfo || {}, pend = PLACES.filter((p) => info[p.id] && info[p.id][1]);
     const on = this.game && this.game.online, logged = !!(on && on.logged);
+    const PS = Profile.pass(), npass = Profile.pending().length, nprof = Profile.freshAll(), PC = Profile.cur(), ntot = pend.length + (npass ? 1 : 0) + (nprof ? 1 : 0);
+    // Avisos que no son de un lugar del mapa: premios del pase y cosas nuevas del perfil
+    const extra = (npass ? '<button data-go="pass" style="--pc:#a487ff"><i class="nic">' + WI.pass + '</i><span><b>Pase de batalla</b><small>' + npass + (npass > 1 ? ' recompensas' : ' recompensa') + ' por recoger</small></span></button>' : '') +
+      (nprof ? '<button data-go="account" style="--pc:#62a0ff"><i class="nic">' + WI.user + '</i><span><b>Perfil</b><small>' + nprof + (nprof > 1 ? ' novedades desbloqueadas' : ' novedad desbloqueada') + '</small></span></button>' : '');
     return '<div class="wlogo"><b>DRAGON BALL</b><span>ULTIMATE SURVIVOR</span></div>' +
       // Progreso: lo que el jugador consulta
       '<nav class="wnav" aria-label="Tu progreso"><button class="wib" data-go="records" title="Récords: tus mejores partidas">' + WI.trophy + '<span>Récords</span></button>' +
       '<button class="wib" data-rtab-go="online" title="Ranking mundial">' + WI.rank + '<span>Ranking</span></button>' +
-      '<button class="wib" data-go="stats" title="Rastreador: tus estadísticas">' + WI.stats + '<span>Rastreador</span></button></nav>' +
+      '<button class="wib" data-go="stats" title="Rastreador: tus estadísticas">' + WI.stats + '<span>Rastreador</span></button>' +
+      '<button class="wib wpass' + (npass ? ' has' : '') + '" data-go="pass" title="Pase de batalla: nivel ' + PS.lv + ' de ' + PASS_MAX + '">' + WI.pass + '<span>Pase <b>' + PS.lv + '</b></span>' + (npass ? '<u>' + npass + '</u>' : '') + '</button></nav>' +
       // Sistema: avisos, cuenta y ajustes
-      '<div class="wsys"><button class="wic wbell' + (pend.length ? ' has' : '') + '" data-notif title="Avisos" aria-label="Avisos' + (pend.length ? ': ' + pend.length + ' pendientes' : '') + '">' + WI.bell + (pend.length ? '<b>' + pend.length + '</b>' : '') + '</button>' +
-      '<button class="wacc' + (logged ? ' in' : '') + '" data-go="account" title="Cuenta">' + WI.user + '<span>' + this.accountLabel() + '</span></button>' +
+      '<div class="wsys"><button class="wic wbell' + (ntot ? ' has' : '') + '" data-notif title="Avisos" aria-label="Avisos' + (ntot ? ': ' + ntot + ' pendientes' : '') + '">' + WI.bell + (ntot ? '<b>' + ntot + '</b>' : '') + '</button>' +
+      '<button class="wacc' + (logged ? ' in' : '') + '" data-go="account" title="Perfil y cuenta">' + this.pfa(PC.av, PC.fr, 30, 'mini') + '<span>' + this.accountLabel() + '</span>' + (nprof ? '<u>' + nprof + '</u>' : '') + '</button>' +
       '<button class="wic" data-go="options" title="Ajustes" aria-label="Ajustes">' + WI.gear + '</button>' +
       '<button class="wic sm" data-go="credits" title="Créditos" aria-label="Créditos">' + WI.star + '</button><button class="wic sm" data-exit title="Salir" aria-label="Salir">' + WI.power + '</button></div>' +
       '<span class="wchip" title="Días seguidos entrando">' + WI.flame + Save.d.login.streak + '</span>' +
       // Avisos: lo que hay pendiente en cada lugar (tocar uno te lleva allí)
-      '<div class="wnot" role="dialog" aria-label="Avisos"><h4>Avisos</h4>' + (pend.length ? pend.map((p) => '<button data-place="' + p.id + '" style="--pc:' + PLACE_COL[p.id] + '"><i style="background-image:url(assets/menu/th_' + p.id + '.jpg)"></i><span><b>' + p.name + '</b><small>' + info[p.id][0] + '</small></span></button>').join('')
+      '<div class="wnot" role="dialog" aria-label="Avisos"><h4>Avisos</h4>' + (ntot ? extra + pend.map((p) => '<button data-place="' + p.id + '" style="--pc:' + PLACE_COL[p.id] + '"><i style="background-image:url(assets/menu/th_' + p.id + '.jpg)"></i><span><b>' + p.name + '</b><small>' + info[p.id][0] + '</small></span></button>').join('')
         : '<p>No hay nada pendiente. Todo al día.</p>') + '</div>';
   }
   /** Fila de clasificación: puesto, retrato, nombre (con etiqueta) y puntuación */
-  rankRow(i, c, name, sub, score, me, chip) {
+  rankRow(i, c, name, sub, score, me, chip, pf) {
+    const pfh = pf ? this.pfaIds(pf.avatar, pf.frame, 34) : '';       // ranking mundial: foto y marco que eligió ese jugador
     return '<div class="rr' + (i < 3 ? ' top' + i : '') + (me ? ' me' : '') + '"><em>' + (i + 1) + '</em><div class="rav">' + this.pic(c, 72, 72) + '</div>' +
-      '<div class="rn"><b>' + (chip || '') + name + '</b><small>' + sub + '</small></div><b>' + score + '</b></div>';
+      '<div class="rn"><b>' + pfh + (chip || '') + name + '</b><small>' + sub + '</small></div><b>' + score + '</b></div>';
   }
 
   /* ---------- Inicio: el mapa del mundo ---------- */
@@ -754,7 +762,7 @@ class UIManager {
 
   /* ---------- Accesibilidad: teclas configurables, filtro de daltonismo y contraste alto ---------- */
   /** Vuelve a pintar una pantalla sin perder el punto de la lista en el que estaba el jugador */
-  keepScroll(fn) { const q = () => this.el.menuBody.querySelector('.shop'), a = q(), y = a ? a.scrollTop : 0; fn(); const b = q(); if (b) b.scrollTop = y; }
+  keepScroll(fn, sel) { const q = () => this.el.menuBody.querySelector(sel || '.shop'), a = q(), y = a ? a.scrollTop : 0; fn(); const b = q(); if (b) b.scrollTop = y; }
   /** Espera la siguiente tecla y la asigna a la acción (ESC cancela) */
   startBind(act) {
     if (this.bindOff) this.bindOff();
@@ -783,6 +791,7 @@ class UIManager {
   applyAccess() {
     const O = Save.d.opt, cb = O.cb || 'off', root = document.documentElement;
     root.classList.toggle('hc', !!O.hc);
+    root.classList.toggle('nofx', !!O.flash);                         // «Reducir destellos» también para los marcos animados del perfil
     if (cb === 'off') { root.style.filter = ''; return; }
     // Matrices de simulación de Machado et al. (2009), severidad 1, en RGB lineal
     const SIM = {
@@ -825,10 +834,11 @@ class UIManager {
       const me = on.user ? on.user.id : '';
       box().innerHTML = (list.length ? '<div class="rk">' + list.map((r, i) => {
         const c = charById(r.ch);
-        return this.rankRow(i, c, escHtml(r.name), (c ? nice(c.name) : escHtml(r.ch)) + ' · ' + r.kills + ' bajas · NV ' + r.level + ' · mapa ' + (r.step + 1) + '/' + ROUTE_LEN + ' · ' + fmtTime(r.time) + ' · ' + nice(diffById(r.diff).name), Number(r.score).toLocaleString('es-ES'), r.user_id === me, r.win ? '<span class="chip g">Victoria</span>' : '');
+        return this.rankRow(i, c, escHtml(r.name), (c ? nice(c.name) : escHtml(r.ch)) + ' · ' + r.kills + ' bajas · NV ' + r.level + ' · mapa ' + (r.step + 1) + '/' + ROUTE_LEN + ' · ' + fmtTime(r.time) + ' · ' + nice(diffById(r.diff).name), Number(r.score).toLocaleString('es-ES'), r.user_id === me, r.win ? '<span class="chip g">Victoria</span>' : '', r.avatar ? r : (r.user_id === me ? { avatar: Save.d.prof.av, frame: Save.d.prof.fr } : null));
       }).join('') + '</div>' : '<p class="dim" style="text-align:center">Todavía no hay partidas. ¡Sé el primero!</p>') +
         (on.logged ? '' : '<p class="dim" style="text-align:center;margin-top:10px">Inicia sesión en CUENTA para aparecer en el ranking.</p>');
       for (const cv of box().querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
+      this.drawFaces(box());
     } catch (e) { if (box()) box().innerHTML = '<p class="dim" style="text-align:center">' + escHtml(on.errText(e)) + '</p>'; }
   }
 
@@ -838,28 +848,7 @@ class UIManager {
     if (!on || !on.ready) return 'Sin conectar';
     return on.logged ? escHtml(on.name || 'Conectado') : 'Iniciar sesión';
   }
-  renderAccount() {
-    const on = this.game && this.game.online;
-    this.hdr = { t: 'Cuenta', s: 'Para aparecer en el ranking mundial', c: 'c-blu' };
-    let h;
-    if (!on || !on.ready) {
-      h = '<div class="acct"><h4 class="sec">Ranking mundial no configurado</h4><p class="dim">Falta conectar el juego con Supabase: ejecuta <b>supabase/ranking.sql</b> en el SQL Editor de tu proyecto y pon su URL y su clave pública en <b>js/online.js</b>.</p><p class="dim">Mientras tanto puedes jugar con normalidad y tus récords se guardan en este navegador.</p></div>';
-    } else if (on.logged) {
-      h = '<div class="acct"><h4 class="sec">Sesión iniciada</h4><p class="who">' + escHtml(on.name) + '</p><p class="dim">' + escHtml(on.user.email || '') + '</p>' +
-        '<p>Tus partidas se suben solas al ranking mundial al terminar (el modo entrenamiento no cuenta).</p>' +
-        '<div class="arow"><button class="abtn" data-rtab-go="online">Ver ranking mundial</button><button class="abtn alt" data-acct="out">Cerrar sesión</button></div></div>';
-    } else {
-      const reg = this.atab === 'signup';
-      this.hdr.tabs = this.segTabs([['login', 'Iniciar sesión'], ['signup', 'Crear cuenta']], reg ? 'signup' : 'login', 'atab');
-      h = '<form class="acct" data-acct-form="' + (reg ? 'signup' : 'login') + '" novalidate>' +
-        (reg ? '<label>Nombre de jugador<input id="acName" maxlength="16" autocomplete="nickname" placeholder="De 3 a 16 caracteres"></label>' : '') +
-        '<label>Correo<input id="acMail" type="email" autocomplete="email"></label>' +
-        '<label>Contraseña<input id="acPass" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" placeholder="Mínimo 6 caracteres"></label>' +
-        '<button class="abtn" type="submit">' + (reg ? 'Crear cuenta' : 'Entrar') + '</button><p class="msg" id="acMsg"></p>' +
-        '<p class="dim">Sin cuenta puedes jugar igual; solo no apareces en el ranking mundial.</p></form>';
-    }
-    this.el.menuBody.innerHTML = h;
-  }
+  /* renderAccount, el perfil y el pase de batalla están en js/profile.js */
   rankTable(list) {
     return '<div class="rk">' + list.slice(0, 15).map((r, i) => {
       const c = charById(r.ch);
