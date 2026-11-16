@@ -1626,6 +1626,142 @@ html.hc .card p{color:#fff;font-size:15px}
   #lhud{top:6px;left:max(6px,env(safe-area-inset-left));gap:6px}
   #pl .bar em{font-size:9px}
 }
+
+/* =====================================================================
+   MENÚ v4 · Mapa del mundo
+   Tres niveles: 1) ¡A luchar! · 2) las tarjetas de los lugares ·
+   3) barra de arriba (progreso · sistema · recursos).
+   --u = unidad que crece con el ancho: 16 px a 1920.
+   ===================================================================== */
+#menu.ishome{--u:clamp(10.5px,.8334vw,19px)}
+#menu.ishome .mtop{align-items:center;gap:calc(var(--u)*.7);min-height:0;padding:calc(var(--u)*.9) calc(var(--u)*1.5) calc(var(--u)*2.2);
+  background:linear-gradient(180deg,rgba(3,8,34,.86) 0%,rgba(3,8,34,.6) 52%,rgba(3,8,34,0) 100%)}
+#menu.ishome #menuNav{gap:calc(var(--u)*.9);position:relative}
+.wsv{width:1.25em;height:1.25em;flex:none;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+.wlogo{margin-right:calc(var(--u)*.6)}
+.wlogo b{font-size:calc(var(--u)*3.1)}
+.wlogo span{font-size:calc(var(--u)*1.02);margin-top:calc(var(--u)*.2)}
+/* Progreso: tres accesos dentro de una misma pastilla */
+.wnav{display:flex;align-items:stretch;gap:2px;padding:3px;border-radius:calc(var(--u)*.8);background:rgba(4,8,30,.82);border:2px solid rgba(255,255,255,.14);box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.wnav .wib{--sk:0deg;gap:.45em;padding:calc(var(--u)*.5) calc(var(--u)*.95);font-size:calc(var(--u)*1.2);color:#dfe7ff;background:none;border:0;border-radius:calc(var(--u)*.6);box-shadow:none;transform:none;text-shadow:none;transition:background .15s,color .15s}
+.wnav .wib:hover,.wnav .wib:focus-visible{filter:none;color:#fff;background:linear-gradient(180deg,#3d6fe8,#2149d0);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.wnav .wib:active{transform:translateY(1px)}
+/* Sistema: avisos, cuenta, ajustes */
+.wsys{display:flex;align-items:center;gap:calc(var(--u)*.4);margin-left:auto}
+.wic,.wacc{--sk:0deg;position:relative;display:inline-flex;align-items:center;justify-content:center;gap:.45em;height:calc(var(--u)*2.7);padding:0;color:#dfe7ff;font-size:calc(var(--u)*1.2);
+  background:rgba(4,8,30,.82);border:2px solid rgba(255,255,255,.14);border-radius:calc(var(--u)*.8);box-shadow:0 4px 14px rgba(0,0,0,.35);transform:none;text-shadow:none;transition:background .15s,border-color .15s,color .15s}
+.wic{width:calc(var(--u)*2.7)}.wic.sm{width:calc(var(--u)*2.2);height:calc(var(--u)*2.2);font-size:calc(var(--u)*.98);opacity:.85}
+.wacc{padding:0 calc(var(--u)*.95) 0 calc(var(--u)*.75);max-width:calc(var(--u)*13)}.wacc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wacc.in{color:#fff;border-color:rgba(120,230,150,.7)}.wacc.in .wsv{color:#6ff0a0}
+.wic:hover,.wacc:hover,.wic:focus-visible,.wacc:focus-visible{filter:none;color:#fff;background:#2149d0;border-color:rgba(255,255,255,.5);box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.wic:active,.wacc:active{transform:translateY(1px)}
+.wbell b{position:absolute;top:calc(var(--u)*-.45);right:calc(var(--u)*-.45);min-width:calc(var(--u)*1.35);height:calc(var(--u)*1.35);padding:0 .3em;display:flex;align-items:center;justify-content:center;font-family:var(--body);font-weight:800;font-size:calc(var(--u)*.78);line-height:1;color:#fff;background:#ff3d5a;border:2px solid var(--ink);border-radius:99px}
+.wbell.has .wsv{color:#ffd84a;transform-origin:50% 10%;animation:wbell 2.6s ease-in-out infinite}
+@keyframes wbell{0%,86%,100%{transform:rotate(0)}89%{transform:rotate(14deg)}93%{transform:rotate(-12deg)}97%{transform:rotate(6deg)}}
+/* Recursos: racha, cristales y monedas, juntos a la derecha */
+#menu.ishome .wchip,#menu.ishome .zeni{transform:none;height:calc(var(--u)*2.7);padding:0 calc(var(--u)*.95) 0 calc(var(--u)*.7);gap:calc(var(--u)*.45);border:2px solid rgba(255,255,255,.14);background:rgba(4,8,30,.9);box-shadow:0 4px 14px rgba(0,0,0,.35)}
+#menu.ishome .wchip{font-size:calc(var(--u)*1.35);color:#ffb14a;border-radius:calc(var(--u)*.8) 0 0 calc(var(--u)*.8);margin-right:-2px}
+#menu.ishome .wchip .wsv{color:#ff7a1a;fill:rgba(255,122,26,.35)}
+#menu.ishome .zeni{margin-left:-2px;border-radius:0}#menu.ishome .zeni:last-child{border-radius:0 calc(var(--u)*.8) calc(var(--u)*.8) 0}
+#menu.ishome .zeni.cry{margin-left:calc(var(--u)*-.7 - 2px)}
+#menu.ishome .zeni>*,#menu.ishome .zeni::before{transform:none}
+#menu.ishome .zeni::before{width:calc(var(--u)*1.5);height:calc(var(--u)*1.5)}#menu.ishome .zeni.cry::before{width:calc(var(--u)*1.15);height:calc(var(--u)*1.5)}
+#menu.ishome .zeni b{font-size:calc(var(--u)*1.6)}
+/* Avisos */
+.wnot{position:absolute;right:calc(var(--u)*10);top:calc(100% + var(--u)*.6);z-index:9;width:calc(var(--u)*21);max-width:92vw;padding:calc(var(--u)*.7);display:none;flex-direction:column;gap:calc(var(--u)*.4);
+  background:rgba(6,10,34,.97);border:3px solid var(--ink);border-radius:calc(var(--u)*.9);box-shadow:0 0 0 2px rgba(255,255,255,.14) inset,6px 8px 0 rgba(0,0,0,.45)}
+.wnot.on{display:flex;animation:wnotIn .16s ease-out}
+@keyframes wnotIn{from{opacity:0;transform:translateY(-6px)}}
+.wnot h4{font-family:var(--hero);font-weight:400;font-size:calc(var(--u)*1.25);letter-spacing:.05em;color:var(--ki);padding:0 .3em}
+.wnot p{font-size:calc(var(--u)*.9);color:var(--t2);padding:.2em .3em .4em}
+.wnot button{--sk:0deg;display:flex;align-items:center;gap:calc(var(--u)*.7);padding:calc(var(--u)*.35);text-align:left;font-family:var(--body);background:rgba(255,255,255,.05);border:0;border-left:4px solid var(--pc);border-radius:calc(var(--u)*.5);box-shadow:none;transform:none;text-shadow:none}
+.wnot button:hover{filter:none;background:rgba(255,255,255,.13)}
+.wnot button i{flex:none;width:calc(var(--u)*4.2);height:calc(var(--u)*2.8);border-radius:calc(var(--u)*.35);background:center/cover}
+.wnot button span{display:flex;flex-direction:column;min-width:0}
+.wnot button b{font-family:var(--hero);font-weight:400;font-size:calc(var(--u)*1.15);letter-spacing:.04em}
+.wnot button small{font-size:calc(var(--u)*.82);font-weight:700;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- Tarjetas de los lugares: un solo diseño; cambia el color y la ilustración ---------- */
+.wpin{--sk:0deg;z-index:2;display:flex;align-items:stretch;gap:0;padding:0;width:calc(var(--u)*17.6);min-height:calc(var(--u)*4.7);white-space:normal;overflow:visible;
+  background:linear-gradient(180deg,rgba(16,24,66,.95),rgba(6,10,34,.95));border:3px solid var(--ink);border-radius:calc(var(--u)*.85);
+  box-shadow:inset 0 3px 0 var(--pc),5px 6px 0 rgba(0,0,0,.42);transition:transform .16s cubic-bezier(.2,1.2,.4,1),box-shadow .16s}
+.wpin:hover,.wpin:focus-visible{transform:translate(-50%,calc(var(--u)*-.4));box-shadow:inset 0 3px 0 var(--pc),5px 9px 0 rgba(0,0,0,.42),0 0 0 2px var(--pc),0 0 calc(var(--u)*1.8) color-mix(in srgb,var(--pc) 75%,transparent)}
+.wpin:active{transform:translate(-50%,0)}
+.wpin .wth{position:relative;flex:none;width:calc(var(--u)*5.6);border-radius:calc(var(--u)*.62) 0 0 calc(var(--u)*.62);border-right:3px solid var(--ink);background:center/cover;overflow:hidden;transition:background-size .2s}
+.wpin .wth::after{content:'';position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.28),rgba(255,255,255,0) 38%)}
+.wpin:hover .wth{background-size:118%}
+.wpin .wk{position:absolute;left:calc(var(--u)*.3);bottom:calc(var(--u)*.3);z-index:1;width:calc(var(--u)*1.75);height:calc(var(--u)*1.75);font-size:calc(var(--u)*1.02);font-style:normal;color:#111;border:2px solid var(--ink);box-shadow:none;
+  background:radial-gradient(circle at 38% 32%,#fff,var(--pc) 75%)}
+.wpin.here{box-shadow:inset 0 3px 0 var(--pc),5px 6px 0 rgba(0,0,0,.42),0 0 0 2px #ffd84a}
+.wpin.here .wk{background:radial-gradient(circle at 38% 32%,#fff,#ffd84a 75%);box-shadow:0 0 calc(var(--u)*.6) #ffd84a}
+.wpin .wtx{flex:1;min-width:0;justify-content:center;gap:calc(var(--u)*.08);padding:calc(var(--u)*.45) calc(var(--u)*.8) calc(var(--u)*.5) calc(var(--u)*.75);line-height:1.08}
+.wpin b{font-size:calc(var(--u)*1.38);white-space:nowrap}
+.wpin em{font-size:calc(var(--u)*.8);letter-spacing:.01em;text-transform:none;color:var(--pc);white-space:nowrap}
+.wpin small{font-size:calc(var(--u)*.74);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wpin small u{text-decoration:none;font-weight:800;color:#6ff0a0}
+.wpin .badge{top:calc(var(--u)*-.7);right:calc(var(--u)*-.7);min-width:calc(var(--u)*1.75);height:calc(var(--u)*1.75);font-size:calc(var(--u)*1.05);animation:wbadge 1.8s ease-in-out infinite}
+@keyframes wbadge{50%{transform:scale(1.14)}}
+
+/* ---------- Abajo: tu guerrero · ¡A luchar! ---------- */
+.wbot{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:calc(var(--u)*1.2);padding:calc(var(--u)*2.4) calc(var(--u)*1.5) calc(var(--u)*1.1);background:linear-gradient(0deg,rgba(3,8,34,.82) 0%,rgba(3,8,34,.5) 55%,rgba(3,8,34,0) 100%)}
+.wme{--sk:0deg;position:relative;justify-self:start;gap:calc(var(--u)*.8);padding:calc(var(--u)*.4) calc(var(--u)*.6) calc(var(--u)*.4) calc(var(--u)*.4);transform:none;border:3px solid var(--ink);border-radius:calc(var(--u)*.9);
+  background:linear-gradient(180deg,rgba(16,24,66,.96),rgba(6,10,34,.96));box-shadow:inset 0 3px 0 var(--gi),5px 6px 0 rgba(0,0,0,.42)}
+.wme:hover,.wme:focus-visible{filter:none;box-shadow:inset 0 3px 0 var(--gi),5px 6px 0 rgba(0,0,0,.42),0 0 0 2px var(--gi),0 0 calc(var(--u)*1.6) rgba(255,138,26,.6)}
+.wpt{width:calc(var(--u)*4.6);height:calc(var(--u)*4.6);border-radius:calc(var(--u)*.6);border:3px solid var(--ink);background:repeating-conic-gradient(from 0deg at 50% 62%,rgba(255,255,255,.22) 0 7deg,rgba(255,255,255,0) 7deg 20deg),radial-gradient(circle at 50% 62%,#ffe08a,#ff7a12 72%)}
+.wmt{gap:calc(var(--u)*.12)}
+.wmt small{font-size:calc(var(--u)*.74);letter-spacing:.04em;text-transform:none;color:var(--gi)}
+.wmt b{font-size:calc(var(--u)*1.75);line-height:1}
+.wmt em{display:flex;align-items:center;gap:.5em;font-size:calc(var(--u)*.8)}
+.wmt em u{text-decoration:none;font-weight:800;color:#6ff0a0}
+.wchg{display:inline-flex;align-items:center;gap:.35em;align-self:center;margin-left:calc(var(--u)*.5);padding:calc(var(--u)*.4) calc(var(--u)*.75);font-family:var(--hero);font-size:calc(var(--u)*1.05);letter-spacing:.04em;color:#fff;background:linear-gradient(180deg,#3d6fe8,#2149d0);border:2px solid var(--ink);border-radius:calc(var(--u)*.55)}
+/* ¡A luchar!: lo primero que se ve */
+.wgo{--sk:-7deg;position:relative;overflow:hidden;margin:0;gap:calc(var(--u)*1);padding:calc(var(--u)*.75) calc(var(--u)*3.6) calc(var(--u)*.8) calc(var(--u)*2.6);font-size:calc(var(--u)*3.3);border:4px solid var(--ink);border-radius:calc(var(--u)*1);
+  background:linear-gradient(180deg,#ffe45a 0%,#ffb81c 34%,#ff7a12 72%,#e04a00 100%);
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.65),inset 0 -6px 0 rgba(120,30,0,.35),6px 8px 0 var(--ink),0 0 calc(var(--u)*2.2) rgba(255,170,40,.55);animation:wgo2 2.2s ease-in-out infinite}
+@keyframes wgo2{50%{box-shadow:inset 0 3px 0 rgba(255,255,255,.65),inset 0 -6px 0 rgba(120,30,0,.35),6px 8px 0 var(--ink),0 0 calc(var(--u)*3.8) rgba(255,200,70,.95)}}
+.wgo:hover{filter:brightness(1.08);transform:skewX(var(--sk)) translateY(-3px) scale(1.03)}
+.wgo .dball{font-size:1.15em;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.35))}
+.wgt{display:flex;flex-direction:column;align-items:flex-start;line-height:.95}
+.wgt b{font-weight:400}
+.wgt small{font-family:var(--body);font-weight:800;font-size:calc(var(--u)*.86);letter-spacing:.01em;color:#3a1400;-webkit-text-stroke:0;text-shadow:none;margin-top:calc(var(--u)*.15)}
+.wgs{position:absolute;top:-20%;bottom:-20%;left:-30%;width:22%;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.8),rgba(255,255,255,0));transform:skewX(-18deg);animation:wgs 3.4s ease-in-out infinite;pointer-events:none}
+@keyframes wgs{0%,58%{left:-30%}86%,100%{left:125%}}
+.whint{position:static;justify-self:end;margin:0 56px calc(var(--u)*.2) 0;max-width:none;padding:calc(var(--u)*.35) calc(var(--u)*.8);font-size:calc(var(--u)*.82);color:#dfe7ff;background:rgba(4,8,30,.72);border-radius:99px;text-shadow:none}
+
+/* ---------- Viaje entre lugares ---------- */
+#mfx{position:fixed;inset:0;z-index:99990;display:none;cursor:pointer;overflow:hidden}
+#mfx.on{display:block}
+#mfx .mfv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;pointer-events:none}
+#mfx .mff{position:absolute;inset:0;opacity:0;pointer-events:none}
+#mfx .mfc{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;background:#050818;overflow:hidden}
+#mfx .mfc.on{opacity:1}
+#mfx .mfc.out{opacity:0;transition:opacity .3s ease-in}
+#mfx .mfb{position:absolute;inset:-8%;background:center/cover;filter:blur(26px) brightness(.5) saturate(1.25)}
+#mfx .mfi{position:relative;display:block;width:100%;max-height:82vh;aspect-ratio:3/1;object-fit:cover;border-block:5px solid var(--ink);box-shadow:0 -4px 0 #ffc531,0 4px 0 #ffc531,0 30px 90px rgba(0,0,0,.65)}
+#mfx .mfc.on .mfi{animation:mfin .9s cubic-bezier(.2,.8,.3,1) both}
+@keyframes mfin{from{transform:scale(1.07)}to{transform:scale(1)}}
+/* Cada pantalla lleva de fondo la ilustración de su lugar (la parte sin rótulo), oscurecida para que se lea todo */
+#menu[data-loc="paoz"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_paoz.jpg) right top/175% auto no-repeat,#070a1e}
+#menu[data-loc="altar"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_altar.jpg) right top/175% auto no-repeat,#070a1e}
+#menu[data-loc="lookout"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_lookout.jpg) right top/175% auto no-repeat,#070a1e}
+#menu[data-loc="cc"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_cc.jpg) right top/175% auto no-repeat,#070a1e}
+#menu[data-loc="kame"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_kame.jpg) right top/175% auto no-repeat,#070a1e}
+@media (prefers-reduced-motion:reduce){.wgo,.wgs,.wbell.has .wsv,.wpin .badge,#mfx .mfc.on .mfi{animation:none}}
+@media (max-height:520px){
+  #menu.ishome{--u:clamp(8.2px,1.28vw,11px)}
+  #menu.ishome .mtop{padding:5px 10px 14px}
+  .wnav .wib span,.wacc span{display:none}.wacc{padding:0;width:calc(var(--u)*2.7)}
+  .wlogo b{font-size:calc(var(--u)*2.4);-webkit-text-stroke:1.5px var(--ink)}.wlogo span{font-size:calc(var(--u)*.85);padding:0 6px}
+  .wpin{width:calc(var(--u)*14.5);min-height:calc(var(--u)*3.9);border-width:2px;padding:0;gap:0}.wpin .wth{width:calc(var(--u)*4.4);border-right-width:2px}
+  .wpin .wk{width:calc(var(--u)*1.75);height:calc(var(--u)*1.75);font-size:calc(var(--u)*1.02)}
+  .wpin b{font-size:calc(var(--u)*1.35)}.wpin em{font-size:calc(var(--u)*.86)}.wpin small{display:none}
+  .wpin .badge{min-width:calc(var(--u)*1.75);height:calc(var(--u)*1.75);font-size:calc(var(--u)*1.05);top:calc(var(--u)*-.7);right:calc(var(--u)*-.7)}
+  .wbot{padding:10px 10px 7px;gap:8px}
+  .wme{padding:3px 6px 3px 3px;border-width:2px}.wpt{width:calc(var(--u)*4.2);height:calc(var(--u)*4.2);border-width:2px}
+  .wmt b{font-size:calc(var(--u)*1.6)}.wmt small{font-size:calc(var(--u)*.8)}.wmt em{font-size:calc(var(--u)*.82)}.wchg{display:none}
+  .wgo{font-size:calc(var(--u)*2.9);padding:calc(var(--u)*.5) calc(var(--u)*2.6) calc(var(--u)*.55) calc(var(--u)*1.8);border-width:3px;gap:8px}
+  .wnot{right:0}
+}
 </style>
 </head>
 <body>
@@ -1782,7 +1918,7 @@ html.hc .card p{color:#fff;font-size:15px}
       x.send();
     });
   };
-  const CODE = ['js/core.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/tuto.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
+  const CODE = ['js/core.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/tuto.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
     'js/versus/input.js', 'js/versus/sim.js', 'js/versus/view.js', 'js/versus/modes.js', 'js/versus/ults.js', 'js/versus/extras.js', 'js/versus/estilo.js', 'js/versus/versus.js'];   // Modo Versus (módulo aparte)
   (async () => {
     LOAD.step('three', 0.1, 'Cargando el motor gráfico…');

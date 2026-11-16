@@ -10,6 +10,17 @@ const NICE_LOW = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'en', 'a',
 const nice = (t) => String(t).toLowerCase().replace(/(^|[\s\-·(«/])(\p{L}[\p{L}']*)/gu, (m, a, w, i) => a + (i > 0 && NICE_LOW.has(w) ? w : w[0].toUpperCase() + w.slice(1)));
 const fmtTime = (s) => { s = Math.floor(s); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
+/* Iconos de la barra del inicio: todos con el mismo trazo, para que no dependan de los emojis de cada sistema */
+const WI = (() => {
+  const p = { trophy: 'M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7', rank: 'M3 20h18M5 20v-6h4v6M10 20V8h4v12M15 20v-9h4v9',
+    stats: 'M4 20V11M10 20V4M16 20v-6M21 20H3', bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4l2-2ZM10 20.5a2 2 0 0 0 4 0', user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0',
+    gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1', star: 'm12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1L3.2 9.4l6.1-.8L12 3Z',
+    power: 'M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0', flame: 'M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 1-3-1-5 1-9Z', swap: 'M4 8h13l-3-3M20 16H7l3 3' };
+  const o = {}; for (const k in p) o[k] = '<svg class="wsv" viewBox="0 0 24 24" aria-hidden="true"><path d="' + p[k] + '"/></svg>';
+  return o;
+})();
+/* Color de cada lugar del mapa (borde de su tarjeta y brillo al pasar por encima) */
+const PLACE_COL = { paoz: '#ff8a1a', altar: '#3fd45e', lookout: '#ffc531', karin: '#6fd0ff', kaio: '#c77dff', cc: '#3d9bff', kame: '#ff6a9a', tenka: '#ff4a5a' };
 /** Matriz 3×3 de daltonización: I + E·(I − S) */
 function accessMatrix(S, E) {
   const D = S.map((v, i) => (i % 4 === 0 ? 1 : 0) - v), M = [];
@@ -24,6 +35,7 @@ class UIManager {
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.map = new WorldMap(this);                    // mapa del mundo del inicio
+    this.mfx = new MenuFx();                          // transiciones al viajar entre lugares
     this.flash = 0; this.fpsAcc = 0; this.fpsN = 0; this.fpsT = 0; this.wKey = ''; this.mmT = 0; this.lastBiome = -1;
     this.tab = 'upgrades'; this.mtab = 'missions'; this.rtab = 'all'; this.otab = 'global'; this.atab = 'login'; this.screen = 'home'; this.view = 'goku'; this.sheets = null; this.game = null; this.toastTimer = 0;
     this.cardHandlers = []; this.cardFocus = 0; this.cardAt = 0; this.hudT = 0; this.optMsg = ''; this.impArmed = false;
@@ -446,6 +458,7 @@ class UIManager {
     const H = this.hdr;
     const KJ = { play: '戦', legend: '龍', shop: '店', missions: '亀', records: '武', summon: '願', stats: '計', options: '設', account: '名', credits: '謝' };
     e.menu.dataset.kj = s === 'home' ? '' : (this.hdr.k || KJ[s] || '気');
+    e.menu.dataset.loc = SCREEN_LOC[s] || '';                         // ilustración del lugar de fondo (assets/menu)
     e.menuNav.innerHTML = s === 'home' ? this.homeBar()
       : '<button class="back" ' + (H.back || 'data-go="home"') + '><i>◀</i>' + (H.back ? 'Volver' : 'Mapa') + '</button><div class="bnr ' + H.c + '"' + (H.st ? ' style="' + H.st + '"' : '') + '><i class="kj">' + (H.k || KJ[s] || '気') + '</i><h3>' + H.t + '</h3>' + (H.s ? '<span>' + H.s + '</span>' : '') + '</div>' + (H.tabs ? '<div class="seg nav">' + H.tabs + '</div>' : '');
     // Retratos: se dibujan después de generar el HTML
@@ -468,12 +481,22 @@ class UIManager {
   charType(c) { const f = c.atkF || 1, k = c.atkK || 1; return f > k + 0.04 ? 'f' : k > f + 0.04 ? 'k' : 'e'; }
   /** Barra superior del inicio (sobre el mapa): logo y accesos rápidos */
   homeBar() {
+    const info = this.homeInfo || {}, pend = PLACES.filter((p) => info[p.id] && info[p.id][1]);
+    const on = this.game && this.game.online, logged = !!(on && on.logged);
     return '<div class="wlogo"><b>DRAGON BALL</b><span>ULTIMATE SURVIVOR</span></div>' +
-      '<div class="wico"><span class="wchip" title="Días seguidos entrando">🔥 ' + Save.d.login.streak + '</span>' +
-      '<button class="wib" data-go="records" title="Récords: tus mejores partidas y el ranking mundial"><i>🏆</i><span>Récords</span></button>' +
-      '<button class="wib" data-go="stats" title="Rastreador: tus estadísticas"><i class="scout"></i><span>Rastreador</span></button>' +
-      '<button class="wib" data-go="account" title="Cuenta"><i>👤</i><span>' + this.accountLabel() + '</span></button>' +
-      '<button class="wib" data-go="options" title="Opciones"><i>⚙</i></button><button class="wib" data-go="credits" title="Créditos"><i>★</i></button><button class="wib" data-exit title="Salir"><i>⏻</i></button></div>';
+      // Progreso: lo que el jugador consulta
+      '<nav class="wnav" aria-label="Tu progreso"><button class="wib" data-go="records" title="Récords: tus mejores partidas">' + WI.trophy + '<span>Récords</span></button>' +
+      '<button class="wib" data-rtab-go="online" title="Ranking mundial">' + WI.rank + '<span>Ranking</span></button>' +
+      '<button class="wib" data-go="stats" title="Rastreador: tus estadísticas">' + WI.stats + '<span>Rastreador</span></button></nav>' +
+      // Sistema: avisos, cuenta y ajustes
+      '<div class="wsys"><button class="wic wbell' + (pend.length ? ' has' : '') + '" data-notif title="Avisos" aria-label="Avisos' + (pend.length ? ': ' + pend.length + ' pendientes' : '') + '">' + WI.bell + (pend.length ? '<b>' + pend.length + '</b>' : '') + '</button>' +
+      '<button class="wacc' + (logged ? ' in' : '') + '" data-go="account" title="Cuenta">' + WI.user + '<span>' + this.accountLabel() + '</span></button>' +
+      '<button class="wic" data-go="options" title="Ajustes" aria-label="Ajustes">' + WI.gear + '</button>' +
+      '<button class="wic sm" data-go="credits" title="Créditos" aria-label="Créditos">' + WI.star + '</button><button class="wic sm" data-exit title="Salir" aria-label="Salir">' + WI.power + '</button></div>' +
+      '<span class="wchip" title="Días seguidos entrando">' + WI.flame + Save.d.login.streak + '</span>' +
+      // Avisos: lo que hay pendiente en cada lugar (tocar uno te lleva allí)
+      '<div class="wnot" role="dialog" aria-label="Avisos"><h4>Avisos</h4>' + (pend.length ? pend.map((p) => '<button data-place="' + p.id + '" style="--pc:' + PLACE_COL[p.id] + '"><i style="background-image:url(assets/menu/th_' + p.id + '.jpg)"></i><span><b>' + p.name + '</b><small>' + info[p.id][0] + '</small></span></button>').join('')
+        : '<p>No hay nada pendiente. Todo al día.</p>') + '</div>';
   }
   /** Fila de clasificación: puesto, retrato, nombre (con etiqueta) y puntuación */
   rankRow(i, c, name, sub, score, me, chip) {
@@ -490,21 +513,27 @@ class UIManager {
     // Lo que se ve en el cartel de cada lugar (dato útil + aviso)
     const info = {
       lookout: [storyDone() + ' / ' + BOOKS.length + ' libros · ★ ' + stars, 0],
-      kaio: ['Prueba técnicas sin presión', 0],
-      karin: [mods[0].icon + ' ' + mods[0].name + (D ? ' · Hoy ' + D.best.toLocaleString('es-ES') : ' · +300'), D ? 0 : '!'],
+      kaio: ['Practica sin presión', 0],
+      karin: [mods[0].icon + ' ' + mods[0].name + (D ? ' · Hoy ' + D.best.toLocaleString('es-ES') : ' · +300'), D ? 0 : '!', D ? 'done' : ''],
       paoz: [own + ' / ' + tot + ' guerreros', 0],
-      kame: [n ? n + ' premio' + (n > 1 ? 's' : '') + ' por cobrar' : 'Encargos del Maestro Roshi', n],
-      cc: ['Mejoras, objetos y técnicas', 0],
-      tenka: [(() => { const v = Save.d.vs || {}; return v.fights ? (v.wins || 0) + ' victorias de ' + v.fights + (v.towerBest ? ' · torre ' + v.towerBest + '/8' : '') : 'Combate, torre y entrenamiento'; })(), 0],
+      kame: [n ? n + ' premio' + (n > 1 ? 's' : '') + ' por cobrar' : 'Encargos de Roshi', n],
+      cc: ['Objetos y técnicas', 0],
+      tenka: [(() => { const v = Save.d.vs || {}; return v.fights ? (v.wins || 0) + ' victorias de ' + v.fights + (v.towerBest ? ' · torre ' + v.towerBest + '/8' : '') : 'CPU, torre y práctica'; })(), 0],
       altar: ['◆ ' + (Save.d.crystals || 0).toLocaleString('es-ES') + ' · cambia en ' + Math.ceil(bannerNow().left / 864e5) + ' d', (Save.d.crystals || 0) >= GACHA_COST10 ? '!' : 0]
     };
-    const pins = PLACES.map((p) => '<button class="wpin" data-place="' + p.id + '"><span class="wk">' + p.kanji + '</span><span class="wtx"><b>' + p.name + '</b><em>' + p.sub + '</em><small>' + info[p.id][0] + '</small></span>' +
-      (info[p.id][1] ? '<span class="badge">' + info[p.id][1] + '</span>' : '') + '</button>').join('');
+    this.homeInfo = info;
+    // Tarjeta de cada lugar: ilustración, kanji, nombre, función y dato del momento. Mismo diseño para todas; cambia el color
+    const pins = PLACES.map((p) => { const I = info[p.id]; return '<button class="wpin' + (I[2] ? ' ' + I[2] : '') + (I[1] ? ' hot' : '') + '" data-place="' + p.id + '" style="--pc:' + PLACE_COL[p.id] + '">' +
+      '<span class="wth" style="background-image:url(assets/menu/th_' + p.id + '.jpg)"><i class="wk">' + p.kanji + '</i></span>' +
+      '<span class="wtx"><b>' + p.name + '</b><em>' + p.sub + '</em><small>' + (I[2] === 'done' ? '<u>✓ Hecho hoy</u> ' : '') + I[0] + '</small></span>' +
+      (I[1] ? '<span class="badge">' + I[1] + '</span>' : '') + '</button>'; }).join('');
     this.el.menuBody.innerHTML = '<div class="wm"><canvas class="wmc"></canvas>' + pins +
       '<div class="wav" aria-hidden="true"><i class="aur"></i>' + this.pic(sel, 84, 84) + '</div>' +
-      '<div class="wbot"><button class="wme" data-go="play"><span class="wpt">' + this.pic(sel, 84, 84) + '</span><span class="wmt"><small>Tu guerrero</small><b>' + nice(sel.name) + '</b><em>' + nice(d.name) + ' · cambiar</em></span></button>' +
-      '<button class="wgo" data-start><span class="dball"></span><b>¡A luchar!</b></button>' +
-      '<p class="whint">Toca un lugar y tu guerrero irá con la <b>Teletransportación</b></p></div></div>';
+      '<div class="wbot"><button class="wme" data-go="play" title="Cambiar de guerrero"><span class="wpt">' + this.pic(sel, 96, 96) + '</span>' +
+      '<span class="wmt"><small>Tu guerrero</small><b>' + nice(sel.name) + '</b><em><u>✓ Seleccionado</u>' + nice(d.name) + '</em></span><span class="wchg">' + WI.swap + 'Cambiar</span></button>' +
+      '<button class="wgo" data-start><i class="wgs" aria-hidden="true"></i><span class="dball"></span><span class="wgt"><b>¡A luchar!</b><small>' + nice(sel.name) + ' · ' + nice(d.name) + '</small></span></button>' +
+      '<p class="whint">Toca un lugar del mapa para viajar hasta él</p></div></div>';
+    if (this.mfx) this.mfx.preload();
   }
 
   /* ---------- Modo Leyenda: biblioteca de libros (sagas) y cada libro con sus capítulos ---------- */

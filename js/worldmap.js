@@ -9,11 +9,11 @@ const PLACES = [
   { id: 'lookout', oy: 84, fx: 0.5, fy: 0.07, name: 'Templo de Kami', sub: 'Modo Leyenda', kanji: '神', act: { go: 'legend' } },
   { id: 'kaio', oy: 66, fx: 0.87, fy: 0.1, name: 'Planeta del Kaio', sub: 'Entrenamiento', kanji: '界', act: { start: 'practice' } },
   { id: 'karin', oy: 30, fx: 0.5, fy: 0.44, name: 'Torre de Karin', sub: 'Desafío del día', kanji: '仙', act: { start: 'daily' } },
-  { id: 'paoz', oy: 66, fx: 0.16, fy: 0.5, name: 'Montaña Paoz', sub: 'Elige guerrero', kanji: '悟', act: { go: 'play' } },
+  { id: 'paoz', oy: 66, fx: 0.16, fy: 0.5, name: 'Montaña Paoz', sub: 'Tus guerreros', kanji: '悟', act: { go: 'play' } },
   { id: 'kame', oy: 40, fx: 0.29, fy: 0.9, name: 'Kame House', sub: 'Misiones y logros', kanji: '亀', act: { go: 'missions' } },
-  { id: 'cc', oy: 54, fx: 0.84, fy: 0.44, name: 'Cápsula Corp.', sub: 'Tienda', kanji: '店', act: { go: 'shop' } },
-  { id: 'altar', oy: 44, fx: 0.17, fy: 0.1, name: 'Altar de Shenron', sub: 'Invocar transformaciones', kanji: '願', act: { go: 'summon' } },
-  { id: 'tenka', oy: 50, fx: 0.72, fy: 0.8, name: 'Torneo', sub: 'Versus · 1 contra 1', kanji: '武', act: { versus: 1 } }
+  { id: 'cc', oy: 54, fx: 0.84, fy: 0.44, name: 'Cápsula Corp.', sub: 'Tienda y mejoras', kanji: '店', act: { go: 'shop' } },
+  { id: 'altar', oy: 44, fx: 0.17, fy: 0.1, name: 'Altar de Shenron', sub: 'Invocaciones', kanji: '願', act: { go: 'summon' } },
+  { id: 'tenka', oy: 50, fx: 0.72, fy: 0.8, name: 'Torneo', sub: 'Combate 1 contra 1', kanji: '武', act: { versus: 1 } }
 ];
 const placeById = (id) => PLACES.find((p) => p.id === id);
 
@@ -47,7 +47,7 @@ class WorldMap {
   layout() {
     const W = this.root.clientWidth || innerWidth, H = this.root.clientHeight || innerHeight, small = H < 520;
     this.W = W; this.H = H; this.dpr = Math.min(2, window.devicePixelRatio || 1) * (small ? 1 : 1);
-    this.top = small ? 50 : 76; this.bot = small ? 70 : 104;
+    this.top = small ? 50 : Math.round(H * 0.085); this.bot = small ? 100 : Math.round(H * 0.15);   // hueco de la barra de arriba y de la de abajo
     this.k = Math.min(W / 1500, H / 820);                              // escala de los dibujos
     const uh = H - this.top - this.bot;
     this.pos = {};
@@ -75,19 +75,13 @@ class WorldMap {
    */
   travel(id, cb) {
     if (this.busy || !this.root) return;
-    const av = this.root.querySelector('.wav'), from = this.at();
-    if (!av) { if (cb) cb(); return; }
     this.busy = true;
     if (typeof SFX !== 'undefined') SFX.play('tp');
-    const done = () => { this.busy = false; Save.d.mapAt = id; Save.write(); if (cb) cb(); };
-    if (from === id) { av.classList.add('it-pulse'); setTimeout(() => { av.classList.remove('it-pulse'); done(); }, 260); return; }
-    av.classList.add('it-out');
-    this.streak(this.pos[from]);
-    setTimeout(() => {
-      this.placeAvatar(id); this.streak(this.pos[id]);
-      av.classList.remove('it-out'); av.classList.add('it-in');
-      setTimeout(() => { av.classList.remove('it-in'); done(); }, 230);
-    }, 190);
+    this.streak(this.pos[this.at()]);
+    Save.d.mapAt = id; Save.write(); this.placeAvatar(id);
+    // La transición tapa la pantalla; en ese momento se abre el destino
+    const go = () => { this.busy = false; if (cb) cb(); };
+    if (this.ui.mfx) this.ui.mfx.play(id, go, !!placeById(id).act.start); else go();
   }
   /** Rayo vertical de luz donde se va o se llega */
   streak(P) {

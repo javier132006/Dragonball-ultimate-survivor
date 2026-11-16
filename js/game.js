@@ -261,10 +261,11 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-bind],[data-bindreset],[data-cb],[data-hc],[data-chtg],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-versus]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-notif],[data-bind],[data-bindreset],[data-cb],[data-hc],[data-chtg],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-versus]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
+      if (D.notif !== undefined) { const n = ui.el.menu.querySelector('.wnot'); if (n) n.classList.toggle('on'); return; }
       if (D.place) {                                                  // mapa: viaja con la Teletransportación y luego entra
         const P = placeById(D.place);
         ui.map.travel(D.place, () => { if (P.act.versus) this.versus.open(); else if (P.act.go) this.go(P.act.go); else { this.saga = null; this.startLoad(P.act.start === 'practice', P.act.start === 'daily'); } });
@@ -313,6 +314,8 @@ class Game {
       else if (D.imp !== undefined) this.importSave();
       else if (D.impfile !== undefined) { const f = document.getElementById('impFile'); if (f) f.click(); }
     });
+    // Los avisos se cierran al tocar fuera
+    ui.el.menu.addEventListener('pointerdown', (e) => { if (!e.target.closest('[data-notif],.wnot')) { const n = ui.el.menu.querySelector('.wnot.on'); if (n) n.classList.remove('on'); } }, true);
     // Formulario de cuenta: entrar o crear cuenta
     ui.el.menu.addEventListener('submit', (e) => {
       const f = e.target.closest('[data-acct-form]');
