@@ -12,9 +12,10 @@
    cada ficha es una hoja de sprites + su mapa de animaciones.
    ===================================================================== */
 /* La hoja de estilos (VS_CSS) está en versus/estilo.js */
-const VS_HINT = '<b>WASD</b> mover · <b>Espacio/Mayús</b> subir/bajar · <b>J</b> golpe · <b>K</b> fuerte · <b>L</b> ki · <b>U</b> guardia · <b>I</b> dash · <b>O</b> teletransporte · <b>H</b> cargar · <b>Y</b> Ultimate · <b>T</b> transformarse · <b>Esc</b> pausa';
-const VS_KEYS_HTML = '<h4>JUGADOR 1 · TECLADO</h4><b>WASD</b> mover · <b>Espacio</b>/<b>Mayús izq.</b> subir y bajar<br><b>J</b> golpe (4 seguidos + otra vez = <b>ráfaga</b>) · <b>K</b> golpe fuerte · <b>L</b> ki (mantener = <b>cargado</b>)<br><b>U</b> guardia · <b>I</b> dash · <b>O</b> teletransporte<br><b>H</b> cargar ki · <b>Y</b> Ultimate · <b>T</b> transformarse' +
-  '<h4>JUGADOR 2 · TECLADO</h4><b>Flechas</b> mover · <b>Mayús der.</b>/<b>Ctrl der.</b> subir y bajar<br>Numérico: <b>1</b> golpe · <b>2</b> fuerte · <b>3</b> ki · <b>4</b> guardia · <b>5</b> dash · <b>6</b> teletransporte · <b>0</b> cargar · <b>Intro</b> Ultimate · <b>+</b> transformarse' +
+/** Ayuda de teclas en combate y pestaña Controles: salen de las teclas que tenga puestas cada jugador */
+const vsK = (p, a) => '<b>' + vsKeyName(VS_KEYS[p][a]) + '</b>';
+const vsHint = () => { const k = (a) => vsK(0, a); return ['f', 'l', 'k', 'r'].map((a) => vsKeyName(VS_KEYS[0][a])).join('').replace(/^(.*)$/, '<b>$1</b>') + ' mover · ' + k('UP') + '/' + k('DOWN') + ' subir/bajar · ' + k('ATK') + ' golpe · ' + k('HEAVY') + ' fuerte · ' + k('KI') + ' ki · ' + k('GUARD') + ' guardia · ' + k('DASH') + ' dash · ' + k('TP') + ' teletransporte · ' + k('CHARGE') + ' cargar · ' + k('ULT') + ' Ultimate · ' + k('TRANS') + ' transformarse · <b>Esc</b> pausa'; };
+const VS_KEYS_TIPS = '' +
   '<h4>MANDO</h4><b>X</b> golpe · <b>Y</b> fuerte · <b>B</b> ki · <b>A</b> dash · <b>LB</b> guardia · <b>RB</b> teletransporte · <b>LT</b> cargar · <b>RT</b> Ultimate · <b>pulsar un stick</b> transformarse · cruceta ↑↓ subir/bajar<br>El primer mando es del jugador 1; el segundo, del jugador 2.' +
   '<h4>COMBO</h4>Cada pulsación de <b>golpe</b> es un golpe. Si conectas los 4, pulsa una vez más: sale sola una <b>ráfaga</b> de golpes rápidos que manda al rival volando. Tras cualquier golpe puedes cortar con el <b>golpe fuerte</b>.' +
   '<h4>TÉCNICAS</h4><b>Agarre</b>: guardia + golpe. Rompe la guardia; si te agarran, pulsa golpe al instante para soltarte. <b>Gancho</b>: golpe fuerte con «subir» pulsado; levanta al rival para seguir pegándole en el aire, y un golpe fuerte en el aire lo <b>estrella</b> contra el suelo. <b>Esquiva perfecta</b>: haz dash justo cuando llega el golpe y tu siguiente ataque aparece a su espalda y pega más. <b>Ki cargado</b>: mantén el botón de ki. Los disparos de los dos <b>chocan</b> entre sí: gana el más fuerte.' +
@@ -91,7 +92,7 @@ class Versus {
     const side = (c) => '<div class="side ' + c + '"><canvas class="pt" width="74" height="74"></canvas><div class="inf"><div class="nm"><span></span><small></small></div><div class="hp"><i class="g"></i><i class="v"></i></div>' +
       '<div class="row"><b class="kj">気</b><div class="ki"><i></i></div><div class="gd"><i></i></div><div class="pips"></div></div><div class="row"><div class="tr"><i></i></div><span class="trl"></span></div></div></div>';
     el.innerHTML = '<div class="bars"><i></i><i></i></div><div class="top">' + side('l') + '<div class="clock"><small>RONDA 1</small><span>99</span></div>' + side('r') + '</div>' +
-      '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="vq"><b></b><span></span></div><div class="ult"><b></b></div><div class="hint">' + VS_HINT + '</div><div class="trn"></div>' +
+      '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="vq"><b></b><span></span></div><div class="ult"><b></b></div><div class="hint">' + vsHint() + '</div><div class="trn"></div>' +
       '<div class="pnl pause"><div class="box"><h2>PAUSA</h2><p>Modo Versus</p><button class="go" data-v="resume">Seguir</button><button data-v="reselect">Cambiar luchadores</button><button data-v="exit">Salir al menú</button></div></div>' +
       '<div class="pnl end"><div class="box"></div></div>' +
       '<div class="sel"></div>';
@@ -114,6 +115,7 @@ class Versus {
   roster() { return CHARACTERS.filter((c) => !c.soon && Save.d.unlocked.includes(c.id) && c.forms && c.forms.length && SPRITE_DATA[c.forms[0].sheet]); }
   open() {
     const g = this.g; if (this.active) return;
+    VsBinds.load(); this.refreshHint();
     this.active = true; this.prevState = g.state; g.state = 'versus'; g.releaseMouse && g.releaseMouse();
     g.ui.el.menu.style.display = 'none'; g.ui.el.hud.style.display = 'none';
     this.el.classList.add('on'); const R = this.roster(), c = this.cfg;
@@ -148,7 +150,7 @@ class Versus {
       panel(0) +
       '<div class="mid"><div class="tabs">' + [['grid', 'Luchadores'], ['keys', 'Controles'], ['stats', 'Historial']].map(([v, t]) => '<button data-v="tab" data-a="' + v + '"' + (tab === v ? ' class="on"' : '') + '>' + t + '</button>').join('') +
         (tab === 'grid' ? '<span>Eliges para ' + (c.side ? (c.mode === 'cpu' ? 'la CPU' : trn ? 'el rival de práctica' : 'el jugador 2') : 'el jugador 1') + '</span>' : '') + '</div>' +
-        '<div class="pane">' + (tab === 'keys' ? '<div class="keys">' + VS_KEYS_HTML + '</div>' : tab === 'stats' ? VsStats.html(c.pick[0].id) : grid) + '</div>' +
+        '<div class="pane">' + (tab === 'keys' ? this.keysPane() : tab === 'stats' ? VsStats.html(c.pick[0].id) : grid) + '</div>' +
         '<div class="opts">' + (c.mode === 'cpu' || lad ? opt('Dificultad', seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']])) : '') +
           (trn ? opt('El rival', seg('dummy', Object.keys(VS_DUMMY).map((k) => [k, VS_DUMMY[k]]))) + opt('Ayudas', '<div class="vseg">' + seg('tki', [['1', 'Ki infinito'], ['0', 'Ki normal']]).slice(18, -6) + seg('ttm', [['1', 'Barra de transformación llena'], ['0', 'Barra normal']]).slice(18, -6) + '</div>') : '') +
           (lad ? '' : opt('Arena', seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', 'Al azar']])))) + (trn ? '' : opt('Rondas para ganar', seg('rounds', [[1, '1'], [2, '2'], [3, '3']]))) + '</div>' +
@@ -171,6 +173,8 @@ class Versus {
     else if (v === 'char') { c.pick[c.side] = { id: a, f: 0 }; SFX.play('ki'); const pane = this.ui.sel.querySelector('.pane'), top = pane ? pane.scrollTop : 0; this.renderSelect(); const p2 = this.ui.sel.querySelector('.pane'); if (p2) p2.scrollTop = top; }   // sin perder el punto de la lista
     else if (v === 'form') { const [i, n] = a.split(':'); c.side = +i; c.pick[c.side].f = +n; this.renderSelect(); }
     else if (v === 'tab') { c.tab = a; this.renderSelect(); }
+    else if (v === 'bind') this.startBind(+a[0], a.slice(2));
+    else if (v === 'bindreset') { VsBinds.reset(); Save.write(); this.refreshHint(); this.renderSelect(); }
     else if (v === 'fight') { if (c.mode === 'ladder') { this.tw = VS_TOWER.build(this.roster(), c.pick[0].id, VS_TOWER.levels[c.level] ? c.level : 'normal'); VsStats.d().towerRuns++; } this.start(); }
     else if (v === 'rematch') this.start();
     else if (v === 'next' && this.tw) { this.tw.i++; this.start(); }                    // Torre: siguiente rival
@@ -190,6 +194,7 @@ class Versus {
     else if (v === 'exit') this.close();
   }
   close() {
+    if (this.bindOff) this.bindOff();
     const g = this.g; this.clearFight(); this.sim = null; this.active = false; this.el.classList.remove('on', 'cine'); this.ui.sel.classList.remove('on');
     g.ui.el.menu.style.display = ''; g.ui.el.hud.style.display = ''; g.toMenu();
   }
@@ -593,6 +598,32 @@ class Versus {
     setTimeout(() => { if (this.sim && this.sim.phase === 'end') this.ui.end.classList.add('on'); }, 1500); SFX.music('menu'); SFX.play('stinger');
   }
 
+  /** Pestaña Controles: teclas de los dos jugadores (se pueden cambiar) y la guía de mecánicas */
+  keysPane() {
+    const w = this.bindWait, col = (p) => '<div class="kcol p' + (p + 1) + '"><h4>JUGADOR ' + (p + 1) + ' · TECLADO</h4><div class="kg">' +
+      VS_ACTS.map(([a, t]) => { const on = w && w.p === p && w.a === a; return '<button class="kb' + (on ? ' on' : '') + '" data-v="bind" data-a="' + p + ':' + a + '"><span>' + t + '</span><kbd>' + (on ? '…' : vsKeyName(VS_KEYS[p][a])) + '</kbd></button>'; }).join('') + '</div></div>';
+    return '<div class="keys"><p class="kmsg">' + (w ? 'Pulsa la tecla nueva. <b>Esc</b> para cancelar.' : 'Toca una acción y pulsa la tecla que quieras. Si ya la usaba otra acción, se intercambian.') + (this.bindMsg ? ' <b>' + this.bindMsg + '</b>' : '') + '</p>' +
+      '<div class="kcols">' + col(0) + col(1) + '</div><div class="vseg"><button data-v="bindreset"' + (VsBinds.changed() ? '' : ' disabled') + '>Restablecer teclas</button></div>' + VS_KEYS_TIPS + '</div>';
+  }
+  /** Espera la siguiente tecla y la asigna (Esc cancela). La pulsación no llega al resto del juego */
+  startBind(p, a) {
+    if (this.bindOff) this.bindOff();
+    this.bindWait = { p, a }; this.bindMsg = '';
+    const paint = () => { const q = () => this.ui.sel.querySelector('.pane'), y = q() ? q().scrollTop : 0; this.renderSelect(); if (q()) q().scrollTop = y; };
+    const on = (e) => {
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (e.code !== 'Escape') {
+        if (!VsBinds.ok(e.code)) { this.bindMsg = 'Esa tecla no se puede usar.'; paint(); return; }
+        VsBinds.set(p, a, e.code); Save.write(); this.refreshHint();
+      }
+      this.bindOff();
+    };
+    this.bindOff = () => { window.removeEventListener('keydown', on, true); this.bindOff = null; this.bindWait = null; this.bindMsg = ''; if (this.active && !this.sim) paint(); };
+    window.addEventListener('keydown', on, true);
+    paint();
+  }
+  /** Actualiza la línea de teclas que se ve durante el combate */
+  refreshHint() { const h = this.el.querySelector('.hint'); if (h) h.innerHTML = vsHint(); }
   /** Panel del entrenamiento: último combo, récord de la sesión y ajustes (también con las teclas 1-4 y R) */
   renderTrn(onlyNums) {
     const t = this.trn, c = this.cfg, el = this.ui.trn; if (!t) return;
@@ -795,7 +826,7 @@ class Versus {
       h.trI.style.transform = 'scaleX(' + (f.fi >= f.chain.length - 1 ? 1 : f.tm / 100).toFixed(3) + ')';
       { const can = f.fi >= f.chain.length - 1 ? 2 : f.canTrans ? 1 : 0;
         if (can !== h.can) { h.can = can; h.tr.classList.toggle('full', can === 1); h.tr.classList.toggle('max', can === 2);
-          h.trl.innerHTML = can === 2 ? (f.chain.length > 1 ? 'FORMA MÁXIMA' : '') : can === 1 ? (i && this.p2cpu ? '¡LISTA!' : '¡TRANSFÓRMATE!<kbd>' + (i ? '+' : 'T') + '</kbd>') : '';
+          h.trl.innerHTML = can === 2 ? (f.chain.length > 1 ? 'FORMA MÁXIMA' : '') : can === 1 ? (i && this.p2cpu ? '¡LISTA!' : '¡TRANSFÓRMATE!<kbd>' + vsKeyName(VS_KEYS[i].TRANS) + '</kbd>') : '';
           if (can === 1) { SFX.play('ki'); fx.add(1, x, y + 1.6, z, 1, 0xffd75a, { s1: 9, life: 0.4, a: 0.9 }); } } }
       if (h.wins !== f.wins) { h.wins = f.wins; [...h.pips.children].forEach((b, n) => b.classList.toggle('w', n < f.wins)); }
       const c = this.ui.cmb[i]; if (c.t > 0 && (c.t -= rawDt) <= 0) c.classList.remove('on');

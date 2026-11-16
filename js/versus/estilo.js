@@ -135,7 +135,27 @@ const VS_CSS = `
 #vs .opts{display:grid;grid-template-columns:auto 1fr;gap:7px 12px;align-items:center;padding:0 4px}#vs .opts>span{font:700 13px var(--body);color:var(--t2);white-space:nowrap}
 #vs .fight{margin:2px auto 4px;width:min(100%,460px);padding:8px 18px 4px;font-size:clamp(28px,3.6vw,40px)}
 #vs .vst{display:grid;grid-template-columns:1fr;gap:2px;font:600 13px var(--body)}#vs .vst div{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed rgba(255,255,255,.14)}#vs .vst span{color:var(--t2)}#vs .vst b{color:var(--gold)}
-#vs .keys{font:600 13px/1.65 var(--body);color:var(--t2);max-width:76ch}#vs .keys b{color:#fff}#vs .keys h4{margin:14px 0 2px;font:400 18px var(--mg);letter-spacing:.05em;color:var(--gold)}#vs .keys h4:first-child{margin-top:0}
+#vs .keys{font:600 13px/1.65 var(--body);color:var(--t2);max-width:76ch}
+#vs .keys .kmsg{margin:0 0 8px;color:#fff}#vs .keys .kmsg b{color:var(--gold)}
+#vs .kcols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#vs .kcol h4{margin-top:0}#vs .kcol.p1 h4{color:var(--p1)}#vs .kcol.p2 h4{color:var(--p2)}
+#vs .kg{display:grid;gap:4px}
+#vs .kb{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 5px 3px 10px;font:700 13px var(--body);color:#fff;text-align:left;background:rgba(8,12,30,.85);border:2px solid var(--ink);border-radius:5px;cursor:pointer}
+#vs .kb:hover{background:#1a2350}
+#vs .kb kbd{min-width:34px;padding:3px 7px 1px;font:400 14px/1.1 var(--mg);letter-spacing:.03em;text-align:center;color:var(--ink);background:#fff;border-radius:4px;border-bottom:2px solid #9aa3bd}
+#vs .kb.on{background:var(--gold);color:var(--ink)}
+#vs .kb:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+#vs .keys .vseg{margin:10px 0 4px}#vs .keys .vseg button:disabled{opacity:.45;cursor:default}
+@media (max-width:900px){#vs .kcols{grid-template-columns:1fr}}
+/* ---------- Contraste alto (Opciones): fondos opacos, bordes blancos y letra más grande en el combate ---------- */
+html.hc #vs .hp,html.hc #vs .ki,html.hc #vs .gd,html.hc #vs .tr{outline:2px solid #fff;background-color:#000}
+html.hc #vs .nm{background:#000;outline:2px solid #fff;padding:1px 8px;font-size:1.18em}
+html.hc #vs .hint{background:#000;color:#fff;font-size:14px;opacity:1;padding:6px 12px;outline:2px solid #fff}
+html.hc #vs .clock{background:#000;outline:2px solid #fff}
+html.hc #vs .psv,html.hc #vs .trl,html.hc #vs .trn{background:#000;color:#fff}
+html.hc #vs .tag,html.hc #vs .cmb small{text-shadow:0 0 0 #000,2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000}
+html.hc #vs .keys,html.hc #vs .box p{color:#fff;font-size:14px}
+#vs .keys b{color:#fff}#vs .keys h4{margin:14px 0 2px;font:400 18px var(--mg);letter-spacing:.05em;color:var(--gold)}#vs .keys h4:first-child{margin-top:0}
 /* Entrenamiento */
 #vs .trn{position:absolute;left:18px;bottom:44px;display:none;pointer-events:auto;background:rgba(17,18,28,.86);border:3px solid var(--ink);box-shadow:0 0 0 2px rgba(255,255,255,.35);padding:8px 12px;font:600 12.5px/1.5 var(--body);max-width:350px}#vs .trn.on{display:block}#vs.cine .trn{opacity:0}#vs.touch .trn{bottom:auto;top:112px}
 #vs .trn b{color:var(--gold)}#vs .trn .vseg{margin-top:6px}#vs .trn .vseg button{padding:3px 9px 2px;font-size:12px}#vs .trn kbd{font:inherit;color:var(--ink);background:#fff;border-radius:3px;padding:0 4px;margin-right:4px}

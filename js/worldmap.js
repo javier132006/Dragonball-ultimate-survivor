@@ -13,7 +13,7 @@ const PLACES = [
   { id: 'kame', oy: 40, fx: 0.29, fy: 0.9, name: 'Kame House', sub: 'Misiones y logros', kanji: '亀', act: { go: 'missions' } },
   { id: 'cc', oy: 54, fx: 0.84, fy: 0.44, name: 'Cápsula Corp.', sub: 'Tienda', kanji: '店', act: { go: 'shop' } },
   { id: 'altar', oy: 44, fx: 0.17, fy: 0.1, name: 'Altar de Shenron', sub: 'Invocar transformaciones', kanji: '願', act: { go: 'summon' } },
-  { id: 'tenka', oy: 50, fx: 0.72, fy: 0.8, name: 'Torneo', sub: 'Récords', kanji: '武', act: { go: 'records' } }
+  { id: 'tenka', oy: 50, fx: 0.72, fy: 0.8, name: 'Torneo', sub: 'Versus · 1 contra 1', kanji: '武', act: { versus: 1 } }
 ];
 const placeById = (id) => PLACES.find((p) => p.id === id);
 

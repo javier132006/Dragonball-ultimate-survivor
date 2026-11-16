@@ -13,11 +13,37 @@ const VB = { ATK: 1, HEAVY: 2, KI: 4, GUARD: 8, DASH: 16, TP: 32, CHARGE: 64, UL
 const VS_Q = (v) => Math.round(Math.max(-1, Math.min(1, v)) * 4) / 4;      // ejes en pasos de 1/4: una orden cabe en 2 bytes
 
 /* Teclas por defecto. Jugador 1: mano izquierda mueve, mano derecha pega. Jugador 2: flechas + teclado numérico */
-const VS_KEYS = [
+const VS_KEYS_DEF = [
   { l: 'KeyA', r: 'KeyD', f: 'KeyW', k: 'KeyS', UP: 'Space', DOWN: 'ShiftLeft', ATK: 'KeyJ', HEAVY: 'KeyK', KI: 'KeyL', GUARD: 'KeyU', DASH: 'KeyI', TP: 'KeyO', CHARGE: 'KeyH', ULT: 'KeyY', TRANS: 'KeyT' },
   { l: 'ArrowLeft', r: 'ArrowRight', f: 'ArrowUp', k: 'ArrowDown', UP: 'ShiftRight', DOWN: 'ControlRight', ATK: 'Numpad1', HEAVY: 'Numpad2', KI: 'Numpad3', GUARD: 'Numpad4', DASH: 'Numpad5', TP: 'Numpad6',
     CHARGE: 'Numpad0', ULT: 'NumpadEnter', TRANS: 'NumpadAdd' }
 ];
+/* Teclas en uso: las de por defecto más lo que el jugador haya cambiado (se guarda en Save.d.opt.vsKeys).
+   Los objetos no se sustituyen nunca, solo se rellenan: así los VsKeyboard ya creados siguen valiendo. */
+const VS_KEYS = [Object.assign({}, VS_KEYS_DEF[0]), Object.assign({}, VS_KEYS_DEF[1])];
+const VS_ACTS = [['l', 'Izquierda'], ['r', 'Derecha'], ['f', 'Hacia el fondo'], ['k', 'Hacia la cámara'], ['UP', 'Subir'], ['DOWN', 'Bajar'], ['ATK', 'Golpe'], ['HEAVY', 'Golpe fuerte'], ['KI', 'Ki'],
+  ['GUARD', 'Guardia'], ['DASH', 'Dash'], ['TP', 'Teletransporte'], ['CHARGE', 'Cargar ki'], ['ULT', 'Ultimate'], ['TRANS', 'Transformarse']];
+const VS_KEY_NAMES = { ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', NumpadEnter: 'NUM INTRO', NumpadAdd: 'NUM +', NumpadSubtract: 'NUM -', NumpadMultiply: 'NUM *', NumpadDivide: 'NUM /', NumpadDecimal: 'NUM .' };
+const vsKeyName = (c) => VS_KEY_NAMES[c] || keyName(c);
+const VsBinds = {
+  store() { const o = Save.d.opt; if (!Array.isArray(o.vsKeys)) o.vsKeys = [{}, {}]; return o.vsKeys; },
+  /** Aplica lo guardado sobre las teclas por defecto (se llama al abrir el Versus y tras cada cambio) */
+  load() {
+    const st = this.store();
+    for (let p = 0; p < 2; p++) { Object.assign(VS_KEYS[p], VS_KEYS_DEF[p]); for (const a in st[p] || {}) if (a in VS_KEYS_DEF[p] && typeof st[p][a] === 'string') VS_KEYS[p][a] = st[p][a]; }
+  },
+  /** No se pueden asignar: las del menú del Versus (Esc, Intro, Tab) y las del navegador */
+  ok(code) { return !/^(Escape|Tab|Enter$|F\d|Meta|ContextMenu|PrintScreen|OS)/.test(code); },
+  /** Asigna la tecla. Si ya la usaba otra acción (de cualquiera de los dos jugadores), se intercambian */
+  set(p, act, code) {
+    const st = this.store(), old = VS_KEYS[p][act];
+    for (let q = 0; q < 2; q++) for (const a in VS_KEYS[q]) if (VS_KEYS[q][a] === code && !(q === p && a === act)) VS_KEYS[q][a] = old;
+    VS_KEYS[p][act] = code;
+    for (let q = 0; q < 2; q++) { st[q] = {}; for (const a in VS_KEYS[q]) if (VS_KEYS[q][a] !== VS_KEYS_DEF[q][a]) st[q][a] = VS_KEYS[q][a]; }
+  },
+  reset() { const st = this.store(); st[0] = {}; st[1] = {}; this.load(); },
+  changed() { const st = this.store(); return Object.keys(st[0] || {}).length + Object.keys(st[1] || {}).length > 0; }
+};
 /* Mando estándar: X golpe · Y fuerte · B ki · A dash · LB guardia · RB teletransporte · LT cargar · RT Ultimate · cruceta ↑↓ subir/bajar · pulsar un stick transformarse */
 const VS_PAD = { ATK: 2, HEAVY: 3, KI: 1, DASH: 0, GUARD: 4, TP: 5, CHARGE: 6, ULT: 7, UP: 12, DOWN: 13, TRANS: 11 };
 const VS_BTNS = ['ATK', 'HEAVY', 'KI', 'GUARD', 'DASH', 'TP', 'CHARGE', 'ULT', 'UP', 'DOWN', 'TRANS'];
@@ -31,7 +57,14 @@ class VsKeyboard {
   constructor(map) { this.map = map; }
   read() {
     const m = this.map, now = performance.now(); let b = 0;
-    for (const k of VS_BTNS) { const c = m[k]; if (keys[c] || now - VS_TAPS[c] < 200) b |= VB[k]; if (VS_TAPS[c]) VS_TAPS[c] = 0; }
+    const tg = !!Save.d.opt.chargeToggle;                           // «cargar ki con un toque»: la tecla alterna la carga
+    for (const k of VS_BTNS) {
+      const c = m[k];
+      if (tg && k === 'CHARGE') { if (VS_TAPS[c]) { this.latch = !this.latch; VS_TAPS[c] = 0; } continue; }
+      if (keys[c] || now - VS_TAPS[c] < 200) b |= VB[k]; if (VS_TAPS[c]) VS_TAPS[c] = 0;
+    }
+    if (tg) { if (b) this.latch = false; else if (this.latch) b |= VB.CHARGE; }   // cualquier otra acción suelta la carga
+    else this.latch = false;
     return { mx: (keys[m.r] ? 1 : 0) - (keys[m.l] ? 1 : 0), mz: (keys[m.f] ? 1 : 0) - (keys[m.k] ? 1 : 0), b };
   }
 }

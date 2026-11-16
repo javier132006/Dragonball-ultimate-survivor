@@ -470,7 +470,7 @@ class UIManager {
   homeBar() {
     return '<div class="wlogo"><b>DRAGON BALL</b><span>ULTIMATE SURVIVOR</span></div>' +
       '<div class="wico"><span class="wchip" title="Días seguidos entrando">🔥 ' + Save.d.login.streak + '</span>' +
-      '<button class="wib" data-versus title="Modo Versus: combate 1 contra 1"><i>⚔</i><span>Versus</span></button>' +
+      '<button class="wib" data-go="records" title="Récords: tus mejores partidas y el ranking mundial"><i>🏆</i><span>Récords</span></button>' +
       '<button class="wib" data-go="stats" title="Rastreador: tus estadísticas"><i class="scout"></i><span>Rastreador</span></button>' +
       '<button class="wib" data-go="account" title="Cuenta"><i>👤</i><span>' + this.accountLabel() + '</span></button>' +
       '<button class="wib" data-go="options" title="Opciones"><i>⚙</i></button><button class="wib" data-go="credits" title="Créditos"><i>★</i></button><button class="wib" data-exit title="Salir"><i>⏻</i></button></div>';
@@ -495,7 +495,7 @@ class UIManager {
       paoz: [own + ' / ' + tot + ' guerreros', 0],
       kame: [n ? n + ' premio' + (n > 1 ? 's' : '') + ' por cobrar' : 'Encargos del Maestro Roshi', n],
       cc: ['Mejoras, objetos y técnicas', 0],
-      tenka: [rank.length ? 'Récord: ' + rank[0].score.toLocaleString('es-ES') : 'Aún sin marcas', 0],
+      tenka: [(() => { const v = Save.d.vs || {}; return v.fights ? (v.wins || 0) + ' victorias de ' + v.fights + (v.towerBest ? ' · torre ' + v.towerBest + '/8' : '') : 'Combate, torre y entrenamiento'; })(), 0],
       altar: ['◆ ' + (Save.d.crystals || 0).toLocaleString('es-ES') + ' · cambia en ' + Math.ceil(bannerNow().left / 864e5) + ' d', (Save.d.crystals || 0) >= GACHA_COST10 ? '!' : 0]
     };
     const pins = PLACES.map((p) => '<button class="wpin" data-place="' + p.id + '"><span class="wk">' + p.kanji + '</span><span class="wtx"><b>' + p.name + '</b><em>' + p.sub + '</em><small>' + info[p.id][0] + '</small></span>' +

@@ -267,7 +267,7 @@ class Game {
       const D = t.dataset;
       if (D.place) {                                                  // mapa: viaja con la Teletransportación y luego entra
         const P = placeById(D.place);
-        ui.map.travel(D.place, () => { if (P.act.go) this.go(P.act.go); else { this.saga = null; this.startLoad(P.act.start === 'practice', P.act.start === 'daily'); } });
+        ui.map.travel(D.place, () => { if (P.act.versus) this.versus.open(); else if (P.act.go) this.go(P.act.go); else { this.saga = null; this.startLoad(P.act.start === 'practice', P.act.start === 'daily'); } });
       }
       else if (D.go) { this.go(D.go); if (D.wk !== undefined) { ui.mtab = 'weekly'; ui.renderMenu(); } }
       else if (D.tab) { ui.tab = D.tab; ui.renderMenu(); }
