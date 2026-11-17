@@ -234,24 +234,10 @@ const ULT_CINE = {
   zamasu: { quote: 'Vuestra existencia no tiene sentido.', kanji: 'ザマス', col: '#a890ff', orb: { name: 'darkRing', at: 'ring1', s: [2, 6], tint: 0xc8b8ff }, gather: 0xa890ff, imp: 'BICB' },
 };
 const ULT_CINE_T = { zoom: 0.25, charge: 1.25, strike: 0.35, hold: 0.2 };   // duración de cada parte (s)
-/* Corte a pantalla completa con la hoja de la técnica (cutfx.js), recoloreada con el color del personaje.
-   from = primer fotograma · peak = fotograma del destello: al acabarlo se dispara la Ultimate y los
-   fotogramas que quedan (humo y chispas) se ven encima de la partida · flip = espejo si mira a la izquierda */
-const CUT_PLAY = {
-  beam:   { from: 0, peak: 10, flip: true },
-  bolt:   { from: 0, peak: 10, flip: true },
-  sphere: { from: 0, peak: 12 },
-  blast:  { from: 0, peak: 11 },
-  clash:  { from: 4, peak: 11 }         // (la primera fila son dos energías que chocan: esa es para las fusiones)
-};
-const CUT_FT = 0.06, CUT_TAIL_FT = 0.085, CUT_STRIKE = 0.14;   // segundos por fotograma (corte y cola) e impact frames antes del corte
-const ULT_CUT_OF = { trunks: 'bolt', kefla: 'bolt', caulifla: 'bolt', broly: 'sphere', bills: 'blast', superbuu: 'blast' };
-/** Qué hoja usa cada Ultimate: rayo si la carga va en las manos, esfera si va sobre la cabeza, choque para los discos y explosión para el resto */
-const ultCutOf = (id) => { const R = ULT_CINE[id], O = R && R.orb; return !O ? null : R.cut || ULT_CUT_OF[id] || (O.name === 'disc' ? 'clash' : O.at === 'hands' ? 'beam' : O.at === 'head' ? 'sphere' : 'blast'); };
 
 class UltCine {
   constructor(game) {
-    this.g = game; this.on = false; this.t = 0; this.tail = -1;
+    this.g = game; this.on = false; this.t = 0;
     const c = this.cv = document.createElement('canvas');
     c.id = 'ultCine';
     c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:22;display:none;pointer-events:none';
@@ -259,17 +245,10 @@ class UltCine {
     this.ctx = c.getContext ? c.getContext('2d') : null;
   }
   has(id) { return !!ULT_CINE[id] && !!this.ctx; }
-  /** Recolorea de antemano la hoja de la Ultimate de `id` (sin tirón cuando se usa) */
-  warm(id) { const k = ultCutOf(id); if (k && typeof CutFx !== 'undefined') CutFx.warm(k, ULT_CINE[id].col); }
   start(id, name, done) {
     const g = this.g;
-    this.R = ULT_CINE[id]; this.S = { col: this.R.col }; this.name = name; this.done = done; this.t = 0; this.on = true; this.lastImp = ''; this.gq = -1; this.tail = -1;
-    const T = ULT_CINE_T, k = ultCutOf(id);
-    // Con la hoja cargada: impact frames cortos + corte a pantalla completa hasta el destello
-    this.cut = k && typeof CutFx !== 'undefined' && CutFx.sheet(k, this.R.col) ? Object.assign({ k }, CUT_PLAY[k]) : null;
-    if (this.cut) { this.cut.flipX = this.cut.flip && this.g.player.flip; this.cut.d = (this.cut.peak + 1 - this.cut.from) * CUT_FT; this.cut.f = -1; }
-    this.strikeT = this.cut ? CUT_STRIKE : T.strike;
-    this.total = T.zoom + T.charge + this.strikeT + (this.cut ? this.cut.d : T.hold);
+    this.R = ULT_CINE[id]; this.S = { col: this.R.col }; this.name = name; this.done = done; this.t = 0; this.on = true; this.lastImp = ''; this.gq = -1;
+    const T = ULT_CINE_T; this.total = T.zoom + T.charge + T.strike + T.hold;
     this.cam = g.camDistT; g.camDistT = this.R.orb.at === 'head' ? 15 : 10;      // con la esfera sobre la cabeza, la cámara se aleja un poco
     this.cv.style.display = 'block'; this.resize(); g.ui.showHud(false); cineToasts(false);
     SFX.play('charge'); SFX.scream(1.4, 160);
@@ -277,21 +256,9 @@ class UltCine {
   end() {
     if (!this.on) return;
     const g = this.g, p = g.player;
-    this.on = false;
-    if (this.cut) this.tail = 0; else this.cv.style.display = 'none';     // con corte: quedan el humo y las chispas encima de la partida
+    this.on = false; this.cv.style.display = 'none';
     p.cineChg = false; g.camDistT = this.cam || 19; g.renderer.domElement.style.filter = ''; g.ui.showHud(true); cineToasts(true);
     if (this.done) this.done();
-  }
-  /** Últimos fotogramas del corte (después del destello) sobre la partida; se llama en cada cuadro */
-  post(dt) {
-    if (this.tail < 0 || this.on) return;
-    this.tail += dt;
-    const C = this.cut, n = 15 - C.peak, k = (this.tail / CUT_TAIL_FT) | 0, g = this.ctx, W = this.cv.width, H = this.cv.height;
-    g.clearRect(0, 0, W, H);
-    if (k >= n) { this.tail = -1; this.cv.style.display = 'none'; return; }
-    const u = this.tail / (n * CUT_TAIL_FT);
-    g.fillStyle = 'rgba(0,0,0,' + (0.75 * Math.max(0, 1 - this.tail / 0.12)) + ')'; g.fillRect(0, 0, W, H);   // el oscurecido se va enseguida
-    CutFx.cover(g, C.k, C.peak + 1 + k, W, H, { col: this.R.col, flip: C.flipX, alpha: (1 - u * 0.6) * (Save.d.opt.flash ? 0.5 : 1) });
   }
   resize() { const r = Math.min(2, window.devicePixelRatio || 1); this.cv.width = Math.round(window.innerWidth * r); this.cv.height = Math.round(window.innerHeight * r); }
   /** Dibuja un fotograma de una animación de efectos (en su lote) para este cuadro */
@@ -341,27 +308,14 @@ class UltCine {
     const g = this.ctx, W = this.cv.width, H = this.cv.height;
     if (W !== Math.round(window.innerWidth * Math.min(2, window.devicePixelRatio || 1))) this.resize();
     g.clearRect(0, 0, W, H);
-    const ST = this.strikeT, soft = Save.d.opt.flash, C = this.cut;
-    if (striking && ts < ST) {
-      const imp = C ? R.imp.slice(0, 2) : R.imp, k = imp[Math.min(imp.length - 1, (ts / ST * imp.length) | 0)];
-      if (!soft) this.impact(k, W, H);
+    if (striking && ts < T.strike) {
+      const k = R.imp[Math.min(R.imp.length - 1, (ts / T.strike * R.imp.length) | 0)];
+      this.impact(k, W, H);
       if (k !== this.lastImp) { this.lastImp = k; G.shake(1.1); if (k === 'W') SFX.play('stinger'); }
     } else if (this.lastImp) { this.lastImp = ''; G.renderer.domElement.style.filter = ''; }
-    const tk = ts - ST;                                                      // tiempo dentro del corte
-    if (C && tk >= 0) {
-      // Corte a pantalla completa: el mundo se oscurece y la técnica ocupa toda la pantalla
-      const f = Math.min(C.peak, C.from + ((tk / CUT_FT) | 0)), pk = f >= C.peak - 1;
-      g.fillStyle = 'rgba(0,0,0,' + Math.min(0.75, tk * 9) + ')'; g.fillRect(0, 0, W, H);
-      CutFx.cover(g, C.k, f, W, H, { col: R.col, flip: C.flipX, alpha: soft && pk ? 0.45 : 1 });
-      if (f !== C.f) {
-        C.f = f;
-        if (f === C.from) SFX.play(C.flip ? 'bigbeam' : 'phase');
-        if (pk) { G.shake(1.3); if (f === C.peak) SFX.play('bigboom'); }
-      }
-    }
-    const bar = H * 0.1 * Math.min(1, t / 0.2, C ? 1 : (this.total - t) / 0.15);
+    const bar = H * 0.1 * Math.min(1, t / 0.2, (this.total - t) / 0.15);
     g.fillStyle = '#000'; g.fillRect(0, 0, W, bar); g.fillRect(0, H - bar, W, bar);
-    if (tc > 0.1 && !(striking && ts < ST) && !(C && tk > C.d * 0.7)) {
+    if (tc > 0.1 && !(striking && ts < T.strike)) {
       const a = Math.min(1, (tc - 0.1) * 5), sc = 1 + Math.max(0, 0.2 - (tc - 0.1)) * 1.5;
       g.save(); g.globalAlpha = a;
       this.text(R.kanji, W * 0.5, H * 0.66, H * 0.045, 'rgba(255,255,255,0.85)');      // abajo: la técnica crece arriba

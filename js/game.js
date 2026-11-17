@@ -542,7 +542,7 @@ class Game {
     this.gN = 0; this.gNext = 4; this.ui.modeHud(this);
     const ch = this.saga ? charById(this.saga.ch) : charById(Save.d.sel);
     if (!ch || ch.soon || (!this.saga && !Save.d.unlocked.includes(ch.id))) return;   // en una saga juegas con su personaje
-    this.ultCine.warm(ch.id); this.cine.warm(ch);                     // prepara (recolorea) las animaciones a pantalla completa
+    this.cine.warm(ch);                                              // prepara (recolorea) las animaciones a pantalla completa
     for (const f of Object.values(FUSION_PAIRS[ch.id] || {}).flat()) if (INTROS[f]) CutFx.warm('clash', INTROS[f].col);   // choque de las fusiones
     // Desafío diario: mapa con la semilla del día, 2 modificadores y dificultad NORMAL para todos
     this.daily = !!daily && !practice;
@@ -1314,7 +1314,6 @@ class Game {
     // Forma de la fusión equivalente a la tuya (base con base, la más alta con la más alta)
     const n = F.forms.length, k = Math.min(n - 1, Math.round(p.formIdx * (n - 1) / Math.max(1, p.ch.forms.length - 1)));
     p.fusion = { id, ch: F, sheet: F.forms[k].sheet, anim: F.forms[k].anim, t: FUSION_TIME, warned: false }; p.batch(p.fusion.sheet);
-    this.ultCine.warm(id);
     const go = () => { this.ui.toast('¡' + F.name + '!'); this.ui.toast('Fusión: +40% de daño, +20% de velocidad y su Ultimate durante ' + FUSION_TIME + ' s', true); };
     if (this.intro.has(id) && !Save.d.opt.noCine) {                 // cinemática de la fusión (Vegetto, Gogeta, Zamasu fusionado)
       this.state = 'intro'; this.releaseMouse();
@@ -1632,7 +1631,6 @@ class Game {
     if (p.formIdx === 0 || (this.state !== 'play' && this.state !== 'transform')) return;
     p.setForm(0); p.recompute(); this.applyForm();
     p.tfCd = 25;
-    const bs = ImpactFx.of(p.ch.id, 0); if (bs) ImpactFx.overlay(bs, this);   // impact frame de la forma base
     this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 30, 10, 0.4, 0.35, 0xffffff);
     this.ui.toast(msg || 'VUELVES A TU FORMA BASE', true); SFX.play('revert');
     this.checkTransformation();
@@ -2775,7 +2773,6 @@ class Game {
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     if (this.versus.active) { this.versus.frame(rawDt); this.perfHud.frame(rawDt, this.renderer); return; }   // el Modo Versus lleva su propio fotograma
     const s = this.state;
-    this.ultCine.post(rawDt);                                         // cola del corte de la Ultimate (humo y chispas) sobre la partida
     const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine' || s === 'bosscine' || s === 'talk';
     if (vf) this.vfx.begin(this.camera);
     if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }

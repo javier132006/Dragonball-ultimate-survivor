@@ -5,18 +5,11 @@
    con mezcla «screen»: el negro desaparece y solo queda la luz.
 
    Recoloreado (una vez por color, se guarda en caché):
-   - 'hue': hojas de color (rayo, esfera, explosión). Se gira el tono
-     hacia el color del personaje y se ajusta la saturación (Jiren sale
-     casi blanco, Vegeta amarillo...). El brillo no cambia.
    - 'gray': hojas en blanco y negro (choque, aura). Mapa de degradado:
      negro → color → blanco según la luminosidad.
    - 'none': se dibuja tal cual (Shenron, con su propio fondo).
    ===================================================================== */
 const CUT_SHEETS = {
-  beam:    { src: 'assets/fx/cut_beam.webp',    mode: 'hue', hue: 207 },   // Kamehameha: carga, rayo, destello, humo
-  bolt:    { src: 'assets/fx/cut_bolt.webp',    mode: 'hue', hue: 216 },   // rayo eléctrico
-  sphere:  { src: 'assets/fx/cut_sphere.webp',  mode: 'hue', hue: 215 },   // esfera gigante que estalla
-  blast:   { src: 'assets/fx/cut_blast.webp',   mode: 'hue', hue: 300 },   // explosión morada y roja con rocas
   clash:   { src: 'assets/fx/cut_clash.webp',   mode: 'gray' },            // dos energías que chocan y estallan
   aura:    { src: 'assets/fx/cut_aura.webp',    mode: 'gray' },            // aura que sube del suelo con rocas
   shenron: { src: 'assets/fx/cut_shenron.webp', mode: 'none' }             // las 7 esferas invocan a Shenron (con cielo)
@@ -77,46 +70,18 @@ const CutFx = {
     let d;
     try { d = x.getImageData(0, 0, W, H); } catch (e) { return im; }      // (abierto desde file:// sin permisos: sin recolorear)
     const a = d.data, n = parseInt(col.slice(1), 16), tr = (n >> 16) & 255, tg = (n >> 8) & 255, tb = n & 255;
-    if (S.mode === 'gray') {
-      // Luminosidad → negro · color (al 60 %) · blanco
-      for (let i = 0; i < a.length; i += 4) {
-        const L = Math.max(a[i], a[i + 1], a[i + 2]) / 255;
-        if (L < 0.6) { const k = L / 0.6; a[i] = tr * k; a[i + 1] = tg * k; a[i + 2] = tb * k; }
-        else { const k = (L - 0.6) / 0.4; a[i] = tr + (255 - tr) * k; a[i + 1] = tg + (255 - tg) * k; a[i + 2] = tb + (255 - tb) * k; }
-      }
-    } else {
-      // Tono destino y cuánta saturación conservar (colores casi grises → efecto casi blanco)
-      const mx = Math.max(tr, tg, tb), mn = Math.min(tr, tg, tb), sT = mx ? (mx - mn) / mx : 0;
-      const hT = this.hue(tr, tg, tb), shift = (hT - S.hue + 360) % 360, sk = Math.min(1, sT / 0.55);
-      for (let i = 0; i < a.length; i += 4) {
-        const r = a[i], g = a[i + 1], b = a[i + 2], M = Math.max(r, g, b);
-        if (M < 6) continue;
-        const m = Math.min(r, g, b), s = ((M - m) / M) * sk;
-        const h = ((this.hue(r, g, b) + shift) % 360) / 60, f = h - Math.floor(h), p = M * (1 - s), q = M * (1 - s * f), t = M * (1 - s * (1 - f));
-        switch (Math.floor(h) % 6) {
-          case 0: a[i] = M; a[i + 1] = t; a[i + 2] = p; break;
-          case 1: a[i] = q; a[i + 1] = M; a[i + 2] = p; break;
-          case 2: a[i] = p; a[i + 1] = M; a[i + 2] = t; break;
-          case 3: a[i] = p; a[i + 1] = q; a[i + 2] = M; break;
-          case 4: a[i] = t; a[i + 1] = p; a[i + 2] = M; break;
-          default: a[i] = M; a[i + 1] = p; a[i + 2] = q;
-        }
-      }
+    // Luminosidad → negro · color (al 60 %) · blanco
+    for (let i = 0; i < a.length; i += 4) {
+      const L = Math.max(a[i], a[i + 1], a[i + 2]) / 255;
+      if (L < 0.6) { const k = L / 0.6; a[i] = tr * k; a[i + 1] = tg * k; a[i + 2] = tb * k; }
+      else { const k = (L - 0.6) / 0.4; a[i] = tr + (255 - tr) * k; a[i + 1] = tg + (255 - tg) * k; a[i + 2] = tb + (255 - tb) * k; }
     }
     x.putImageData(d, 0, 0);
     return c;
   },
-  /** Tono (0..360) de un color RGB */
-  hue(r, g, b) {
-    const M = Math.max(r, g, b), m = Math.min(r, g, b), d = M - m;
-    if (!d) return 0;
-    let h = M === r ? ((g - b) / d) % 6 : M === g ? (b - r) / d + 2 : (r - g) / d + 4;
-    h *= 60; return h < 0 ? h + 360 : h;
-  },
-
   /**
    * Dibuja el fotograma k (0..15) en el rectángulo (x, y, w, h).
-   * o: { col: color css, flip: espejo horizontal, alpha, op: modo de mezcla ('screen' por defecto) }
+   * o: { col: color css, alpha, op: modo de mezcla ('screen' por defecto) }
    */
   draw(ctx, name, k, x, y, w, h, o) {
     o = o || {};
@@ -129,8 +94,7 @@ const CutFx = {
     ctx.globalCompositeOperation = o.op || 'screen';
     ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
     ctx.imageSmoothingEnabled = true;
-    if (o.flip) { ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(sh, sx, sy, fw - CUT_INSET * 2, fh - CUT_INSET * 2, 0, 0, w, h); }
-    else ctx.drawImage(sh, sx, sy, fw - CUT_INSET * 2, fh - CUT_INSET * 2, x, y, w, h);
+    ctx.drawImage(sh, sx, sy, fw - CUT_INSET * 2, fh - CUT_INSET * 2, x, y, w, h);
     ctx.restore();
     return true;
   },
