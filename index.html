@@ -291,6 +291,8 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 .card em{position:absolute;left:12px;top:9px;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:15px;color:#fff;background:rgba(0,0,0,.28)}
 .ico{display:inline-block;width:1.3em;height:1.3em;background-image:var(--icons);background-size:800% 300%;background-repeat:no-repeat;image-rendering:pixelated;vertical-align:middle;border-radius:6px;font-style:normal}
 .card .ci .ico{width:1.5em;height:1.5em;border-radius:50%}
+.ico.tico{background-image:url(assets/icons/tecnicas.webp);image-rendering:auto;border-radius:8px}   /* iconos de las técnicas (js/techicons.js) */
+.card .ci .ico.tico{border-radius:12px}
 .card .ci{margin-top:30px;width:94px;height:94px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:42px;line-height:1;color:#fff;
   background:radial-gradient(circle at 35% 30%,#3c4566,#20253a);box-shadow:0 0 0 6px var(--nv),0 6px 14px rgba(0,0,0,.4)}
 .card small{display:inline-block;padding:2px 12px;font-weight:800;font-size:12px;letter-spacing:.06em;color:#fff;background:var(--cc,#3a4468);border-radius:999px}
@@ -2102,7 +2104,7 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
       x.send();
     });
   };
-  const CODE = ['js/core.js', 'js/cutfx.js', 'js/entryfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/tuto.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
+  const CODE = ['js/core.js', 'js/cutfx.js', 'js/entryfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/techicons.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/tuto.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
     'js/versus/input.js', 'js/versus/sim.js', 'js/versus/view.js', 'js/versus/modes.js', 'js/versus/ults.js', 'js/versus/extras.js', 'js/versus/estilo.js', 'js/versus/versus.js'];   // Modo Versus (módulo aparte)
   (async () => {
     LOAD.step('three', 0.1, 'Cargando el motor gráfico…');
