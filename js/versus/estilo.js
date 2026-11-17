@@ -109,6 +109,7 @@ const VS_CSS = `
 #vs .fp .who{align-self:flex-start;margin:10px 0 0 -18px;padding:1px 16px 0 22px;font:400 17px/1.4 var(--mg);letter-spacing:.07em;color:var(--ink);background:var(--pc);transform:skewX(-12deg);box-shadow:3px 3px 0 rgba(0,0,0,.45)}
 #vs .fp.p1 .who{align-self:flex-end;margin:10px -18px 0 0;padding:1px 22px 0 16px}
 #vs .fp .art{align-self:center;flex:none;width:min(100%,168px);aspect-ratio:1;margin:-4px 0 -10px;image-rendering:pixelated;filter:drop-shadow(0 8px 0 rgba(0,0,0,.35))}#vs .fp.p1 .art{transform:scaleX(-1)}
+#vs .fp .art.ent{width:100%;aspect-ratio:16/9;margin:8px 0 6px;image-rendering:auto;filter:none;border:3px solid var(--ink);box-shadow:0 0 0 2px rgba(255,255,255,.35)}
 #vs .fp h3{margin:0;font:400 clamp(26px,3vw,36px)/1 var(--mg);letter-spacing:.045em;color:#fff;-webkit-text-stroke:5px var(--ink);paint-order:stroke fill;text-shadow:3px 4px 0 var(--pc)}#vs .fp.p1 h3{text-align:right}
 #vs .fp h4,#vs .mid h4{margin:12px 0 6px;font:700 13px/1.2 var(--body);color:var(--t3)}
 #vs .forms{display:flex;gap:6px;flex-wrap:wrap}#vs .forms button{padding:3px 10px 2px;font-size:12.5px}
@@ -162,7 +163,7 @@ html.hc #vs .keys,html.hc #vs .box p{color:#fff;font-size:14px}
 #vs.touch .trl kbd,#vs.touch .keys,#vs.touch .trn kbd{display:none}
 @media (max-width:900px),(max-height:520px){
   #vs .sel.on{display:block;overflow:auto}#vs .sel header{margin-bottom:10px}#vs .sel .modes{margin-left:0}
-  #vs .fp{margin-bottom:10px;overflow:visible}#vs .fp .art{width:96px;margin:-30px 0 -6px;align-self:flex-end}#vs .fp.p1 .art{align-self:flex-start}#vs .fp .ults,#vs .fp .uh{display:none}
+  #vs .fp{margin-bottom:10px;overflow:visible}#vs .fp .art{width:96px;margin:-30px 0 -6px;align-self:flex-end}#vs .fp .art.ent{width:170px;margin:-30px 0 6px}#vs .fp.p1 .art{align-self:flex-start}#vs .fp .ults,#vs .fp .uh{display:none}
   #vs .mid{margin-bottom:10px}#vs .pane{overflow:visible}#vs .grid{grid-template-columns:repeat(auto-fill,minmax(56px,1fr))}#vs .opts{grid-template-columns:1fr}
   #vs .pt{width:56px;height:56px}#vs .nm{font-size:19px;-webkit-text-stroke-width:4px}#vs .nm small{display:none}#vs .hp{height:19px}#vs .clock{width:66px}#vs .clock span{width:58px;height:52px;font-size:31px;line-height:54px}
   #vs .kj{width:19px;height:19px;font-size:10px;line-height:15px}#vs .trl{font-size:14px}#vs .box{min-width:0;width:min(88%,400px)}#vs .box button{font-size:18px;padding:6px 14px 4px}

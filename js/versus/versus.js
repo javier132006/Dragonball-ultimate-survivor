@@ -127,7 +127,7 @@ class Versus {
     this.clearFight(); this.sim = null; this.paused = false; this.ui.pause.classList.remove('on'); this.ui.end.classList.remove('on'); this.el.classList.remove('cine');
     for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r', '.tc']) for (const n of this.el.querySelectorAll(k)) n.style.display = 'none';
     this.ui.trn.classList.remove('on'); this.trn = null; if (this.touch) this.touch.clear(); this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win');
-    this.ui.sel.classList.add('on'); this.renderSelect(); SFX.music('menu');
+    this.ui.sel.classList.add('on'); EntryFx.seen.vs0 = EntryFx.seen.vs1 = null; this.renderSelect(); SFX.music('menu');   // al entrar, las entradas vuelven a reproducirse
   }
   renderSelect() {
     const c = this.cfg, R = this.roster(), lad = c.mode === 'ladder', trn = c.mode === 'train', L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal, tab = c.tab || 'grid';
@@ -136,7 +136,8 @@ class Versus {
     // Ficha de un luchador: retrato, formas (se elige con cuál empieza), pasiva y la Ultimate de cada forma
     const panel = (i) => {
       const ch = charById(c.pick[i].id), fi = c.pick[i].f, f = ch.forms[fi] || ch.forms[0], pas = vsPas(ch);
-      return '<section class="fp p' + i + (c.side === i ? ' on' : '') + '" data-v="side" data-a="' + i + '" tabindex="0"><span class="who">' + (i ? p2 : 'Jugador 1') + '</span><canvas class="art" width="168" height="168" data-full="' + f.sheet + '"></canvas><h3>' + nice(ch.name) + '</h3>' +
+      return '<section class="fp p' + i + (c.side === i ? ' on' : '') + '" data-v="side" data-a="' + i + '" tabindex="0"><span class="who">' + (i ? p2 : 'Jugador 1') + '</span>' + (fi === 0 && EntryFx.has(ch.id) ? '<canvas class="art ent" width="' + ENTRY_W + '" height="' + ENTRY_H + '" data-entry="' + ch.id + '" data-k="vs' + i + '"></canvas>'   // forma base: animación de entrada (js/entryfx.js)
+        : '<canvas class="art" width="168" height="168" data-full="' + f.sheet + '"></canvas>') + '<h3>' + nice(ch.name) + '</h3>' +
         '<h4>Empieza en</h4><div class="forms">' + ch.forms.map((g, n) => (SPRITE_DATA[g.sheet] ? '<button data-v="form" data-a="' + i + ':' + n + '"' + (fi === n ? ' class="on"' : '') + '>' + nice(g.name) + '</button>' : '')).join('') + '</div>' +
         (pas ? '<h4>Habilidad única</h4><div class="psv"><b>' + pas.name + '</b>' + pas.info + '</div>' : '') +
         '<h4 class="uh">Ultimate de cada forma</h4><ol class="ults">' + vsChain(ch, fi).map((d) => '<li><b>' + d.ult.name + '</b>' + nice(d.form) + ' <small>· ' + VS_ULT_INFO[d.ult.type][d.ult.v] + '</small></li>').join('') + '</ol></section>';
@@ -158,6 +159,7 @@ class Versus {
       (lad ? tower : panel(1));
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-pt]')) this.portrait(cv, cv.dataset.pt);
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-full]')) this.portrait(cv, cv.dataset.full, true);
+    for (const cv of this.ui.sel.querySelectorAll('canvas[data-entry]')) EntryFx.play(cv, cv.dataset.entry, cv.dataset.k);
   }
   /** Retrato: el busto del primer fotograma de la hoja, ampliado sin suavizar */
   portrait(cv, sheet, full) {

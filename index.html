@@ -495,6 +495,12 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 .pbox canvas{position:absolute;left:8%;right:8%;top:6%;bottom:18%;width:84%;height:76%;image-rendering:pixelated;object-fit:contain}
 .pbox::after{content:'';position:absolute;left:12%;right:12%;bottom:9%;height:15%;border-radius:50%;background:rgba(255,255,255,.35);box-shadow:inset 0 0 0 3px rgba(255,255,255,.6)}
 .pbox .pc2{position:absolute;left:50%;bottom:6%;transform:translateX(-50%);z-index:2;padding:2px 16px;border-radius:999px;font-weight:800;font-size:15px;background:var(--nv2);white-space:nowrap}
+/* Ficha con la animación de entrada (js/entryfx.js): escenario apaisado y negro */
+.pbox.ent{width:clamp(240px,27vw,420px);aspect-ratio:16/9;background:#000}
+.pbox.ent::after{display:none}
+.pbox.ent canvas{left:0;top:0;width:100%;height:100%;image-rendering:auto}
+.pbox.ent canvas[data-sheet]{left:20%;top:6%;width:60%;height:80%;image-rendering:pixelated}
+.pbox.ent .pc2{left:10px;top:10px;bottom:auto;transform:none;background:rgba(10,14,30,.8)}
 .lin{flex:1;min-width:0}
 .lnum{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .lnum .k2{font-size:15px}
@@ -1248,7 +1254,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
   /* La Liga */
   .liga{flex-direction:row;gap:10px;overflow:hidden}
   .lsc{padding:10px 12px 8px;overflow-y:auto}.lp{flex:1.4}.lhd{gap:12px}
-  .pbox{width:96px;border-radius:18px;box-shadow:0 0 0 3px rgba(255,255,255,.75)}.pbox .pc2{font-size:10px;padding:0 8px}
+  .pbox{width:96px;border-radius:18px;box-shadow:0 0 0 3px rgba(255,255,255,.75)}.pbox.ent{width:170px}.pbox .pc2{font-size:10px;padding:0 8px}
   .lin h3{font-size:24px;gap:8px}.lnum .k2{font-size:11px}.typ{font-size:12px;padding:1px 10px}.typs{margin-bottom:6px}
   .evo .ev{width:44px}.evo .eci{width:40px;height:40px}.evo .ev small{font-size:8px;max-width:44px}.evo .ar{font-size:10px;margin-top:-12px}
   .dbtn{font-size:12px;padding:2px 10px}
@@ -2096,7 +2102,7 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
       x.send();
     });
   };
-  const CODE = ['js/core.js', 'js/cutfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/tuto.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
+  const CODE = ['js/core.js', 'js/cutfx.js', 'js/entryfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/tuto.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
     'js/versus/input.js', 'js/versus/sim.js', 'js/versus/view.js', 'js/versus/modes.js', 'js/versus/ults.js', 'js/versus/extras.js', 'js/versus/estilo.js', 'js/versus/versus.js'];   // Modo Versus (módulo aparte)
   (async () => {
     LOAD.step('three', 0.1, 'Cargando el motor gráfico…');

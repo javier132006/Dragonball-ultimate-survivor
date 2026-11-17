@@ -463,6 +463,10 @@ class UIManager {
       : '<button class="back" ' + (H.back || 'data-go="home"') + '><i>◀</i>' + (H.back ? 'Volver' : 'Mapa') + '</button><div class="bnr ' + H.c + '"' + (H.st ? ' style="' + H.st + '"' : '') + '><i class="kj">' + (H.k || KJ[s] || '気') + '</i><h3>' + H.t + '</h3>' + (H.s ? '<span>' + H.s + '</span>' : '') + '</div>' + (H.tabs ? '<div class="seg nav">' + H.tabs + '</div>' : '');
     // Retratos: se dibujan después de generar el HTML
     for (const cv of e.menu.querySelectorAll('canvas[data-sheet]')) this.drawFrame(cv, cv.dataset.sheet, +cv.dataset.frame, +(cv.dataset.tint || 0));
+    // Animación de entrada del guerrero de la ficha (vuelve a empezar cada vez que se entra en «Elige guerrero»)
+    if (s === 'play' && this.prevScr !== 'play') EntryFx.seen.menu = null;
+    this.prevScr = s;
+    for (const cv of e.menu.querySelectorAll('canvas[data-entry]')) EntryFx.play(cv, cv.dataset.entry, 'menu');
     this.drawFaces(e.menu);                                           // fotos de perfil (js/profile.js)
     if (s === 'account') this.profileRank();
     // El mapa del inicio tiene su propia animación (solo mientras se ve)
@@ -656,7 +660,8 @@ class UIManager {
       const typs = (fF >= fK ? ['f', 'k'] : ['k', 'f']).map((x) => '<span class="typ ' + x + '">' + (x === 'f' ? 'Físico' : 'Ki') + '<small>' + (x === 'f' ? fF : fK) + '</small></span>').join('') + (t === 'e' ? '<span class="typ e">Equilibrado</span>' : '');
       const diffs = DIFFS.map((x) => '<button class="dbtn' + (x.id === d ? ' on' : '') + '" style="--c:' + x.color + '" data-diff="' + x.id + '" title="x' + x.coins + ' monedas · +' + x.reward + ' al ganar">' + nice(x.name) + '</button>').join('');
       const W0 = WEAPONS[v.start[0]];
-      det = '<div class="lsc"><div class="lhd"><div class="pbox" style="--c1:' + (t === 'k' ? '#7ab8ff' : t === 'e' ? '#7ae0a8' : '#ffb25a') + ';--c2:' + COL[t] + '">' + this.pic(v, 120, 120) + '<span class="pc2">' + (best ? 'Récord NV ' + best.level : owned ? 'Sin jugar' : '🔒 ' + (v.summon ? 'Altar' : v.req ? 'Reto' : v.cost)) + '</span></div>' +
+      const art = EntryFx.has(v.id) ? '<canvas class="entc" width="' + ENTRY_W + '" height="' + ENTRY_H + '" data-entry="' + v.id + '"></canvas>' : this.pic(v, 120, 120);   // animación de entrada (js/entryfx.js) o retrato fijo
+      det = '<div class="lsc"><div class="lhd"><div class="pbox ent" style="--c1:' + (t === 'k' ? '#7ab8ff' : t === 'e' ? '#7ae0a8' : '#ffb25a') + ';--c2:' + COL[t] + '">' + art + '<span class="pc2">' + (best ? 'Récord NV ' + best.level : owned ? 'Sin jugar' : '🔒 ' + (v.summon ? 'Altar' : v.req ? 'Reto' : v.cost)) + '</span></div>' +
         '<div class="lin"><div class="lnum"><span class="k2">#' + String(idx).padStart(2, '0') + ' · ' + v.role + '</span><span class="chip ' + (Save.d.sel === v.id ? 'g' : owned ? 'd' : 'y') + '">' + (Save.d.sel === v.id ? 'Equipado' : owned ? 'Desbloqueado' : 'Bloqueado') + '</span></div>' +
           '<h3>' + nice(v.name) + '</h3><div class="typs">' + typs + '</div>' +
           '<span class="k2">Se transforma durante la partida</span><div class="evo">' + evo + '</div>' +
