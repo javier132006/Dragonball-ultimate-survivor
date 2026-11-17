@@ -17,7 +17,7 @@ const ENTRY_FT = [0.06, 0.06, 0.06, 0.08, 0.09, 0.09, 0.09, 0.09, 0.1, 0.07, 0.0
 const ENTRY_POSE = 15, ENTRY_W = 400, ENTRY_H = 225;
 
 const EntryFx = {
-  img: {}, seen: {}, t0: {},
+  img: {}, seen: {}, k: {}, acc: {}, last: {},
 
   has(id) { return ENTRY_IDS.has(id); },
   load(id) {
@@ -31,8 +31,8 @@ const EntryFx = {
    * key: hueco de la pantalla ('menu', 'vs0', 'vs1'); cada hueco recuerda qué guerrero muestra y cuándo empezó.
    */
   play(cv, id, key) {
-    const im = this.load(id), anim = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (this.seen[key] !== id) { this.seen[key] = id; this.t0[key] = -1; }        // guerrero nuevo: la animación empieza cuando se pueda dibujar
+    const im = this.load(id);           // se anima siempre (con «reducir animaciones» del móvil se quedaba en la pose)
+    if (this.seen[key] !== id) { this.seen[key] = id; this.k[key] = 0; this.acc[key] = 0; this.last[key] = 0; }   // guerrero nuevo: desde el principio
     const g = cv.getContext('2d');
     const draw = (k) => {
       g.setTransform(1, 0, 0, 1, 0, 0);
@@ -40,16 +40,20 @@ const EntryFx = {
       const sh = k === 9 || k === 10 ? (Math.random() - 0.5) * cv.width * 0.02 : 0;      // temblor en el destello
       g.drawImage(im, (k % 4) * ENTRY_W, ((k / 4) | 0) * ENTRY_H, ENTRY_W, ENTRY_H, sh, sh * 0.6, cv.width, cv.height);
     };
+    // Avanza como mucho un fotograma por pintado: en un móvil lento la animación va algo más despacio,
+    // pero se ven los 16 fotogramas (si se saltaran por tiempo, solo se vería la pose final)
     const step = (now) => {
-      if (!cv.isConnected) return;                                   // la pantalla ya cambió
+      if (!cv.isConnected || this.seen[key] !== id) return;          // la pantalla ya cambió
       if (!im.complete) { requestAnimationFrame(step); return; }      // aún se está descargando
       if (!im.naturalWidth) return;                                  // no se pudo cargar: se queda el fondo
-      if (this.t0[key] < 0) this.t0[key] = now;
-      let k = ENTRY_POSE;
-      if (anim) { let e = (now - this.t0[key]) / 1000; k = 0; while (k < ENTRY_POSE && e >= ENTRY_FT[k]) e -= ENTRY_FT[k++]; }
+      let k = this.k[key];
+      if (this.last[key]) this.acc[key] += Math.min(0.2, (now - this.last[key]) / 1000);
+      this.last[key] = now;
+      if (k < ENTRY_POSE && this.acc[key] >= ENTRY_FT[k]) { this.acc[key] -= ENTRY_FT[k]; this.acc[key] = Math.min(this.acc[key], ENTRY_FT[k + 1] || 0); k = ++this.k[key]; }
       draw(k);
       if (k < ENTRY_POSE) requestAnimationFrame(step);
     };
+    this.last[key] = 0;
     requestAnimationFrame(step);
   }
 };

@@ -18,7 +18,6 @@ const LoadBg = (() => {
   const img = new Image();
   img.src = 'assets/load/atlas.webp';
   let cv = null, ctx = null, W = 0, H = 0, SZ = 0, dpr = 1, raf = 0, last = 0, t = 0, on = false;
-  const calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------- Utilidades de dibujo ---------- */
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -216,16 +215,12 @@ const LoadBg = (() => {
   }
 
   return {
-    /** Empieza a animar en el canvas c (con «movimiento reducido» se queda una imagen fija) */
+    /** Empieza a animar en el canvas c. Se anima siempre, también con «reducir animaciones» activado en el sistema
+        (muchos móviles lo activan con el ahorro de batería y entonces la pantalla de carga se quedaba quieta) */
     start(c) {
       cv = c; ctx = c.getContext && c.getContext('2d');
       if (!ctx || on) return;
       resize(); setup(); on = true; t = 0;
-      if (calm) {                                                                  // movimiento reducido: un fotograma quieto
-        const one = () => { if (img.naturalWidth) { resize(); t = 3; draw(0); } };
-        if (img.complete) one(); else img.addEventListener('load', one, { once: true });
-        on = false; return;
-      }
       last = performance.now(); raf = requestAnimationFrame(frame);
     },
     /** Para la animación (al entrar en el juego) */
