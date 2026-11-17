@@ -109,6 +109,66 @@ const TRANSFORM_FX = {
 const IMPACT_FRAME = 0.07;      // duración de cada fotograma de impacto (s)
 const BANNER_TIME = 1.25;       // tiempo del cartel con el nombre tras el impacto
 
+/* ---------------------------------------------------------------------
+   Impact frames pixelados de cada forma (assets/impact/<hoja>.webp, tools/make_impacts.py).
+   Hoja 4×1 de 384×384 sobre negro: destello con silueta, estallido (con el detalle escondido),
+   contorno y onda, con el negro ya transparente. Si la forma a la que te transformas tiene hoja,
+   sus 4 fotogramas sustituyen a los impactos genéricos de la cinemática (tipo 'P'). La de la forma
+   base se ve al destransformarte.
+   --------------------------------------------------------------------- */
+// Por personaje, la hoja de cada forma en su orden (la 0 es la base). Va por posición y no por la hoja del
+// sprite porque algunas formas la cambian en el juego (Z Legends 3: Super Saiyan y Blue de Goku)
+const IMPACT_FORMS = {
+  goku: ['goku', 'goku_kk', 'goku_ss', 'goku_ss2', 'goku_ss3', 'goku_ss4', 'goku_god', 'goku_blue', 'goku_bkk', 'goku_sign', 'goku_ui']
+};
+const PIX_FRAME = 0.1, PIX_SIZE = 384;
+const ImpactFx = {
+  img: {},
+  /** Hoja de impactos de la forma idx del personaje, o null */
+  of(chId, idx) { const l = IMPACT_FORMS[chId]; return (l && l[idx]) || null; },
+  load(sheet) {
+    let im = this.img[sheet];
+    if (!im) { im = this.img[sheet] = new Image(); im.decoding = 'async'; im.src = 'assets/impact/' + sheet + '.webp'; }
+    return im;
+  },
+  ready(im) { return im && im.complete && im.naturalWidth > 0; },
+  /** Dibuja el fotograma k centrado en (px, py) */
+  draw(x, im, k, px, py, S, alpha) {
+    const D = S * 0.8;                                               // cabe entre las bandas negras de la cinemática
+    x.save();
+    x.globalAlpha = alpha;
+    x.imageSmoothingEnabled = false;                                 // píxeles nítidos al ampliar
+    x.drawImage(im, k * PIX_SIZE, 0, PIX_SIZE, PIX_SIZE, px - D / 2, py - D * 0.55, D, D);
+    x.restore();
+  },
+  /** Reproduce la hoja una vez sobre el juego, sin congelarlo (al volver a la forma base) */
+  overlay(sheet, game) {
+    const im = this.load(sheet);
+    if (!this.ready(im)) return;
+    let cv = this.cv;
+    if (!cv) {
+      cv = this.cv = document.createElement('canvas');
+      cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:6';
+      document.body.appendChild(cv);
+    }
+    cv.width = window.innerWidth; cv.height = window.innerHeight; cv.style.display = 'block';
+    const x = cv.getContext('2d'), S = Math.min(cv.width, cv.height), soft = Save.d.opt.flash, id = this.run = {};
+    let t = 0, last = 0;
+    const step = (now) => {
+      if (this.run !== id) return;
+      if (last) t += Math.min(0.1, (now - last) / 1000);
+      last = now;
+      const k = Math.floor(t / PIX_FRAME);
+      x.clearRect(0, 0, cv.width, cv.height);
+      if (k >= 4 || game.state === 'menu') { cv.style.display = 'none'; return; }
+      const v = game.cine.screenPos();
+      this.draw(x, im, k, v[0], v[1], S * 0.7, (soft ? 0.4 : 0.9) * (k === 3 ? 0.6 : 1));
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+};
+
 const hexCss = (n) => '#' + n.toString(16).padStart(6, '0');
 const cssRgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; };
 
@@ -127,8 +187,13 @@ class TransformScene {
     const g = this.g, p = g.player, list = TRANSFORM_FX[p.ch.id] || [];
     const f = p.ch.forms[idx];
     this.cfg = list[idx] || { c1: hexCss(f.aura || 0xffe14a), c2: '#ffffff', quote: '¡¡HAAAA!!', frames: 'WIC', charge: 1.6, fx: ['bolts'], bolt: '#ffffff', shake: 0.8, kanji: '' };
+    // Con hoja pixelada propia, sus 4 fotogramas (algo más lentos para que se lean) sustituyen a los genéricos
+    const ps = ImpactFx.of(p.ch.id, idx);
+    this.pix = ps ? ImpactFx.load(ps) : null;
+    this.ift = this.pix ? PIX_FRAME : IMPACT_FRAME;
+    if (this.pix) this.cfg = Object.assign({}, this.cfg, { frames: 'PPPP' });
     this.to = idx; this.form = f; this.t = 0; this.swapped = false; this.on = true; this.lastImp = -1; this.ringT = 0;
-    this.end = this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + BANNER_TIME;
+    this.end = this.cfg.charge + this.cfg.frames.length * this.ift + BANNER_TIME;
     this.cam0 = { dist: g.camDistT, pitch: g.camPitch };
     g.camDistT = 7.5; g.camPitch = 0.28;
     this.bolts.length = 0; this.cracks.length = 0; this.petals.length = 0; this.fiss = false; this.gT = 0;
@@ -149,6 +214,7 @@ class TransformScene {
   resize() { this.cv.width = window.innerWidth; this.cv.height = window.innerHeight; }
   /** Recolorea de antemano el aura a pantalla completa con el color de cada forma del personaje */
   warm(ch) {
+    for (const s of IMPACT_FORMS[ch.id] || []) ImpactFx.load(s);      // descarga los impact frames de sus formas
     if (typeof CutFx === 'undefined') return;
     const list = TRANSFORM_FX[ch.id] || [];
     (ch.forms || []).forEach((f, i) => { if (i) CutFx.warm('aura', (list[i] && list[i].c1) || hexCss(f.aura || 0xffe14a)); });
@@ -193,7 +259,7 @@ class TransformScene {
   update(dt) {
     const g = this.g, p = g.player, c = this.cfg, fx = c.fx, t0 = this.t;
     this.t += dt;
-    const t = this.t, ch = c.charge, impEnd = ch + c.frames.length * IMPACT_FRAME;
+    const t = this.t, ch = c.charge, impEnd = ch + c.frames.length * this.ift;
     const k = clamp(t / ch, 0, 1);                       // progreso de la carga (0..1)
 
     // ---- Carga: aura creciente, rocas, chispas, anillos y temblor ----
@@ -237,7 +303,7 @@ class TransformScene {
 
     // ---- Impactos: el primer fotograma cambia la forma ----
     if (t >= ch && t < impEnd) {
-      const i = Math.floor((t - ch) / IMPACT_FRAME);
+      const i = Math.floor((t - ch) / this.ift);
       if (i !== this.lastImp) {
         this.lastImp = i;
         if (!this.swapped) this.swap();
@@ -338,8 +404,8 @@ class TransformScene {
     x.clearRect(0, 0, W, H);
     canvas.style.filter = '';
 
-    const imp = t >= ch && t < impEnd ? c.frames[Math.floor((t - ch) / IMPACT_FRAME)] : null;
-    if (imp) { this.drawImpact(imp, px, py, W, H, S, canvas); this.letterbox(W, H, 1); return; }
+    const imp = t >= ch && t < impEnd ? c.frames[Math.floor((t - ch) / this.ift)] : null;
+    if (imp) { this.drawImpact(imp, px, py, W, H, S, canvas, Math.floor((t - ch) / this.ift)); this.letterbox(W, H, 1); return; }
 
     const intro = clamp(t / 0.35, 0, 1), after = t >= impEnd ? clamp((t - impEnd) / BANNER_TIME, 0, 1) : 0;
     const out = t >= impEnd ? clamp((this.end - t) / 0.35, 0, 1) : 1;
@@ -506,8 +572,17 @@ class TransformScene {
   }
 
   /** Fotogramas de impacto: alto contraste, negativo, silueta y color */
-  drawImpact(type, px, py, W, H, S, canvas) {
+  drawImpact(type, px, py, W, H, S, canvas, i) {
     const x = this.ctx, c = this.cfg;
+    if (type === 'P') {                                   // hoja pixelada de la forma
+      if (ImpactFx.ready(this.pix)) {
+        const soft = Save.d.opt.flash;                    // «reducir destellos»: sin fondo negro y más tenue
+        if (!soft) { x.fillStyle = 'rgba(0,0,0,.86)'; x.fillRect(0, 0, W, H); }
+        ImpactFx.draw(x, this.pix, i, px, py, S, soft ? 0.45 : 1);
+        return;
+      }
+      type = 'BIWC'[i] || 'C';                            // aún sin descargar: impactos genéricos
+    }
     if (Save.d.opt.flash) {                               // modo «reducir destellos»: velo suave de color y líneas
       x.fillStyle = cssRgba(c.c1, 0.22); x.fillRect(0, 0, W, H);
       this.speedLines(px, py, W, H, S, cssRgba(c.c2, 0.5), 50, 0.12);

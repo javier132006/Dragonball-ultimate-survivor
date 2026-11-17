@@ -1632,6 +1632,7 @@ class Game {
     if (p.formIdx === 0 || (this.state !== 'play' && this.state !== 'transform')) return;
     p.setForm(0); p.recompute(); this.applyForm();
     p.tfCd = 25;
+    const bs = ImpactFx.of(p.ch.id, 0); if (bs) ImpactFx.overlay(bs, this);   // impact frame de la forma base
     this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 30, 10, 0.4, 0.35, 0xffffff);
     this.ui.toast(msg || 'VUELVES A TU FORMA BASE', true); SFX.play('revert');
     this.checkTransformation();
