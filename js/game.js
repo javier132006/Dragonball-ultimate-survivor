@@ -2770,6 +2770,7 @@ class Game {
 
   loop() {
     requestAnimationFrame(this.loop);
+    if (window.LOAD && LOAD.hold) { this.clock.getDelta(); return; }   // aún en la pantalla de carga: no se dibuja nada detrás
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     if (this.versus.active) { this.versus.frame(rawDt); this.perfHud.frame(rawDt, this.renderer); return; }   // el Modo Versus lleva su propio fotograma
     const s = this.state;
@@ -2899,6 +2900,6 @@ class PerfHud {
   // Compila de antemano todos los shaders de la escena: así el primer efecto no da tirones
   try { if (g.renderer && g.scene) { g.renderer.compile(g.scene, g.camera); g.renderer.render(g.scene, g.camera); } } catch (e) { console.warn(e); }
   L.step('shaders', 1); await frame();
-  L.done();
+  await L.done();                                   // pantalla de carga: espera a «Pulsa para empezar»
   if (g.ui && Save.checkLogin()) g.ui.showLogin();
 })();
