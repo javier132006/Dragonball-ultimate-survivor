@@ -214,19 +214,34 @@ Object.assign(UIManager.prototype, {
   },
   /** Foto con marco a partir de los identificadores (ranking mundial: lo que eligió otro jugador) */
   pfaIds(avId, frId, size) { return this.pfa(Profile.avatar(avId), Profile.frame(frId), size); },
-  /** Dibuja las fotos: se recorta la cabeza y los hombros del sprite (parte de arriba de su caja) */
+  /** Dibuja las fotos: recorte cuadrado de cabeza, hombros y pecho (64% de arriba del sprite),
+      centrado en la cabeza para que el pelo alto o los brazos abiertos no la saquen del encuadre */
   drawFaces(root) {
     for (const cv of root.querySelectorAll('canvas[data-face]')) {
       const s = this.sheets && this.sheets[cv.dataset.face], g = cv.getContext && cv.getContext('2d');
       if (!s || !g) continue;
       const frame = cv.dataset.frow !== undefined ? +cv.dataset.frow * s.cols : +cv.dataset.fframe;
-      const img = s.tex.image, c = frame % s.cols, r = (frame / s.cols) | 0, bb = this.frameBox(img, s, c, r), W = cv.width;
-      const side = Math.min(bb.w, bb.h) * 0.84, sx = c * s.w + bb.x + (bb.w - side) / 2, sy = r * s.h + bb.y;
+      const img = s.tex.image, c = frame % s.cols, r = (frame / s.cols) | 0, f = this.faceBox(img, s, c, r), W = cv.width;
       g.imageSmoothingEnabled = false; g.clearRect(0, 0, W, W);
-      g.drawImage(img, sx, sy, side, side, 0, W * 0.06, W, W);
+      g.drawImage(img, c * s.w + f.x, r * s.h + f.y, f.side, f.side, 0, 0, W, W);
     }
   },
-
+  /** Encuadre de la cara dentro de la celda (se calcula una vez por fotograma y se guarda) */
+  faceBox(img, s, c, r) {
+    const key = c + ',' + r, cache = (s.faces = s.faces || {});
+    if (cache[key]) return cache[key];
+    const bb = this.frameBox(img, s, c, r), side = Math.max(8, Math.round(Math.max(bb.h * 0.64, Math.min(bb.w, bb.h) * 0.9)));
+    let cx = bb.x + bb.w / 2;
+    try {                                                             // centro horizontal de la cabeza: media de los píxeles opacos del 40% de arriba
+      const cvs = document.createElement('canvas'); cvs.width = s.w; cvs.height = s.h;
+      const x = cvs.getContext('2d'); x.drawImage(img, c * s.w, r * s.h, s.w, s.h, 0, 0, s.w, s.h);
+      const d = x.getImageData(0, 0, s.w, s.h).data, y1 = bb.y + Math.round(bb.h * 0.4); let sum = 0, n = 0;
+      for (let y = bb.y; y < y1; y++) for (let i = bb.x; i < bb.x + bb.w; i++) if (d[(y * s.w + i) * 4 + 3] > 20) { sum += i; n++; }
+      if (n) cx = sum / n;
+    } catch (e) { /* lienzo bloqueado: se centra en la caja */ }
+    const pad = Math.round(side * 0.02);                              // un poco de aire por encima del pelo
+    return (cache[key] = { x: Math.round(cx - side / 2), y: bb.y - pad, side });
+  },
   /* ---------- Cuenta y perfil ---------- */
   renderAccount() {
     const on = this.game && this.game.online, logged = !!(on && on.logged), C = Profile.cur();

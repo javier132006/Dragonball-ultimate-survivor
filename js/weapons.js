@@ -344,7 +344,7 @@ class WeaponSystem {
         const V = g.vfx, fall = s.t < 0.5 ? s.t / 0.5 : 1;                 // los últimos 0,5 s cae sobre el objetivo
         if (V && V.ok) {
           const blue = orbIndex(s.tint) >= 4 && orbIndex(s.tint) <= 5, y = 1 + (R * 0.6 + 4) * fall, k = (g.time * 10) | 0;
-          if (V.z3 && (s.sty === 'db' || (!s.sty && blue))) {           // Z Legends 3: Death Ball de Freezer o Genkidama de Goku
+          if (V.z3 && (s.sty === 'db' || (blue && (!s.sty || s.sty === 'genki')))) {   // Z Legends 3: Death Ball de Freezer o Genkidama de Goku (dibujo nítido de 192 px)
             V.z3f(s.sty === 'db' ? 'ZballDeath' : 'ZballGoku', k, s.x, y, s.z, R * 2.3, s.sty === 'db' ? g.time * 0.6 : 0);
           } else if (s.sty === 'db') {                                          // Death Ball: esfera oscura con remolino morado
             V.now(6, fxf('deathBall', 0), s.x, y, s.z, R * 1.3, 1, 0xffffff, g.time * 0.6);
@@ -353,7 +353,8 @@ class WeaponSystem {
             V.now(6, orbFrame(s.tint, 0), s.x, y, s.z, R * 2.1, 0.95, 0xffffff);
             V.now(0, fxf('burnSwirl', k % 2), s.x, y, s.z, R * 2.5, 0.6, 0xffffff, g.time * 2);
           } else {
-            V.now(6, blue ? fxf('genki', 2 + (k % 4)) : orbFrame(s.tint, 0), s.x, y, s.z, R * 2.1, 0.95, 0xffffff);
+            if (blue) V.now(2, fxf('orbKame', 0), s.x, y, s.z, R * 2.2, 0.95, 0xffffff);   // sin los efectos Z: esfera azul de 128 px (la de 64 px se veía borrosa)
+            else V.now(6, orbFrame(s.tint, 0), s.x, y, s.z, R * 2.1, 0.95, 0xffffff);
             V.now(0, fxf('kameStar', ((g.time * 14) | 0) % 4), s.x, y, s.z, R * 1.4, 0.4, 0xffffff);
           }
         }

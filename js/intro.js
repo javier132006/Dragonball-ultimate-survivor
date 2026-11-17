@@ -248,7 +248,12 @@ class UltCine {
   resize() { const r = Math.min(2, window.devicePixelRatio || 1); this.cv.width = Math.round(window.innerWidth * r); this.cv.height = Math.round(window.innerHeight * r); }
   /** Dibuja un fotograma de una animación de efectos (en su lote) para este cuadro */
   fx(name, k, x, y, z, size, tint, rot) {
-    const V = this.g.vfx, a = FXA[name]; if (!V || !V.ok || !a) return;
+    const V = this.g.vfx; if (!V || !V.ok) return;
+    if (name === 'genki') {                                           // Genkidama: dibujo nítido de Z Legends 3 (el de 64 px se veía borroso)
+      if (V.z3) { V.z3f('ZballGoku', k, x, y, z, size * 1.05, rot || 0, 1, tint); return; }
+      name = 'orbKame'; k = 0;
+    }
+    const a = FXA[name]; if (!a) return;
     V.now(a.s === 'fxbig' ? 2 : 0, fxf(name, k % a.f.length), x, y, z, size, 1, tint, rot || 0);
   }
   update(dt) {
