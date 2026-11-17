@@ -79,12 +79,9 @@ def main(capas, extras):
     for k, box in {'mount': (4, 356, 613, 500), 'cliff': (4, 500, 613, 629), 'cloud': (4, 629, 613, 763)}.items():
         pieces[k] = (key_checker(crop(A, *box)), {})
     # Hojas 4×4 del collage de capas (con cuadriculado) y las estrellas (fondo negro: se dibujan con «screen»)
-    for k, box, tr in [('goku', (626, 6, 1108, 346), False), ('vegeta', (1125, 6, 1530, 345), False), ('shenron', (626, 359, 1112, 697), True),
+    for k, box, tr in [('goku', (626, 6, 1108, 346), False), ('vegeta', (1125, 6, 1530, 345), False),
                        ('capsule', (1128, 359, 1527, 696), False), ('ship', (628, 711, 869, 1017), False), ('ball', (1175, 711, 1530, 1017), False)]:
         cells, cw, ch = frames(key_checker(crop(A, *box), tr))
-        if k == 'shenron':                        # la cola está cortada en el borde de cada casilla: se difumina el último 22 %
-            ramp = np.clip((cw - 1 - np.arange(cw)) / (cw * 0.22), 0, 1)
-            for c in cells: c[:, :, 3] = (c[:, :, 3] * ramp[None, :]).astype(np.uint8)
         pieces[k] = (np.vstack([np.hstack(cells[i * 4:i * 4 + 4]) for i in range(4)]), {'cols': 4, 'rows': 4, 'fw': cw, 'fh': ch})
     st = crop(A, 882, 712, 1161, 1017)
     pieces['stars'] = (np.dstack([st, np.full(st.shape[:2], 255, np.uint8)]), {'cols': 4, 'rows': 4, 'add': 1})
@@ -99,6 +96,18 @@ def main(capas, extras):
     for s in sorted(nd.find_objects(lab), key=lambda s: s[1].start):
         if s is None or (s[0].stop - s[0].start) * (s[1].stop - s[1].start) < 900: continue
         pieces['isle%d' % k] = (isl[s], {}); k += 1
+    # Pétalos de cerezo (fondo negro): cada pétalo por separado, con el borde suave según el brillo
+    pt = crop(B, 746, 429, 1528, 515).astype(float)
+    mx = pt.max(2); al = np.clip((mx - 22) / 70, 0, 1)
+    col = np.clip(pt / np.maximum(al, 0.05)[:, :, None], 0, 255)               # color sin el negro mezclado
+    lab, n = nd.label(nd.binary_dilation(mx > 60, iterations=2))
+    k = 0
+    for s in nd.find_objects(lab):
+        if s is None: continue
+        m = lab[s] > 0
+        if (mx[s] > 60).sum() < 90: continue
+        rgba = np.dstack([col[s], al[s] * 255 * m]).astype(np.uint8)
+        pieces['petal%d' % k] = (rgba, {}); k += 1
     # Empaquetado en filas (estantería) con 2 px de separación
     W = 1536; x = y = rowh = 0; atlas_parts = []; meta = {}
     for name, (im, info) in sorted(pieces.items(), key=lambda kv: -kv[1][0].shape[0]):

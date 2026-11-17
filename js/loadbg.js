@@ -5,9 +5,10 @@
 
    Capas de atrás hacia delante (cada una con su velocidad: paralaje):
    cielo con luna · aurora · estrellas que parpadean · meteoros · rayos lejanos ·
-   nave de Freezer · montañas · islas flotantes · Shenron · acantilados con la
+   nave de Freezer · montañas · islas flotantes · pétalos lejanos · acantilados con la
    Kame House · Goku en la Nube Voladora (a veces Vegeta detrás) · cápsulas que
-   caen y se abren · las 7 esferas girando · nubes · luciérnagas · viñeta.
+   caen y se abren · las 7 esferas girando · nubes · luciérnagas · pétalos de
+   cerezo cerca · viñeta.
 
    Las piezas salen de assets/load/atlas.webp (tools/make_loadbg.py) y sus
    coordenadas de window.LOAD_ATLAS (js/loadatlas.js).
@@ -72,7 +73,13 @@ const LoadBg = (() => {
   }
 
   /* ---------- Actores (personajes y objetos que cruzan) ---------- */
-  const S = { stars: [], isles: [], actors: [], next: {} };
+  const S = { stars: [], isles: [], actors: [], next: {}, petals: [] };
+  const PETALS = Object.keys(A).filter((k) => k.startsWith('petal'));
+  /** Un pétalo nuevo: far = capa lejana (pequeño y tenue) o cercana; top = nace arriba (si no, en cualquier altura) */
+  function petal(far, top) {
+    return { k: PETALS[(Math.random() * PETALS.length) | 0], far, x: Math.random() * 1.2, y: top ? rnd(-0.15, -0.03) : Math.random(),
+      s: far ? rnd(0.015, 0.025) : rnd(0.03, 0.055), v: far ? rnd(0.03, 0.05) : rnd(0.06, 0.1), sw: rnd(0.6, 1.4), ph: Math.random() * 6, r: Math.random() * 6, vr: rnd(-1.5, 1.5) };
+  }
   function setup() {
     S.stars = [];
     for (let i = 0; i < 22; i++) S.stars.push({ x: Math.random(), y: rnd(0.02, 0.5), k: (Math.random() * 16) | 0, s: rnd(0.6, 1.3), ph: Math.random() * 6 });
@@ -81,8 +88,10 @@ const LoadBg = (() => {
     S.isles = big.map((k, i) => ({ k, x: (i + 0.5) / big.length + rnd(-0.05, 0.05), y: rnd(0.4, 0.47), h: rnd(0.12, 0.15), ph: Math.random() * 6 }))
       .concat(small.map((k, i) => ({ k, x: (i + 0.8) / small.length, y: rnd(0.36, 0.42), h: rnd(0.04, 0.055), ph: Math.random() * 6 })));
     S.actors = [];
+    S.petals = [];
+    if (PETALS.length) for (let i = 0; i < 34; i++) S.petals.push(petal(i < 14, false));
     // Primeras apariciones (s): enseguida pasa algo, después cada uno con su ritmo
-    S.next = { goku: 0.6, shenron: 2.2, capsule: 1.4, meteor: 1, bolt: 4, ship: 3 };
+    S.next = { goku: 0.6, capsule: 1.4, meteor: 1, bolt: 4, ship: 3 };
   }
   /** Saca un actor nuevo de tipo k */
   function spawn(k) {
@@ -93,7 +102,6 @@ const LoadBg = (() => {
       if (Math.random() < 0.6) S.actors.push({ k: 'vegeta', x: -420 * u, y: y - 0.07 * H, vx: rnd(300, 330) * u, h: 0.14 * SZ, ph: Math.random() * 6, z: 4 });   // Vegeta persigue a Goku
       return rnd(7, 11);
     }
-    if (k === 'shenron') { S.actors.push({ k: 'shenron', x: W + 200 * u, y: rnd(0.3, 0.38) * H, vx: -rnd(80, 100) * u, h: 0.3 * SZ, ph: Math.random() * 6, z: 2 }); return rnd(15, 20); }
     if (k === 'capsule') { S.actors.push({ k: 'capsule', x: rnd(0.12, 0.88) * W, y: -0.1 * H, y1: rnd(0.56, 0.68) * H, h: 0.12 * SZ, t: 0, z: 5 }); return rnd(4.5, 8); }
     if (k === 'meteor') { S.actors.push({ k: 'meteor', x: rnd(0.4, 1.1) * W, y: -0.1 * H, vx: -520 * u, vy: 360 * u, h: 0.14 * SZ, t: 0, z: 0 }); return rnd(5, 9); }
     if (k === 'bolt') { S.actors.push({ k: 'bolt', x: rnd(0.1, 0.9) * W, y: rnd(0.12, 0.3) * H, h: 0.17 * SZ, t: 0, z: 0 }); return rnd(10, 16); }
@@ -108,14 +116,6 @@ const LoadBg = (() => {
         a.x += a.vx * dt;
         piece(a.k, t * 10 + a.ph, a.x, a.y + Math.sin(t * 3 + a.ph) * H * 0.01, a.h);
         if (a.x > W + 200) a.dead = true;
-      } else if (a.k === 'shenron') {
-        a.x += a.vx * dt;
-        const y = a.y + Math.sin(t * 1.3 + a.ph) * H * 0.03;
-        const g = ctx.createRadialGradient(a.x, y, 0, a.x, y, a.h * 1.1);                     // brillo verde detrás del dragón
-        g.addColorStop(0, 'rgba(120,255,120,0.22)'); g.addColorStop(1, 'rgba(120,255,120,0)');
-        ctx.fillStyle = g; ctx.fillRect(a.x - a.h * 1.2, y - a.h * 1.2, a.h * 2.4, a.h * 2.4);
-        piece('shenron', t * 7 + a.ph, a.x, y, a.h);
-        if (a.x < -a.h * 2.5) a.dead = true;
       } else if (a.k === 'capsule') {
         // Cae girando (fotogramas 0..7) y, al llegar, se abre con el humo (8..15) y se desvanece
         a.t += dt;
@@ -139,6 +139,18 @@ const LoadBg = (() => {
         piece('ship', a.t * 8, a.x, a.y + Math.sin(a.t * 2) * H * 0.004, a.h, { alpha: 0.85 });
         if (a.x < -100) a.dead = true;
       }
+    }
+  }
+
+  /** Pétalos de cerezo de una capa: caen con el viento hacia la izquierda, se mecen y giran */
+  function petals(far, dt) {
+    for (let i = 0; i < S.petals.length; i++) {
+      const p = S.petals[i];
+      if (p.far !== far) continue;
+      p.y += p.v * dt; p.x -= p.v * 0.55 * dt; p.r += p.vr * dt;
+      if (p.y > 1.05 || p.x < -0.1) { S.petals[i] = petal(far, true); continue; }
+      const sway = Math.sin(t * p.sw + p.ph);
+      piece(p.k, 0, (p.x + sway * 0.012) * W, p.y * H, p.s * SZ, { rot: p.r + sway * 0.4, alpha: far ? 0.55 : 0.95 });
     }
   }
 
@@ -175,7 +187,7 @@ const LoadBg = (() => {
       if (s.x < -0.15) s.x += 1.3;
       piece(s.k, 0, s.x * W, (s.y + Math.sin(t * 0.8 + s.ph) * 0.01) * H, s.h * SZ);
     }
-    actors(2, dt);
+    petals(true, dt);
     band('cliff', H * 0.9, H * 0.33, t * 16 * u);
     actors(4, dt);
     // Las 7 esferas girando en una elipse alrededor del logo (las de atrás, más pequeñas y tenues)
@@ -187,6 +199,7 @@ const LoadBg = (() => {
     actors(5, dt);
     band('cloud', H * 1.05, H * 0.3, t * 34 * u);
     band('flies', H, H * 0.4, t * 12 * u, { add: 1, alpha: 0.35 + Math.sin(t * 1.7) * 0.15 });
+    petals(false, dt);
     // Viñeta y oscurecido arriba (el logo se lee mejor)
     const v = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.3, W / 2, H * 0.45, Math.max(W, H) * 0.75);
     v.addColorStop(0, 'rgba(4,6,20,0)'); v.addColorStop(1, 'rgba(4,6,20,0.55)');
