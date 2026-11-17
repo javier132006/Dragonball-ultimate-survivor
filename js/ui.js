@@ -419,7 +419,6 @@ class UIManager {
   }
   pickCard(i) { const f = this.cardHandlers[i]; if (f) f(); }
   hideCards() { this.el.cards.classList.remove('show'); this.cardHandlers = []; }
-  cardsOpen() { return this.el.cards.classList.contains('show'); }
 
   /* ---------- Menú principal (estilo PokéBonk: cabecera de color, paneles azul noche y el mundo 3D detrás) ---------- */
   showMenu(game) {

@@ -14,10 +14,8 @@ for (const k in (window.ZFX_ANIMS || {})) FXA['Z' + k] = window.ZFX_ANIMS[k];
    Hojas pfx (128 px, apoyo en el centro) y pfxg (192 px, apoyo abajo: rayos que caen, portales, círculos).
    `e` = fracción de la casilla que ocupa el dibujo: pplay() pide el tamaño real del efecto */
 for (const k in (window.PFX_ANIMS || {})) FXA['P' + k] = window.PFX_ANIMS[k];
-/* Color de Z Legends 3 para un color de ataque (Y amarillo, O naranja, R rojo, B azul, P morado, G verde, K rosa) */
 /* Efectos de siempre que pasan a dibujarse con los de Z Legends 3: nombre -> [efecto Z, escala de tamaño] */
 const Z3_ALIAS = { hitRing: ['Zhit', 1.1], meteorHit: ['Zextreme', 1.2], kameImp: ['Zkiboom', 1.2], fireBoom: ['Zboom1', 1.1], cellBoom: ['Zboom3', 1.1] };
-const Z3_BEAM = { Y: 'Y', O: 'Y', R: 'K', B: 'B', P: 'P', G: 'G', K: 'K' };
 const Z3_AURA = { Y: 'Y', O: 'D', R: 'R', B: 'C', P: 'K', G: 'G', K: 'K' };
 /** Color del aura de Z Legends 3 para un color: blanco (Ultra Instinto), amarillo, dorado, rojo, rosa, azul, verde… */
 function auraKey(hex) {

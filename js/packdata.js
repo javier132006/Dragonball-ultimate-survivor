@@ -53,7 +53,6 @@ const XUNITS = [
   ['bardockb', 'char', null, 'BARDOCK BLACK', 2, 0x8ad8ff, 0x6fb8ff],
   ['gotenss5', 'char', null, 'GOTEN SSJ5', 2, 0xe8f0ff, 0xc8d8ff]
 ].map(([id, kind, ch, name, r, ki, aura]) => ({ id, kind, ch: ch || id, name, r, ki, aura, sheet: 'u_' + id, chg: 'u_' + id + '_chg', face: 'u_' + id + '_pt' }));
-const GFORMS = GUNITS;                                     // nombre antiguo (lo usan summon.js y ui.js)
 const gformById = (id) => GUNITS.find((g) => g.id === id) || XUNITS.find((g) => g.id === id);
 const unitBig = (g) => (window.SPRITE_DATA && SPRITE_DATA['u_' + g.id + '_big'] ? 'u_' + g.id + '_big' : null);
 const PACK_SHEETS = [].concat(...GUNITS.concat(XUNITS).map((g) => [g.sheet, g.chg, g.face])).concat(GUNITS.map(unitBig).filter(Boolean));

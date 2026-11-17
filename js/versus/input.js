@@ -95,12 +95,6 @@ class VsMulti {
     return { mx, mz, b };
   }
 }
-/** Órdenes que llegan de fuera (red, repetición): se encolan por número de paso. Lo usará el online (etapa 3) */
-class VsRemote {
-  constructor() { this.q = new Map(); this.last = { mx: 0, mz: 0, b: 0 }; }
-  push(tick, cmd) { this.q.set(tick, cmd); }
-  read(sim) { const c = this.q.get(sim.tick); if (c) { this.last = c; this.q.delete(sim.tick); } return this.last; }
-}
 
 /* ---------------------------------------------------------------------
    IA: mira la simulación igual que un jugador mira la pantalla y pulsa

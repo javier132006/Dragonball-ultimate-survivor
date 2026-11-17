@@ -35,7 +35,7 @@ REPLACE = {
 # Jefes del modo supervivencia que pasan a usar su hoja de Z Legends 3 (id del jefe -> luchador)
 BOSS = {'freezer': 'freezer', 'cell': 'cell', 'broly': 'brolyz', 'buu': 'kidbuu', 'jiren': 'jiren', 'beerus': 'beerus', 'zamasu': 'zamasu',
         'janemba': 'janemba', 'hit': 'hit', 'raditz': 'raditz', 'nappa': 'nappa', 'ginyu': 'ginyu', 'moro': 'moro', 'baby': 'baby'}
-EXTRA = ['nappa', 'tien', 'moro', 'kidbuu', 'brolyz', 'brolydbs', 'ginyu', 'baby']       # sin hoja antigua: enemigos / jefes nuevos
+EXTRA = ['nappa', 'moro', 'kidbuu', 'brolyz', 'ginyu', 'baby']       # sin hoja antigua: jefes nuevos (Ten Shin Han y Broly de Super no se usan)
 USED = sorted(set(REPLACE.values()) | set(EXTRA) | set(BOSS.values()))
 PXH = 52.3                                                             # alto de casilla -> escala (hs)
 

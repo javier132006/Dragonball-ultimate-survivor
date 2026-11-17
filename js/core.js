@@ -75,7 +75,6 @@ const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 function seeded(seed) {
   return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-const hexToRgb = (h) => [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255];
 
 /** Gradiente de 4 tonos para el cel-shading del terreno */
 const Shared = { toon: null };
@@ -348,7 +347,6 @@ class SpriteBatch {
     const ok = R && R.n === cols * rows;
     u.uRects.value = ok ? R.tex : NO_RECTS; u.uRectN.value = ok ? R.n : 0;
   }
-  setTint(hex) { this.mat.uniforms.uTint.value.setHex(hex); }
   begin() { this.count = 0; }
   /** sq (opcional): estirado vertical para el squash & stretch (1 = normal) */
   push(x, y, z, frame, flip, flash, scale, alpha, tint, rot, sq) {

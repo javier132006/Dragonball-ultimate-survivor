@@ -391,7 +391,6 @@ Object.assign(UIManager.prototype, {
     else this.toast(txt, true);
   },
   /** Aviso al subir de nivel en el pase (menú) */
-  passToast(r) { if (r && r.up > 0) this.toast('Pase de batalla: nivel ' + r.lv + ' · tienes recompensas por recoger', true); },
 
   /** Clics propios del perfil y del pase (los llama Game desde su gestor de clics del menú) */
   profileClick(D, el) {
