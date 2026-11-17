@@ -301,7 +301,10 @@ const Shenron = (() => {
     const cv = root.querySelector('canvas'), ctx = cv.getContext('2d'), txt = root.querySelector('.shx');
     const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     const S = { t: reduce ? 3 : 0, last: performance.now(), done: false, out: 0, path: null, W: 0, H: 0, dpr: 1, bolts: [] };
-    const DUR = opts.short ? 1.6 : 2.3;                                             // segundos hasta que aparece el texto
+    // Con la hoja de la invocación (cutfx.js): primero las 7 esferas se juntan, sube la columna dorada y estalla la luz verde;
+    // después el cielo de esa hoja (noche con luna) queda de fondo mientras sale el dragón
+    const SH = !reduce && typeof CutFx !== 'undefined' && CutFx.ready('shenron') ? (opts.short ? 1.3 : 1.9) : 0;
+    const DUR = SH + (opts.short ? 1.6 : 2.3);                                      // segundos hasta que aparece el texto
     function fit() {
       S.dpr = Math.min(2, window.devicePixelRatio || 1);
       S.W = innerWidth; S.H = innerHeight; cv.width = S.W * S.dpr; cv.height = S.H * S.dpr;
@@ -324,16 +327,25 @@ const Shenron = (() => {
     function frame(now) {
       if (S.done) return;
       const dt = Math.min(0.12, (now - S.last) / 1000); S.last = now; S.t += dt;              // (tope alto: en móviles lentos no se alarga)
-      const W = S.W, H = S.H, t = S.t;
+      const W = S.W, H = S.H;
       ctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+      if (S.t < SH && S.out === 0) {                                                 // la invocación a pantalla completa
+        const f = Math.min(15, (S.t / SH * 16) | 0);
+        if (f !== S.sf) { S.sf = f; if (f === 11 && typeof SFX !== 'undefined') SFX.play('bigboom'); }
+        ctx.clearRect(0, 0, W, H); CutFx.cover(ctx, 'shenron', f, W, H, { op: 'source-over' });
+        requestAnimationFrame(frame); return;
+      }
+      const t = S.t - SH;                                                            // tiempo desde que acaba la invocación
       // Al cerrar (S.out de 0 a 1): Shenron se desvanece, las esferas se vuelven piedra y salen volando, y al final se va el cielo
       const outSky = Math.max(0, (S.out - 0.62) / 0.38), outDr = Math.min(1, S.out * 2.2), stone = S.out > 0.12;
       // Cielo oscurecido (verde noche) con destellos de rayos
       const dark = Math.min(1, t / 0.5) * (1 - outSky);
       const sky = ctx.createLinearGradient(0, 0, 0, H);
       sky.addColorStop(0, 'rgba(6,20,14,' + 0.94 * dark + ')'); sky.addColorStop(0.6, 'rgba(10,34,22,' + 0.92 * dark + ')'); sky.addColorStop(1, 'rgba(30,24,6,' + 0.9 * dark + ')');
-      ctx.clearRect(0, 0, W, H); ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-      if (Math.random() < (t < DUR ? 0.06 : 0.012) && S.out === 0) S.bolts.push({ x: Math.random() * W, life: 0.18 });
+      ctx.clearRect(0, 0, W, H);
+      if (SH) { ctx.globalAlpha = 1 - outSky; CutFx.cover(ctx, 'shenron', 15, W, H, { op: 'source-over', alpha: 1 - outSky }); ctx.globalAlpha = 0.55; }   // noche de la hoja de fondo
+      ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+      if (Math.random() < (t < DUR - SH ? 0.06 : 0.012) && S.out === 0) S.bolts.push({ x: Math.random() * W, life: 0.18 });
       for (const b of S.bolts) {
         b.life -= dt; if (b.life <= 0) continue;
         ctx.fillStyle = 'rgba(220,255,200,' + b.life * 0.5 + ')'; ctx.fillRect(0, 0, W, H);
@@ -348,26 +360,26 @@ const Shenron = (() => {
       for (let i = 0; i < 7; i++) {
         const a = (i / 7) * Math.PI * 2 - Math.PI / 2, rx = br * 4.2, ry = br * 1.4;
         const x = S.cx + Math.cos(a) * (rx + fe * W * 0.7), y = by + Math.sin(a) * ry - Math.sin(fly * Math.PI) * H * 0.25 * (0.6 + (i % 3) * 0.2) - fe * H * 0.3;
-        if (stone) stoneBall(ctx, x, y, br * (1 - fly * 0.5)); else ball(ctx, x, y, br, i + 1, glow * (t < DUR ? 1 : 0.4));
+        if (stone) stoneBall(ctx, x, y, br * (1 - fly * 0.5)); else ball(ctx, x, y, br, i + 1, glow * (t < DUR - SH ? 1 : 0.4));
       }
       ctx.globalAlpha = 1;
       // Columna de luz al empezar
-      if (t > 0.3 && t < DUR + 0.4) { const a = Math.min(1, (t - 0.3) * 3) * Math.max(0, 1 - (t - DUR) / 0.4); const g = ctx.createLinearGradient(S.cx - 60, 0, S.cx + 60, 0); g.addColorStop(0, 'rgba(255,230,120,0)'); g.addColorStop(0.5, 'rgba(255,240,170,' + 0.55 * a + ')'); g.addColorStop(1, 'rgba(255,230,120,0)'); ctx.fillStyle = g; ctx.fillRect(S.cx - 60, 0, 120, by); }
+      if (t > 0.3 && t < DUR - SH + 0.4) { const a = Math.min(1, (t - 0.3) * 3) * Math.max(0, 1 - (t - DUR + SH) / 0.4); const g = ctx.createLinearGradient(S.cx - 60, 0, S.cx + 60, 0); g.addColorStop(0, 'rgba(255,230,120,0)'); g.addColorStop(0.5, 'rgba(255,240,170,' + 0.55 * a + ')'); g.addColorStop(1, 'rgba(255,230,120,0)'); ctx.fillStyle = g; ctx.fillRect(S.cx - 60, 0, 120, by); }
       // El dragón
-      const p = Math.min(1, Math.max(0, (t - 0.45) / (DUR - 0.45)));
+      const p = Math.min(1, Math.max(0, (t - 0.45) / (DUR - SH - 0.45)));
       if (p > 0 && outDr < 1) {
-        if (IMG.complete && IMG.naturalWidth) drawSprite(ctx, S, t, p, outDr, t > DUR);
+        if (IMG.complete && IMG.naturalWidth) drawSprite(ctx, S, t, p, outDr, t > DUR - SH);
         else {                                                                   // (por si la imagen no ha cargado: el dibujado a mano)
           const L = S.path[S.path.length - 1].d, e = 1 - Math.pow(1 - p, 3), headS = L * e, len = L * 0.96, n = 72;
           const pts = spine(S.path, headS, len, n, t, S.w, p < 1 ? 0.12 : 0.22), vis = pts.filter((q, i) => headS - (i / (n - 1)) * len > -8);
           ctx.globalAlpha = 1 - outDr;
-          if (vis.length > 4) draw(ctx, vis, S.w, t, { roar: p > 0.85 && t < DUR + 0.8, headAng: p >= 1 ? Math.PI - 0.12 + Math.sin(t * 1.2) * 0.05 : null });
+          if (vis.length > 4) draw(ctx, vis, S.w, t, { roar: p > 0.85 && t < DUR - SH + 0.8, headAng: p >= 1 ? Math.PI - 0.12 + Math.sin(t * 1.2) * 0.05 : null });
           ctx.globalAlpha = 1;
         }
       }
       // Corte anime: los ojos de Shenron brillan en una franja cuando concede el deseo
       if (S.cut != null) cutIn(ctx, W, H, t - S.cut);
-      if (t > DUR && !txt.classList.contains('on')) { txt.classList.add('on'); S.cut = t; if (opts.short) setTimeout(() => api.close(), 1100); }
+      if (S.t > DUR && !txt.classList.contains('on')) { txt.classList.add('on'); S.cut = t; if (opts.short) setTimeout(() => api.close(), 1100); }
       if (S.out > 0) {
         S.out = Math.min(1, S.out + dt / 1.1);
         txt.classList.add('off');

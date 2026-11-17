@@ -147,6 +147,47 @@ class TransformScene {
   }
 
   resize() { this.cv.width = window.innerWidth; this.cv.height = window.innerHeight; }
+  /** Recolorea de antemano el aura a pantalla completa con el color de cada forma del personaje */
+  warm(ch) {
+    if (typeof CutFx === 'undefined') return;
+    const list = TRANSFORM_FX[ch.id] || [];
+    (ch.forms || []).forEach((f, i) => { if (i) CutFx.warm('aura', (list[i] && list[i].c1) || hexCss(f.aura || 0xffe14a)); });
+  }
+  /**
+   * Aura de la hoja cut_aura (sube del suelo con rocas) en 3D, detrás del personaje y mirando a la cámara.
+   * Durante la carga crece (fotogramas 0..11); tras el impacto se deshace (12..15).
+   * Un único plano con mezcla aditiva (el negro no se ve) y la hoja recoloreada como textura.
+   */
+  aura3d(k, t, ch, impEnd) {
+    const g = this.g, p = g.player, c = this.cfg;
+    let f = -1, a = 0;
+    if (t < ch) { f = Math.min(11, (k * 12) | 0); a = Math.min(1, k * 4) * 0.85; }
+    else { const u = (t - impEnd) / 0.45; if (u >= 0 && u < 1) { f = 12 + ((u * 4) | 0); a = 0.85 * (1 - u * 0.6); } }
+    const sh = f >= 0 && typeof CutFx !== 'undefined' ? CutFx.sheet('aura', c.c1) : null;
+    if (!sh) { if (this.am) this.am.visible = false; return; }
+    if (!this.am) {
+      const m = new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+      this.am = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), m);
+      this.am.renderOrder = -5;                                        // antes que el personaje: él queda delante del aura
+      this.am.frustumCulled = false;
+      g.scene.add(this.am);
+    }
+    const M = this.am.material;
+    if (this.amSrc !== sh) {                                           // otro color: otra textura (la anterior se libera)
+      if (M.map) M.map.dispose();
+      const tx = new THREE.CanvasTexture(sh), iu = CUT_INSET / sh.width, iv = CUT_INSET / sh.height;
+      tx.repeat.set(0.25 - iu * 2, 0.25 - iv * 2); tx.userData = { iu, iv };
+      M.map = tx; M.needsUpdate = true; this.amSrc = sh;
+    }
+    const tx = M.map, { iu, iv } = tx.userData;
+    tx.offset.set((f % 4) * 0.25 + iu, 1 - (((f / 4) | 0) + 1) * 0.25 + iv);
+    M.opacity = a;
+    const cam = g.camera, h = 7.5, dx = cam.position.x - p.x, dz = cam.position.z - p.z, l = Math.hypot(dx, dz) || 1;
+    this.am.position.set(p.x - dx / l * 0.8, h * 0.42, p.z - dz / l * 0.8);
+    this.am.quaternion.copy(cam.quaternion);
+    this.am.scale.set(h * 16 / 9, h, 1);
+    this.am.visible = true;
+  }
 
   /** Avanza la escena. Devuelve true cuando termina */
   update(dt) {
@@ -206,6 +247,7 @@ class TransformScene {
     if (t >= impEnd && !this.bannerOn) this.showBanner();
     this.animBanner(t, impEnd);
 
+    this.aura3d(k, t, ch, impEnd);
     this.draw(k, t, ch, impEnd);
     if (t >= this.end) { this.finish(); return true; }
     return false;
@@ -271,6 +313,7 @@ class TransformScene {
     const g = this.g, p = g.player;
     this.on = false; this.bannerOn = false;
     this.cv.style.display = 'none';
+    if (this.am) this.am.visible = false;
     g.renderer.domElement.style.filter = '';
     this.banner.style.opacity = 0;
     g.ui.el.hud.classList.remove('cine');

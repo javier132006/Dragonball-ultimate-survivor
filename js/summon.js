@@ -98,6 +98,7 @@ const ucv = (g, a, w, h, cls) => '<canvas' + (cls ? ' class="' + cls + '"' : '')
 const traitHtml = (g, cls) => { const T = unitTrait(g); return T ? '<p class="' + (cls || 'strt') + '"><b>' + T.name + '</b><i>✚ ' + T.good + '</i><i class="bad">✖ ' + T.bad + '</i></p>' : ''; };
 const unitSub = (g) => g.kind === 'char' ? 'Guerrero nuevo' : nice(charById(g.ch).name);
 
+const SHEN_T = 2.0;                 // duración de la invocación de Shenron antes de una tirada ¡¡ULTRA!!
 class Summon {
   constructor(game) { this.g = game; this.fx = null; }
 
@@ -177,6 +178,8 @@ class Summon {
     const cv = root.querySelector('.smc'), ctx = cv.getContext('2d'), grid = root.querySelector('.sgrid'), rev = root.querySelector('.srev'), call = root.querySelector('.scall');
     const S = { t: 0, last: performance.now(), done: false, phase: 'ball', top, shown: top, fake: top >= 2 && Math.random() < 0.55, i: 0, wait: 0, parts: [], flash: 0, bolts: [], tr: 0, zoom: 0 };
     if (S.fake) S.shown = Math.max(0, top - 1 - (Math.random() < 0.4 ? 1 : 0));
+    // ¡¡ULTRA!! (sin engaño): antes de las esferas, la invocación de Shenron a pantalla completa (cutfx.js)
+    S.shen = top >= 3 && !S.fake && typeof CutFx !== 'undefined' && CutFx.ready('shenron') ? 0 : -1;
     this.fx = { root, S };
     const fit = () => { S.dpr = Math.min(2, devicePixelRatio || 1); S.W = innerWidth; S.H = innerHeight; cv.width = S.W * S.dpr; cv.height = S.H * S.dpr; };
     fit(); addEventListener('resize', fit);
@@ -227,8 +230,17 @@ class Summon {
     const frame = (now) => {
       if (S.done) return;
       const dt = Math.min(0.1, (now - S.last) / 1000); S.last = now; S.t += dt;
-      const W = S.W, H = S.H, t = S.t, cx = W / 2, cy = H / 2;
+      const W = S.W, H = S.H, cx = W / 2, cy = H / 2;
       ctx.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+      if (S.shen >= 0 && S.shen < SHEN_T) {
+        S.shen += dt; S.t = 0;
+        const f = Math.min(15, (S.shen / SHEN_T * 16) | 0);
+        if (f !== S.sf) { S.sf = f; if (f === 0) SFX.play('shenron'); if (f === 11) { SFX.play('bigboom'); kick(0.9, 0.08, 450); } }
+        ctx.clearRect(0, 0, W, H); CutFx.cover(ctx, 'shenron', f, W, H, { op: 'source-over' });
+        if (S.shen >= SHEN_T) S.flash = 0.9;
+        requestAnimationFrame(frame); return;
+      }
+      const t = S.t;
       // Fondo: noche con líneas de velocidad que giran (más rápidas cuanto mejor es la rareza que se ve)
       const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.75);
       g.addColorStop(0, S.shown >= 2 ? '#3a2a08' : S.shown === 1 ? '#24123c' : '#0d1a3c'); g.addColorStop(1, '#03050c');
@@ -301,7 +313,8 @@ class Summon {
     root.addEventListener('click', (ev) => {
       if (ev.target.closest('.sok')) { close(); return; }
       const ag = ev.target.closest('[data-again]'); if (ag) { close(); this.pull(+ag.dataset.again); return; }
-      if (ev.target.closest('.sskip')) { S.skip = true; if (this.revEnd) this.revEnd(); rev.innerHTML = ''; rev.className = 'srev'; call.className = 'scall'; finish(); return; }
+      if (ev.target.closest('.sskip')) { S.skip = true; if (S.shen >= 0) S.shen = SHEN_T; if (this.revEnd) this.revEnd(); rev.innerHTML = ''; rev.className = 'srev'; call.className = 'scall'; finish(); return; }
+      if (S.shen >= 0 && S.shen < SHEN_T) { S.shen = SHEN_T; return; }                      // salta la invocación
       if (S.phase === 'ball' && S.t < 2.7) { S.t = Math.max(S.t, S.fake ? 2.02 : 2.6); }
     });
   }
