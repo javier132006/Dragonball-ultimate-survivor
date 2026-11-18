@@ -5,6 +5,9 @@
    ===================================================================== */
 
 /* ---------- JUGADOR ---------- */
+/** Parpadeo del aura: su intensidad oscila entre el 86 % y el 100 % de forma irregular (como una llama) */
+const auraFlicker = (t) => 0.93 + Math.sin(t * 23) * Math.sin(t * 7.3) * 0.07;
+
 class Player {
   constructor(scene, sheets, tex) {
     this.scene = scene; this.sheets = sheets;
@@ -53,7 +56,7 @@ class Player {
     this.buffT = 0; this.buffDmg = 0;
     this.x = 0; this.z = 0; this.vx = 0; this.vz = 0; this.flip = 0;
     this.level = 1; this.xp = 0; this.xpNext = this.xpFor(1);
-    this.sq = 1; this.sqV = 0; this.dashT = 0; this.dashCd = 0; this.dashX = 1; this.dashZ = 0; this.iframes = 0; this.ghostT = 0;
+    this.sq = 1; this.sqV = 0; this.idle0 = -1; this.dashT = 0; this.dashCd = 0; this.dashX = 1; this.dashZ = 0; this.iframes = 0; this.ghostT = 0;
     this.charging = false; this.shockT = 0; this.prevSpace = false; this.auraAcc = 0;
     this.animT = 0; this.atkT = 0; this.beamT = 0; this.atkFrame = 0; this.hurtT = 0; this.moving = false;
     this.dying = false; this.deathT = 0;
@@ -382,6 +385,9 @@ class Player {
     else if (this.atkT > 0) fr = this.atkFrame;
     else if (this.moving) fr = a.walk[((this.animT * 9) | 0) % a.walk.length];
     this.frame = fr;
+    // Respiración por código para las hojas sin fotogramas de reposo: empieza poco a poco al quedarse quieto
+    const still = fr === a.idle && !a.idleSeq && !this.moving && !this.charging && !this.cineChg;
+    if (!still) this.idle0 = -1; else if (this.idle0 < 0) this.idle0 = this.animT;
   }
 
   spawnGhost() {
@@ -403,11 +409,12 @@ class Player {
     } else if (this.chgOff0 !== undefined && t - this.chgOff0 < 0.25 && T.pos) {
       fr = T.pos[Math.min(T.pos.length - 1, ((t - this.chgOff0) * 14) | 0)];
     } else if (on) { fr = T.loop[((t * 10) | 0) % 2]; sc = 0.5; al = 0.45; }
+    al *= auraFlicker(t);
     if (fr >= 0 && !this.dying && !this.introHide && !this.menuHide) B.push(this.x + V.bk.x * 0.3, 0, this.z + V.bk.z * 0.3, fr, ((t * 4) | 0) & 1, 0, sc, al, 0xffffff);
   }
 
   syncSprite(shadows) {
-    let y = 0, alpha = 1, flash = 0, scale = 1, sheet = this.drawSheet, frame = this.frame;
+    let y = 0, alpha = 1, flash = 0, scale = 1, breath = 1, sheet = this.drawSheet, frame = this.frame;
     for (const k in this.spr) { this.spr[k].begin(); this.gho[k].begin(); }
     if (this.auraB) this.auraB.begin();
     if (this.dying) {
@@ -420,11 +427,16 @@ class Player {
       else if (this.moving) y = Math.abs(Math.sin(this.animT * 9)) * 0.12;
       flash = this.hurtT > 0.22 ? 1 : 0;
       if (this.iframes > 0 && this.dashT <= 0 && ((this.animT * 18) | 0) % 2) alpha = 0.5;
+      if (this.idle0 >= 0) {
+        // Quieto: el pecho sube y baja (estirado vertical de un 2 % anclado a los pies, una vez cada 2,4 s)
+        const w = Math.min(1, (this.animT - this.idle0) / 0.5);
+        breath = 1 + Math.sin((this.animT - this.idle0) * 2.6) * 0.02 * w;
+      }
       if (this.introHide || this.menuHide) alpha = 0;            // menuHide: en las pantallas del menú (menos el inicio) no se ve                               // intro de la fusión: aún no ha aparecido
     }
     // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
     const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.form.tint;
-    this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint, 0, this.dying ? 1 : this.sq);
+    this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint, 0, this.dying ? 1 : this.sq * breath);
     for (const g of this.ghosts) if (g.t > 0) this.gho[g.sheet].push(g.x, 0.5, g.z, g.frame, g.flip, 0, 1, g.t / 0.3, this.form.tint);
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
     // Aura de fuego (sprites): forma transformada, carga de ki o Kaio-ken. En las formas altas, rayos sueltos alrededor
@@ -435,7 +447,7 @@ class Player {
       if (zA) this.z3Aura(ka ? 0xff3a2a : au || 0xffffff, au || ka);   // forma base: aura blanca, como en Z Legends 3
       else if ((au || this.charging || ka) && !this.chgPose) {
         const big = this.charging ? 1.3 : 1, name = ka || !F || !F.a ? 'auraSS1' : F.a, own = name === 'auraSS2' || name === 'auraSS3';
-        V.aura(name, this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : own ? 0xffffff : (au || this.form.ki), this.charging ? 0.85 : own ? 0.62 : 0.5, this.animT);
+        V.aura(name, this.x, this.z, 5.4 * big * (1 + Math.sin(this.animT * 14) * 0.04), ka ? 0xff3a2a : own ? 0xffffff : (au || this.form.ki), (this.charging ? 0.85 : own ? 0.62 : 0.5) * auraFlicker(this.animT), this.animT);
       }
       if (F && !ka) {
         // Rayitos de electricidad pegados al cuerpo (SSJ2, Evolución, Ultra Ego...): fotogramas de 'bolt' que saltan de sitio

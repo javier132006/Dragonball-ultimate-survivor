@@ -22,7 +22,7 @@ const EntryFx = {
   has(id) { return ENTRY_IDS.has(id); },
   load(id) {
     let im = this.img[id];
-    if (!im) { im = this.img[id] = new Image(); im.decoding = 'async'; im.src = 'assets/entry/' + id + '.webp'; }
+    if (!im) { im = this.img[id] = new Image(); im.decoding = 'async'; im.src = av('assets/entry/' + id + '.webp'); }
     return im;
   },
 

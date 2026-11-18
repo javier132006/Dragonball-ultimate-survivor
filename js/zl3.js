@@ -21,7 +21,7 @@ const ZL3 = {
     const a = this.get(cid, k); a.volume = Math.min(1, ((Save.d.vol && Save.d.vol.sfx) || 0.75) * 1.1); a.currentTime = 0;
     const p = a.play(); if (p && p.catch) p.catch(() => {});
   },
-  get(cid, k) { const id = cid + '_' + k; return this.vc[id] || (this.vc[id] = new Audio('assets/zl3/a/' + id + '.m4a')); },
+  get(cid, k) { const id = cid + '_' + k; return this.vc[id] || (this.vc[id] = new Audio(av('assets/zl3/a/' + id + '.m4a'))); },
   /** Descarga los gritos del personaje al empezar la partida (así suenan sin retraso) */
   preload(ch) {
     if (!ch) return;
@@ -34,7 +34,7 @@ const ZL3 = {
   video(cid) {
     if (!cid || !window.ZL3_ULTV || !ZL3_ULTV[cid]) return null;
     let v = this.uv[cid];
-    if (!v) { v = this.uv[cid] = new Image(); v.src = 'assets/zl3/u/' + cid + '.webp'; }
+    if (!v) { v = this.uv[cid] = new Image(); v.src = av('assets/zl3/u/' + cid + '.webp'); }
     return v.complete && v.naturalWidth ? v : null;
   },
   pn: {},
@@ -42,7 +42,7 @@ const ZL3 = {
   panel(cid) {
     if (!cid || !window.ZL3_PANEL || !ZL3_PANEL.includes(cid)) return null;
     let p = this.pn[cid];
-    if (!p) { p = this.pn[cid] = new Image(); p.src = 'assets/zl3/p/' + cid + '.webp'; }
+    if (!p) { p = this.pn[cid] = new Image(); p.src = av('assets/zl3/p/' + cid + '.webp'); }
     return p.complete && p.naturalWidth ? p : null;
   },
   sheetFor(name) { const id = window.ZL3_MAP && ZL3_MAP[name]; return id && SPRITE_DATA['z_' + id] ? 'z_' + id : null; }
@@ -133,7 +133,7 @@ class Backdrop {
       this.cache[z].tex = t; if (this.id === z) this.show(z);
     };
     img.onerror = () => { this.cache[z].err = true; };
-    img.src = 'assets/zl3/s/' + z + '.webp';
+    img.src = av('assets/zl3/s/' + z + '.webp');
   }
   show(z) { this.mat.map = this.cache[z].tex; this.mat.needsUpdate = true; this.mesh.visible = true; }
   /** Sigue a la cámara; de noche se oscurece como el resto del mapa */

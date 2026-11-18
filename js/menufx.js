@@ -26,8 +26,8 @@ class MenuFx {
   /** Descarga las hojas sin bloquear nada (se llama al ver el mapa por primera vez) */
   preload() {
     if (this.pre) return; this.pre = true;
-    for (const k in MENU_TR) { const im = new Image(); im.src = 'assets/menu/tr_' + k + '.' + MENU_TR[k].ext; this.img[k] = im; }
-    for (const id in PLACE_TR) { const im = new Image(); im.src = 'assets/menu/loc_' + id + '.jpg'; }
+    for (const k in MENU_TR) { const im = new Image(); im.src = av('assets/menu/tr_' + k + '.' + MENU_TR[k].ext); this.img[k] = im; }
+    for (const id in PLACE_TR) { const im = new Image(); im.src = av('assets/menu/loc_' + id + '.jpg'); }
   }
   /** ¿Sin animaciones? (ajuste del sistema o «Reducir destellos» de Opciones) */
   calm() { return (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || !!(Save.d.opt && Save.d.opt.flash); }
@@ -53,8 +53,8 @@ class MenuFx {
     const R = this.run = { T, im, ok, f: -1, t0: performance.now(), swapped: false, onSwap, hold: quick ? 180 : calm ? 520 : 700, tEnd: 0 };   // quick: el destino es una partida, no se la tapa más de lo justo
     const el = this.el;
     el.className = 'on' + (T.full && ok ? ' full' : ''); this.card.className = 'mfc'; this.flash.style.opacity = 0; this.flash.style.background = T.flash || '#000';
-    this.card.querySelector('.mfi').src = 'assets/menu/loc_' + place + '.jpg';
-    this.card.querySelector('.mfb').style.backgroundImage = 'url(assets/menu/loc_' + place + '.jpg)';
+    this.card.querySelector('.mfi').src = av('assets/menu/loc_' + place + '.jpg');
+    this.card.querySelector('.mfb').style.backgroundImage = 'url(' + av('assets/menu/loc_' + place + '.jpg') + ')';
     const g = this.cv.getContext('2d'); this.fit(); g.clearRect(0, 0, this.cv.width, this.cv.height);
     this.cv.style.opacity = 1;
     const step = (now) => {

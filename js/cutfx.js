@@ -22,7 +22,7 @@ const CutFx = {
   /** Imagen de la hoja (se empieza a descargar la primera vez que se pide) */
   load(name) {
     let im = this.img[name];
-    if (!im && CUT_SHEETS[name]) { im = this.img[name] = new Image(); im.decoding = 'async'; im.src = CUT_SHEETS[name].src; }
+    if (!im && CUT_SHEETS[name]) { im = this.img[name] = new Image(); im.decoding = 'async'; im.src = av(CUT_SHEETS[name].src); }
     return im || null;
   },
   ready(name) { const im = this.load(name); return !!(im && im.complete && im.naturalWidth); },

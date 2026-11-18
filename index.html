@@ -9,8 +9,13 @@
 <title>DRAGON BALL: ULTIMATE SURVIVOR</title>
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
-<script>window.V = '0a59dfcf';</script>
-<link rel="preload" href="assets/load/atlas.webp?v=0a59dfcf" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
+<script>
+  window.V = 'c6420b1e';
+  /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
+  window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
+</script>
+<script src="js/assetver.js?v=c6420b1e"></script>
+<link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -294,7 +299,7 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 .card em{position:absolute;left:12px;top:9px;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:15px;color:#fff;background:rgba(0,0,0,.28)}
 .ico{display:inline-block;width:1.3em;height:1.3em;background-image:var(--icons);background-size:800% 300%;background-repeat:no-repeat;image-rendering:pixelated;vertical-align:middle;border-radius:6px;font-style:normal}
 .card .ci .ico{width:1.5em;height:1.5em;border-radius:50%}
-.ico.tico{background-image:url(assets/icons/tecnicas.webp);image-rendering:auto;border-radius:8px}   /* iconos de las técnicas (js/techicons.js) */
+.ico.tico{background-image:url(assets/icons/tecnicas.webp?v=a3908f80);image-rendering:auto;border-radius:8px}   /* iconos de las técnicas (js/techicons.js) */
 .card .ci .ico.tico{border-radius:12px}
 .card .ci{margin-top:30px;width:94px;height:94px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:42px;line-height:1;color:#fff;
   background:radial-gradient(circle at 35% 30%,#3c4566,#20253a);box-shadow:0 0 0 6px var(--nv),0 6px 14px rgba(0,0,0,.4)}
@@ -1766,11 +1771,11 @@ html.hc .card p{color:#fff;font-size:15px}
 #mfx .mfc.on .mfi{animation:mfin .9s cubic-bezier(.2,.8,.3,1) both}
 @keyframes mfin{from{transform:scale(1.07)}to{transform:scale(1)}}
 /* Cada pantalla lleva de fondo la ilustración de su lugar (la parte sin rótulo), oscurecida para que se lea todo */
-#menu[data-loc="paoz"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_paoz.jpg) right top/175% auto no-repeat,#070a1e}
-#menu[data-loc="altar"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_altar.jpg) right top/175% auto no-repeat,#070a1e}
-#menu[data-loc="lookout"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_lookout.jpg) right top/175% auto no-repeat,#070a1e}
-#menu[data-loc="cc"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_cc.jpg) right top/175% auto no-repeat,#070a1e}
-#menu[data-loc="kame"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_kame.jpg) right top/175% auto no-repeat,#070a1e}
+#menu[data-loc="paoz"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_paoz.jpg?v=d4da3eb4) right top/175% auto no-repeat,#070a1e}
+#menu[data-loc="altar"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_altar.jpg?v=3d61e0e0) right top/175% auto no-repeat,#070a1e}
+#menu[data-loc="lookout"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_lookout.jpg?v=e9357284) right top/175% auto no-repeat,#070a1e}
+#menu[data-loc="cc"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_cc.jpg?v=fc635bbc) right top/175% auto no-repeat,#070a1e}
+#menu[data-loc="kame"]{background:linear-gradient(180deg,rgba(7,10,30,.48) 0%,rgba(7,10,30,.84) 42%,#070a1e 76%),url(assets/menu/loc_kame.jpg?v=9640f0b2) right top/175% auto no-repeat,#070a1e}
 @media (prefers-reduced-motion:reduce){.wgo,.wgs,.wbell.has .wsv,.wpin .badge,#mfx .mfc.on .mfi{animation:none}}
 @media (max-height:520px){
   #menu.ishome{--u:clamp(8.2px,1.28vw,11px)}
@@ -2033,8 +2038,8 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
 <div id="loading" class="boot"><canvas id="ldBg"></canvas><div><span class="dball spin"></span><h2>DRAGON BALL</h2><h3>ULTIMATE SURVIVOR</h3>
   <div class="lbar"><i id="ldBar"></i></div><div class="lstep"><b id="ldPct">0%</b><span id="ldTxt">Preparando…</span></div><p id="tip"></p>
   <button id="ldGo" type="button">PULSA PARA EMPEZAR</button></div></div>
-<script src="js/loadatlas.js?v=0a59dfcf"></script>
-<script src="js/loadbg.js?v=0a59dfcf"></script>
+<script src="js/loadatlas.js?v=3956513c"></script>
+<script src="js/loadbg.js?v=17daeae5"></script>
 <div id="fatal"></div>
 
 <script>
@@ -2090,7 +2095,7 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
     },
     fail(msg) { clearInterval(tipT); LOAD.hold = false; const f = $('fatal'); f.textContent = msg; f.style.display = 'flex'; }
   };
-  const ver = (src) => /^(https?:|blob:)/.test(src) ? src : src + '?v=' + window.V;   // archivos propios con la versión
+  const ver = (src) => window.av(src);                                              // archivos propios con su huella
   const script = (src) => new Promise((ok, ko) => { const e = document.createElement('script'); e.src = ver(src); e.async = false; e.onload = ok; e.onerror = () => ko(new Error(src)); document.body.appendChild(e); });
   /** Empieza a descargar un script ya (en paralelo con los demás); se ejecuta después, en orden, con script() */
   const preload = (src) => { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = ver(src); document.head.appendChild(l); };

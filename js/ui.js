@@ -505,7 +505,7 @@ class UIManager {
       '<button class="wic sm" data-go="credits" title="Créditos" aria-label="Créditos">' + WI.star + '</button><button class="wic sm" data-exit title="Salir" aria-label="Salir">' + WI.power + '</button></div>' +
       '<span class="wchip" title="Días seguidos entrando">' + WI.flame + Save.d.login.streak + '</span>' +
       // Avisos: lo que hay pendiente en cada lugar (tocar uno te lleva allí)
-      '<div class="wnot" role="dialog" aria-label="Avisos"><h4>Avisos</h4>' + (ntot ? extra + pend.map((p) => '<button data-place="' + p.id + '" style="--pc:' + PLACE_COL[p.id] + '"><i style="background-image:url(assets/menu/th_' + p.id + '.jpg)"></i><span><b>' + p.name + '</b><small>' + info[p.id][0] + '</small></span></button>').join('')
+      '<div class="wnot" role="dialog" aria-label="Avisos"><h4>Avisos</h4>' + (ntot ? extra + pend.map((p) => '<button data-place="' + p.id + '" style="--pc:' + PLACE_COL[p.id] + '"><i style="background-image:url(' + av('assets/menu/th_' + p.id + '.jpg') + ')"></i><span><b>' + p.name + '</b><small>' + info[p.id][0] + '</small></span></button>').join('')
         : '<p>No hay nada pendiente. Todo al día.</p>') + '</div>';
   }
   /** Fila de clasificación: puesto, retrato, nombre (con etiqueta) y puntuación */
@@ -535,7 +535,7 @@ class UIManager {
     this.homeInfo = info;
     // Tarjeta de cada lugar: ilustración, kanji, nombre, función y dato del momento. Mismo diseño para todas; cambia el color
     const pins = PLACES.map((p) => { const I = info[p.id]; return '<button class="wpin' + (I[2] ? ' ' + I[2] : '') + (I[1] ? ' hot' : '') + '" data-place="' + p.id + '" style="--pc:' + PLACE_COL[p.id] + '">' +
-      '<span class="wth" style="background-image:url(assets/menu/th_' + p.id + '.jpg)"><i class="wk">' + p.kanji + '</i></span>' +
+      '<span class="wth" style="background-image:url(' + av('assets/menu/th_' + p.id + '.jpg') + ')"><i class="wk">' + p.kanji + '</i></span>' +
       '<span class="wtx"><b>' + p.name + '</b><em>' + p.sub + '</em><small>' + (I[2] === 'done' ? '<u>✓ Hecho hoy</u> ' : '') + I[0] + '</small></span>' +
       (I[1] ? '<span class="badge">' + I[1] + '</span>' : '') + '</button>'; }).join('');
     this.el.menuBody.innerHTML = '<div class="wm"><canvas class="wmc"></canvas>' + pins +
