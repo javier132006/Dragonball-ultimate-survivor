@@ -233,6 +233,8 @@ class Player {
     this.iframes = Math.max(0, this.iframes - dt); this.dashCd = Math.max(0, this.dashCd - dt);
     this.atkT = Math.max(0, this.atkT - dt); this.hurtT = Math.max(0, this.hurtT - dt); this.beamT = Math.max(0, this.beamT - dt);
     this.charging = !!(keys.KeyC || keys._charge) && this.dashT <= 0;
+    this.magT = Math.max(0, (this.magT || 0) - dt);                     // imán de Bulma
+    if (this.shopBar) { const own = game.weapons.list.some((w) => WEAPONS[w.id].kind === 'barrier'); if (!own) this.barT -= dt; this.shopBarFx = !own; if (this.barT <= 0 || this.barHits <= 0) { this.shopBar = false; if (this.barT <= 0) this.barHits = 0; } }   // escudo de Bulma
     this.tpCd = Math.max(0, this.tpCd - dt); this.godT = Math.max(0, (this.godT || 0) - dt); this.tfCd = Math.max(0, this.tfCd - dt);
 
     // --- Transmisión Instantánea (F): te teletransportas 14 m hacia donde te mueves ---
@@ -441,6 +443,9 @@ class Player {
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }
     // Aura de fuego (sprites): forma transformada, carga de ki o Kaio-ken. En las formas altas, rayos sueltos alrededor
     const V = this.vfx, useFx = !!(V && V.ok);
+    // Escudo de Bulma sin técnica de barrera: la burbuja la pone el jugador (con la técnica, la dibuja ella)
+    if (useFx && this.shopBar && this.shopBarFx && this.barHits > 0 && !this.dying && !this.menuHide)
+      V.pnow('Pshield', this.animT, this.x, 1.35, this.z, 8.6 * (1 + Math.sin(this.animT * 9) * 0.03), 0.8, this.barCol);
     if (useFx && !this.dying && !this.introHide && !this.menuHide) {
       const ka = this.buffT > 0, au = this.form.aura || 0, F = formFx(this.ch, this.formIdx);
       const zA = V.z3 && this.auraB && window.ZAURA;
@@ -634,7 +639,7 @@ class HordeManager {
       this.flip[i] = dx * cc - dz * cs < 0 ? 1 : 0;
       this.phase[i] += dt * 8 * (0.6 + T.spd * 0.4);
       const R = T.r * (1 + this.grow[i]);
-      if (!T.fly && d < CFG.PLAYER_R + R + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg, game)) {
+      if (!T.fly && d < CFG.PLAYER_R + R + 0.15 && this.hp[i] > 0 && player.takeDamage(dmg * T.dmg * (this.type[i] === T_BOSS ? game.diff.boss : 1), game)) {
         if (T.knock) { player.kbx = dx * T.knock; player.kbz = dz * T.knock; game.shake(0.6, 1); }
         if (T.drain) {                                            // Androide 18: te roba Ki
           player.ki = Math.max(0, player.ki - T.drain);
@@ -906,11 +911,11 @@ class XpOrbs {
   }
   update(dt, player, game) {
     this.t += dt;
-    const mr2 = player.magnet * player.magnet;
+    const mr2 = player.magT > 0 ? 1e6 : player.magnet * player.magnet;     // imán de Bulma: toda la del mapa
     for (let i = this.n - 1; i >= 0; i--) {
       const dx = player.x - this.x[i], dz = player.z - this.z[i], d2 = dx * dx + dz * dz;
       if (d2 < 1.7) { game.addXp(this.v[i]); SFX.play('xp'); const l = --this.n; this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.v[i] = this.v[l]; }
-      else if (d2 < mr2) { const d = Math.sqrt(d2), s = (26 * dt) / d; this.x[i] += dx * s; this.z[i] += dz * s; }
+      else if (d2 < mr2) { const d = Math.sqrt(d2), s = Math.min(1, (player.magT > 0 ? Math.max(26, d * 3) : 26) * dt / d); this.x[i] += dx * s; this.z[i] += dz * s; }   // con el imán de Bulma vuelan más rápido
     }
     this.sb.begin();
     for (let i = 0; i < this.n; i++) this.sb.push(this.x[i], 0.7 + Math.sin(this.t * 4 + this.x[i]) * 0.15, this.z[i], 0, 0, 0, 0.7 + Math.min(0.9, this.v[i] * 0.06), 1);

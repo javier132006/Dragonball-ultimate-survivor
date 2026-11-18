@@ -1101,10 +1101,14 @@ const labCost = (l, lvl) => Math.round(l.cost * (1 + lvl * 0.8));
 
 
 /* ---------- Dificultades: sobrevive hasta el objetivo para ganar ---------- */
+// hp/dmg: vida y daño de los enemigos (+40 % en las tres de siempre respecto a la versión anterior)
+// boss: vida y daño extra solo de los jefes · heal: probabilidad de que caigan Semillas Senzu (y la de Bulma, más cara)
+const DIFF_UP = 1.4;
 const DIFFS = [
-  { id: 'easy', name: 'FÁCIL', hp: 0.75, dmg: 0.7, spawn: 0.8, coins: 1, reward: 250, color: '#5be07a' },
-  { id: 'normal', name: 'NORMAL', hp: 1.15, dmg: 1.15, spawn: 1, coins: 1.5, reward: 600, color: '#ffd84a' },        // +15% de vida y de daño
-  { id: 'hard', name: 'DIFÍCIL', hp: 1.6 * 1.25, dmg: 1.4 * 1.3, spawn: 1.3, coins: 2.5, reward: 1500, color: '#ff4d5e' }   // +25% de vida y +30% de daño sobre lo que ya tenía
+  { id: 'easy', name: 'FÁCIL', hp: 0.75 * DIFF_UP, dmg: 0.7 * DIFF_UP, spawn: 0.8, boss: 1.1, heal: 0.8, coins: 1, reward: 250, color: '#5be07a' },
+  { id: 'normal', name: 'NORMAL', hp: 1.15 * DIFF_UP, dmg: 1.15 * DIFF_UP, spawn: 1, boss: 1.2, heal: 0.65, coins: 1.5, reward: 600, color: '#ffd84a' },
+  { id: 'hard', name: 'DIFÍCIL', hp: 2 * DIFF_UP, dmg: 1.82 * DIFF_UP, spawn: 1.3, boss: 1.3, heal: 0.5, coins: 2.5, reward: 1500, color: '#ff4d5e' },
+  { id: 'extreme', name: 'EXTREMO', hp: 2 * DIFF_UP * 1.4, dmg: 1.82 * DIFF_UP * 1.4, spawn: 1.45, boss: 1.45, heal: 0.4, coins: 3.5, reward: 3000, color: '#c06bff' }   // +40 % sobre Difícil
 ];
 const diffById = (id) => DIFFS.find((x) => x.id === id) || DIFFS[0];
 

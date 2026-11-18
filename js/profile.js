@@ -31,11 +31,11 @@ function passForms(c) {
    cls = clase CSS (index.html, bloque «PERFIL»). fx = adorno animado: 'aura', 'bolt' (rayos), 'orbs' (bolas), 'scan' */
 const FRAMES = [
   { id: 'base', name: 'Aprendiz', how: 'El marco con el que empiezas', ok: () => true },
-  { id: 'bronze', name: 'Bronce', how: 'Gana una partida en Fácil', ok: () => Profile.clears('easy') + Profile.clears('normal') + Profile.clears('hard') > 0 },
-  { id: 'silver', name: 'Plata', how: 'Gana una partida en Normal', ok: () => Profile.clears('normal') + Profile.clears('hard') > 0 },
-  { id: 'gold', name: 'Oro', how: 'Gana una partida en Difícil', ok: () => Profile.clears('hard') > 0 },
+  { id: 'bronze', name: 'Bronce', how: 'Gana una partida en Fácil', ok: () => Profile.clears('easy') + Profile.clears('normal') + Profile.clears('hard') + Profile.clears('extreme') > 0 },
+  { id: 'silver', name: 'Plata', how: 'Gana una partida en Normal', ok: () => Profile.clears('normal') + Profile.clears('hard') + Profile.clears('extreme') > 0 },
+  { id: 'gold', name: 'Oro', how: 'Gana una partida en Difícil', ok: () => Profile.clears('hard') + Profile.clears('extreme') > 0 },
   { id: 'ssj', name: 'Aura Super Saiyan', fx: 'aura', how: 'Transfórmate 25 veces', ok: () => (Save.d.stats.transforms || 0) >= 25 },
-  { id: 'bolt', name: 'Tormenta eléctrica', fx: 'bolt', how: 'Gana en Difícil con 3 guerreros distintos', ok: () => Profile.clears('hard') >= 3 },
+  { id: 'bolt', name: 'Tormenta eléctrica', fx: 'bolt', how: 'Gana en Difícil con 3 guerreros distintos', ok: () => Profile.clears('hard') + Profile.clears('extreme') >= 3 },
   { id: 'fire', name: 'Combo ardiente', fx: 'aura', how: 'Encadena un combo de 250', ok: () => (Save.d.stats.maxCombo || 0) >= 250 },
   { id: 'hakai', name: 'Destrucción', fx: 'aura', how: 'Derrota 10 jefes', ok: () => (Save.d.stats.bosses || 0) >= 10 },
   { id: 'shenron', name: 'Bolas de Dragón', fx: 'orbs', how: 'Pide 3 deseos a Shenron', ok: () => (Save.d.stats.wishes || 0) >= 3 },
@@ -159,9 +159,9 @@ const Profile = {
     const b = this.pass().lv;
     return { xp: n, lv: b, up: b - a };
   },
-  /** Experiencia de una partida: aguantar, jefes, nivel y victoria; más en Normal (+20%) y Difícil (+50%) */
+  /** Experiencia de una partida: aguantar, jefes, nivel y victoria; más en Normal (+20%), Difícil (+50%) y Extremo (+80%) */
   runXp(o) {
-    const mul = o.diff === 'hard' ? 1.5 : o.diff === 'normal' ? 1.2 : 1;
+    const mul = o.diff === 'extreme' ? 1.8 : o.diff === 'hard' ? 1.5 : o.diff === 'normal' ? 1.2 : 1;
     return Math.round((20 + Math.min(o.time, 1800) / 6 + o.bosses * 40 + o.level * 2 + (o.win ? 150 : 0)) * mul);
   },
   /** Niveles con premio sin recoger */

@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = 'c6420b1e';
+  window.V = '1e8025c3';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=c6420b1e"></script>
+<script src="js/assetver.js?v=1e8025c3"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -826,6 +826,9 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 .tl{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;text-align:left}
 .ti{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:18px;background:var(--nv2);box-shadow:none}
 .ti>div:not(.tbtn){flex:1;min-width:0}.ti small{font-size:11px;font-weight:800}.ti b{display:block;font-weight:800;font-size:17px;color:#fff}.ti p{font-size:13px;color:var(--t2)}
+.tsh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 8px;font-size:12px;font-weight:800;letter-spacing:.08em;color:var(--t2);text-align:left}
+.tsh button{min-width:0;padding:6px 12px;font-size:13px}
+.tl.tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.tl.tg .ti b{font-size:15px}.tl.tg .ti button{min-width:88px}
 .tic{font-size:28px;width:40px;text-align:center}.ti button{min-width:112px;padding:8px 12px;font-size:14px}.tbtn{display:flex;flex-direction:column;gap:8px}
 /* Avisos modales */
 #modal,#exit{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,12,22,.82);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:25;padding:10px}

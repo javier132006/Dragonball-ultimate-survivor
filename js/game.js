@@ -22,6 +22,21 @@ const srcName = (id) => (WEAPONS[id] ? WEAPONS[id].icon + ' ' + WEAPONS[id].name
 const fmtK = (v) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e4 ? Math.round(v / 1e3) + 'k' : String(Math.round(v));
 /** Precio base (Zeni) de los objetos del vendedor según su rareza */
 const SHOP_PRICE = [40, 90, 200, 420, 850, 1700];
+// Tienda de Bulma en la partida: objetos que ofrece, precio base de renovarlos y de mejorar una técnica (x su nivel)
+const BULMA_STOCK = 5, BULMA_REROLL = 40, BULMA_TECH = 120;
+// Consumibles de Bulma (uno de cada por visita). off(p): motivo por el que no se puede comprar ahora
+const BULMA_ITEMS = [
+  { id: 'h', icon: '❖', col: '#9cff6a', name: 'Semilla Senzu', text: 'Recupera toda la vida.', cost: 18, done: 'VIDA RESTAURADA',
+    off: (p) => p.noSenzu ? 'El Pacto del Ermitaño no te deja curarte.' : p.hp >= p.maxHp ? 'Tienes la vida al máximo.' : '', use: (p) => { p.hp = p.maxHp; } },
+  { id: 'k', icon: '✦', col: '#6fd0ff', name: 'Cápsula de Ki', text: 'Llena el ki al máximo.', cost: 25, done: 'KI AL MÁXIMO',
+    off: (p) => p.ki >= p.maxKi ? 'Tienes el ki al máximo.' : '', use: (p) => { p.ki = p.maxKi; } },
+  { id: 'u', icon: '✸', col: '#ffd84a', name: 'Bebida energética', text: 'Carga la Ultimate al completo.', cost: 140, done: 'ULTIMATE LISTA',
+    off: (p) => !p.ultD ? 'Tu guerrero no tiene Ultimate.' : p.ult >= p.ultD.cost ? 'La Ultimate ya está cargada.' : '', use: (p) => { p.ult = p.ultD.cost; } },
+  { id: 'm', icon: '⌖', col: '#c08aff', name: 'Imán de Capsule Corp', text: 'Atrae toda la experiencia del mapa durante 10 s.', cost: 35, done: 'IMÁN ACTIVADO · 10 S',
+    use: (p) => { p.magT = 10; } },
+  { id: 's', icon: '⬡', col: '#8ae0ff', name: 'Escudo de energía', text: 'Para los 3 próximos golpes (dura 40 s).', cost: 60, done: 'ESCUDO · 3 GOLPES',
+    use: (p) => { p.barHits = Math.max(p.barHits, 3); p.barT = Math.max(p.barT, 40); p.shopBar = true; p.barCol = 0x8ae0ff; } }
+];
 
 /* Recarga (s) de cada técnica de jefe, pausa que deja después y nombre que se anuncia.
    Los nombres que empiezan por «¡» se anuncian siempre; el resto, solo la primera vez del combate */
@@ -127,14 +142,14 @@ class Game {
       this.shadowDirty = true;                                // un cristal menos: su sombra desaparece
       this.orbs.spawn(x, z, 4); this.gainZeni(2); this.gainCash(8);
       this.fx.burst(this.fx.sparks, x, 1.2, z, 16, 7, 0.5, 0.35, 8, 0x9fe0ff);
-      if (Math.random() < 0.3) this.pickups.drop(x, z);
+      if (Math.random() < 0.3 * this.diff.heal) this.pickups.drop(x, z);
     };
     this.world.onBreak = this.onCrystalBreak;
     // Al romper una caja, estatua o roca: escombros, destello y premio extra (las estatuas, más)
     this.onSprBreak = (o) => {
       this.vfx.play('debris', o.x, 0, o.z, { size: o.size * 1.1, fps: 14, frames: FXA.debris ? FXA.debris.f.slice(0, 6) : null });
       this.vfx.flash(o.x, 1.4, o.z, 3.5, 0xffd060);
-      if (o.rw === 'chest') { this.gainZeni(40); for (let i = 0; i < 3; i++) this.orbs.spawn(o.x, o.z, 6); if (Math.random() < 0.25) this.pickups.drop(o.x, o.z); this.ui.toast('+ZENI · COFRE', true); }
+      if (o.rw === 'chest') { this.gainZeni(40); for (let i = 0; i < 3; i++) this.orbs.spawn(o.x, o.z, 6); if (Math.random() < 0.25 * this.diff.heal) this.pickups.drop(o.x, o.z); this.ui.toast('+ZENI · COFRE', true); }
       else if (o.rw === 'house') { this.gainZeni(30); this.orbs.spawn(o.x, o.z, 14); this.ui.toast('+ZENI · CASA CÁPSULA', true); }
       else if (o.rw === 'vase') this.orbs.spawn(o.x, o.z, 6);
       else if (o.size > 3.3 && !o.tall) { this.gainZeni(25); this.orbs.spawn(o.x, o.z, 10); this.ui.toast('+ZENI · ESTATUA ROTA', true); }
@@ -816,8 +831,17 @@ class Game {
 
   /* ---------- Bulma (vende) y Maestro Roshi (cambia / elimina objetos) ---------- */
   shopPrice(it) { return Math.round(SHOP_PRICE[it.rarity] * (1 + 0.06 * this.run.shops)); }
+  /** Precio que sube un 6 % con cada compra de la partida */
+  shopCost(base) { return Math.round(base * (1 + 0.06 * this.run.shops)); }
+  /** Bulma: 5 objetos (se pueden renovar pagando), consumibles y mejorar una técnica. Cada consumible, una vez por visita */
+  restock(o) { o.stock = []; for (let i = 0; i < BULMA_STOCK; i++) o.stock.push({ it: this.rollItem(false), sold: false }); }
+  bulmaTech(o) {
+    // Una técnica tuya que aún no está al máximo (las fusiones ya lo están)
+    const l = this.weapons.list.filter((w) => !w.fused && !WEAPONS[w.id].fusion && w.lv < MAX_WEAPON_LEVEL);
+    o.tech = l.length ? pick(l).id : null;
+  }
   openTrade(o) {
-    if (o.type === 'merchant' && !o.stock) { o.stock = []; for (let i = 0; i < 3; i++) o.stock.push({ it: this.rollItem(false), sold: false }); o.heal = false; }
+    if (o.type === 'merchant' && !o.stock) { this.restock(o); o.rerollN = 0; o.used = {}; this.bulmaTech(o); }
     this.tradeO = o; this.state = 'trade'; this.releaseMouse();
     this.renderTrade();
   }
@@ -828,13 +852,28 @@ class Game {
     const cash = Math.floor(this.cash);
     let h = '';
     if (o.type === 'merchant') {
-      h = '<small>BULMA · CAPSULE CORP</small><h2>TIENDA AMBULANTE</h2><p class="tz">ZENI <b>' + cash + '</b></p><div class="tl">';
+      const btn = (k, price, done, off) => '<button data-tbuy="' + k + '"' + (done || off || this.cash < price ? ' disabled' : '') + '>' + (done ? 'COMPRADO' : price + ' ZENI') + '</button>';
+      h = '<small>BULMA · CAPSULE CORP</small><h2>TIENDA AMBULANTE</h2><p class="tz">ZENI <b>' + cash + '</b></p>';
+      // Objetos (y el botón de renovarlos)
+      const rp = this.shopCost(BULMA_REROLL * (1 + 0.5 * o.rerollN));
+      h += '<div class="tsh"><span>OBJETOS</span><button data-tbuy="r"' + (this.cash < rp ? ' disabled' : '') + '>↻ RENOVAR · ' + rp + '</button></div><div class="tl">';
       o.stock.forEach((s, i) => {
         const rar = RARITIES[s.it.rarity], price = this.shopPrice(s.it);
         h += '<div class="ti" style="border-color:' + rar.color + '"><span class="tic" style="color:' + rar.color + '">' + s.it.icon + '</span><div><small style="color:' + rar.color + '">' + rar.name + '</small><b>' + s.it.name + '</b><p>' + s.it.text + '</p></div><button data-tbuy="' + i + '"' + (s.sold || this.cash < price ? ' disabled' : '') + '>' + (s.sold ? 'VENDIDO' : price + ' ZENI') + '</button></div>';
       });
-      const hp = Math.round(30 * (1 + 0.06 * this.run.shops));
-      h += '<div class="ti"><span class="tic" style="color:#9cff6a">❖</span><div><small style="color:#9cff6a">CONSUMIBLE</small><b>Semilla Senzu</b><p>Recupera toda la vida.</p></div><button data-tbuy="h"' + (this.cash < hp ? ' disabled' : '') + '>' + hp + ' ZENI</button></div>';
+      // Consumibles: uno de cada por visita
+      h += '</div><div class="tsh"><span>CONSUMIBLES · UNO DE CADA POR VISITA</span></div><div class="tl tg">';
+      for (const C of BULMA_ITEMS) {
+        const off = C.off && C.off(p), price = this.shopCost(C.id === 'h' ? C.cost / this.diff.heal : C.cost);
+        h += '<div class="ti"><span class="tic" style="color:' + C.col + '">' + C.icon + '</span><div><b>' + C.name + '</b><p>' + (off || C.text) + '</p></div>' + btn(C.id, price, o.used[C.id], off) + '</div>';
+      }
+      h += '</div>';
+      // Mejorar una técnica
+      if (o.tech) {
+        const W = WEAPONS[o.tech], lv = this.weapons.levelOf(o.tech), price = this.shopCost(BULMA_TECH * lv);
+        h += '<div class="tsh"><span>ENTRENAMIENTO</span></div><div class="tl"><div class="ti" style="border-color:' + W.color + '"><span class="tic">' + W.icon + '</span><div><small>MEJORA DE TÉCNICA</small><b>' + W.name + ' · NV ' + lv + ' → ' + (lv + 1) + '</b><p>' + (o.used.t ? '¡Mejorada!' : W.lv[lv] || '') + '</p></div>' + btn('t', price, o.used.t) + '</div></div>';
+      }
+      h += '<div class="tl">';
     } else {
       h = '<small>MAESTRO ROSHI</small><h2>«CAMBIO O ME LIBRO DE ELLO»</h2><p class="tz">ZENI <b>' + cash + '</b></p><div class="tl">';
       const ids = Object.keys(p.items);
@@ -851,10 +890,24 @@ class Game {
   tradeBuy(k) {
     const o = this.tradeO, p = this.player;
     if (!o || o.type !== 'merchant') return;
-    if (k === 'h') {
-      const hp = Math.round(30 * (1 + 0.06 * this.run.shops));
-      if (this.cash < hp) return;
-      this.cash -= hp; this.run.shops++; p.hp = p.maxHp; this.ui.toast('VIDA RESTAURADA', true);
+    const C = BULMA_ITEMS.find((x) => x.id === k);
+    if (k === 'r') {                                                   // renovar los 5 objetos
+      const rp = this.shopCost(BULMA_REROLL * (1 + 0.5 * o.rerollN));
+      if (this.cash < rp) return;
+      this.cash -= rp; o.rerollN++; this.restock(o); SFX.play('select');
+    } else if (C) {
+      const price = this.shopCost(C.id === 'h' ? C.cost / this.diff.heal : C.cost);
+      if (o.used[k] || this.cash < price || (C.off && C.off(p))) return;
+      this.cash -= price; this.run.shops++; o.used[k] = true;
+      C.use(p, this); SFX.play('heal'); this.ui.toast(C.done, true);
+    } else if (k === 't') {
+      if (!o.tech || o.used.t) return;
+      const price = this.shopCost(BULMA_TECH * this.weapons.levelOf(o.tech));
+      if (this.cash < price) return;
+      this.cash -= price; this.run.shops++; o.used.t = true;
+      const w = this.weapons.add(o.tech); SFX.play('levelup');
+      this.ui.toast(WEAPONS[o.tech].name.toUpperCase() + ' · NIVEL ' + w.lv, true);
+      if (w.lv >= MAX_WEAPON_LEVEL) { const h = this.fusionHint(o.tech); if (h) this.ui.toast(h, true); }
     } else {
       const s = o.stock[+k];
       if (!s || s.sold) return;
@@ -1387,7 +1440,7 @@ class Game {
     const p = this.player, ui = this.ui;
     this.run.events++; this.track('events', 1); SFX.play('event');
     if (k === 'senzu') {
-      for (let i = 0; i < 12; i++) { const a = rand(0, 6.28), r = rand(6, 18); this.pickups.drop(clamp(p.x + Math.cos(a) * r, -CFG.ARENA, CFG.ARENA), clamp(p.z + Math.sin(a) * r, -CFG.ARENA, CFG.ARENA)); }
+      for (let i = 0, n = Math.round(12 * this.diff.heal); i < n; i++) { const a = rand(0, 6.28), r = rand(6, 18); this.pickups.drop(clamp(p.x + Math.cos(a) * r, -CFG.ARENA, CFG.ARENA), clamp(p.z + Math.sin(a) * r, -CFG.ARENA, CFG.ARENA)); }
       ui.toast('¡LLUVIA DE SENZUS!'); ui.toast('Recoge las semillas para curarte', true);
     } else if (k === 'torneo') {                                         // Torneo de las Artes Marciales
       if ((this.bossUid && this.horde.indexOfUid(this.bossUid) >= 0) || this.roomT > 0 || this.tourney) { this.startEvent('ally'); return; }
@@ -1859,7 +1912,7 @@ class Game {
     x = clamp(x, -CFG.ARENA, CFG.ARENA); z = clamp(z, -CFG.ARENA, CFG.ARENA);
     // La vida del jefe escala con tu nivel (+2,5% por nivel) para que el combate dure aunque llegues muy fuerte
     const lvMul = 1 + 0.025 * (this.player.level - 1);
-    const i = this.horde.spawn(x, z, B.hp * lvMul * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15) * (this.mods.bigboss ? 1.5 : 1), T_BOSS);
+    const i = this.horde.spawn(x, z, B.hp * lvMul * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15) * (this.mods.bigboss ? 1.5 : 1) * this.diff.boss, T_BOSS);
     if (i >= 0) {
       if (this.bossWeak) { this.bossWeak = false; this.horde.hp[i] *= 0.5; this.ui.toast('¡El castigo de Shenron lo ha debilitado!', true); }
       this.bossUid = this.horde.uid[i]; this.bossSpawned = true;
@@ -1885,7 +1938,7 @@ class Game {
     const h = this.horde, i = h.indexOfUid(this.bossUid);
     if (i < 0) return;
     const b = this.boss, st = Math.min(this.step, 3), p = this.player, B = this.stage.boss, frac = h.hp[i] / h.maxHp[i];
-    const bx = h.x[i], bz = h.z[i], dmg = this.enemyDamage() * 0.8;
+    const bx = h.x[i], bz = h.z[i], dmg = this.enemyDamage() * 0.8 * this.diff.boss;   // jefes más duros según la dificultad
     const NP = B.pat.length, target = Math.min(NP - 1, Math.floor((1 - frac) * NP));
     if (target > this.phase) { this.phase = target; this.onBossPhase(bx, bz); }
     const ph = this.phase, pat = B.pat[ph], sp = 1 - ph * (0.45 / NP) - st * 0.05;
@@ -2369,7 +2422,7 @@ class Game {
       this.bossUid = 0; this.pendingLevels++; this.bossDead = true; this.shots.reset(); this.bossInv = 0;
       this.capsules.add(x, z, true, this.world);
       if (this.mods.bigboss) { this.capsules.add(x + 3, z, true, this.world); this.gainCash(200); }
-      for (let i = 0; i < 4; i++) this.pickups.drop(x + rand(-3, 3), z + rand(-3, 3));
+      for (let i = 0, n = Math.max(1, Math.round(4 * this.diff.heal)); i < n; i++) this.pickups.drop(x + rand(-3, 3), z + rand(-3, 3));
       for (let i = 0; i < 12; i++) this.orbs.spawn(x, z, 5);
       this.fx.ring(this.fx.aura, x, 0.4, z, 50, 18, 0.7, 0.45, 0xffd24a);
       this.vfx.boom(x, z, 8, 0xffd24a, true); this.vfx.play('flare', x, 7, z, { size: 16, dur: 0.9, pri: 1 });
@@ -2382,7 +2435,7 @@ class Game {
       else if (this.stage.final || this.saga) this.victoryT = 2.2;
       else this.openRifts(x, z);
     } else {
-      if (Math.random() < 0.012) this.pickups.drop(x, z);
+      if (Math.random() < 0.012 * this.diff.heal) this.pickups.drop(x, z);
       if (type === 2 && Math.random() < 0.04) this.capsules.add(x, z, false, this.world);
     }
   }
@@ -2451,8 +2504,7 @@ class Game {
       }
       return card;
     });
-    while (cards.length < 3) cards.push({ type: 'heal', id: 'heal', icon: '❖', tag: 'RECOMPENSA', title: 'Semilla Senzu', text: 'Recuperas toda la vida.', max: 0, lv: 0 });
-    return cards;
+    return cards;                                                  // con casi todo al máximo puede haber menos de 3 (o ninguna)
   }
   /** Carta de una opción del sorteo (sin rareza) */
   cardOf(c, W, p) {
@@ -2492,9 +2544,15 @@ class Game {
     this.openLevelUp(true);
   }
   openLevelUp(again) {
+    const cards = this.rollCards();
+    if (!cards.length) {
+      // Todo al máximo: no hay nada que elegir, así que se sube de nivel sin parar la partida
+      if (!again) { SFX.play('levelup'); this.ui.toast('¡NIVEL ' + this.player.level + '!'); }
+      this.pendingLevels = 0; this.ui.hideCards(); this.resume(); return;
+    }
     this.state = 'levelup'; this.releaseMouse(); if (!again) SFX.play('levelup'); this.tuto.say('cartas');
     const foot = this.rerolls > 0 ? '<button data-reroll>🎲 CAMBIAR CARTAS [R] · ' + this.rerolls + '</button>' : '';
-    this.ui.showCards('¡NIVEL ' + this.player.level + '!', 'ELIGE UNA MEJORA [1 · 2 · 3]', this.rollCards(), (c) => {
+    this.ui.showCards('¡NIVEL ' + this.player.level + '!', 'ELIGE UNA MEJORA [' + cards.map((c, i) => i + 1).join(' · ') + ']', cards, (c) => {
       const p = this.player;
       SFX.play('select');
       if (c.type === 'weapon') {
@@ -2509,7 +2567,6 @@ class Game {
         this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 70, 24, 0.8, 0.5, WEAPONS[c.id].color); this.impT = 0.14;
       }
       else if (c.type === 'stat') { const k = CARD_TIERS[c.tier || 0].mul; p.stacks[c.id] = c.lv; (p.stackMul[c.id] || (p.stackMul[c.id] = []))[c.lv - 1] = k; STATS.find((s) => s.id === c.id).apply(p, k); }
-      else p.hp = p.maxHp;
       this.pendingLevels--;
       this.ui.hideCards();
       if (this.pendingLevels > 0) this.openLevelUp(); else this.resume();
