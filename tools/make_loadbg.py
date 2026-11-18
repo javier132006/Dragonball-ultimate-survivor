@@ -2,7 +2,7 @@
 
 Uso:  python3 tools/make_loadbg.py CAPAS.png EXTRAS.png
   CAPAS.png  = collage de ChatGPT con el cielo, las montañas, los acantilados, las nubes y las hojas 4×4
-               (Goku en la nube, Vegeta, Shenron, cápsula, nave de Freezer, estrellas y esfera), con el
+               (nave de Freezer, estrellas y esfera; Goku, Vegeta y la cápsula ya no se usan), con el
                «transparente» dibujado como un cuadriculado gris.
   EXTRAS.png = collage con fondo negro (aurora, islas flotantes, rayos, meteoros, luciérnagas).
 
@@ -79,8 +79,7 @@ def main(capas, extras):
     for k, box in {'mount': (4, 356, 613, 500), 'cliff': (4, 500, 613, 629), 'cloud': (4, 629, 613, 763)}.items():
         pieces[k] = (key_checker(crop(A, *box)), {})
     # Hojas 4×4 del collage de capas (con cuadriculado) y las estrellas (fondo negro: se dibujan con «screen»)
-    for k, box, tr in [('goku', (626, 6, 1108, 346), False), ('vegeta', (1125, 6, 1530, 345), False),
-                       ('capsule', (1128, 359, 1527, 696), False), ('ship', (628, 711, 869, 1017), False), ('ball', (1175, 711, 1530, 1017), False)]:
+    for k, box, tr in [('ship', (628, 711, 869, 1017), False), ('ball', (1175, 711, 1530, 1017), False)]:
         cells, cw, ch = frames(key_checker(crop(A, *box), tr))
         pieces[k] = (np.vstack([np.hstack(cells[i * 4:i * 4 + 4]) for i in range(4)]), {'cols': 4, 'rows': 4, 'fw': cw, 'fh': ch})
     st = crop(A, 882, 712, 1161, 1017)
@@ -108,6 +107,10 @@ def main(capas, extras):
         if (mx[s] > 60).sum() < 90: continue
         rgba = np.dstack([col[s], al[s] * 255 * m]).astype(np.uint8)
         pieces['petal%d' % k] = (rgba, {}); k += 1
+    pack(pieces)
+
+def pack(pieces):
+    """Empaqueta las piezas {nombre: (RGBA, info)} en assets/load/atlas.webp y escribe js/loadatlas.js"""
     # Empaquetado en filas (estantería) con 2 px de separación
     W = 1536; x = y = rowh = 0; atlas_parts = []; meta = {}
     for name, (im, info) in sorted(pieces.items(), key=lambda kv: -kv[1][0].shape[0]):

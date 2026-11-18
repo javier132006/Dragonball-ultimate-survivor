@@ -6,8 +6,7 @@
    Capas de atrás hacia delante (cada una con su velocidad: paralaje):
    cielo con luna · aurora · estrellas que parpadean · meteoros · rayos lejanos ·
    nave de Freezer · montañas · islas flotantes · pétalos lejanos · acantilados con la
-   Kame House · Goku en la Nube Voladora (a veces Vegeta detrás) · cápsulas que
-   caen y se abren · las 7 esferas girando · nubes · luciérnagas · pétalos de
+   Kame House · las 7 esferas girando · nubes · luciérnagas · pétalos de
    cerezo cerca · viñeta.
 
    Las piezas salen de assets/load/atlas.webp (tools/make_loadbg.py) y sus
@@ -90,18 +89,11 @@ const LoadBg = (() => {
     S.petals = [];
     if (PETALS.length) for (let i = 0; i < 34; i++) S.petals.push(petal(i < 14, false));
     // Primeras apariciones (s): enseguida pasa algo, después cada uno con su ritmo
-    S.next = { goku: 0.6, capsule: 1.4, meteor: 1, bolt: 4, ship: 3 };
+    S.next = { meteor: 1, bolt: 4, ship: 3 };
   }
   /** Saca un actor nuevo de tipo k */
   function spawn(k) {
     const u = SZ / 720;                                                           // velocidades a la escala de los personajes
-    if (k === 'goku') {
-      const y = rnd(0.5, 0.6) * H;
-      S.actors.push({ k: 'goku', x: -120 * u, y, vx: rnd(230, 280) * u, h: 0.17 * SZ, ph: Math.random() * 6, z: 4 });
-      if (Math.random() < 0.6) S.actors.push({ k: 'vegeta', x: -420 * u, y: y - 0.07 * H, vx: rnd(300, 330) * u, h: 0.14 * SZ, ph: Math.random() * 6, z: 4 });   // Vegeta persigue a Goku
-      return rnd(7, 11);
-    }
-    if (k === 'capsule') { S.actors.push({ k: 'capsule', x: rnd(0.12, 0.88) * W, y: -0.1 * H, y1: rnd(0.56, 0.68) * H, h: 0.12 * SZ, t: 0, z: 5 }); return rnd(4.5, 8); }
     if (k === 'meteor') { S.actors.push({ k: 'meteor', x: rnd(0.4, 1.1) * W, y: -0.1 * H, vx: -520 * u, vy: 360 * u, h: 0.14 * SZ, t: 0, z: 0 }); return rnd(5, 9); }
     if (k === 'bolt') { S.actors.push({ k: 'bolt', x: rnd(0.1, 0.9) * W, y: rnd(0.12, 0.3) * H, h: 0.17 * SZ, t: 0, z: 0 }); return rnd(10, 16); }
     if (k === 'ship') { S.actors.push({ k: 'ship', x: W + 40 * u, y: rnd(0.47, 0.52) * H, vx: -rnd(35, 50) * u, h: 0.045 * SZ, t: 0, z: 1 }); return rnd(20, 28); }
@@ -111,20 +103,7 @@ const LoadBg = (() => {
   function actors(z, dt) {
     for (const a of S.actors) {
       if (a.z !== z || a.dead) continue;
-      if (a.k === 'goku' || a.k === 'vegeta') {
-        a.x += a.vx * dt;
-        piece(a.k, t * 10 + a.ph, a.x, a.y + Math.sin(t * 3 + a.ph) * H * 0.01, a.h);
-        if (a.x > W + 200) a.dead = true;
-      } else if (a.k === 'capsule') {
-        // Cae girando (fotogramas 0..7) y, al llegar, se abre con el humo (8..15) y se desvanece
-        a.t += dt;
-        const fall = 1.4, e = Math.min(1, a.t / fall), y = a.y + (a.y1 - a.y) * (1 - (1 - e) * (1 - e));
-        const k = a.t < fall ? (a.t * 10) % 8 : 8 + Math.min(7, (a.t - fall) * 9);
-        const al = a.t < fall + 0.9 ? 1 : Math.max(0, 1 - (a.t - fall - 0.9) / 0.4);
-        if (a.t < fall) { ctx.save(); ctx.globalAlpha = 0.35; ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, H * 0.003); ctx.beginPath(); ctx.moveTo(a.x, y - a.h * 1.6); ctx.lineTo(a.x, y - a.h * 0.5); ctx.stroke(); ctx.restore(); }
-        piece('capsule', k, a.x, y, a.h, { alpha: al });
-        if (al <= 0) a.dead = true;
-      } else if (a.k === 'meteor') {
+      if (a.k === 'meteor') {
         a.t += dt; a.x += a.vx * dt; a.y += a.vy * dt;
         piece('meteor', a.t * 12, a.x, a.y, a.h, { add: 1, alpha: 0.9 });
         if (a.y > H * 0.6) a.dead = true;
