@@ -7,7 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0f1e">
 <title>DRAGON BALL: ULTIMATE SURVIVOR</title>
-<link rel="preload" href="assets/load/atlas.webp" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
+<!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
+     script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
+<script>window.V = '0a59dfcf';</script>
+<link rel="preload" href="assets/load/atlas.webp?v=0a59dfcf" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -2030,8 +2033,8 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
 <div id="loading" class="boot"><canvas id="ldBg"></canvas><div><span class="dball spin"></span><h2>DRAGON BALL</h2><h3>ULTIMATE SURVIVOR</h3>
   <div class="lbar"><i id="ldBar"></i></div><div class="lstep"><b id="ldPct">0%</b><span id="ldTxt">Preparando…</span></div><p id="tip"></p>
   <button id="ldGo" type="button">PULSA PARA EMPEZAR</button></div></div>
-<script src="js/loadatlas.js"></script>
-<script src="js/loadbg.js"></script>
+<script src="js/loadatlas.js?v=0a59dfcf"></script>
+<script src="js/loadbg.js?v=0a59dfcf"></script>
 <div id="fatal"></div>
 
 <script>
@@ -2087,13 +2090,16 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
     },
     fail(msg) { clearInterval(tipT); LOAD.hold = false; const f = $('fatal'); f.textContent = msg; f.style.display = 'flex'; }
   };
-  const script = (src) => new Promise((ok, ko) => { const e = document.createElement('script'); e.src = src; e.async = false; e.onload = ok; e.onerror = () => ko(new Error(src)); document.body.appendChild(e); });
+  const ver = (src) => /^(https?:|blob:)/.test(src) ? src : src + '?v=' + window.V;   // archivos propios con la versión
+  const script = (src) => new Promise((ok, ko) => { const e = document.createElement('script'); e.src = ver(src); e.async = false; e.onload = ok; e.onerror = () => ko(new Error(src)); document.body.appendChild(e); });
+  /** Empieza a descargar un script ya (en paralelo con los demás); se ejecuta después, en orden, con script() */
+  const preload = (src) => { const l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = ver(src); document.head.appendChild(l); };
   /** Los sprites pesan casi 2 MB: en la web se descargan con barra de progreso; con doble clic (file://) se cargan sin ella */
   const bigScript = (src, k, txt) => {
     if (!/^https?:/.test(location.protocol)) return script(src);
     return new Promise((ok, ko) => {
       const x = new XMLHttpRequest();
-      x.open('GET', src);
+      x.open('GET', ver(src));
       x.onprogress = (e) => { if (e.lengthComputable) LOAD.step(k, e.loaded / e.total * 0.95, txt + ' · ' + (e.loaded / 1048576).toFixed(1) + ' / ' + (e.total / 1048576).toFixed(1) + ' MB'); };
       x.onload = () => {
         if (x.status !== 200 && x.status !== 0) { script(src).then(ok, ko); return; }
@@ -2106,23 +2112,28 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
   };
   const CODE = ['js/core.js', 'js/cutfx.js', 'js/entryfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/techicons.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/tuto.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
     'js/versus/input.js', 'js/versus/sim.js', 'js/versus/view.js', 'js/versus/modes.js', 'js/versus/ults.js', 'js/versus/extras.js', 'js/versus/estilo.js', 'js/versus/versus.js'];   // Modo Versus (módulo aparte)
+  const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', SUPA_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js';
+  const ASSETS = ['assets/zl3.js', 'assets/broly3.js', 'assets/pfx.js', 'assets/summons.js', 'assets/summons2.js'];
+  // Antes se descargaban uno detrás de otro (46 archivos esperando cada uno al anterior). Ahora se piden todos
+  // a la vez nada más empezar y después se ejecutan en el mismo orden de siempre, ya descargados.
+  // (sprites.js no se precarga: va por su cuenta con la barra de progreso)
+  for (const s of [THREE_URL].concat(ASSETS, CODE, [SUPA_URL, 'js/online.js', 'js/game.js'])) preload(s);
+  const spritesP = bigScript('assets/sprites.js', 'sprites', 'Cargando personajes, enemigos y efectos');   // a la vez que Three.js
   (async () => {
     LOAD.step('three', 0.1, 'Cargando el motor gráfico…');
-    try { await script('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'); }
+    try { await script(THREE_URL); }
     catch (e) { LOAD.fail('No se pudo cargar Three.js desde internet. Revisa tu conexión y recarga la página.'); return; }
     LOAD.step('three', 1);
     LOAD.step('sprites', 0.02, 'Cargando personajes, enemigos y efectos…');
-    try { await bigScript('assets/sprites.js', 'sprites', 'Cargando personajes, enemigos y efectos'); } catch (e) { console.error(e); }
-    try { await script('assets/zl3.js'); } catch (e) { console.error(e); }       // sprites de Z Legends 3 para el 3D
-    try { await script('assets/broly3.js'); } catch (e) { console.error(e); }    // Broly Super Saiyan 3 (sprites de Andrés Gamen)
-    try { await script('assets/pfx.js'); } catch (e) { console.error(e); }       // efectos de pixel art de pixelfx (MIT)
-    try { await script('assets/summons.js'); } catch (e) { console.error(e); }
-    try { await script('assets/summons2.js'); } catch (e) { console.error(e); }   // segunda tanda: packs de Andrés Gamen y SSJ5 de Vianjo  // guerreros y transformaciones del Altar de Shenron
+    try { await spritesP; } catch (e) { console.error(e); }
+    // Sprites de Z Legends 3 para el 3D · Broly SSJ3 (Andrés Gamen) · efectos de pixelfx (MIT) · guerreros y transformaciones
+    // del Altar de Shenron (segunda tanda: packs de Andrés Gamen y SSJ5 de Vianjo)
+    for (const s of ASSETS) { try { await script(s); } catch (e) { console.error(e); } }
     LOAD.step('sprites', 1, 'Preparando el código del juego…');
     for (let i = 0; i < CODE.length; i++) { await script(CODE[i]); LOAD.step('code', (i + 1) / CODE.length); }
     LOAD.step('online', 0.2, 'Conectando con el ranking mundial…');
     // Cuenta y ranking mundial (Supabase). Si no carga, el juego funciona sin ranking online
-    try { await script('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js'); } catch (e) { console.warn('Sin ranking online'); }
+    try { await script(SUPA_URL); } catch (e) { console.warn('Sin ranking online'); }
     await script('js/online.js');
     LOAD.step('online', 1);
     await script('js/game.js');                     // game.js arranca solo y termina la carga (hojas, mundo y shaders)

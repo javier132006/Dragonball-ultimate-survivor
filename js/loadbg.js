@@ -15,7 +15,7 @@
 const LoadBg = (() => {
   const A = window.LOAD_ATLAS || {};
   const img = new Image();
-  img.src = 'assets/load/atlas.webp';
+  img.src = 'assets/load/atlas.webp?v=' + (window.V || 0);                // misma dirección que el preload de index.html
   let cv = null, ctx = null, W = 0, H = 0, SZ = 0, dpr = 1, raf = 0, last = 0, t = 0, on = false;
 
   /* ---------- Utilidades de dibujo ---------- */
