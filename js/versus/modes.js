@@ -58,16 +58,30 @@ const VS_TOWER = {
 };
 
 /* ---------------- Entrenamiento ---------------- */
-const VS_DUMMY = { still: 'Quieto', guard: 'En guardia', move: 'Se mueve', cpu: 'Pelea (CPU)' };
+const VS_DUMMY = { still: 'Quieto', guard: 'En guardia', move: 'Se mueve', cpu: 'Pelea (CPU)', ult: 'Solo Ultimates' };
 /** Rival del entrenamiento: quieto, cubriéndose, moviéndose o peleando como la CPU normal */
 class VsDummy {
   constructor(mode) { this.mode = mode; this.ai = new VsAI('normal'); }
   read(sim, i) {
     const m = this.mode;
     if (m === 'cpu') return this.ai.read(sim, i);
+    if (m === 'ult') return this.ultRead(sim, i);
     if (m === 'guard') return { mx: 0, mz: 0, b: VB.GUARD };
     if (m === 'move') { const t = sim.tick / 60; return { mx: Math.sin(t * 1.3) > 0 ? 1 : -1, mz: Math.sin(t * 0.7) > 0 ? 1 : -1, b: Math.sin(t * 0.9) > 0.3 ? VB.UP : Math.sin(t * 0.9) < -0.5 ? VB.DOWN : 0 }; }
     return { mx: 0, mz: 0, b: 0 };
+  }
+  /** «Solo Ultimates»: lanza la suya cada poco (para practicar la guardia justa) y responde a la tuya (para practicar el choque) */
+  ultRead(sim, i) {
+    const c = { mx: 0, mz: 0, b: 0 }, me = sim.f[i], dt = VS_DT;
+    if (sim.phase !== 'fight') return c;
+    if (sim.clash) return this.ai.clashRead(sim, i, c);
+    if (sim.ult) {
+      if (sim.ult.who !== i && sim.ult.ph === 0 && sim.ult.cw && !this.resp && sim.ult.t >= 0.3) { this.resp = true; c.b |= VB.ULT; }
+      this.cd = 2.2; return c;
+    }
+    this.resp = false;
+    if ((this.cd = (this.cd === undefined ? 1.2 : this.cd) - dt) <= 0 && me.ki >= 100 && (me.st === 'idle' || me.st === 'move')) { this.cd = 2.2; c.b |= VB.ULT; }
+    return c;
   }
 }
 

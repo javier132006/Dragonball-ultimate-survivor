@@ -29,6 +29,7 @@ const VS = {
   DODGE_DMG: 1.5,                         // ...y cuánto pega de más el contraataque
   KI_REGEN: 2.5, KI_CHARGE: 32, COST_DASH: 5, COST_TP: 20, COST_ESC: 30,
   PARRY: 0.13,                            // ventana de la guardia perfecta (contraataque)
+  PARRY_ULT: 0.22,                        // guardia justo al llegar una Ultimate de energía (rayo, esfera, discos, ráfaga): la desvía
   ULT_CINE: 1.25,                         // segundos de presentación de la Ultimate (el mundo se para)
   TR_CINE: 2.7, TR_SWAP: 1.75,            // transformación: duración total y momento del estallido (cambio de forma)
   TR_DEAL: 0.11, TR_TAKE: 0.16,           // barra de transformación ganada por punto de daño hecho / recibido
@@ -399,6 +400,10 @@ class VsSim {
       s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
       if (s.disc && s.y < 0.5) { s.y = 0.5; s.vy = Math.abs(s.vy); }      // los discos rozan el suelo, no se clavan
       const d = Math.hypot(def.x - s.x, def.y + 1.5 - s.y, def.z - s.z);
+      if (s.defl) { s.vy -= 8 * dt; if (s.life <= 0 || s.y < 0.3) { this.emit('pop', { x: s.x, y: Math.max(0.2, s.y), z: s.z, col: s.col }); this.shots.splice(k, 1); } continue; }   // desviado: sale volando y ya no hace daño
+      if (d < s.r + 0.6 && !(s.cd > 0) && s.hs && s.hs.raw && def.st === 'guard' && def.t < VS.PARRY_ULT && def.inv <= 0) {
+        this.deflectShot(s, def); this.parryUlt(att, def, s.x, s.y, s.z); continue;                                    // proyectil de Ultimate con la guardia justa: desviado
+      }
       if (d < s.r + 0.6 && !(s.cd > 0)) {
         const h = Math.hypot(s.vx, s.vz) || 1;
         if (this.hit(att, def, s.hs || Object.assign({ shot: 1 }, VS.SHOT), s.vx / h, s.vz / h)) {
@@ -478,6 +483,11 @@ class VsSim {
   }
 
   /* ---------------- Choque de Ultimates ---------------- */
+  /** Ultimate desviada con la guardia justa: el que la desvía gana ki y un instante de invulnerabilidad */
+  parryUlt(att, def, x, y, z) {
+    def.ki = Math.min(100, def.ki + 20); def.inv = Math.max(def.inv, 0.35); def.gm = 100; this.freeze = Math.max(this.freeze, 10);
+    this.emit('ultParry', { i: def.i, by: att.i, x, y, z, col: att.def.col });
+  }
   /** ¿Puede este luchador responder a una Ultimate con la suya? */
   canClash(d) { return this.phase === 'fight' && !this.o.noClash && d.ki >= 100 && !['ko', 'held', 'grabd', 'launched', 'down'].includes(d.st); }
   /** Durante la presentación de la Ultimate: si el rival pulsa la suya a tiempo, empieza el choque */
@@ -599,10 +609,17 @@ class VsSim {
     if (u.dy < -0.05 && len >= (oy - 0.1) / -u.dy) {                   // el rayo muere en el suelo
       len = (oy - 0.1) / -u.dy; if (u.t < 1.35 && (u.g = (u.g || 0) + 1) % 5 === 1) this.emit('beamGnd', { x: ox + u.dx * len, z: oz + u.dz * len, col: f.def.col });
     }
-    u.len = len; u.ox = ox; u.oy = oy; u.oz = oz;
+    u.len = len; u.ox = ox; u.oy = oy; u.oz = oz; u.blen = u.defl ? Math.min(len, u.defl.at) : len;
     const rx = foe.x - ox, ry = foe.y + 1.5 - oy, rz = foe.z - oz, along = rx * u.dx + ry * u.dy + rz * u.dz;
     const perp = Math.hypot(rx - u.dx * along, ry - u.dy * along, rz - u.dz * along);
-    if (u.t < 1.35 && along > -1 && along < len + 1.5 && perp < [3.1, 4.3, 5.2][u.v] && foe.inv <= 0 && foe.st !== 'ko') {
+    if (!u.defl && !u.hitT && u.t < 1.35 && along > -1 && along < len + 1.5 && perp < [3.1, 4.3, 5.2][u.v] && foe.inv <= 0 && foe.st === 'guard' && foe.t < VS.PARRY_ULT) {
+      // Guardia justo cuando llega el rayo: lo desvía hacia el cielo, de lado; desde ahí ya no hace daño
+      const at = Math.max(1, along - 1.2), sg = this.rand() < 0.5 ? 1 : -1, sx = -u.hz * sg, sz = u.hx * sg;
+      let ex = sx * 0.7 + u.dx * 0.25, ey = 0.85 + u.dy * 0.25, ez = sz * 0.7 + u.dz * 0.25; const el = Math.hypot(ex, ey, ez); ex /= el; ey /= el; ez /= el;
+      u.defl = { at, x: ox + u.dx * at, y: oy + u.dy * at, z: oz + u.dz * at, dx: ex, dy: ey, dz: ez }; u.blen = Math.min(len, at);
+      this.parryUlt(f, foe, u.defl.x, u.defl.y, u.defl.z);
+    }
+    if (!u.defl && u.t < 1.35 && along > -1 && along < len + 1.5 && perp < [3.1, 4.3, 5.2][u.v] && foe.inv <= 0 && foe.st !== 'ko') {
       const g = foe.st === 'guard'; u.hitT += dt;
       if (g) { foe.gm -= 40 * dt; if (foe.gm <= 0) { foe.gm = 50; foe.set('hurt'); } } else if (foe.st !== 'hurt') foe.set('hurt');
       foe.stun = 0.25; if (u.v === 1) { foe.vx = foe.vz = 0; foe.vy = -17; } else { foe.vx = u.dx * 17; foe.vy = u.dy * 17; foe.vz = u.dz * 17; }   // desde lo alto lo clava contra el suelo
@@ -610,7 +627,7 @@ class VsSim {
     }
     if (u.t >= 1.35 && !u.fin) {
       u.fin = true;
-      if (u.v === 2) for (let i = 0; i < 5; i++) this.blast(f, foe.x + u.hx * (i - 1) * 5, foe.z + u.hz * (i - 1) * 5, { t: 0.12 + i * 0.1, r: 5.5, dmg: D * 0.05, up: 11, kb: 10, stun: 0.7, launch: true, tall: true });   // el suelo revienta a lo largo del rayo
+      if (u.v === 2 && !u.defl) for (let i = 0; i < 5; i++) this.blast(f, foe.x + u.hx * (i - 1) * 5, foe.z + u.hz * (i - 1) * 5, { t: 0.12 + i * 0.1, r: 5.5, dmg: D * 0.05, up: 11, kb: 10, stun: 0.7, launch: true, tall: true });   // el suelo revienta a lo largo del rayo
       if (u.hitT > 0.45 && foe.st !== 'ko') { this.emit('boom', { x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, big: u.v ? 2 : 1 }); this.hit(f, foe, { dmg: u.sup ? 60 : 40, stun: 0.9, kb: 26, up: 8, launch: true, heavy: true, gbreak: 60 }, u.hx, u.hz); }
     }
     if (u.t >= (u.v === 2 ? 2.1 : 1.7)) this.endUlt(0.35);
@@ -951,13 +968,25 @@ class VsSim {
     if (u.t >= T) { u.len = 0; this.endUlt(0.35); }
   }
   /** Esfera gigante: crece sobre quien la lanza, cae hacia el rival y revienta en un área grande */
+  /** Manda un proyectil hacia arriba y de lado, lejos del que lo ha desviado */
+  deflectShot(s, def) {
+    const sp = Math.max(24, Math.hypot(s.vx, s.vy, s.vz)), h = Math.hypot(s.vx, s.vz) || 1, sg = this.rand() < 0.5 ? 1 : -1;
+    const hx = s.vx / h, hz = s.vz / h; s.vx = (-hz * sg * 0.75 + hx * 0.2) * sp; s.vz = (hx * sg * 0.75 + hz * 0.2) * sp; s.vy = sp * 0.8;
+    s.defl = 1; s.life = Math.min(s.life, 1.4); s.hm = 0; s.pierce = 0;
+  }
   stepBomb(s, att, def) {
     const dt = VS_DT, grow = s.grow || 0.95, t = s.t - s.wait, px = -(def.z - att.z), pz = def.x - att.x, pl = Math.hypot(px, pz) || 1;
+    if (s.defl) {                                                       // esfera desviada: sale despedida y revienta lejos, sin hacer daño
+      s.vy -= 6 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
+      if (s.life <= 0 || s.y < s.r * 0.5 || Math.hypot(s.x, s.z) > VS.R + 10 || s.y > VS.TOP + 14) { this.emit('boom', { x: s.x, y: Math.max(1.5, s.y), z: s.z, col: s.col, big: s.R > 3 ? 2 : 1 }); return true; }
+      return false;
+    }
     if (t < grow) { s.r = 0.4 + (s.R - 0.4) * Math.max(0, t / grow); s.x = att.x + px / pl * s.off; s.z = att.z + pz / pl * s.off; s.y = att.y + 3.2 + s.r; return false; }
     if (!s.go) { s.go = true; this.emit('bombGo', { x: s.x, y: s.y, z: s.z }); }
     const dx = def.x - s.x, dy = def.y + 1 - s.y, dz = def.z - s.z, d = Math.hypot(dx, dy, dz) || 1, sp = s.sp, k = Math.min(1, 2.2 * dt);
     s.vx += (dx / d * sp - s.vx) * k * 3; s.vy += (dy / d * sp - s.vy) * k * 3; s.vz += (dz / d * sp - s.vz) * k * 3;
     s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
+    if (d < s.r + 0.8 && def.st === 'guard' && def.t < VS.PARRY_ULT && def.inv <= 0) { this.deflectShot(s, def); this.parryUlt(att, def, s.x, s.y, s.z); return false; }   // guardia justa: la esfera sale desviada
     if (d < s.r + 0.8 || s.y - s.r * 0.5 <= 0 || s.life <= 0) {
       const R = s.AR, dd = Math.hypot(def.x - s.x, def.y + 1.5 - Math.max(s.y, 1), def.z - s.z);
       this.emit('boom', { x: s.x, y: Math.max(1.5, s.y), z: s.z, col: s.col, big: s.R > 3 ? 2 : 1 });

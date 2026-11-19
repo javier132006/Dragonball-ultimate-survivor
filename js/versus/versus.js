@@ -266,7 +266,8 @@ class Versus {
         for (const e of sim.ev) this.onEvent(e); sim.ev.length = 0;
         if (this.trn) {                                                    // entrenamiento: nadie muere y las ayudas rellenan las barras
           const a = sim.f[0], b = sim.f[1], c = this.cfg; a.hp = a.hpMax; if (a.cmb === 0 && b.st !== 'hurt' && b.st !== 'launched' && b.st !== 'held' && b.st !== 'down') b.hp = b.hpMax;
-          if (c.tki === '1' && !sim.ult && !sim.clash) a.ki = 100; if (c.ttm === '1' && a.fi < a.chain.length - 1) a.tm = 100;
+          if (c.tki === '1' && !sim.ult && !sim.clash) a.ki = 100;
+          if (c.dummy === 'ult' && !sim.ult && !sim.clash) b.ki = 100;                 // rival «Solo Ultimates»: siempre con la barra llena if (c.ttm === '1' && a.fi < a.chain.length - 1) a.tm = 100;
         }
         this.simFx();
       }
@@ -444,6 +445,14 @@ class Versus {
       }
       case 'counterOff': this.ui.clw.classList.remove('on'); break;
       case 'clashStart': this.clashStart(e); break;
+      case 'ultParry': {                                                // Ultimate desviada con la guardia justa: impact frame del que la desvía
+        const a = this.actors[e.i], now = this.time;
+        if (!(now - (this.lastUP || -9) < 0.8)) { ImpactFlash.play(a.def.id, a.def.ix, a.def.col, 'BWB', a.flip); this.tag('¡ULTIMATE DESVIADA!'); this.slow = Math.max(this.slow, 0.35); this.lines = 1; this.blur = Math.max(this.blur, 0.6); g_rumble(350, 1); }
+        this.lastUP = now; this.flash = Math.max(this.flash, 0.35); cam.shake(0.9, 2);
+        fx.add(3, e.x, e.y, e.z, 4, 0xffffff, { s1: 9, life: 0.22 }); this.ring(e.x, e.y, e.z, 0x9adcff, 1.5, 12, 0.25); this.ring(e.x, e.y, e.z, 0xffffff, 1, 8, 0.16);
+        this.crystals(e.x, e.y, e.z, 0x9adcff, 16, 20); this.sparks(e.x, e.y, e.z, e.col, 14, 34, 0, 0.6, 0, 1.4); this.burst(e.x, e.y, e.z, e.col, 16, 26, 1.4);
+        if (e.i === 0 && this.run) this.run.parry++; SFX.play('crit'); SFX.play('guard'); break;
+      }
       case 'clashPush': this.say('¡EMPUJA!', 0.8); this.ui.clh.classList.add('push'); this.flash = Math.max(this.flash, 0.25); cam.shake(0.8); SFX.play('bigbeam'); g_rumble(300, 0.8); break;
       case 'clashWin': {
         const w = e.w, sx = this.ui.clh; sx.classList.remove('push');
@@ -800,7 +809,7 @@ class Versus {
       if (u.type === 'rift' && u.heads) for (const h of u.heads) if (!h.done && (T & 1) === 0) fx.add(0, h.x, 0.5, h.z, 3.4, c, { s1: 1, life: 0.2, a: 0.8 });
     }
     if (u && u.type === 'beam' && u.ph === 1 && u.t < 1.35 && u.len) {
-      for (let i = 0; i < 3; i++) { const k = Math.random() * u.len, a = Math.random() * 6.283, c = this.actors[u.who].def.col;
+      for (let i = 0; i < 3; i++) { const k = Math.random() * (u.blen || u.len), a = Math.random() * 6.283, c = this.actors[u.who].def.col;
         fx.add(2, u.ox + u.dx * k, u.oy + u.dy * k + Math.sin(a) * 2, u.oz + u.dz * k + Math.cos(a) * 2, 1.2, i ? c : 0xffffff, { vx: u.dx * 30, vy: u.dy * 30 + Math.sin(a) * 6, vz: u.dz * 30 + Math.cos(a) * 6, life: 0.25, stretch: 4 }); }
       this.cam.shake(0.3);
     }
@@ -808,7 +817,7 @@ class Versus {
 
   /** Coloca sprites, luces y efectos de este fotograma y actualiza el HUD */
   draw(dt, rawDt) {
-    const sim = this.sim, cam = this.cam, fx = this.fx, k = this.acc / VS_DT, T = this.time;
+    const sim = this.sim, cam = this.cam, fx = this.fx, k = this.acc / VS_DT, T = this.time, R2 = Math.random;
     this.lines = Math.max(0, this.lines - rawDt * 2.8);
     this.blur = Math.max(0, this.blur - rawDt * 2.6); this.chroma = Math.max(0, this.chroma - rawDt * 0.07); this.flash = Math.max(0, this.flash - rawDt * (this.flash > 0.45 ? 6 : 2.2));   // los fundidos a blanco se abren rápido
     if (this.intro) this.stepIntro(); if (this.fin) this.stepFinal(rawDt); if (this.vic) this.vic.t += rawDt;
@@ -834,8 +843,14 @@ class Versus {
     const bm = this.beam;
     if (u && u.type === 'beam' && u.ph === 1 && u.len) {
       const c = this.actors[u.who].def.col, pw = u.t < 1.35 ? 1 : Math.max(0, 1 - (u.t - 1.35) / 0.3);
-      bm.mesh.visible = pw > 0; bm.u.uA.value.set(u.ox, u.oy, u.oz); bm.u.uDir.value.set(u.dx, u.dy, u.dz); bm.u.uLen.value = u.len; bm.u.uW.value = [4.0, 6.4, 8.2][u.v]; bm.u.uCol.value.setHex(c); bm.u.uT.value = T; bm.u.uPow.value = pw;
-      const hx = u.ox + u.dx * u.len, hy = u.oy + u.dy * u.len, hz = u.oz + u.dz * u.len;
+      const bl = u.blen || u.len, D = u.defl;
+      bm.mesh.visible = pw > 0; bm.u.uA.value.set(u.ox, u.oy, u.oz); bm.u.uDir.value.set(u.dx, u.dy, u.dz); bm.u.uLen.value = bl; bm.u.uW.value = [4.0, 6.4, 8.2][u.v]; bm.u.uCol.value.setHex(c); bm.u.uT.value = T; bm.u.uPow.value = pw;
+      if (D && u.len > D.at) {                                          // desviado: el rayo dobla hacia el cielo en la guardia
+        const b2 = this.beam2; b2.mesh.visible = pw > 0; b2.u.uA.value.set(D.x, D.y, D.z); b2.u.uDir.value.set(D.dx, D.dy, D.dz); b2.u.uLen.value = Math.min(70, u.len - D.at); b2.u.uW.value = [4.0, 6.4, 8.2][u.v] * 0.85; b2.u.uCol.value.setHex(c); b2.u.uT.value = T; b2.u.uPow.value = pw;
+        fx.now(0, D.x, D.y, D.z, 4.2 * pw, 0x9adcff, 0.55); fx.now(0, D.x, D.y, D.z, 2 * pw, 0xffffff, 0.9); fx.now(3, D.x, D.y, D.z, 4.4 * pw, 0xffffff, 0.5, T * 7); light(D.x, D.y, D.z, 0x9adcff, 1.3 * pw);
+        if (pw > 0 && (sim.tick & 1)) fx.add(2, D.x, D.y, D.z, 1, R2() < 0.5 ? c : 0xffffff, { vx: (R2() - 0.5) * 30, vy: (R2() - 0.2) * 30, vz: (R2() - 0.5) * 30, life: 0.2, stretch: 4 });
+      }
+      const hx = u.ox + u.dx * bl, hy = u.oy + u.dy * bl, hz = u.oz + u.dz * bl;
       fx.now(0, u.ox, u.oy, u.oz, 4.6 * pw, c, 0.6); fx.now(0, u.ox, u.oy, u.oz, 2.3 * pw, 0xffffff, 0.9); fx.now(3, u.ox, u.oy, u.oz, 4.6 * pw, 0xffffff, 0.45, T * 3); fx.now(0, hx, hy, hz, 5 * pw, c, 0.55);
       light(u.ox + u.dx * 6, u.oy, u.oz + u.dz * 6, c, 1.5 * pw); light(u.ox + u.dx * Math.min(u.len, 24), u.oy, u.oz + u.dz * Math.min(u.len, 24), c, 1.2 * pw);
     } else if (u && u.type === 'spin' && u.ph === 1 && u.len) {          // rayo giratorio (dos, opuestos, en la variante 2)
@@ -847,7 +862,7 @@ class Versus {
       }
       fx.now(0, u.px, u.py, u.pz, 5, c, 0.6); fx.now(0, u.px, u.py, u.pz, 2.4, 0xffffff, 0.9); fx.now(3, u.px, u.py, u.pz, 5, 0xffffff, 0.5, T * 6);
     } else bm.mesh.visible = false;
-    if (!(u && u.type === 'spin' && u.ph === 1 && u.len && u.v === 2)) this.beam2.mesh.visible = false;
+    if (!(u && u.ph === 1 && u.len && ((u.type === 'spin' && u.v === 2) || (u.type === 'beam' && u.defl)))) this.beam2.mesh.visible = false;
     if (sim.clash) this.drawClash(T, light);                            // choque de Ultimates
     if (u && u.ph === 1 && u.type === 'cage' && u.cr > 0) {              // prisión de ki
       const c = this.actors[u.who].def.col, r = u.cr, p = 1 + Math.sin(T * 30) * 0.04, a = u.lock ? 1 : 0.55;
