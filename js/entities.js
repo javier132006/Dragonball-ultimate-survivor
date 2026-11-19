@@ -440,7 +440,7 @@ class Player {
       if (I && this.spr[I.name]) { sheet = I.name; frame = I.frame; y = 0; breath = 1; if (!this.menuHide) alpha = 1; }   // intro de la forma: su hoja en lugar del sprite
     }
     // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
-    const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.form.tint;
+    const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.introSpr ? 0xffffff : this.form.tint;   // la intro ya trae sus colores (sin el tinte de la forma)
     this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint, 0, this.dying ? 1 : this.sq * breath);
     for (const g of this.ghosts) if (g.t > 0) this.gho[g.sheet].push(g.x, 0.5, g.z, g.frame, g.flip, 0, 1, g.t / 0.3, this.form.tint);
     for (const k in this.spr) { this.spr[k].end(); this.gho[k].end(); }

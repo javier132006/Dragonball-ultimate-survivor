@@ -49,6 +49,7 @@ def form_sheets():
     for m in re.finditer(r"id: '(\w+)', name: '[^']*'.*?forms: \[(.*?)\n    \]", txt, re.S):
         if m.group(1) not in out:                                       # solo la primera vez (luego hay mapas con el mismo id)
             out[m.group(1)] = re.findall(r"form\('[^']*', \d+, '(\w+)'", m.group(2))
+    out.get('gogeta', []).append('z_gogetassj4')                          # js/zl3.js añade Gogeta SSJ4 como última forma
     return out
 
 def sheet_image(meta):
@@ -121,6 +122,15 @@ def reduce(cell, cbg, s):
 
 
 # ---------- 4. una hoja ----------
+def strip_band(a):
+    """Quita la franja oscura con el nombre (la del zip de referencia) si ChatGPT la ha copiado arriba o abajo"""
+    dark = (a.max(2) < 70).mean(1)                                          # parte de cada fila casi negra
+    t = 0
+    while t < a.shape[0] // 8 and dark[t] > 0.6: t += 1
+    b = a.shape[0]
+    while b > a.shape[0] * 7 // 8 and dark[b - 1] > 0.6: b -= 1
+    return a[t:b]
+
 def src_body(bgm, ys, xs):
     """Alto del cuerpo en la imagen original: la pose final (fotogramas 13-16) con menos efectos alrededor"""
     hs = []
@@ -134,6 +144,7 @@ def src_body(bgm, ys, xs):
 def make(path, target):
     """target: alto del cuerpo en píxeles del juego. La escala sale de ahí (misma densidad de píxel que la partida)"""
     a = np.asarray(Image.open(path).convert('RGB')).astype(float)
+    a = strip_band(a)
     bgm = background(a)
     xs = cuts((~bgm).sum(0)); ys = cuts((~bgm).sum(1))
     s = src_body(bgm, ys, xs) / target
@@ -190,7 +201,7 @@ def main(src, mapa, vista=None):
         fn = next((f for f in files if f.startswith(pre)), None)
         if not fn: print('falta', key); continue
         old = forms[cid][fi]; zs = ('z_' + zmap[old]) if old in zmap else None
-        gm = zl3[zs] if zs and zs in zl3 else sheets[old]
+        gm = zl3[zs] if zs and zs in zl3 else (zl3[old] if old in zl3 else sheets[old])
         idle = (gm.get('anim') or {}).get('idle', 0) or 0
         body_w = body_height(gm, idle)                                    # lo que mide el cuerpo en el juego (unidades)
         sheet, meta, info = make(os.path.join(src, fn), body_w / H_WORLD)

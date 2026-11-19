@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = '4bf7a597';
+  window.V = '1016350e';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=4bf7a597"></script>
+<script src="js/assetver.js?v=1016350e"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -229,6 +229,7 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 #cine{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:15;display:none}
 #tfBanner{position:fixed;left:0;right:0;top:26%;text-align:center;pointer-events:none;z-index:16;opacity:0}
 #tfBanner.hi{top:5%}
+#tfBanner.hi .trt{position:absolute;left:50%;top:72vh;transform:translateX(-50%);margin:0}   /* con intro de la forma: el recuadro de la habilidad abajo, el personaje queda libre */
 #tfBanner.go{animation:tfb 1.25s ease-out forwards}
 #tfBanner small{display:block;font-family:var(--disp);font-size:clamp(20px,4vw,44px);color:#fff;-webkit-text-stroke:2px #000;paint-order:stroke fill;text-shadow:0 0 14px var(--c1)}
 #tfBanner b{display:block;font-family:var(--disp);font-weight:400;font-size:clamp(38px,8vw,104px);line-height:1;

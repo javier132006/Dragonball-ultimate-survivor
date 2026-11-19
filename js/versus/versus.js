@@ -806,8 +806,8 @@ class Versus {
       if (f.st === 'trans' && sim.tr && sim.tr.sw && a.intros[a.fi]) isp = FormIntros.frame(sim.tr.t - VS.TR_SWAP);   // transformado: la forma nueva hace su intro
       // Con intro: su hoja en vez de la normal (mismo tamaño de píxel: wh es el alto de la celda en Supervivencia, 52,3 px = 3,6 u)
       const itx = isp >= 0 ? a.intros[a.fi] : null;
-      if (itx) { if (S.s !== itx) S.setSheet(itx); a.fr = isp; roll = a.roll = 0; const r = itx.d.wh / itx.d.h / (3.6 / 52.3); sx *= r; sy *= r; }
-      else if (S.s !== a.sheets[a.fi]) S.setSheet(a.sheets[a.fi]);
+      if (itx) { if (S.s !== itx) { S.setSheet(itx); S.u.uTint.value.setHex(0xffffff); } a.fr = isp; roll = a.roll = 0; const r = itx.d.wh / itx.d.h / (3.6 / 52.3); sx *= r; sy *= r; }   // sin el tinte de la forma: la intro ya trae sus colores
+      else if (S.s !== a.sheets[a.fi]) { S.setSheet(a.sheets[a.fi]); S.u.uTint.value.setHex(a.def.tint); }
       if (this.fin && this.fin.l === i) { const F = this.fin; ox = F.px - x; oy = F.py - y; oz = F.pz - z; hide = F.gone; roll = a.roll = -dir * F.t * 16; a.fr = Array.isArray(a.def.anim.death) ? a.def.anim.death[0] : a.def.anim.death; }
       if (this.vic && this.vic.w === i) powMin = 0.28;
       a.px = x + ox; a.py = y + oy; a.pz = z + oz;
