@@ -90,14 +90,14 @@ class VsActor {
 class Versus {
   constructor(game) {
     this.g = game; this.active = false; this.cfg = { mode: 'cpu', level: 'normal', arena: 'dia', rounds: 2, pick: [null, null], side: 0, dummy: 'still', tki: '1', ttm: '1' }; this.tw = null;
-    const st = document.createElement('style'); st.textContent = VS_CSS; document.head.appendChild(st);
+    const st = document.createElement('style'); st.textContent = VS_CSS + VS_TUTO_CSS; document.head.appendChild(st);
     const el = this.el = document.createElement('div'); el.id = 'vs';
     const side = (c) => '<div class="side ' + c + '"><canvas class="pt" width="74" height="74"></canvas><div class="inf"><div class="nm"><span></span><small></small></div><div class="hp"><i class="g"></i><i class="v"></i></div>' +
       '<div class="row"><b class="kj">気</b><div class="ki"><i></i></div><div class="gd"><i></i></div><div class="pips"></div></div><div class="row"><div class="tr"><i></i></div><span class="trl"></span></div></div></div>';
     el.innerHTML = '<div class="bars"><i></i><i></i></div><div class="top">' + side('l') + '<div class="clock"><small>RONDA 1</small><span>99</span></div>' + side('r') + '</div>' +
       '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="vq"><b></b><span></span></div><div class="ult"><b></b></div>' +
       '<div class="clh"><div class="cht">¡CHOQUE DE ULTIMATES!</div><div class="chb"><i class="a"></i><i class="b"></i><b></b></div><div class="chn l"><span></span><em></em></div><div class="chn r"><span></span><em></em></div><div class="chk"></div></div>' +
-      '<div class="clw"><b>¡RESPONDE!</b><span></span><i></i></div><div class="hint">' + vsHint() + '</div><div class="trn"></div>' +
+      '<div class="clw"><b>¡RESPONDE!</b><span></span><i></i></div><div class="hint">' + vsHint() + '</div><div class="trn"></div><div class="tut"></div>' +
       '<div class="pnl pause"><div class="box"><h2>PAUSA</h2><p>Modo Versus</p><button class="go" data-v="resume">Seguir</button><button data-v="reselect">Cambiar luchadores</button><button data-v="exit">Salir al menú</button></div></div>' +
       '<div class="pnl end"><div class="box"></div></div>' +
       '<div class="sel"></div>';
@@ -106,7 +106,7 @@ class Versus {
     const q = (s) => el.querySelector(s), qa = (s) => [...el.querySelectorAll(s)];
     this.ui = { sides: qa('.side').map((s) => ({ pt: s.querySelector('.pt'), nm: s.querySelector('.nm span'), fm: s.querySelector('.nm small'), hp: s.querySelector('.hp'), g: s.querySelector('.hp .g'), v: s.querySelector('.hp .v'),
       ki: s.querySelector('.ki'), kiI: s.querySelector('.ki i'), gd: s.querySelector('.gd i'), pips: s.querySelector('.pips'), tr: s.querySelector('.tr'), trI: s.querySelector('.tr i'), trl: s.querySelector('.trl'), ghost: 1 })), cmb: qa('.cmb'), big: q('.big'), tag: q('.tag'), ult: q('.ult b'), ultBox: q('.ult'), clh: q('.clh'), chb: q('.chb'), chm: q('.chb b'), cha: q('.chb .a'), chbb: q('.chb .b'), chn: qa('.chn'), chk: q('.chk'), clw: q('.clw'),
-      vq: q('.vq'), clock: q('.clock span'), rnd: q('.clock small'), pause: q('.pause'), end: q('.end'), sel: q('.sel'), trn: q('.trn') };
+      vq: q('.vq'), clock: q('.clock span'), rnd: q('.clock small'), pause: q('.pause'), end: q('.end'), sel: q('.sel'), trn: q('.trn'), tut: q('.tut') };
     el.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) { e.stopPropagation(); this.cmd(b.dataset.v, b.dataset.a); } });
     window.addEventListener('keydown', (e) => {
       if (!this.active || e.repeat) return;
@@ -131,11 +131,11 @@ class Versus {
   showSelect() {
     this.clearFight(); this.sim = null; this.paused = false; this.ui.pause.classList.remove('on'); this.ui.end.classList.remove('on'); this.el.classList.remove('cine');
     for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r', '.tc']) for (const n of this.el.querySelectorAll(k)) n.style.display = 'none';
-    this.ui.trn.classList.remove('on'); this.trn = null; if (this.touch) this.touch.clear(); this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win');
+    this.ui.trn.classList.remove('on'); this.trn = null; this.ui.tut.classList.remove('on'); this.tuto = null; if (this.touch) this.touch.clear(); this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win');
     this.ui.sel.classList.add('on'); EntryFx.seen.vs0 = EntryFx.seen.vs1 = null; this.renderSelect(); SFX.music('menu');   // al entrar, las entradas vuelven a reproducirse
   }
   renderSelect() {
-    const c = this.cfg, R = this.roster(), lad = c.mode === 'ladder', trn = c.mode === 'train', L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal, tab = c.tab || 'grid';
+    const c = this.cfg, R = this.roster(), lad = c.mode === 'ladder', trn = c.mode === 'train', tut = c.mode === 'tuto', L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal, tab = c.tab || 'grid';
     const seg = (k, list) => '<div class="vseg">' + list.map(([v, t]) => '<button data-v="set" data-a="' + k + ':' + v + '"' + (String(c[k]) === String(v) ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>';
     const p2 = c.mode === 'cpu' ? 'CPU' : trn ? 'Rival de práctica' : 'Jugador 2';
     // Ficha de un luchador: retrato, formas (se elige con cuál empieza), pasiva y la Ultimate de cada forma
@@ -151,17 +151,18 @@ class Versus {
       (VsStats.d().tower[c.level] ? '' : ' (<b>el doble</b> la primera vez)') + '.</div></section>';
     const grid = '<div class="grid">' + R.map((ch) => '<button data-v="char" data-a="' + ch.id + '" class="' + (c.pick[0].id === ch.id ? 'p0 ' : '') + (!lad && c.pick[1].id === ch.id ? 'p1' : '') + '" title="' + nice(ch.name) + '"><canvas width="74" height="74" data-pt="' + ch.forms[0].sheet + '"></canvas><em>' +
       (c.pick[0].id === ch.id ? 'J1' : '') + (!lad && c.pick[1].id === ch.id ? (c.pick[0].id === ch.id ? '+' : '') + (c.mode === 'cpu' ? 'CPU' : trn ? 'Rival' : 'J2') : '') + '</em></button>').join('') + '</div>';
+    const tutoCard = '<section class="fp tw"><span class="who">Tutorial</span><h3 style="margin-top:14px">' + VS_TUTO.length + ' lecciones</h3><div class="twi">Aprende paso a paso todo lo del Versus: moverte y volar, combos, ganchos, disparos cargados, <b>guardia perfecta</b>, <b>esquiva perfecta</b>, agarres, la Ultimate, cómo <b>desviar</b> una Ultimate rival y el <b>choque de Ultimates</b>.<br><br>Cada lección te dice qué hacer y con qué teclas, y se supera sola. Puedes saltar o repetir las que quieras.</div></section>';
     const opt = (t, h) => '<span>' + t + '</span>' + h;
-    this.ui.sel.innerHTML = '<header><button class="back" data-v="exit">◀ Salir</button><h1>¡Modo Versus!</h1><nav class="vseg modes">' + [['cpu', 'Contra la CPU'], ['local', '2 jugadores'], ['ladder', 'Torre'], ['train', 'Entrenamiento']].map(([v, t]) => '<button data-v="set" data-a="mode:' + v + '"' + (c.mode === v ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</nav></header>' +
+    this.ui.sel.innerHTML = '<header><button class="back" data-v="exit">◀ Salir</button><h1>¡Modo Versus!</h1><nav class="vseg modes">' + [['cpu', 'Contra la CPU'], ['local', '2 jugadores'], ['ladder', 'Torre'], ['train', 'Entrenamiento'], ['tuto', 'Tutorial']].map(([v, t]) => '<button data-v="set" data-a="mode:' + v + '"' + (c.mode === v ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</nav></header>' +
       panel(0) +
       '<div class="mid"><div class="tabs">' + [['grid', 'Luchadores'], ['keys', 'Controles'], ['stats', 'Historial']].map(([v, t]) => '<button data-v="tab" data-a="' + v + '"' + (tab === v ? ' class="on"' : '') + '>' + t + '</button>').join('') +
         (tab === 'grid' ? '<span>Eliges para ' + (c.side ? (c.mode === 'cpu' ? 'la CPU' : trn ? 'el rival de práctica' : 'el jugador 2') : 'el jugador 1') + '</span>' : '') + '</div>' +
         '<div class="pane">' + (tab === 'keys' ? this.keysPane() : tab === 'stats' ? VsStats.html(c.pick[0].id) : grid) + '</div>' +
         '<div class="opts">' + (c.mode === 'cpu' || lad ? opt('Dificultad', seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']])) : '') +
           (trn ? opt('El rival', seg('dummy', Object.keys(VS_DUMMY).map((k) => [k, VS_DUMMY[k]]))) + opt('Ayudas', '<div class="vseg">' + seg('tki', [['1', 'Ki infinito'], ['0', 'Ki normal']]).slice(18, -6) + seg('ttm', [['1', 'Barra de transformación llena'], ['0', 'Barra normal']]).slice(18, -6) + '</div>') : '') +
-          (lad ? '' : opt('Arena', seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', 'Al azar']])))) + (trn ? '' : opt('Rondas para ganar', seg('rounds', [[1, '1'], [2, '2'], [3, '3']]))) + '</div>' +
-        '<button class="fight" data-v="fight">' + (lad ? '¡Subir a la Torre!' : trn ? '¡A entrenar!' : '¡A luchar!') + '</button></div>' +
-      (lad ? tower : panel(1));
+          (lad || tut ? '' : opt('Arena', seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', 'Al azar']])))) + (trn || tut ? '' : opt('Rondas para ganar', seg('rounds', [[1, '1'], [2, '2'], [3, '3']]))) + '</div>' +
+        '<button class="fight" data-v="fight">' + (lad ? '¡Subir a la Torre!' : trn ? '¡A entrenar!' : tut ? '¡Empezar el tutorial!' : '¡A luchar!') + '</button></div>' +
+      (lad ? tower : tut ? tutoCard : panel(1));
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-pt]')) this.portrait(cv, cv.dataset.pt);
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-full]')) this.portrait(cv, cv.dataset.full, true);
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-entry]')) EntryFx.play(cv, cv.dataset.entry, cv.dataset.k);
@@ -175,7 +176,7 @@ class Versus {
   }
   cmd(v, a) {
     const c = this.cfg;
-    if (v === 'set') { const [k, val] = a.split(':'); c[k] = k === 'rounds' ? +val : val; if (c.mode === 'ladder') c.side = 0; this.renderSelect(); }
+    if (v === 'set') { const [k, val] = a.split(':'); c[k] = k === 'rounds' ? +val : val; if (c.mode === 'ladder' || c.mode === 'tuto') c.side = 0; this.renderSelect(); }
     else if (v === 'side') { c.side = +a; this.renderSelect(); }
     else if (v === 'char') { c.pick[c.side] = { id: a, f: 0 }; SFX.play('ki'); const pane = this.ui.sel.querySelector('.pane'), top = pane ? pane.scrollTop : 0; this.renderSelect(); const p2 = this.ui.sel.querySelector('.pane'); if (p2) p2.scrollTop = top; }   // sin perder el punto de la lista
     else if (v === 'form') { const [i, n] = a.split(':'); c.side = +i; c.pick[c.side].f = +n; this.renderSelect(); }
@@ -195,6 +196,7 @@ class Versus {
       else if (a === 'base') { this.start(); return; }
       SFX.play('ki'); this.renderTrn();
     }
+    else if (v === 'tuto' && this.tuto) this.tuto.cmd(a);
     else if (v === 'reselect') this.showSelect();
     else if (v === 'pause') { if (!this.sim || this.sim.phase === 'end') return; this.paused = true; this.ui.pause.classList.add('on'); if (this.touch) this.touch.clear(); }
     else if (v === 'resume') { this.paused = false; this.ui.pause.classList.remove('on'); }
@@ -209,7 +211,8 @@ class Versus {
   /* ---------------- Combate ---------------- */
   async start() {
     if (this.loading) return; this.loading = true;
-    const c = this.cfg, tw = c.mode === 'ladder' ? this.tw : null, train = c.mode === 'train', picks = [c.pick[0], tw ? tw.foes[tw.i] : c.pick[1]], AK = Object.keys(VS_ARENAS);
+    const c = this.cfg, tw = c.mode === 'ladder' ? this.tw : null, tuto = c.mode === 'tuto', train = c.mode === 'train' || tuto, AK = Object.keys(VS_ARENAS);
+    const picks = [c.pick[0], tw ? tw.foes[tw.i] : tuto ? { id: this.roster().some((x) => x.id === 'goku') ? 'goku' : c.pick[1].id, f: 0 } : c.pick[1]];   // tutorial: el rival es Goku (su Kamehameha se puede desviar)
     const chains = picks.map((p) => vsChain(charById(p.id), p.f)), sheets = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))));
     const intros = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => FormIntros.has(d.id, d.ix) ? vsTexture(FormIntros.name(d.id, d.ix)) : null))));   // intro de cada forma (entrada y transformación)
     this.loading = false; if (!this.active || sheets.some((s) => !s[0])) return;
@@ -230,15 +233,16 @@ class Versus {
     this.intro = train ? null : { s: [{}, {}], q: -1 }; this.fin = null; this.vic = null; this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win'); this.ids = picks.map((p) => p.id);
     if (this.intro) { this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); }
     const p1 = new VsMulti([new VsKeyboard(VS_KEYS[0]), new VsGamepad(0)].concat(this.touch ? [this.touch] : []));
-    this.inputs = [p1, tw ? VS_TOWER.ai(tw) : train ? new VsDummy(c.dummy) : c.mode === 'cpu' ? new VsAI(c.level) : new VsMulti([new VsKeyboard(VS_KEYS[1]), new VsGamepad(1)])];
+    this.inputs = [p1, tw ? VS_TOWER.ai(tw) : tuto ? new VsTutorDummy() : train ? new VsDummy(c.dummy) : c.mode === 'cpu' ? new VsAI(c.level) : new VsMulti([new VsKeyboard(VS_KEYS[1]), new VsGamepad(1)])];
     this.run = { tr: 0, ult: 0, sup: 0, parry: 0, maxCombo: 0, maxDmg: 0 };       // lo que hace el jugador 1 en este combate (estadísticas)
-    this.trn = train ? { cmb: 0, dmg: 0, max: 0 } : null; this.sfx2 = c.mode === 'local' ? '' : train ? ' · PRÁCTICA' : ' · CPU'; this.shownT = null;
+    this.trn = train && !tuto ? { cmb: 0, dmg: 0, max: 0 } : null; this.sfx2 = c.mode === 'local' ? '' : tuto ? ' · TUTORIAL' : train ? ' · PRÁCTICA' : ' · CPU'; this.shownT = null;
     this.acc = 0; this.time = 0; this.scale = 1; this.slow = 0; this.dim = 0; this.dimCol = 0; this.blur = 0; this.chroma = 0; this.flash = 0; this.lines = 0; this.ax = [0, 0, 0, 0]; this.stone = null; this.paused = false; this.chargeSnd = 0; this.trCol = 0xffffff; this.p2cpu = c.mode !== 'local';
     this.prev = this.sim.f.map((f) => ({ x: f.x, y: f.y, z: f.z }));
     // HUD
     this.ui.sel.classList.remove('on'); this.ui.end.classList.remove('on'); this.ui.pause.classList.remove('on');
     for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r', '.tc']) for (const n of this.el.querySelectorAll(k)) n.style.display = '';
-    this.ui.trn.classList.toggle('on', train); if (train) this.renderTrn(); if (this.touch) this.touch.clear();
+    this.ui.trn.classList.toggle('on', !!this.trn); if (this.trn) this.renderTrn(); if (this.touch) this.touch.clear();
+    this.tuto = tuto ? new VsTutorial(this) : null; this.ui.tut.classList.toggle('on', tuto);
     this.ui.sides.forEach((s, i) => { s.nm.textContent = defs[i].name; s.fm.textContent = nice(defs[i].form) + (i ? this.sfx2 : ''); s.ghost = 1; s.can = null; s.trl.textContent = ''; this.portrait(s.pt, defs[i].sheet);
       s.kiI.style.background = ''; s.pips.innerHTML = train ? '' : '<b></b>'.repeat(c.rounds); s.wins = -1; });
     this.cam.update(0.016, this.sim, true); SFX.music('boss');
@@ -264,6 +268,7 @@ class Versus {
         if (this.intro && sim.phase === 'intro' && sim.pt > 0.4 && sim.pt < VS_INTRO_T - 2.3 && c0 && (c0.b & (VB.ATK | VB.HEAVY | VB.KI | VB.DASH))) sim.pt = VS_INTRO_T - 2.3;   // cualquier botón de ataque salta las entradas
         sim.step(c0, this.inputs[1].read(sim, 1));
         for (const e of sim.ev) this.onEvent(e); sim.ev.length = 0;
+        if (this.tuto) this.tuto.step();                                   // tutorial: ayudas y comprobación de la lección
         if (this.trn) {                                                    // entrenamiento: nadie muere y las ayudas rellenan las barras
           const a = sim.f[0], b = sim.f[1], c = this.cfg; a.hp = a.hpMax; if (a.cmb === 0 && b.st !== 'hurt' && b.st !== 'launched' && b.st !== 'held' && b.st !== 'down') b.hp = b.hpMax;
           if (c.tki === '1' && !sim.ult && !sim.clash) a.ki = 100;
@@ -339,6 +344,7 @@ class Versus {
   ghostAt(i, x, y, z, col, life) { const a = this.actors[i], px = a.px, py = a.py, pz = a.pz; a.px = x; a.py = y; a.pz = z; this.ghost(i, col, life); a.px = px; a.py = py; a.pz = pz; }
   onEvent(e) {
     const sim = this.sim, cam = this.cam, fx = this.fx;
+    if (this.tuto) this.tuto.onEvent(e);
     switch (e.t) {
       case 'round': { const tw = this.cfg.mode === 'ladder' && this.tw;
         this.rndTxt = this.trn ? 'ENTRENAMIENTO' : tw && e.n === 1 ? (tw.i === VS_TOWER.n - 1 ? 'JEFE FINAL' : 'RIVAL ' + (tw.i + 1) + ' DE ' + VS_TOWER.n) : 'RONDA ' + e.n; if (!(this.intro && e.n === 1)) this.say(this.rndTxt, 1.5);   // con entradas, el rótulo sale cuando acaban (draw)
