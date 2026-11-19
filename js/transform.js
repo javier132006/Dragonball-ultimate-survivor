@@ -106,8 +106,11 @@ const TRANSFORM_FX = {
     { c1: '#ff2a1a', c2: '#ffb090', quote: 'Soy el demonio...', frames: 'BIWIBC', charge: 2.2, fx: ['rocks', 'cracks', 'bolts', 'quake'], bolt: '#ff8a6a', shake: 1.4, kanji: '超サイヤ人４' }
   ]
 };
-const IMPACT_FRAME = 0.07;      // duración de cada fotograma de impacto (s)
-const BANNER_TIME = 1.25;       // tiempo del cartel con el nombre tras el impacto
+const IMPACT_FRAME = 0.11;      // duración de cada fotograma de impacto (s): se llega a ver cada dibujo
+const BANNER_TIME = 1.9;        // tiempo del cartel con el nombre tras el impacto
+const TF_CHARGE = 1.2;          // la carga dura un 20 % más que en la tabla: el aura crece con calma
+const TF_INTRO_SLOW = 1.4;      // la intro de la forma nueva va un 40 % más lenta que en la entrada de la partida
+const TF_HOLD = 0.35;           // pausa en la pose final antes de volver al combate
 
 const hexCss = (n) => '#' + n.toString(16).padStart(6, '0');
 const cssRgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; };
@@ -127,13 +130,14 @@ class TransformScene {
   start(idx) {
     const g = this.g, p = g.player, list = TRANSFORM_FX[p.ch.id] || [];
     const f = p.ch.forms[idx];
-    this.cfg = list[idx] || { c1: hexCss(f.aura || 0xffe14a), c2: '#ffffff', quote: '¡¡HAAAA!!', frames: 'WIC', charge: 1.6, fx: ['bolts'], bolt: '#ffffff', shake: 0.8, kanji: '' };
+    const base = list[idx] || { c1: hexCss(f.aura || 0xffe14a), c2: '#ffffff', quote: '¡¡HAAAA!!', frames: 'WIC', charge: 1.6, fx: ['bolts'], bolt: '#ffffff', shake: 0.8, kanji: '' };
+    this.cfg = Object.assign({}, base, { charge: base.charge * TF_CHARGE });   // copia: la tabla no se toca
     this.to = idx; this.form = f; this.t = 0; this.swapped = false; this.on = true; this.lastImp = -1; this.ringT = 0;
     this.end = this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + BANNER_TIME;
     // Intro de la forma nueva (js/intro.js): tras los impactos sale de la silueta con su animación; la escena dura lo que dure
     this.ixA = !p.fusion && typeof ImpactArt !== 'undefined' ? ImpactArt.get(p.ch.id, idx) : null;   // impact frame dibujado de la forma nueva (js/impactfx.js)
     this.isp = !p.fusion && typeof FormIntros !== 'undefined' ? FormIntros.ready(g.ui.sheets, p.ch.id, idx) : null;
-    if (this.isp) { p.batch(this.isp); this.end = Math.max(this.end, this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + FORM_INTRO_T); }
+    if (this.isp) { p.batch(this.isp); this.end = Math.max(this.end, this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + FORM_INTRO_T * TF_INTRO_SLOW + TF_HOLD); }
     this.cam0 = { dist: g.camDistT, pitch: g.camPitch };
     g.camDistT = 7.5; g.camPitch = 0.28;
     this.bolts.length = 0; this.cracks.length = 0; this.petals.length = 0; this.fiss = false; this.gT = 0;
@@ -269,7 +273,7 @@ class TransformScene {
     this.animBanner(t, impEnd);
     if (this.isp && t >= impEnd && this.swapped) {                     // la forma nueva hace su intro (en vez de la pose de cargar)
       if (!p.introSpr) p.introSpr = { name: this.isp, frame: 0 };
-      p.introSpr.frame = FormIntros.frame(t - impEnd); p.cineChg = false;
+      p.introSpr.frame = FormIntros.frame((t - impEnd) / TF_INTRO_SLOW); p.cineChg = false;
     }
 
     this.aura3d(k, t, ch, impEnd);
