@@ -36,7 +36,7 @@ const VS = {
   // Choque de Ultimates: si el rival tiene la barra llena, puede responder mientras se presenta la Ultimate (win s).
   // Entrada (intro s), pulso machacando botones (push s) y remate (out s). Cada pulsación empuja; mantener CARGAR KI
   // gasta ki (burn por s) y multiplica el empuje (mult). drv = empuje con memoria (se apaga a decay por s); K = rapidez del punto.
-  CLASH: { win: 0.75, intro: 1.15, push: 4.2, out: 0.95, burn: 30, mult: 1.9, decay: 4, K: 0.5, dmg: 320, tie: 0.12, tieDmg: 80 }
+  CLASH: { win: 0.9, intro: 1.15, push: 4.2, out: 0.95, burn: 30, mult: 1.9, decay: 4, K: 0.5, dmg: 320, tie: 0.12, tieDmg: 80 }
 };
 
 class VsFighter {
@@ -150,7 +150,7 @@ class VsSim {
         f.vx += ((ctl ? wx * sp : 0) - f.vx) * k; f.vz += ((ctl ? wz * sp : 0) - f.vz) * k; f.vy += ((ctl ? my * VS.FLY : 0) - f.vy) * k;
         if (ctl) {
           if ((press & VB.TRANS) && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
-          if ((press & VB.ULT) && f.ki >= 100 && foe.st !== 'ko') { this.startUlt(f, foe); break; }
+          if ((press & VB.ULT) && f.ki >= 100 && foe.st !== 'ko' && !this.ult && !this.clash) { this.startUlt(f, foe); break; }   // con otra Ultimate en marcha no se puede lanzar la tuya (solo responder a tiempo: choque)
           if ((press & VB.TP) && f.ki >= VS.COST_TP * tpk) { this.vanish(f, foe, VS.COST_TP * tpk); break; }
           if ((press & VB.DASH) && (pas === 'lobo' || f.ki >= VS.COST_DASH)) { this.dash(f, foe, wx, wz, my, nx, nz, ty / td); break; }
           if ((held & VB.GUARD) && (press & VB.ATK) && foe.st !== 'ko') { f.q = 0; f.set('grab'); this.emit('grabTry', { i: f.i }); break; }
@@ -281,7 +281,11 @@ class VsSim {
       case 'down': brake(10); if (f.t >= 0.65) { f.inv = 0.5; f.set('idle'); if (pas === 'zenkai' && f.zk < 5 && this.phase === 'fight') { f.zk++; this.emit('pas', { i: f.i, k: 'zenkai', x: f.x, y: f.y + 1.6, z: f.z }); } } break;   // Zenkai: cada vez que se levanta pega más
       case 'stun': brake(10); f.stun -= dt; if (f.stun <= 0) f.set('idle'); break;
       case 'ko': { const m = Math.max(0, 1 - 1.2 * dt); f.vx *= m; f.vz *= m; if (f.y > 0 || f.vy > 0) f.vy -= 22 * dt; else { if (f.vy < -4 && !f.done) { f.done = true; this.emit('land', { x: f.x, z: f.z, hard: true }); } f.vy = 0; f.vx *= 0.8; f.vz *= 0.8; } break; }
-      case 'ult': case 'held': case 'trans': break;                                    // los mueve stepUlt()
+      case 'ult': case 'held': case 'trans':                                            // los mueve stepUlt() / stepTrans()
+        if (f.st === 'ult' && (!this.ult || this.ult.who !== f.i)) { f.inv = 0; f.set('idle'); }      // red de seguridad: nunca se queda congelado sin una Ultimate que lo mueva
+        else if (f.st === 'held' && !this.ult) f.set('idle');
+        else if (f.st === 'trans' && !this.tr) f.set('idle');
+        break;
     }
     f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt;
   }
