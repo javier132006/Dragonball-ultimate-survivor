@@ -40,6 +40,9 @@ def game_sheets():
         if m: zl3[json.loads(m.group(1))] = json.loads(m.group(2))
         m = re.match(r'window\.ZL3_MAP = (.*);\s*$', line)
         if m: zl3['__map'] = json.loads(m.group(1))
+    for line in open(os.path.join(ROOT, 'assets', 'broly3.js'), encoding='utf-8'):   # hoja propia de Broly SSJ3
+        m = re.match(r'window\.SPRITE_DATA\[("[^"]+")\] = (.*);\s*$', line)
+        if m: sheets.setdefault(json.loads(m.group(1)), json.loads(m.group(2)))
     return sheets, zl3
 
 def form_sheets():
