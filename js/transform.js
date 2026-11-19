@@ -118,6 +118,7 @@ class TransformScene {
     this.cv = document.getElementById('cine');
     this.ctx = this.cv.getContext ? this.cv.getContext('2d') : null;
     this.banner = document.getElementById('tfBanner');
+    this.trait = document.getElementById('tfTrait');                 // recuadro de la habilidad (esquina inferior izquierda)
     this.v = new THREE.Vector3();
     this.bolts = []; this.cracks = []; this.petals = []; this.stars = [];
   }
@@ -143,6 +144,8 @@ class TransformScene {
     this.resize();
     this.cv.style.display = 'block';
     this.banner.className = ''; this.banner.innerHTML = '';
+    if (this.trait) { this.trait.innerHTML = ''; this.trait.style.opacity = 0; }
+    this.onTop(true);
     g.ui.el.hud.classList.add('cine');
     // Sonido: grito sintetizado + carga, música atenuada
     SFX.setDuck(0.3);
@@ -150,6 +153,20 @@ class TransformScene {
     SFX.play('charge');
   }
 
+  /**
+   * Durante la transformación el personaje (y su aura) se dibuja por encima de enemigos, ataques y proyectiles
+   * congelados: el proceso se ve siempre entero. Al terminar, todo vuelve a su orden normal.
+   */
+  onTop(on) {
+    const p = this.g.player; if (!p) return;
+    const L = Object.values(p.spr || {}).concat(p.auraB ? [p.auraB] : []);
+    for (const b of L) {
+      const m = b && b.mesh; if (!m) continue;
+      if (on) { if (m.userData.ro0 === undefined) { m.userData.ro0 = m.renderOrder; m.userData.dt0 = m.material.depthTest; }
+        m.renderOrder = b === p.auraB ? 5.4 : 5.5; m.material.depthTest = false; }
+      else if (m.userData.ro0 !== undefined) { m.renderOrder = m.userData.ro0; m.material.depthTest = m.userData.dt0; delete m.userData.ro0; delete m.userData.dt0; }
+    }
+  }
   resize() { this.cv.width = window.innerWidth; this.cv.height = window.innerHeight; }
   /** Recolorea de antemano el aura a pantalla completa con el color de cada forma del personaje */
   warm(ch) {
@@ -301,21 +318,28 @@ class TransformScene {
     SFX.play('stinger');
     const f = this.form, c = this.cfg;
     this.banner.style.setProperty('--c1', c.c1); this.banner.style.setProperty('--c2', c.c2);
-    this.banner.classList.toggle('hi', !!this.isp);                   // con intro, el cartel arriba: el personaje se ve en el centro
     const T = traitOf(this.g.player.ch, this.to);
-    this.banner.innerHTML = '<small>' + (c.kanji || '') + '</small><b>' + f.name + '</b><i>' + c.quote + '</i>' +
-      (T ? '<em class="trt"><u>' + T.name + '</u><span class="trg">✚ ' + T.good + '</span><span class="trb">✖ ' + T.bad + '</span></em>' : '');
+    this.banner.innerHTML = '<small>' + (c.kanji || '') + '</small><b>' + f.name + '</b><i>' + c.quote + '</i>';
+    if (this.trait) {
+      this.trait.style.setProperty('--c1', c.c1);
+      this.trait.innerHTML = T ? '<u>' + T.name + '</u><span class="trg">✚ ' + T.good + '</span><span class="trb">✖ ' + T.bad + '</span>' : '';
+    }
   }
   /** Animación del cartel ligada al tiempo de la escena (va bien aunque el ordenador sea lento) */
   animBanner(t, impEnd) {
     if (!this.bannerOn) return;
     const f = clamp((t - impEnd) / BANNER_TIME, 0, 1);
     let sc = 1, op = 1, y = 0;
-    if (f < 0.12) { const q = f / 0.12; sc = 2.6 - 1.66 * q; op = q; }
+    if (f < 0.12) { const q = f / 0.12; sc = 1.5 - 0.56 * q; op = q; }   // golpe de entrada corto: no llega a tapar al personaje
     else if (f < 0.2) sc = 0.94 + 0.06 * (f - 0.12) / 0.08;
     else if (f > 0.8) { const q = (f - 0.8) / 0.2; sc = 1 + 0.06 * q; op = 1 - q; y = -20 * q; }
     this.banner.style.opacity = op.toFixed(3);
     this.banner.style.transform = 'translateY(' + y.toFixed(1) + 'px) scale(' + sc.toFixed(3) + ') skewX(-10deg)';
+    if (this.trait) {                                                  // la habilidad entra desde la izquierda un poco después
+      const q = clamp((f - 0.1) / 0.12, 0, 1);
+      this.trait.style.opacity = (Math.min(q, op)).toFixed(3);
+      this.trait.style.transform = 'translateX(' + (-24 * (1 - q)).toFixed(1) + 'px)';
+    }
   }
 
   finish() {
@@ -325,6 +349,8 @@ class TransformScene {
     if (this.am) this.am.visible = false;
     g.renderer.domElement.style.filter = '';
     this.banner.style.opacity = 0;
+    if (this.trait) this.trait.style.opacity = 0;
+    this.onTop(false);
     g.ui.el.hud.classList.remove('cine');
     g.camDistT = this.cam0.dist; g.camPitch = this.cam0.pitch;
     p.charging = false; p.iframes = 1.2; p.cineChg = false; p.introSpr = null;

@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = '5e78e7a3';
+  window.V = '5f3ebf76';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=5e78e7a3"></script>
+<script src="js/assetver.js?v=5f3ebf76"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -227,18 +227,18 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 #tfBtn.wait{animation:none;box-shadow:none;opacity:.7;border-color:#555}#tfBtn.wait .key{background:#555}
 @keyframes tfp{50%{box-shadow:0 0 40px var(--fc,var(--ki))}}
 #cine{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:15;display:none}
-#tfBanner{position:fixed;left:0;right:0;top:26%;text-align:center;pointer-events:none;z-index:16;opacity:0}
-#tfBanner.hi{top:5%}
-#tfBanner.hi .trt{position:absolute;left:50%;top:72vh;transform:translateX(-50%);margin:0}   /* con intro de la forma: el recuadro de la habilidad abajo, el personaje queda libre */
+#tfBanner{position:fixed;left:0;right:0;top:3%;text-align:center;pointer-events:none;z-index:16;opacity:0;transform-origin:50% 0}   /* arriba y compacto: el personaje se transforma en el centro sin nada encima */
 #tfBanner.go{animation:tfb 1.25s ease-out forwards}
-#tfBanner small{display:block;font-family:var(--disp);font-size:clamp(20px,4vw,44px);color:#fff;-webkit-text-stroke:2px #000;paint-order:stroke fill;text-shadow:0 0 14px var(--c1)}
-#tfBanner b{display:block;font-family:var(--disp);font-weight:400;font-size:clamp(38px,8vw,104px);line-height:1;
+#tfBanner small{display:block;font-family:var(--disp);font-size:clamp(12px,2vw,22px);color:#fff;-webkit-text-stroke:1px #000;paint-order:stroke fill;text-shadow:0 0 10px var(--c1)}
+#tfBanner b{display:block;font-family:var(--disp);font-weight:400;font-size:clamp(24px,4.4vw,56px);line-height:1;
   background:linear-gradient(180deg,#fff 0%,var(--c2) 38%,var(--c1) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(4px 4px 0 #000) drop-shadow(-2px -2px 0 #000) drop-shadow(0 0 24px var(--c1))}
-#tfBanner i{display:block;font-family:var(--disp);font-style:normal;font-size:clamp(15px,2.4vw,28px);color:#fff;-webkit-text-stroke:1px #000;paint-order:stroke fill;margin-top:8px}
-#tfBanner .trt{display:inline-flex;flex-direction:column;gap:3px;margin-top:12px;padding:8px 18px;max-width:none;font-style:normal;font-size:clamp(11px,1.6vw,16px);
-  background:#000;border:3px solid var(--c1,var(--ki));border-radius:8px}
-#tfBanner .trt u{text-decoration:none;font-family:var(--disp);font-size:clamp(15px,2.1vw,24px);color:var(--c1,var(--ki))}
+  filter:drop-shadow(3px 3px 0 #000) drop-shadow(-1px -1px 0 #000) drop-shadow(0 0 16px var(--c1))}
+#tfBanner i{display:block;font-family:var(--disp);font-style:normal;font-size:clamp(11px,1.4vw,16px);color:#fff;-webkit-text-stroke:1px #000;paint-order:stroke fill;margin-top:3px}
+/* Habilidad de la forma nueva: recuadro pequeño en la esquina inferior izquierda */
+#tfTrait{position:fixed;left:16px;bottom:16px;z-index:16;pointer-events:none;opacity:0;display:flex;flex-direction:column;gap:2px;max-width:min(320px,70vw);
+  padding:8px 14px;font-size:clamp(10px,1.2vw,13px);font-weight:700;color:#ffe2a8;background:#000;border:2px solid var(--c1,var(--ki));border-left-width:5px;border-radius:8px}
+#tfTrait:empty{display:none}
+#tfTrait u{text-decoration:none;font-family:var(--disp);font-size:clamp(13px,1.6vw,18px);color:var(--c1,var(--ki))}
 @keyframes tfb{0%{opacity:0;transform:scale(2.6)}12%{opacity:1;transform:scale(.94)}20%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.06) translateY(-20px)}}
 /* Sala del Espíritu y el Tiempo: viñeta blanca y reloj de dentro/fuera */
 #roomFx{position:fixed;inset:0;pointer-events:none;z-index:6;display:none;background:radial-gradient(ellipse at center,rgba(255,255,255,0) 45%,rgba(235,248,255,.55) 80%,rgba(255,255,255,.85) 100%)}
@@ -965,8 +965,8 @@ html.touch #rhud #pr{width:160px}
 #tfName{font-weight:800}
 #tfBanner small,#tfBanner i{-webkit-text-stroke:0;font-weight:800;text-shadow:0 3px 0 rgba(0,0,0,.5),0 0 14px var(--c1)}
 #tfBanner b{font-weight:800}
-#tfBanner .trt{background:rgba(24,28,44,.92);border-radius:18px}
-#tfBanner .trt u{font-weight:800}
+#tfTrait{background:rgba(24,28,44,.92);border-radius:14px}
+#tfTrait u{font-weight:800}
 #talk{border:0;border-radius:24px;background:rgba(24,28,44,.95);box-shadow:0 8px 0 #151927,0 0 30px rgba(0,0,0,.6)}
 #talk canvas{border:0;border-radius:50%;box-shadow:0 0 0 4px #ffb21e}
 #talk b,#talk p,#talk small{font-family:var(--body)}#talk b{font-weight:800;font-size:19px;color:#ffc531}#talk p{font-weight:700}
@@ -1995,7 +1995,7 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
 <div id="vignette"></div>
 <div id="toast"></div>
 <canvas id="cine"></canvas>
-<div id="tfBanner"></div>
+<div id="tfBanner"></div><div id="tfTrait"></div>
 <!-- Controles táctiles (móvil en horizontal) -->
 <div id="touch">
   <div id="tzL"></div><div id="tzR"></div>
