@@ -31,7 +31,11 @@ const VS = {
   PARRY: 0.13,                            // ventana de la guardia perfecta (contraataque)
   ULT_CINE: 1.25,                         // segundos de presentación de la Ultimate (el mundo se para)
   TR_CINE: 2.7, TR_SWAP: 1.75,            // transformación: duración total y momento del estallido (cambio de forma)
-  TR_DEAL: 0.11, TR_TAKE: 0.16            // barra de transformación ganada por punto de daño hecho / recibido
+  TR_DEAL: 0.11, TR_TAKE: 0.16,           // barra de transformación ganada por punto de daño hecho / recibido
+  // Choque de Ultimates: si el rival tiene la barra llena, puede responder mientras se presenta la Ultimate (win s).
+  // Entrada (intro s), pulso machacando botones (push s) y remate (out s). Cada pulsación empuja; mantener CARGAR KI
+  // gasta ki (burn por s) y multiplica el empuje (mult). drv = empuje con memoria (se apaga a decay por s); K = rapidez del punto.
+  CLASH: { win: 0.75, intro: 1.15, push: 4.2, out: 0.95, burn: 30, mult: 1.9, decay: 4, K: 0.5, dmg: 320, tie: 0.12, tieDmg: 80 }
 };
 
 class VsFighter {
@@ -60,7 +64,7 @@ class VsSim {
     opt = opt || {}; this.o = opt;       // opt.noKO: la vida no baja de 1 · opt.noTime: sin reloj (entrenamiento)
     this.f = [new VsFighter(0, defA), new VsFighter(1, defB)];
     this.seed = (opt.seed || 12345) >>> 0; this.rounds = opt.rounds || 2; this.roundTime = opt.time || 99;
-    this.ev = []; this.shots = []; this.tick = 0; this.round = 0; this.winner = -1;
+    this.ev = []; this.shots = []; this.tick = 0; this.round = 0; this.winner = -1; this.clash = null;
     this.cx = 0; this.cz = -1;            // lado en el que está la cámara (normal horizontal, unitaria)
     this.newRound();
   }
@@ -69,7 +73,7 @@ class VsSim {
   emit(t, o) { o = o || {}; o.t = t; this.ev.push(o); }
   newRound() {
     this.round++; this.f[0].reset(7); this.f[1].reset(-7);                // con la cámara en -z, la derecha de la pantalla es -x: el jugador 1 empieza a la izquierda
-     this.shots.length = 0; this.blasts = []; this.ult = null; this.tr = null; this.freeze = 0;
+     this.shots.length = 0; this.blasts = []; this.ult = null; this.tr = null; this.clash = null; this.freeze = 0;
     this.time = this.roundTime; this.phase = 'intro'; this.pt = 0; this.cx = 0; this.cz = -1; this.df = 0;
     this.introT = this.round === 1 && this.o.intro ? this.o.intro : 2.3;   // la primera ronda puede llevar las entradas de los luchadores
     this.emit('round', { n: this.round });
@@ -88,6 +92,7 @@ class VsSim {
     const dx = b.x - a.x, dz = b.z - a.z, h = Math.hypot(dx, dz);
     if (h > 0.8) { let nx = -dz / h, nz = dx / h; if (nx * this.cx + nz * this.cz < 0) { nx = -nx; nz = -nz; } this.cx = nx; this.cz = nz; }
     if (this.tr) { this.stepTrans(); return; }                          // transformación: el mundo espera
+    if (this.clash) { this.stepClash(cmd); return; }                    // choque de Ultimates: el reloj y el resto esperan
     this.pt += VS_DT;
     if (this.phase === 'intro' && this.pt > this.introT) { this.phase = 'fight'; this.pt = 0; this.emit('fight'); }
     else if (this.phase === 'ko' && this.pt > (this.df ? 4.7 : 3.0)) this.endRound();   // el final destructivo dura más
@@ -95,7 +100,7 @@ class VsSim {
       this.time -= VS_DT;
       if (this.time <= 0) { this.time = 0; const w = a.hp / a.hpMax >= b.hp / b.hpMax ? 0 : 1; this.phase = 'ko'; this.pt = 0; this.ko = w; this.emit('timeup', { w }); }
     }
-    if (this.ult && this.ult.ph === 0) { this.stepUlt(); return; }      // presentación de la Ultimate: el mundo está parado
+    if (this.ult && this.ult.ph === 0) { if (this.ult.cw && this.tryClash(cmd)) return; this.stepUlt(); return; }   // presentación de la Ultimate: el mundo está parado (el rival aún puede responder)
     for (let i = 0; i < 2; i++) this.stepFighter(this.f[i], this.f[1 - i], cmd[i] || { mx: 0, mz: 0, b: 0 });
     if (this.ult) this.stepUlt();
     this.stepShots();
@@ -469,6 +474,68 @@ class VsSim {
     const U = f.def.ult;
     this.ult = { who: f.i, type: U.type, v: U.v || 0, sup: !!U.sup, t: 0, ph: 0, hitT: 0, n: 0, lock: false, y0: f.y, D: 300 * (U.sup ? 1.3 : 1) };
     this.emit('ultStart', { i: f.i, type: U.type, v: this.ult.v, sup: this.ult.sup, name: U.name, col: f.def.col });
+    if (this.canClash(foe)) { this.ult.cw = 1; this.emit('counterWin', { i: foe.i, dur: VS.CLASH.win }); }   // el rival tiene la barra llena: puede responder
+  }
+
+  /* ---------------- Choque de Ultimates ---------------- */
+  /** ¿Puede este luchador responder a una Ultimate con la suya? */
+  canClash(d) { return this.phase === 'fight' && !this.o.noClash && d.ki >= 100 && !['ko', 'held', 'grabd', 'launched', 'down'].includes(d.st); }
+  /** Durante la presentación de la Ultimate: si el rival pulsa la suya a tiempo, empieza el choque */
+  tryClash(cmd) {
+    const u = this.ult, d = this.f[1 - u.who], c = cmd[d.i], b = c ? c.b : 0, pr = (b & ~d.pb) | d.pend; d.pb = b; d.pend = 0;
+    if (u.t > VS.CLASH.win) { u.cw = 0; this.emit('counterOff', { i: d.i }); return false; }
+    if (!(pr & VB.ULT) || !this.canClash(d)) return false;
+    this.startClash(this.f[u.who], d); return true;
+  }
+  /** Los dos frente a frente, a media altura, y las dos Ultimates se encuentran en el centro */
+  startClash(A, B) {
+    const C = VS.CLASH, a = this.f[0], b = this.f[1], dx = b.x - a.x, dz = b.z - a.z, h = Math.hypot(dx, dz) || 1, L = Math.max(11, Math.min(18, h));
+    const nx = dx / h, nz = dz / h, y = Math.max(1.6, Math.min(VS.TOP - 4, (a.y + b.y) / 2));
+    let mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2; const r = Math.hypot(mx, mz), lim = VS.R - 1.5 - L / 2; if (r > lim) { mx *= lim / r; mz *= lim / r; }
+    a.x = mx - nx * L / 2; a.z = mz - nz * L / 2; b.x = mx + nx * L / 2; b.z = mz + nz * L / 2;
+    for (const f of this.f) { f.y = y; f.vx = f.vy = f.vz = 0; f.inv = 99; f.stun = 0; f.set('clash'); }
+    A.ki = 100; B.ki = Math.min(100, B.ki);                             // las dos salen con la barra llena: lo que se gaste en el pulso sale de ahí
+    const U = this.f.map((f) => f.def.ult);
+    this.clash = { by: A.i, t: 0, ph: 0, p: 0, w: -1, drv: [0, 0], burn: [0, 0], taps: [0, 0], nx, nz, L, y, mx, mz, sup: U.map((u) => !!u.sup), type: U.map((u) => u.type) };
+    this.ult = null; this.shots.length = 0; this.blasts.length = 0;
+    this.emit('clashStart', { by: A.i, x: mx, y, z: mz, names: U.map((u) => u.name), types: U.map((u) => u.type) });
+  }
+  /** Punto donde chocan las dos energías (p > 0: gana el luchador 0 y el punto se acerca al 1) */
+  clashPoint() { const k = this.clash, d = k.p * (k.L / 2 - 1.2); return [k.mx + k.nx * d, k.y + 1.7, k.mz + k.nz * d]; }
+  stepClash(cmd) {
+    const C = VS.CLASH, k = this.clash, dt = VS_DT, pr = [0, 0], held = [0, 0];
+    k.t += dt;
+    for (let i = 0; i < 2; i++) { const f = this.f[i], b = cmd[i] ? cmd[i].b : 0; pr[i] = (b & ~f.pb) | f.pend; f.pb = b; f.pend = 0; held[i] = b; f.t += dt; }
+    if (k.ph === 0) { if (k.t >= C.intro) { k.ph = 1; k.t = 0; this.emit('clashPush'); } return; }
+    if (k.ph === 1) {                                                    // el pulso: cada pulsación empuja; con CARGAR KI pulsado, gasta ki y empuja casi el doble
+      for (let i = 0; i < 2; i++) {
+        const f = this.f[i], tap = pr[i] & (VB.ATK | VB.HEAVY | VB.KI) ? 1 : 0, burn = (held[i] & VB.CHARGE) && f.ki > 0;
+        if (burn) f.ki = Math.max(0, f.ki - C.burn * dt); k.burn[i] = burn ? 1 : 0;
+        k.drv[i] = k.drv[i] * Math.exp(-C.decay * dt) + tap * (burn ? C.mult : 1) * Math.sqrt(f.pow) * (k.sup[i] ? 1.1 : 1);   // la fuerza del personaje cuenta, pero poco: decide quien machaca
+        if (tap) k.taps[i]++;
+      }
+      k.p = Math.max(-1, Math.min(1, k.p + (k.drv[0] - k.drv[1]) * C.K * dt));
+      if (Math.abs(k.p) >= 1 || k.t >= C.push) {
+        k.w = Math.abs(k.p) < C.tie ? -1 : k.p > 0 ? 0 : 1; k.ph = 2; k.t = 0; k.p0 = k.p;
+        const [x, y, z] = this.clashPoint(); this.emit('clashWin', { w: k.w, x, y, z });
+      }
+      return;
+    }
+    if (k.w >= 0) k.p = k.p0 + ((k.w === 0 ? 1.35 : -1.35) - k.p0) * Math.min(1, k.t / (C.out * 0.55));   // la energía ganadora arrolla al otro
+    if (k.t >= C.out) this.endClash();
+  }
+  endClash() {
+    const C = VS.CLASH, k = this.clash, [x, y, z] = this.clashPoint(); this.clash = null;
+    for (const f of this.f) { f.inv = 0; f.vx = f.vy = f.vz = 0; f.set('idle'); }
+    if (k.w < 0) {                                                       // empate: estallan las dos y salen despedidos
+      this.emit('boom', { x, y, z, col: this.f[0].def.col, big: 2 });
+      for (const f of this.f) { const dx = f.x - x, dz = f.z - z, h = Math.hypot(dx, dz) || 1; this.hit(this.f[1 - f.i], f, { dmg: C.tieDmg, raw: 1, stun: 0.8, kb: 24, up: 10, launch: true, heavy: true, gbreak: 100 }, dx / h, dz / h); }
+    } else {
+      const W = this.f[k.w], L = this.f[1 - k.w], dx = L.x - W.x, dz = L.z - W.z, h = Math.hypot(dx, dz) || 1;
+      this.emit('boom', { x: L.x, y: L.y + 1.5, z: L.z, col: W.def.col, big: 2 });
+      this.hit(W, L, { dmg: C.dmg * (k.sup[k.w] ? 1.3 : 1), raw: 1, stun: 1.3, kb: 32, up: 12, launch: true, heavy: true, gbreak: 100 }, dx / h, dz / h);
+    }
+    this.emit('clashEnd', { w: k.w });
   }
   endUlt(rec) { const f = this.f[this.ult.who], foe = this.f[1 - f.i]; if (foe.st === 'held') foe.set('idle'); f.inv = 0; f.set('stun'); f.stun = rec; this.ult = null; this.emit('ultEnd'); }
   /** Daño directo de una Ultimate (rival agarrado). Si lo noquea, la Ultimate se acaba: devuelve true */

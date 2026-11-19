@@ -170,4 +170,29 @@ html.hc #vs .keys,html.hc #vs .box p{color:#fff;font-size:14px}
   #vs .pnl.win .box{width:auto;padding:22px 16px 12px}#vs .pnl.win .box h2{font-size:26px;margin-top:-42px}#vs .pnl.win .box p{display:none}#vs .pnl.win .box q{margin-bottom:10px;padding:5px 16px}#vs .pnl.win .box .bt button{font-size:16px;min-width:110px}
 }
 @media (prefers-reduced-motion:reduce){#vs .big.go,#vs .tag.go{animation-timing-function:linear}#vs .pips b.w,#vs .cmb.pop b,#vs .hp.low .v,#vs .ki.full i,#vs .tr.full{animation:none}#vs .vq{transition:opacity .15s}}
+/* Choque de Ultimates: aviso para responder y marcador del pulso */
+#vs .clw{position:absolute;left:50%;top:22%;transform:translateX(-50%) skewX(-12deg);padding:6px 26px 8px;background:var(--ink);border:3px solid var(--gold);box-shadow:6px 6px 0 rgba(0,0,0,.45);text-align:center;opacity:0;pointer-events:none;z-index:3}
+#vs .clw.on{animation:vsclw var(--d,.75s) linear forwards}
+#vs .clw b{display:block;font:400 clamp(26px,4.4vw,48px)/1 var(--mg);letter-spacing:.05em;color:var(--gold);animation:vsclwp .18s steps(2) infinite}
+#vs .clw span{display:block;font:700 13px/1.6 var(--body);color:#fff}#vs .clw span b{display:inline;font:800 13px/1 var(--body);color:var(--ink);background:#fff;border-radius:4px;padding:1px 6px;animation:none;letter-spacing:0}
+#vs .clw i{display:block;height:5px;margin-top:4px;background:var(--gold);transform-origin:left;animation:vsclwt var(--d,.75s) linear forwards}
+@keyframes vsclw{0%{opacity:0;transform:translateX(-50%) skewX(-12deg) scale(1.4)}8%,92%{opacity:1;transform:translateX(-50%) skewX(-12deg) scale(1)}100%{opacity:0}}
+@keyframes vsclwt{to{transform:scaleX(0)}}@keyframes vsclwp{50%{color:#fff}}
+#vs .clh{position:absolute;left:50%;top:auto;bottom:calc(9% + 54px);width:min(620px,86%);transform:translateX(-50%);opacity:0;pointer-events:none;transition:opacity .2s;z-index:2}#vs .clh.on{opacity:1}
+#vs .cht{text-align:center;font:400 clamp(20px,3vw,34px)/1 var(--mg);letter-spacing:.06em;color:#fff6c8;-webkit-text-stroke:5px var(--ink);paint-order:stroke fill;margin-bottom:6px}
+#vs .clh.push .cht{animation:vschp .3s ease-in-out infinite alternate}@keyframes vschp{to{transform:scale(1.06)}}
+#vs .chb{position:relative;height:22px;border:3px solid var(--ink);box-shadow:0 0 0 2px #fff,0 6px 0 rgba(0,0,0,.4);transform:skewX(-16deg);background:#222}
+#vs .chb i{position:absolute;top:0;bottom:0;width:50%}#vs .chb .a{left:0}#vs .chb .b{right:0}
+#vs .chb i::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.45),transparent 55%)}
+#vs .chb b{position:absolute;top:-9px;bottom:-9px;left:50%;width:12px;margin-left:-6px;background:#fff;border:3px solid var(--ink);box-shadow:0 0 16px #fff,0 0 34px #fff}
+#vs .clh.push .chb b{animation:vschm .1s steps(2) infinite}@keyframes vschm{50%{box-shadow:0 0 22px #fff,0 0 50px #fff}}
+#vs .chn{position:absolute;top:calc(100% + 8px);max-width:48%;font:400 clamp(14px,1.9vw,20px)/1.1 var(--mg);letter-spacing:.04em;color:var(--c,#fff);-webkit-text-stroke:4px var(--ink);paint-order:stroke fill}
+#vs .chn.l{left:0}#vs .chn.r{right:0;text-align:right}
+#vs .chn em{display:block;font:800 11px/1.5 var(--body);font-style:normal;color:#cfe6ff;-webkit-text-stroke:3px var(--ink);letter-spacing:.02em}
+#vs .chn.burn em{color:var(--gold);animation:vschb .2s steps(2) infinite}@keyframes vschb{50%{color:#fff}}
+#vs .chk{position:absolute;left:50%;top:calc(100% + 44px);transform:translateX(-50%);white-space:nowrap;padding:4px 14px;border-radius:999px;background:rgba(17,18,28,.78);font:600 12px/1.8 var(--body);color:#e8ecf8;opacity:0;transition:opacity .2s}
+#vs .chk:empty{display:none}#vs .clh.push .chk{opacity:1}#vs .chk b{color:var(--ink);background:#fff;border-radius:4px;padding:1px 6px;font-weight:800}
+#vs.clash .hint,#vs.clash .cmb{opacity:0!important}
+@media (max-width:700px){#vs .clh{bottom:calc(9% + 70px)}#vs .chk{white-space:normal;width:94%;text-align:center}}
+@media (prefers-reduced-motion:reduce){#vs .clw b,#vs .clh.push .cht,#vs .clh.push .chb b,#vs .chn.burn em{animation:none}}
 `;

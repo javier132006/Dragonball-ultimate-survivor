@@ -68,6 +68,7 @@ class VsActor {
       case 'launched': return first(A.death);
       case 'down': return last(A.death);
       case 'ko': return f.y > 0.05 || f.vy > 0 ? first(A.death) : last(A.death);
+      case 'clash': return sim.clash && sim.clash.ph >= 1 ? A.atk2 : chg;   // choque de Ultimates: cargando y luego empujando con las manos
       case 'ult':
         if (!u || u.ph === 0) return chg;
         switch (u.type) {
@@ -94,7 +95,9 @@ class Versus {
     const side = (c) => '<div class="side ' + c + '"><canvas class="pt" width="74" height="74"></canvas><div class="inf"><div class="nm"><span></span><small></small></div><div class="hp"><i class="g"></i><i class="v"></i></div>' +
       '<div class="row"><b class="kj">気</b><div class="ki"><i></i></div><div class="gd"><i></i></div><div class="pips"></div></div><div class="row"><div class="tr"><i></i></div><span class="trl"></span></div></div></div>';
     el.innerHTML = '<div class="bars"><i></i><i></i></div><div class="top">' + side('l') + '<div class="clock"><small>RONDA 1</small><span>99</span></div>' + side('r') + '</div>' +
-      '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="vq"><b></b><span></span></div><div class="ult"><b></b></div><div class="hint">' + vsHint() + '</div><div class="trn"></div>' +
+      '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="vq"><b></b><span></span></div><div class="ult"><b></b></div>' +
+      '<div class="clh"><div class="cht">¡CHOQUE DE ULTIMATES!</div><div class="chb"><i class="a"></i><i class="b"></i><b></b></div><div class="chn l"><span></span><em></em></div><div class="chn r"><span></span><em></em></div><div class="chk"></div></div>' +
+      '<div class="clw"><b>¡RESPONDE!</b><span></span><i></i></div><div class="hint">' + vsHint() + '</div><div class="trn"></div>' +
       '<div class="pnl pause"><div class="box"><h2>PAUSA</h2><p>Modo Versus</p><button class="go" data-v="resume">Seguir</button><button data-v="reselect">Cambiar luchadores</button><button data-v="exit">Salir al menú</button></div></div>' +
       '<div class="pnl end"><div class="box"></div></div>' +
       '<div class="sel"></div>';
@@ -102,7 +105,7 @@ class Versus {
     if (typeof IS_TOUCH !== 'undefined' && IS_TOUCH) { this.touch = new VsTouchPad(el, () => this.cmd('pause')); el.classList.add('touch'); }   // móvil y tableta: mandos en pantalla
     const q = (s) => el.querySelector(s), qa = (s) => [...el.querySelectorAll(s)];
     this.ui = { sides: qa('.side').map((s) => ({ pt: s.querySelector('.pt'), nm: s.querySelector('.nm span'), fm: s.querySelector('.nm small'), hp: s.querySelector('.hp'), g: s.querySelector('.hp .g'), v: s.querySelector('.hp .v'),
-      ki: s.querySelector('.ki'), kiI: s.querySelector('.ki i'), gd: s.querySelector('.gd i'), pips: s.querySelector('.pips'), tr: s.querySelector('.tr'), trI: s.querySelector('.tr i'), trl: s.querySelector('.trl'), ghost: 1 })), cmb: qa('.cmb'), big: q('.big'), tag: q('.tag'), ult: q('.ult b'), ultBox: q('.ult'),
+      ki: s.querySelector('.ki'), kiI: s.querySelector('.ki i'), gd: s.querySelector('.gd i'), pips: s.querySelector('.pips'), tr: s.querySelector('.tr'), trI: s.querySelector('.tr i'), trl: s.querySelector('.trl'), ghost: 1 })), cmb: qa('.cmb'), big: q('.big'), tag: q('.tag'), ult: q('.ult b'), ultBox: q('.ult'), clh: q('.clh'), chb: q('.chb'), chm: q('.chb b'), cha: q('.chb .a'), chbb: q('.chb .b'), chn: qa('.chn'), chk: q('.chk'), clw: q('.clw'),
       vq: q('.vq'), clock: q('.clock span'), rnd: q('.clock small'), pause: q('.pause'), end: q('.end'), sel: q('.sel'), trn: q('.trn') };
     el.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) { e.stopPropagation(); this.cmd(b.dataset.v, b.dataset.a); } });
     window.addEventListener('keydown', (e) => {
@@ -263,7 +266,7 @@ class Versus {
         for (const e of sim.ev) this.onEvent(e); sim.ev.length = 0;
         if (this.trn) {                                                    // entrenamiento: nadie muere y las ayudas rellenan las barras
           const a = sim.f[0], b = sim.f[1], c = this.cfg; a.hp = a.hpMax; if (a.cmb === 0 && b.st !== 'hurt' && b.st !== 'launched' && b.st !== 'held' && b.st !== 'down') b.hp = b.hpMax;
-          if (c.tki === '1' && !sim.ult) a.ki = 100; if (c.ttm === '1' && a.fi < a.chain.length - 1) a.tm = 100;
+          if (c.tki === '1' && !sim.ult && !sim.clash) a.ki = 100; if (c.ttm === '1' && a.fi < a.chain.length - 1) a.tm = 100;
         }
         this.simFx();
       }
@@ -271,7 +274,7 @@ class Versus {
     }
     const cam = this.cam.cam, cv = r.domElement, asp = cv.width / Math.max(1, cv.height);
     if (Math.abs(cam.aspect - asp) > 0.001) { cam.aspect = asp; cam.updateProjectionMatrix(); }
-    if (this.post) { const u = this.post.uC; u.uBlur.value = this.blur; u.uChroma.value = this.chroma; u.uFlash.value = this.flash; u.uSat.value = this.slow > 0 ? 0.55 : 1; u.uLines.value = this.lines; u.uLT.value = performance.now() / 55; u.uBloom.value = sim.tr ? 0.32 : 0.5 + this.arena.dim * 0.2; this.post.render(this.scene, cam); }
+    if (this.post) { const u = this.post.uC; u.uBlur.value = this.blur; u.uChroma.value = this.chroma; u.uFlash.value = this.flash; u.uSat.value = this.slow > 0 ? 0.55 : 1; u.uLines.value = this.lines; u.uLT.value = performance.now() / 55; u.uBloom.value = sim.tr ? 0.32 : sim.clash ? 0.26 : 0.5 + this.arena.dim * 0.2; this.post.render(this.scene, cam); }
     else { r.setRenderTarget(null); r.render(this.scene, cam); }
   }
 
@@ -434,6 +437,24 @@ class Versus {
       case 'trEnd': this.el.classList.remove('cine'); this.dim = 0; break;
       case 'beamGnd': this.dust(e.x, e.z, 7, 12); fx.add(1, e.x, 0.1, e.z, 2, e.col, { s1: 13, life: 0.3, flat: true, a: 0.8 }); this.burst(e.x, 0.6, e.z, e.col, 8, 20, 1.5);
         for (let k = 0; k < 3; k++) { const an = Math.random() * 6.283, v = 6 + Math.random() * 10; this.fxA.add(5, e.x, 0.3, e.z, 0.3 + Math.random() * 0.3, 0x2a2430, { vx: Math.cos(an) * v, vz: Math.sin(an) * v, vy: 8 + Math.random() * 9, g: 28, life: 1.1, bounce: true, s1: 0.2 }); } break;
+      case 'counterWin': {                                              // el rival tiene la barra llena: puede responder con su Ultimate
+        if (!this.human(e.i)) break;
+        const w = this.ui.clw; w.querySelector('span').innerHTML = 'Pulsa ' + this.keyOf(e.i, 'ULT') + ' para chocar tu Ultimate';
+        w.style.setProperty('--d', e.dur + 's'); w.classList.remove('on'); void w.offsetWidth; w.classList.add('on'); SFX.play('ki'); break;
+      }
+      case 'counterOff': this.ui.clw.classList.remove('on'); break;
+      case 'clashStart': this.clashStart(e); break;
+      case 'clashPush': this.say('¡EMPUJA!', 0.8); this.ui.clh.classList.add('push'); this.flash = Math.max(this.flash, 0.25); cam.shake(0.8); SFX.play('bigbeam'); g_rumble(300, 0.8); break;
+      case 'clashWin': {
+        const w = e.w, sx = this.ui.clh; sx.classList.remove('push');
+        if (w < 0) { this.tag('¡EMPATE! ¡ESTALLAN LAS DOS!'); this.flash = 0.6; cam.shake(1.3, 2); SFX.play('bigboom'); this.boom(e.x, e.y, e.z, 0xffffff, 2); }
+        else {
+          const a = this.actors[w]; this.tag('¡' + a.def.name.toUpperCase() + ' SE IMPONE!'); this.flash = 0.45; this.lines = 1; this.blur = 1; cam.shake(1.1, 2); SFX.play('bigbeam'); g_rumble(500, 1);
+          ImpactFlash.play(a.def.id, a.def.ix, a.def.col, 'WBWB', a.flip);
+        }
+        this.burst(e.x, e.y, e.z, 0xffffff, 30, 34, 2); this.ring(e.x, e.y, e.z, 0xffffff, 3, 22, 0.35); break;
+      }
+      case 'clashEnd': this.el.classList.remove('clash'); this.ui.clh.classList.remove('on', 'push'); this.dim = 0; this.cam.cine = null; this.clashV = null; break;
       case 'ultStart': {
         if (e.i === 0) { this.run.ult++; if (e.sup) this.run.sup++; } this.ui.ultBox.classList.remove('off'); if (e.sup) { this.tag('¡ULTIMATE SUPERIOR!'); const f0 = sim.f[e.i]; for (let k = 0; k < 6; k++) { const an = k * 1.05; this.bolt(f0.x + Math.cos(an) * 7, f0.y + 13, f0.z + Math.sin(an) * 7, f0.x, f0.y + 1.5, f0.z, k & 1 ? e.col : 0xffffff, 1, 0.2); } }
         this.el.classList.add('cine'); this.ui.ult.textContent = e.name; this.ui.ult.style.setProperty('--c', '#' + e.col.toString(16).padStart(6, '0')); this.dim = 1; this.dimCol = e.col;
@@ -648,6 +669,69 @@ class Versus {
   trnNums() { const t = this.trn; return 'Último combo: <b>' + t.cmb + ' golpes</b> · <b>' + Math.round(t.dmg) + '</b> de daño · Récord: <b>' + Math.round(t.max) + '</b>'; }
 
   /** Efectos que dependen del estado de cada paso (estelas, carga, chispas del rayo) */
+  /** ¿Lo maneja una persona (teclado, mando o pantalla táctil)? */
+  human(i) { const p = this.inputs && this.inputs[i]; return !!p && !(p instanceof VsAI) && !(typeof VsDummy !== 'undefined' && p instanceof VsDummy); }
+  /** Tecla (o botón) de una acción para el jugador i, lista para el HUD */
+  keyOf(i, act) {
+    if (this.touch && i === 0) return '<b>' + ({ ULT: 'ULTI', ATK: 'GOLPE', CHARGE: 'CARGAR' }[act] || act) + '</b>';
+    return '<b>' + vsKeyName(VS_KEYS[i][act]) + '</b>';
+  }
+  /** Empieza el choque: plano lateral, impact frame doble y el marcador del pulso */
+  clashStart(e) {
+    const sim = this.sim, ui = this.ui, A = this.actors;
+    ui.clw.classList.remove('on'); this.el.classList.remove('cine'); this.el.classList.add('clash'); ui.ultBox.classList.add('off');
+    const f0 = sim.f[0], f1 = sim.f[1], left = sim.screenX(f1.x - f0.x, f1.z - f0.z) >= 0 ? 0 : 1;      // quién sale a la izquierda de la pantalla
+    this.clashV = { left, taps: [0, 0], hit: 0 };
+    const css = (c) => '#' + c.toString(16).padStart(6, '0');
+    ui.cha.style.background = css(A[left].def.col); ui.chbb.style.background = css(A[1 - left].def.col);
+    [left, 1 - left].forEach((i, k) => { const n = ui.chn[k]; n.querySelector('span').textContent = e.names[i]; n.style.setProperty('--c', css(A[i].def.col)); });
+    const hs = [0, 1].filter((i) => this.human(i));
+    ui.chk.innerHTML = !hs.length ? '' : hs.length === 2 ? 'J1: machaca ' + this.keyOf(0, 'ATK') + ' · mantén ' + this.keyOf(0, 'CHARGE') + ' &nbsp;|&nbsp; J2: machaca ' + this.keyOf(1, 'ATK') + ' · mantén ' + this.keyOf(1, 'CHARGE')
+      : 'Machaca ' + this.keyOf(hs[0], 'ATK') + ' para empujar · mantén ' + this.keyOf(hs[0], 'CHARGE') + ' para gastar ki y empujar el doble';
+    ui.clh.classList.add('on'); this.say('¡CHOQUE!', 1.0); this.dim = 1; this.dimCol = A[e.by].def.col;
+    this.flash = 0.5; this.cam.shake(1, 2); SFX.play('bigboom'); g_rumble(400, 1);
+    ImpactFlash.playDuo({ cid: A[left].def.id, fi: A[left].def.ix, col: A[left].def.col }, { cid: A[1 - left].def.id, fi: A[1 - left].def.ix, col: A[1 - left].def.col }, 'CWBC');
+    const C = VS.CLASH, cx = sim.cx, cz = sim.cz, k0 = sim.clash;
+    this.cam.play(C.intro + C.push + C.out, (k, P, L) => {             // de lado, a media distancia, y se va cerrando sobre el punto del choque
+      const q = sim.clash || k0, [px, py, pz] = sim.clash ? sim.clashPoint() : [q.mx, q.y + 1.7, q.mz], t = Math.min(1, k * 1.6), r = 24 - 5 * t, sw = Math.sin(k * 5) * 0.1;
+      L.set(q.mx + (px - q.mx) * 0.3, py, q.mz + (pz - q.mz) * 0.3); P.set(q.mx + (cx * Math.cos(sw) - q.nx * Math.sin(sw)) * r, q.y + 3.4 - t * 1.2, q.mz + (cz * Math.cos(sw) - q.nz * Math.sin(sw)) * r); return 44 - 4 * t;
+    });
+  }
+  /** Rayos, esferas, chispas y marcador del choque (cada fotograma) */
+  drawClash(T, light) {
+    const sim = this.sim, k = sim.clash, fx = this.fx, A = this.actors, R = Math.random, V = this.clashV; if (!k || !V) return;
+    const [px, py, pz] = sim.clashPoint(), C = VS.CLASH;
+    const grow = k.ph === 0 ? Math.min(1, k.t / 0.5) : 1, fade = k.ph === 2 && k.w < 0 ? Math.max(0, 1 - k.t / (C.out * 0.5)) : 1;
+    const beams = [this.beam, this.beam2];
+    for (let i = 0; i < 2; i++) {
+      const f = sim.f[i], o = sim.f[1 - i], dx = o.x - f.x, dz = o.z - f.z, h = Math.hypot(dx, dz) || 1, ux = dx / h, uz = dz / h, col = A[i].def.col;
+      const ox = f.x + ux * 1.3, oy = f.y + 1.7, oz = f.z + uz * 1.3, along = ((px - ox) * ux + (pz - oz) * uz) * grow;
+      const sph = k.type[i] === 'bomb' || k.type[i] === 'nova', burn = k.burn[i], pulse = 1 + Math.sin(T * 34 + i * 2) * 0.06, bm = beams[i];
+      const len = sph ? along - 2.6 : along + 0.6;
+      bm.mesh.visible = len > 0.2 && fade > 0;
+      if (bm.mesh.visible) { bm.u.uA.value.set(ox, oy, oz); bm.u.uDir.value.set(ux, 0, uz); bm.u.uLen.value = len; bm.u.uW.value = (sph ? 1.4 : 3.4) * (1 + 0.3 * burn) * pulse; bm.u.uCol.value.setHex(col); bm.u.uT.value = T; bm.u.uPow.value = (0.85 + 0.25 * burn) * fade; }
+      if (sph && along > 0.5 && fade > 0) {                              // la bola gigante, empujada contra el punto del choque
+        const r = 2.4 * pulse * (1 + 0.15 * burn), x = px - ux * r * 0.8, z = pz - uz * r * 0.8;
+        fx.now(0, x, py, z, r * 2.6, col, 0.6 * fade); fx.now(0, x, py, z, r * 1.3, 0xffffff, 0.6 * fade); fx.now(3, x, py, z, r * 2.1, 0xffffff, 0.35 * fade, T * 2); light(x, py, z, col, 1.1);
+      }
+      fx.now(0, ox, oy, oz, 2.4 * pulse * fade, col, 0.55); fx.now(0, ox, oy, oz, 1.1 * fade, 0xffffff, 0.8);   // brillo en las manos
+      if (burn && (sim.tick & 1)) for (let n = 0; n < 2; n++) { const a = R() * 6.283; fx.add(2, f.x + Math.cos(a) * 1.1, f.y + 0.2 + R() * 2.4, f.z + Math.sin(a) * 1.1, 1, n ? col : 0xffffff, { vy: 14 + R() * 8, life: 0.3, stretch: 4, a: 0.7 }); }   // gastando ki: llamas de aura
+      if (k.taps[i] > V.taps[i]) { V.taps[i] = k.taps[i]; fx.add(1, ox, oy, oz, 1, col, { s1: 3.6 + burn * 2, life: 0.14, a: 0.8 }); if (R() < 0.5) fx.add(2, px, py, pz, 1.3, col, { vx: -ux * 30, vy: (R() - 0.5) * 20, vz: -uz * 30, life: 0.2, stretch: 4 }); }
+    }
+    if (grow >= 1 && fade > 0) {                                         // el punto del choque: dos colores peleando, núcleo blanco, chispas y rayos
+      const c0 = A[0].def.col, c1 = A[1].def.col, p = 1 + Math.sin(T * 42) * 0.09, tug = Math.min(1, Math.abs(k.drv[0] - k.drv[1]) * 0.35);
+      fx.now(0, px, py, pz, 4.4 * p * fade, c0, 0.4); fx.now(0, px, py, pz, 4 * (2 - p) * fade, c1, 0.4); fx.now(0, px, py, pz, 1.9 * p * fade, 0xffffff, 0.75);
+      fx.now(3, px, py, pz, 4.6 * fade, 0xffffff, 0.35, T * 4); fx.now(3, px, py, pz, 3.6 * fade, k.p > 0 ? c0 : c1, 0.4, -T * 3); light(px, py, pz, k.p > 0 ? c0 : c1, 1.1 * fade);
+      for (let n = 0; n < 2; n++) { const a = R() * 6.283, e = (R() - 0.5) * 2, v = 22 + R() * 26; fx.add(2, px, py, pz, 0.9, n & 1 ? c0 : c1, { vx: -k.nz * Math.cos(a) * v, vy: Math.sin(a) * v + e * 6, vz: k.nx * Math.cos(a) * v, life: 0.2, stretch: 5, a: 0.75 }); }
+      if (sim.tick % 4 === 0) { const a = R() * 6.283; this.bolt(px, py, pz, px + Math.cos(a) * 5, py + (R() - 0.3) * 5, pz + Math.sin(a) * 5, R() < 0.5 ? c0 : c1, 0.45, 0.1); }
+      if (sim.tick % 12 === 0) { fx.add(1, px, 0.1, pz, 1, sim.tick % 24 ? c0 : c1, { s1: 9 + tug * 5, life: 0.4, flat: true, a: 0.55 }); if (py < 9) this.dust(px, pz, 4, 12); }
+      this.cam.shake(0.22 + tug * 0.4);
+    }
+    // Marcador: el punto blanco va hacia quien va perdiendo
+    const lw = V.left === 0 ? k.p : -k.p, pc = 50 + lw * 50, ui = this.ui;
+    ui.chm.style.left = pc.toFixed(1) + '%'; ui.cha.style.width = pc.toFixed(1) + '%'; ui.chbb.style.width = (100 - pc).toFixed(1) + '%';
+    [V.left, 1 - V.left].forEach((i, n) => { const el = ui.chn[n]; el.classList.toggle('burn', !!k.burn[i]); el.querySelector('em').textContent = k.burn[i] ? '¡GASTANDO KI! ' + Math.round(sim.f[i].ki) : 'KI ' + Math.round(sim.f[i].ki); });
+  }
   simFx() {
     const sim = this.sim, fx = this.fx, T = sim.tick;
     for (const f of sim.f) {
@@ -764,6 +848,7 @@ class Versus {
       fx.now(0, u.px, u.py, u.pz, 5, c, 0.6); fx.now(0, u.px, u.py, u.pz, 2.4, 0xffffff, 0.9); fx.now(3, u.px, u.py, u.pz, 5, 0xffffff, 0.5, T * 6);
     } else bm.mesh.visible = false;
     if (!(u && u.type === 'spin' && u.ph === 1 && u.len && u.v === 2)) this.beam2.mesh.visible = false;
+    if (sim.clash) this.drawClash(T, light);                            // choque de Ultimates
     if (u && u.ph === 1 && u.type === 'cage' && u.cr > 0) {              // prisión de ki
       const c = this.actors[u.who].def.col, r = u.cr, p = 1 + Math.sin(T * 30) * 0.04, a = u.lock ? 1 : 0.55;
       fx.now(1, u.cx, u.cy, u.cz, r * 2.1 * p, c, a); fx.now(1, u.cx, u.cy, u.cz, r * 1.95, 0xffffff, a * 0.8); fx.now(0, u.cx, u.cy, u.cz, r * 2.5, c, 0.35 * a); fx.now(1, u.cx, Math.max(0.1, u.cy - r * 0.2), u.cz, r * 2.1, c, a * 0.8, 0, VS_FLAT); fx.now(1, u.cx, u.cy + r * 0.5, u.cz, r * 1.7, c, a * 0.6, 0, VS_FLAT);
@@ -820,9 +905,9 @@ class Versus {
       let rI = 0, rc = a.def.col, rdx = 0, rdy = 1;
       const src = (lx, ly, lz, col, I) => { const d = Math.hypot(lx - x, ly - y - 1.6, lz - z), w = I / (1 + d * d * 0.03); if (w > rI) { rI = w; rc = col; rdx = (lx - x) * m[0] + (ly - y - 1.6) * m[1] + (lz - z) * m[2]; rdy = (lx - x) * m[4] + (ly - y - 1.6) * m[5] + (lz - z) * m[6]; } };
       for (const s of sim.shots) src(s.x, s.y, s.z, s.col, s.big ? 2.2 : 0.9);
-      if (bm.mesh.visible && u.type === 'beam') { const al = Math.max(0, Math.min(u.len, (x - u.ox) * u.dx + (y + 1.6 - u.oy) * u.dy + (z - u.oz) * u.dz)); src(u.ox + u.dx * al, u.oy + u.dy * al, u.oz + u.dz * al, bm.u.uCol.value.getHex(), 1.8); }
+      if (bm.mesh.visible && u && u.type === 'beam') { const al = Math.max(0, Math.min(u.len, (x - u.ox) * u.dx + (y + 1.6 - u.oy) * u.dy + (z - u.oz) * u.dz)); src(u.ox + u.dx * al, u.oy + u.dy * al, u.oz + u.dz * al, bm.u.uCol.value.getHex(), 1.8); }
       // Aura: al cargar, con el ki lleno y en la Ultimate
-      const want = f.st === 'trans' ? 0.7 : f.st === 'charge' ? 1 : f.fi > 0 && f.st !== 'ko' && f.st !== 'ult' && f.ki < 100 && f.st !== 'dash' ? 0.3 : f.st === 'ult' ? (u && u.lock ? 0.3 : 0.95) : f.st === 'ko' ? 0 : f.ki >= 100 ? 0.5 : f.st === 'dash' ? 0.35 : 0;
+      const want = f.st === 'trans' ? 0.7 : f.st === 'charge' ? 1 : f.fi > 0 && f.st !== 'ko' && f.st !== 'ult' && f.ki < 100 && f.st !== 'dash' ? 0.3 : f.st === 'ult' ? (u && u.lock ? 0.3 : 0.95) : f.st === 'clash' ? 0.6 + 0.4 * ((sim.clash && sim.clash.burn[f.i]) || 0) : f.st === 'ko' ? 0 : f.ki >= 100 ? 0.5 : f.st === 'dash' ? 0.35 : 0;
       a.pow += (Math.max(want, powMin) - a.pow) * Math.min(1, dt * 9); if (hide || itx) a.pow = 0;   // la intro ya trae su aura dibujada
       if (a.pow > 0.02 && a.pow * 0.9 > rI) { rI = a.pow * 0.9; rc = a.def.col; rdx = 0; rdy = -1; }
       if (dim > 0.1 && rI < 0.35) { rI = 0.35 * dim; rc = this.dimCol; }

@@ -101,9 +101,10 @@ class VsMulti {
    los mismos botones. No hace trampas: tiene tiempo de reacción y falla.
    --------------------------------------------------------------------- */
 const VS_AI = {
-  easy:   { react: 0.42, guard: 0.25, aggro: 0.45, combo: 0.5, escape: 0.1, ult: 0.35, dodge: 0.15 },
-  normal: { react: 0.24, guard: 0.5, aggro: 0.65, combo: 0.75, escape: 0.3, ult: 0.7, dodge: 0.4 },
-  hard:   { react: 0.12, guard: 0.78, aggro: 0.85, combo: 0.95, escape: 0.6, ult: 1, dodge: 0.7 }
+  // clash: probabilidad de responder a una Ultimate con la suya · mash: pulsaciones por segundo en el pulso · burn: gasta ki cuando va por debajo de esto (-1..1)
+  easy:   { react: 0.42, guard: 0.25, aggro: 0.45, combo: 0.5, escape: 0.1, ult: 0.35, dodge: 0.15, clash: 0.35, mash: 5, burn: -0.5 },
+  normal: { react: 0.24, guard: 0.5, aggro: 0.65, combo: 0.75, escape: 0.3, ult: 0.7, dodge: 0.4, clash: 0.7, mash: 7, burn: -0.12 },
+  hard:   { react: 0.12, guard: 0.78, aggro: 0.85, combo: 0.95, escape: 0.6, ult: 1, dodge: 0.7, clash: 0.95, mash: 9, burn: 0.25 }
 };
 /** Dificultad intermedia: t = 0 fácil · 1 normal · 2 difícil (la Torre sube poco a poco) */
 function vsAiMix(t) {
@@ -117,6 +118,15 @@ class VsAI {
     const L = this.L, me = sim.f[i], foe = sim.f[1 - i], dt = VS_DT, rnd = () => sim.rand();
     const c = { mx: 0, mz: 0, b: 0 };
     if (sim.phase !== 'fight') return c;
+    if (sim.clash) return this.clashRead(sim, i, c);                   // choque de Ultimates: machacar y gastar ki
+    if (!sim.ult || sim.ult.ph > 0) { this.cDec = undefined; this.cDone = false; }
+    if (sim.ult && sim.ult.ph === 0) {                                  // Ultimate rival presentándose: con la barra llena, a veces responde con la suya
+      if (sim.ult.who !== i && sim.ult.cw && me.ki >= 100 && !this.cDone) {
+        if (this.cDec === undefined) this.cDec = rnd() < L.clash ? L.react * 0.9 + rnd() * 0.3 : -1;
+        if (this.cDec >= 0 && sim.ult.t >= this.cDec) { this.cDone = true; c.b |= VB.ULT; }
+      }
+      return c;
+    }
     const dx = foe.x - me.x, dy = foe.y - me.y, dz = foe.z - me.z, dh = Math.hypot(dx, dz), d = Math.hypot(dh, dy);
     const toward = sim.screenX(dx, dz) >= 0 ? 1 : -1;                // hacia qué lado de la pantalla está el rival
     // Lo que «ve» del rival llega con retraso (tiempo de reacción)
@@ -176,6 +186,15 @@ class VsAI {
     if (this.plan === 'circle') { c.mz = this.side; c.mx = d > 6 ? toward : 0; }
     else { c.mx = toward; if (d > 9 && me.ki >= 25 && rnd() < L.aggro * dt * 2.5) c.b |= VB.DASH; }
     if (dy > 1.2) c.b |= VB.UP; else if (dy < -1.2) c.b |= VB.DOWN;
+    return c;
+  }
+  /** Pulso del choque: pulsa golpe a su ritmo (un toque cada vez) y mantiene CARGAR KI cuando va perdiendo */
+  clashRead(sim, i, c) {
+    const k = sim.clash, L = this.L, me = sim.f[i];
+    if (k.ph !== 1) { this.mT = 0.1; return c; }
+    if ((this.mT -= VS_DT) <= 0) { this.mT = 1 / (L.mash * (0.8 + sim.rand() * 0.4)); c.b |= VB.ATK; }
+    const mine = i === 0 ? k.p : -k.p;                                  // > 0: va ganando
+    if (me.ki > 0 && (mine < L.burn || (k.t > 3 && Math.abs(mine) < 0.3 && L.burn > 0))) c.b |= VB.CHARGE;
     return c;
   }
 }
