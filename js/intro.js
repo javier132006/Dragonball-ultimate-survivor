@@ -188,6 +188,128 @@ class FusionIntro {
 }
 
 /* =====================================================================
+   Intro de cada forma (assets/intros.js, tools/make_intros.py): hojas 4×4
+   dibujadas para cada transformación, a la misma escala que su sprite.
+     0-3   aparece (silueta, sale de la sombra...)
+     4-7   entrada: pose firme y el aura se enciende
+     8-11  gesto o ataque característico
+     12-15 pose final (la última se mantiene un instante)
+   Supervivencia: al empezar la partida (forma base, FormIntroCine) y al
+   transformarse (transform.js, tras el primer impacto). Versus: en la
+   entrada del luchador y al transformarse (versus.js).
+   ===================================================================== */
+const FORM_INTRO_FT = [0.12, 0.1, 0.09, 0.09, 0.09, 0.09, 0.1, 0.12, 0.09, 0.09, 0.1, 0.14, 0.1, 0.1, 0.12, 0.45];
+const FORM_INTRO_T = FORM_INTRO_FT.reduce((a, b) => a + b, 0);
+const FormIntros = {
+  pend: {},
+  name: (cid, fi) => 'in_' + cid + '_' + (fi | 0),
+  has(cid, fi) { return !!(window.SPRITE_DATA && SPRITE_DATA[this.name(cid, fi)]); },
+  /** Fotograma de la intro a los t segundos (el último se queda) */
+  frame(t) { for (let k = 0; k < 16; k++) { if (t < FORM_INTRO_FT[k]) return k; t -= FORM_INTRO_FT[k]; } return 15; },
+  /** Segundo en que empieza el fotograma k */
+  at(k) { let t = 0; for (let i = 0; i < k; i++) t += FORM_INTRO_FT[i]; return t; },
+  /** Prepara (decodifica y sube a la GPU) las intros de todas las formas del personaje en `sheets`. Cada hoja, una sola vez */
+  prep(sheets, ch) {
+    if (!sheets || !ch || !ch.forms || typeof loadSheet !== 'function') return Promise.resolve();
+    const ps = [];
+    ch.forms.forEach((f, i) => {
+      const n = this.name(ch.id, i);
+      if (sheets[n] || !this.has(ch.id, i)) return;
+      const q = this.pend[n];                                          // ya se está cargando para este mismo juego de hojas
+      if (q && q.s === sheets) { ps.push(q.p); return; }
+      const pr = loadSheet(n).then((s) => { if (s) sheets[n] = s; });
+      this.pend[n] = { s: sheets, p: pr }; ps.push(pr);
+    });
+    return Promise.all(ps);
+  },
+  /** Nombre de la hoja si ya está lista en `sheets` (si no, null) */
+  ready(sheets, cid, fi) { const n = this.name(cid, fi); return sheets && sheets[n] ? n : null; }
+};
+
+/** Supervivencia: el personaje hace la intro de su forma al empezar la partida (mundo parado, cámara cerca). Se salta con cualquier tecla */
+class FormIntroCine {
+  constructor(game) {
+    this.g = game; this.on = false; this.t = 0;
+    const c = this.cv = document.createElement('canvas');
+    c.id = 'formIntro';
+    c.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:22;display:none;cursor:pointer';
+    document.body.appendChild(c);
+    this.ctx = c.getContext ? c.getContext('2d') : null;
+    const skip = (e) => { if (this.on && this.t > 0.4) { if (e) e.preventDefault(); this.end(); } };
+    window.addEventListener('keydown', skip, true);
+    c.addEventListener('pointerdown', skip);
+  }
+  /** ¿Puede hacer la intro de esa forma? (hay hoja; la textura se prepara al empezar) */
+  has(ch, fi) { return !!ch && FormIntros.has(ch.id, fi) && !!this.ctx; }
+  start(ch, fi, done) {
+    const g = this.g, p = g.player, f = ch.forms[fi];
+    this.ch = ch; this.fi = fi; this.done = done; this.t = 0; this.on = true; this.wait = true; this.k = -1;
+    this.col = f.aura || f.ki || 0xffffff; this.css = '#' + new THREE.Color(this.col).lerp(new THREE.Color(0xffffff), 0.25).getHexString();
+    const V = typeof VS_VOZ !== 'undefined' && VS_VOZ[ch.id];
+    this.sub = (V && V.i) || ch.role || '';
+    this.cam = g.camDistT; g.camDist = 13; g.camDistT = 10.5;          // la cámara se acerca
+    p.introHide = true;                                                // hasta que la hoja esté lista (unos milisegundos)
+    this.cv.style.display = 'block'; this.resize(); g.ui.showHud(false); cineToasts(false);
+    FormIntros.prep(g.ui.sheets, ch).then(() => {
+      if (!this.on) return;
+      const n = FormIntros.ready(g.ui.sheets, ch.id, fi);
+      if (!n) { this.end(); return; }
+      p.batch(n); p.introSpr = { name: n, frame: 0 }; p.introHide = false; this.wait = false; this.t = 0;
+      SFX.play('charge');
+      if (typeof ZL3 !== 'undefined') ZL3.voice(ZL3.fighterOf(ch, fi), 'intro');
+    });
+  }
+  end() {
+    if (!this.on) return;
+    const g = this.g, p = g.player;
+    this.on = false; this.cv.style.display = 'none';
+    p.introSpr = null; p.introHide = false;
+    g.camDistT = this.cam || 19; g.renderer.domElement.style.filter = ''; g.ui.showHud(true); cineToasts(true);
+    if (this.done) this.done();
+  }
+  /** Corta la intro sin seguir con la partida (se empieza otra partida mientras aún estaba en marcha) */
+  cancel() { this.done = null; this.end(); }
+  resize() { const r = Math.min(2, window.devicePixelRatio || 1); this.cv.width = Math.round(window.innerWidth * r); this.cv.height = Math.round(window.innerHeight * r); }
+  /** Efectos al llegar a cada fotograma: se revela, se enciende el aura, el gesto y la pose final */
+  beat(k) {
+    const G = this.g, p = G.player, c = this.col;
+    if (k === 2) G.fx.ring(G.fx.aura, p.x, 0.4, p.z, 30, 10, 0.5, 0.4, c);
+    else if (k === 5) G.fx.burst(G.fx.sparks, p.x, 1.2, p.z, 16, 6, 0.5, 0.4, 3, c);
+    else if (k === 7) {
+      G.fx.ring(G.fx.aura, p.x, 0.5, p.z, 60, 22, 0.7, 0.5, c); G.fx.burst(G.fx.sparks, p.x, 1.4, p.z, 34, 9, 0.6, 0.5, 4, c);
+      if (G.vfx && G.vfx.ok) G.vfx.crater(p.x, p.z, 3.5, c);
+      G.shake(0.8); SFX.play('impact');
+    } else if (k === 11) { G.shake(0.5); G.fx.burst(G.fx.sparks, p.x, 1.6, p.z, 18, 7, 0.4, 0.4, 3, 0xffffff); }
+    else if (k === 15) SFX.play('stinger');
+  }
+  update(dt) {
+    if (!this.on) return true;
+    if (!this.wait) this.t += dt;
+    if (!this.wait && this.t >= FORM_INTRO_T) { this.end(); return true; }
+    const G = this.g, p = G.player, k = this.wait ? 0 : FormIntros.frame(this.t);
+    if (p.introSpr) p.introSpr.frame = k;
+    if (k !== this.k && !this.wait) { this.k = k; this.beat(k); }
+    // Capa 2D: barras de cine, nombre y frase
+    if (this.cv.width !== Math.round(window.innerWidth * Math.min(2, window.devicePixelRatio || 1))) this.resize();
+    const g = this.ctx, W = this.cv.width, H = this.cv.height, T = this.t, total = FORM_INTRO_T;
+    g.clearRect(0, 0, W, H);
+    const bar = H * 0.09 * Math.min(1, T / 0.3 + (this.wait ? 0.3 : 0), Math.max(0, total - T) / 0.3);
+    g.fillStyle = '#000'; g.fillRect(0, 0, W, bar); g.fillRect(0, H - bar, W, bar);
+    const tn = T - 0.85;                                               // el nombre entra con el gesto (fotograma 8)
+    if (tn > 0) {
+      const a = Math.min(1, tn * 5, (total - T) / 0.25), sc = 1 + Math.max(0, 0.15 - tn) * 2;
+      g.save(); g.globalAlpha = a;
+      this.text(this.ch.name, W / 2, H * 0.19, H * 0.12 * sc, this.css);
+      if (this.sub) this.text(this.sub, W / 2, H * 0.29, H * 0.04, '#fff');
+      g.restore();
+    }
+    this.text('PULSA CUALQUIER TECLA PARA SALTAR', W / 2, H - bar / 2, H * 0.022, 'rgba(255,255,255,0.7)');
+    return false;
+  }
+}
+FormIntroCine.prototype.text = FusionIntro.prototype.text;
+
+/* =====================================================================
    Animación de la Ultimate de cada personaje, dentro del mapa: la cámara
    se acerca, el personaje carga con su pose de Ki mientras crece su
    técnica (Genkidama sobre la cabeza, Death Ball, Kamehameha en las

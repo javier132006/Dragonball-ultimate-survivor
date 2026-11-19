@@ -23,7 +23,7 @@ class Player {
   /** Un SpriteBatch (1 sprite) por hoja usada; se crean una sola vez y se reutilizan */
   batch(name) {
     if (!this.spr[name]) {
-      const s = this.sheets[name], H = 3.6 * (s.hs || 1);             // hs: hojas de carga con celdas más altas (mismo tamaño de píxel)
+      const s = this.sheets[name], H = s.wh || 3.6 * (s.hs || 1);     // hs: hojas de carga con celdas más altas (mismo tamaño de píxel) · wh: hojas de intro
       const base = { texture: s.tex, cols: s.cols, rows: s.rows, w: H * (s.w / s.h), h: H, anchor: s.anc || 0.04 };
       this.spr[name] = new SpriteBatch(this.scene, Object.assign({ max: 1, blend: true, renderOrder: 3 }, base));
       this.gho[name] = new SpriteBatch(this.scene, Object.assign({ max: 12, blend: true, tint: 0x8defff, alpha: 0.5, renderOrder: 2 }, base));
@@ -42,6 +42,7 @@ class Player {
     const cs = ch.chgSheet || ch.id + '_chg';                                        // hoja de cargar ki (los del altar traen la suya)
     this.chgSheet = this.sheets[cs] ? cs : null; if (this.chgSheet) this.batch(this.chgSheet);
     this.cineChg = false; this.chgPose = false;
+    this.introSpr = null;                          // intro de la forma (js/intro.js): { name: hoja in_<id>_<forma>, frame } en vez del sprite normal
     this.stacks = {}; this.stackMul = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
     this.absorbed = 0; this.barT = 0; this.barHits = 0; this.barBoom = 0; this.barCol = 0x8ae0ff;   // Absorción de Célula y Barrera de Ki
@@ -435,6 +436,8 @@ class Player {
         breath = 1 + Math.sin((this.animT - this.idle0) * 2.6) * 0.02 * w;
       }
       if (this.introHide || this.menuHide) alpha = 0;            // menuHide: en las pantallas del menú (menos el inicio) no se ve                               // intro de la fusión: aún no ha aparecido
+      const I = this.introSpr;
+      if (I && this.spr[I.name]) { sheet = I.name; frame = I.frame; y = 0; breath = 1; if (!this.menuHide) alpha = 1; }   // intro de la forma: su hoja en lugar del sprite
     }
     // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
     const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.form.tint;
@@ -446,7 +449,7 @@ class Player {
     // Escudo de Bulma sin técnica de barrera: la burbuja la pone el jugador (con la técnica, la dibuja ella)
     if (useFx && this.shopBar && this.shopBarFx && this.barHits > 0 && !this.dying && !this.menuHide)
       V.pnow('Pshield', this.animT, this.x, 1.35, this.z, 8.6 * (1 + Math.sin(this.animT * 9) * 0.03), 0.8, this.barCol);
-    if (useFx && !this.dying && !this.introHide && !this.menuHide) {
+    if (useFx && !this.dying && !this.introHide && !this.menuHide && !this.introSpr) {      // durante la intro de la forma, el aura ya va dibujada en su hoja
       const ka = this.buffT > 0, au = this.form.aura || 0, F = formFx(this.ch, this.formIdx);
       const zA = V.z3 && this.auraB && window.ZAURA;
       if (zA) this.z3Aura(ka ? 0xff3a2a : au || 0xffffff, au || ka);   // forma base: aura blanca, como en Z Legends 3

@@ -434,8 +434,8 @@ class VsSim {
      cambia su Ultimate por la versión superior de su familia. */
   startTrans(f) {
     const nd = f.chain[f.fi + 1]; f.vx = f.vy = f.vz = 0; f.inv = 99; f.tm = 0; f.set('trans');
-    this.tr = { who: f.i, t: 0, sw: false, y1: Math.max(f.y, 1.3) };
-    this.emit('trStart', { i: f.i, col: nd.col, name: nd.form });
+    this.tr = { who: f.i, t: 0, sw: false, y1: Math.max(f.y, 1.3), end: VS.TR_CINE + (nd.trX || 0) };   // trX: la forma nueva tiene intro y la escena dura un poco más
+    this.emit('trStart', { i: f.i, col: nd.col, name: nd.form, dur: this.tr.end });
   }
   stepTrans() {
     const r = this.tr, f = this.f[r.who], foe = this.f[1 - r.who]; r.t += VS_DT; f.t += VS_DT;
@@ -447,7 +447,7 @@ class VsSim {
       const dx = foe.x - f.x, dz = foe.z - f.z, h = Math.hypot(dx, dz) || 1;
       if (Math.hypot(h, foe.y - f.y) < 16 && foe.st !== 'ko') { foe.set('launched'); foe.stun = 0.6; foe.vx = dx / h * 24; foe.vz = dz / h * 24; foe.vy = 6; foe.cmbT = 0.01; }
     }
-    if (r.t >= VS.TR_CINE) { f.inv = 0.5; f.set('idle'); this.tr = null; this.emit('trEnd', { i: f.i }); }
+    if (r.t >= r.end) { f.inv = 0.5; f.set('idle'); this.tr = null; this.emit('trEnd', { i: f.i }); }
   }
 
   /* ---------------- Ultimates ----------------

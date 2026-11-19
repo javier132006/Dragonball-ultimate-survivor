@@ -129,6 +129,9 @@ class TransformScene {
     this.cfg = list[idx] || { c1: hexCss(f.aura || 0xffe14a), c2: '#ffffff', quote: '¡¡HAAAA!!', frames: 'WIC', charge: 1.6, fx: ['bolts'], bolt: '#ffffff', shake: 0.8, kanji: '' };
     this.to = idx; this.form = f; this.t = 0; this.swapped = false; this.on = true; this.lastImp = -1; this.ringT = 0;
     this.end = this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + BANNER_TIME;
+    // Intro de la forma nueva (js/intro.js): tras los impactos sale de la silueta con su animación; la escena dura lo que dure
+    this.isp = !p.fusion && typeof FormIntros !== 'undefined' ? FormIntros.ready(g.ui.sheets, p.ch.id, idx) : null;
+    if (this.isp) { p.batch(this.isp); this.end = Math.max(this.end, this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + FORM_INTRO_T); }
     this.cam0 = { dist: g.camDistT, pitch: g.camPitch };
     g.camDistT = 7.5; g.camPitch = 0.28;
     this.bolts.length = 0; this.cracks.length = 0; this.petals.length = 0; this.fiss = false; this.gT = 0;
@@ -246,6 +249,10 @@ class TransformScene {
     }
     if (t >= impEnd && !this.bannerOn) this.showBanner();
     this.animBanner(t, impEnd);
+    if (this.isp && t >= impEnd && this.swapped) {                     // la forma nueva hace su intro (en vez de la pose de cargar)
+      if (!p.introSpr) p.introSpr = { name: this.isp, frame: 0 };
+      p.introSpr.frame = FormIntros.frame(t - impEnd); p.cineChg = false;
+    }
 
     this.aura3d(k, t, ch, impEnd);
     this.draw(k, t, ch, impEnd);
@@ -266,7 +273,7 @@ class TransformScene {
     g.fx.ring(g.fx.aura, p.x, 0.4, p.z, 80, 30, 0.9, 0.5, col);
     const V = g.vfx;
     if (V && V.ok) {                                                 // estallido: columna de energía, cúpula de ki, rayos y cráter
-      V.play('flare', p.x, 5.5, p.z, { size: 11, dur: 1.4, fps: 8, alpha: 0.85, pri: 1 });
+      V.play('flare', p.x, 5.5, p.z, { size: 11, dur: this.isp ? 0.7 : 1.4, fps: 8, alpha: 0.85, pri: 1 });   // con intro, la columna dura menos (se ve antes la forma nueva)
       const F = formFx(p.ch, this.to);
       if (F && F.burst) {                                              // estallido propio de la forma (sprites de las hojas nuevas)
         V.play(F.burst, p.x, 2.6, p.z, { size: 9, grow: 1.9, dur: 0.75, alpha: 0.95, pri: 1 });
@@ -293,6 +300,7 @@ class TransformScene {
     SFX.play('stinger');
     const f = this.form, c = this.cfg;
     this.banner.style.setProperty('--c1', c.c1); this.banner.style.setProperty('--c2', c.c2);
+    this.banner.classList.toggle('hi', !!this.isp);                   // con intro, el cartel arriba: el personaje se ve en el centro
     const T = traitOf(this.g.player.ch, this.to);
     this.banner.innerHTML = '<small>' + (c.kanji || '') + '</small><b>' + f.name + '</b><i>' + c.quote + '</i>' +
       (T ? '<em class="trt"><u>' + T.name + '</u><span class="trg">✚ ' + T.good + '</span><span class="trb">✖ ' + T.bad + '</span></em>' : '');
@@ -318,7 +326,7 @@ class TransformScene {
     this.banner.style.opacity = 0;
     g.ui.el.hud.classList.remove('cine');
     g.camDistT = this.cam0.dist; g.camPitch = this.cam0.pitch;
-    p.charging = false; p.iframes = 1.2; p.cineChg = false;
+    p.charging = false; p.iframes = 1.2; p.cineChg = false; p.introSpr = null;
     SFX.setDuck(1);
   }
 
@@ -348,8 +356,9 @@ class TransformScene {
     x.fillStyle = 'rgba(0,0,0,' + (0.42 * intro * (1 - after * 0.8)) + ')';
     x.fillRect(0, 0, W, H);
     // Resplandor alrededor del personaje
+    const gl = out * (this.isp ? 1 - Math.min(1, after * 3) : 1);     // con la intro de la forma nueva, el resplandor se apaga para verla
     const glow = x.createRadialGradient(px, py, 0, px, py, S * (0.18 + k * 0.25));
-    glow.addColorStop(0, cssRgba(c.c2, 0.55 * k * out)); glow.addColorStop(0.4, cssRgba(c.c1, 0.35 * k * out)); glow.addColorStop(1, cssRgba(c.c1, 0));
+    glow.addColorStop(0, cssRgba(c.c2, 0.55 * k * gl)); glow.addColorStop(0.4, cssRgba(c.c1, 0.35 * k * gl)); glow.addColorStop(1, cssRgba(c.c1, 0));
     x.fillStyle = glow; x.fillRect(0, 0, W, H);
 
     if (t < impEnd) {

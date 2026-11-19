@@ -227,7 +227,7 @@ function loadSheet(name) {
       tex.generateMipmaps = false;
       tex.needsUpdate = true;
       if (d.cols * d.rows > 1) tex.rects = sheetRects(img, d.cols, d.rows);
-      resolve({ tex, cols: d.cols, rows: d.rows, w: d.w, h: d.h, hs: d.hs, anc: d.anc });   // hs/anc: hojas de carga (celda más alta)
+      resolve({ tex, cols: d.cols, rows: d.rows, w: d.w, h: d.h, hs: d.hs, anc: d.anc, wh: d.wh });   // hs/anc: hojas de carga (celda más alta) · wh: intros (alto de la celda en el mundo)
     };
     img.onerror = () => resolve(null);
     img.src = d.src;

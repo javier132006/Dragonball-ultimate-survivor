@@ -28,7 +28,9 @@ function vsDef(ch, fi, k) {
   k = k || 0; const f = ch.forms[fi] || ch.forms[0];
   return { id: ch.id, name: nice(ch.name), form: f.name, sheet: f.sheet, anim: f.anim, tint: f.tint === undefined ? 0xffffff : f.tint, col: f.ki || 0x8ad8ff,
     hp: Math.round(1000 * Math.max(0.88, Math.min(1.22, (ch.hp || 110) / 112))), spd: Math.max(0.94, Math.min(1.12, 0.9 + (ch.spd || 1) * 0.1 + fi * 0.01)) * (1 + 0.02 * Math.min(4, k)), pow: (1 + Math.min(4, fi) * 0.015) * (1 + 0.08 * Math.min(4, k) + 0.02 * Math.max(0, k - 4)),
-    ult: vsUlt(ch, f, ch.forms.indexOf(f), k), pas: vsPas(ch) };            // cada forma tiene su propia Ultimate (versus/ults.js)
+    ult: vsUlt(ch, f, ch.forms.indexOf(f), k), pas: vsPas(ch),            // cada forma tiene su propia Ultimate (versus/ults.js)
+    ix: ch.forms.indexOf(f),                                                // número de la forma (para su intro, assets/intros.js)
+    trX: typeof FormIntros !== 'undefined' && FormIntros.has(ch.id, ch.forms.indexOf(f)) ? Math.max(0, FORM_INTRO_T + 0.05 - (VS.TR_CINE - VS.TR_SWAP)) : 0 };   // con intro, la transformación dura lo que ella
 }
 /** Cadena de formas de un combate: de la forma inicial elegida a la última que tenga sprites */
 function vsChain(ch, fi) {
@@ -39,7 +41,7 @@ function vsChain(ch, fi) {
 /** Parte visible de un luchador: sprite, aura y qué fotograma toca según su estado en la simulación */
 class VsActor {
   constructor(stage, chain, sheets) {
-    const def = chain[0]; this.chain = chain; this.sheets = sheets; this.fi = 0; this.pop = 0;
+    const def = chain[0]; this.chain = chain; this.sheets = sheets; this.fi = 0; this.pop = 0; this.intros = [];   // intros: hoja de intro de cada forma de la cadena (o null)
     this.def = def; this.spr = new VsSprite(stage.scene, true); this.spr.setSheet(sheets[0]); this.spr.u.uTint.value.setHex(def.tint);
     const U = { uSize: { value: new THREE.Vector2(7.4, 9.8) }, uAnchor: { value: new THREE.Vector2(0.5, 0.07) }, uRect: { value: new THREE.Vector4(0, 0, 1, 1) }, uRight: this.spr.u.uRight, uFlip: { value: 0 }, uRoll: { value: 0 },
       uCol: { value: new THREE.Color(def.col) }, uT: { value: 0 }, uPow: { value: 0 } };
@@ -206,6 +208,7 @@ class Versus {
     if (this.loading) return; this.loading = true;
     const c = this.cfg, tw = c.mode === 'ladder' ? this.tw : null, train = c.mode === 'train', picks = [c.pick[0], tw ? tw.foes[tw.i] : c.pick[1]], AK = Object.keys(VS_ARENAS);
     const chains = picks.map((p) => vsChain(charById(p.id), p.f)), sheets = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))));
+    const intros = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => FormIntros.has(d.id, d.ix) ? vsTexture(FormIntros.name(d.id, d.ix)) : null))));   // intro de cada forma (entrada y transformación)
     this.loading = false; if (!this.active || sheets.some((s) => !s[0])) return;
     chains.forEach((ch, i) => { const n = sheets[i].findIndex((s) => !s); if (n > 0) { ch.length = n; sheets[i].length = n; } });   // si una hoja no carga, la cadena acaba antes
     const defs = chains.map((ch) => ch[0]);
@@ -217,6 +220,7 @@ class Versus {
     this.arena = new VsArena(scene, tw || c.arena === 'azar' ? AK[(Math.random() * AK.length) | 0] : c.arena, low); this.cam = new VsCamera(); this.post = low ? null : new VsPost(r);
     this.fxA = new VsParticles(scene, 700, false, 3); this.fx = new VsParticles(scene, 1100, true, 9); this.beam = new VsBeam(scene); this.beam2 = new VsBeam(scene);
     this.actors = chains.map((ch, i) => new VsActor(this, ch, sheets[i]));
+    this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); });
     this.ghosts = []; for (let i = 0; i < 14; i++) { const s = new VsSprite(scene, false); s.mesh.visible = false; s.life = 0; s.mesh.renderOrder = 2; this.ghosts.push(s); }
     this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : VS_INTRO_T });
     this.intro = train ? null : { s: [{}, {}], q: -1 }; this.fin = null; this.vic = null; this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win'); this.ids = picks.map((p) => p.id);
@@ -407,8 +411,8 @@ class Versus {
       case 'match': this.finish(e.w); break;
       case 'trStart': {                                                 // transformación: plano contrapicado que se cierra sobre el luchador
         this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); this.dim = 1; this.dimCol = e.col; this.trCol = e.col;
-        const f = sim.f[e.i], a0 = cam.ang, s = e.i ? -1 : 1, K = VS.TR_SWAP / VS.TR_CINE;
-        cam.play(VS.TR_CINE, (k, P, L) => {
+        const f = sim.f[e.i], a0 = cam.ang, s = e.i ? -1 : 1, D = e.dur || VS.TR_CINE, K = VS.TR_SWAP / D;   // D: con intro de la forma nueva dura más
+        cam.play(D, (k, P, L) => {
           if (k < K) { const q = k / K, a = a0 + s * (0.95 - q * 1.5), r = 12 - 4.5 * q * q; L.set(f.x, f.y + 1.8 + q * 0.3, f.z); P.set(f.x + Math.cos(a) * r, f.y + 3.2 - q * 2.5, f.z + Math.sin(a) * r); return 40 - 11 * q; }
           const q = (k - K) / (1 - K), a = a0 - s * (0.55 + q * 0.25), r = 8 + 9 * Math.min(1, q * 3.2);                       // tras el estallido: salto atrás
           L.set(f.x, f.y + 2.3, f.z); P.set(f.x + Math.cos(a) * r, f.y + 1.1 + q * 1.4, f.z + Math.sin(a) * r); return 52 - 9 * q;
@@ -500,6 +504,13 @@ class Versus {
     const sim = this.sim, I = this.intro, st = I.s[i], t = sim.pt - i * VS_INTRO_SLOT, kind = VS_INTRO[this.ids[i]] || 'fly', col = a.def.col, A = a.def.anim, fx = this.fx, o = { x: 0, y: 0, z: 0, hide: false };
     if (t < 0) { o.hide = true; return o; }
     const once = (k, at, fn) => { if (!st[k] && t >= at) { st[k] = 1; fn(); } };
+    if (a.intros[0]) {                                                    // intro dibujada de su forma (assets/intros.js): aparece, se enciende, su gesto y la pose
+      o.isp = FormIntros.frame(t);
+      once('s', 0.01, () => { SFX.play('charge'); fx.add(1, x, 0.1, z, 2, col, { s1: 10, life: 0.45, flat: true, a: 0.7 }); });
+      once('a', FormIntros.at(7), () => { fx.add(1, x, 1.7, z, 2, col, { s1: 14, life: 0.4 }); fx.add(1, x, 0.1, z, 2, 0xffffff, { s1: 18, life: 0.45, flat: true, a: 0.7 }); this.burst(x, 1.6, z, col, 18, 16, 1.2); this.dust(x, z, 12, 10); this.cam.shake(0.6); SFX.play('impact'); });
+      once('b', FormIntros.at(11), () => { this.burst(x, 1.8, z, 0xffffff, 10, 12, 0.9); this.cam.shake(0.35); });
+      return o;
+    }
     if (kind === 'tp') {                                                  // aparece de golpe
       o.hide = t < 0.45; once('a', 0.45, () => { fx.add(1, x, 1.7, z, 7, 0xffffff, { s1: 0.5, life: 0.2 }); fx.add(0, x, 1.7, z, 3, col, { s1: 8, life: 0.3, a: 0.7 }); this.burst(x, 1.7, z, col, 14, 14, 1.1); a.pop = 0.6; SFX.play('tp'); });
     } else if (kind === 'sky') {                                          // cae del cielo y agrieta el suelo
@@ -790,8 +801,13 @@ class Versus {
       if (tq > 0) sx = sy = 1 + tq * 0.035 * Math.sin(T * 70);
       if (a.pop > 0) { a.pop = Math.max(0, a.pop - rawDt * 2.6); sx *= 1 + a.pop * 0.22; sy *= 1 + a.pop * 0.22; }   // al cambiar de forma «revienta» un instante
       a.roll = roll; a.fr = a.frame(f, sim);
-      let ox = 0, oy = 0, oz = 0, hide = false, powMin = 0;
-      if (this.intro) { const o = this.introPose(i, a, x, z, T); if (o) { ox = o.x; oy = o.y; oz = o.z; hide = o.hide; powMin = o.pow || 0; if (o.fr !== undefined) a.fr = o.fr; if (o.roll) roll = a.roll = o.roll * dir; if (o.sq) { sy *= 1 - o.sq; sx *= 1 + o.sq; } } }
+      let ox = 0, oy = 0, oz = 0, hide = false, powMin = 0, isp = -1;
+      if (this.intro) { const o = this.introPose(i, a, x, z, T); if (o) { ox = o.x; oy = o.y; oz = o.z; hide = o.hide; powMin = o.pow || 0; if (o.fr !== undefined) a.fr = o.fr; if (o.roll) roll = a.roll = o.roll * dir; if (o.sq) { sy *= 1 - o.sq; sx *= 1 + o.sq; } if (o.isp !== undefined) isp = o.isp; } }
+      if (f.st === 'trans' && sim.tr && sim.tr.sw && a.intros[a.fi]) isp = FormIntros.frame(sim.tr.t - VS.TR_SWAP);   // transformado: la forma nueva hace su intro
+      // Con intro: su hoja en vez de la normal (mismo tamaño de píxel: wh es el alto de la celda en Supervivencia, 52,3 px = 3,6 u)
+      const itx = isp >= 0 ? a.intros[a.fi] : null;
+      if (itx) { if (S.s !== itx) S.setSheet(itx); a.fr = isp; roll = a.roll = 0; const r = itx.d.wh / itx.d.h / (3.6 / 52.3); sx *= r; sy *= r; }
+      else if (S.s !== a.sheets[a.fi]) S.setSheet(a.sheets[a.fi]);
       if (this.fin && this.fin.l === i) { const F = this.fin; ox = F.px - x; oy = F.py - y; oz = F.pz - z; hide = F.gone; roll = a.roll = -dir * F.t * 16; a.fr = Array.isArray(a.def.anim.death) ? a.def.anim.death[0] : a.def.anim.death; }
       if (this.vic && this.vic.w === i) powMin = 0.28;
       a.px = x + ox; a.py = y + oy; a.pz = z + oz;
@@ -806,7 +822,7 @@ class Versus {
       if (bm.mesh.visible && u.type === 'beam') { const al = Math.max(0, Math.min(u.len, (x - u.ox) * u.dx + (y + 1.6 - u.oy) * u.dy + (z - u.oz) * u.dz)); src(u.ox + u.dx * al, u.oy + u.dy * al, u.oz + u.dz * al, bm.u.uCol.value.getHex(), 1.8); }
       // Aura: al cargar, con el ki lleno y en la Ultimate
       const want = f.st === 'trans' ? 0.7 : f.st === 'charge' ? 1 : f.fi > 0 && f.st !== 'ko' && f.st !== 'ult' && f.ki < 100 && f.st !== 'dash' ? 0.3 : f.st === 'ult' ? (u && u.lock ? 0.3 : 0.95) : f.st === 'ko' ? 0 : f.ki >= 100 ? 0.5 : f.st === 'dash' ? 0.35 : 0;
-      a.pow += (Math.max(want, powMin) - a.pow) * Math.min(1, dt * 9); if (hide) a.pow = 0;
+      a.pow += (Math.max(want, powMin) - a.pow) * Math.min(1, dt * 9); if (hide || itx) a.pow = 0;   // la intro ya trae su aura dibujada
       if (a.pow > 0.02 && a.pow * 0.9 > rI) { rI = a.pow * 0.9; rc = a.def.col; rdx = 0; rdy = -1; }
       if (dim > 0.1 && rI < 0.35) { rI = 0.35 * dim; rc = this.dimCol; }
       const rl2 = Math.hypot(rdx, rdy) || 1; U.uRim.value.setHex(rc).multiplyScalar(Math.min(1.5, rI)); U.uRimDir.value.set(rdx / rl2, rdy / rl2);

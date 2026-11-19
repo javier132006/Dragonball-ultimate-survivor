@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = '1e8025c3';
+  window.V = '4bf7a597';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=1e8025c3"></script>
+<script src="js/assetver.js?v=4bf7a597"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -228,6 +228,7 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 @keyframes tfp{50%{box-shadow:0 0 40px var(--fc,var(--ki))}}
 #cine{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:15;display:none}
 #tfBanner{position:fixed;left:0;right:0;top:26%;text-align:center;pointer-events:none;z-index:16;opacity:0}
+#tfBanner.hi{top:5%}
 #tfBanner.go{animation:tfb 1.25s ease-out forwards}
 #tfBanner small{display:block;font-family:var(--disp);font-size:clamp(20px,4vw,44px);color:#fff;-webkit-text-stroke:2px #000;paint-order:stroke fill;text-shadow:0 0 14px var(--c1)}
 #tfBanner b{display:block;font-family:var(--disp);font-weight:400;font-size:clamp(38px,8vw,104px);line-height:1;
@@ -2121,7 +2122,7 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
   const CODE = ['js/core.js', 'js/cutfx.js', 'js/entryfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/techicons.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/tuto.js', 'js/summon.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
     'js/versus/input.js', 'js/versus/sim.js', 'js/versus/view.js', 'js/versus/modes.js', 'js/versus/ults.js', 'js/versus/extras.js', 'js/versus/estilo.js', 'js/versus/versus.js'];   // Modo Versus (módulo aparte)
   const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', SUPA_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js';
-  const ASSETS = ['assets/zl3.js', 'assets/broly3.js', 'assets/pfx.js', 'assets/summons.js', 'assets/summons2.js'];
+  const ASSETS = ['assets/zl3.js', 'assets/broly3.js', 'assets/pfx.js', 'assets/summons.js', 'assets/summons2.js', 'assets/intros.js'];   // intros.js: intros de cada forma (tools/make_intros.py)
   // Antes se descargaban uno detrás de otro (46 archivos esperando cada uno al anterior). Ahora se piden todos
   // a la vez nada más empezar y después se ejecutan en el mismo orden de siempre, ya descargados.
   // (sprites.js no se precarga: va por su cuenta con la barra de progreso)

@@ -88,6 +88,7 @@ class Game {
     this.ui.sheets = sheets;
     this.cine = new TransformScene(this);                // cinemática de transformación
     this.intro = new FusionIntro(this);                  // intro de la fusión de Vegetto y Gogeta
+    this.formIntro = new FormIntroCine(this);            // intro de la forma al empezar (hojas de assets/intros.js)
     this.ultCine = new UltCine(this);                    // animación de la Ultimate de cada personaje
     this.touch = new TouchControls(this);                // controles táctiles (solo en móvil)
     this.pad = new PadInput(this);                       // mando (Gamepad API)
@@ -557,6 +558,7 @@ class Game {
     this.gN = 0; this.gNext = 4; this.ui.modeHud(this);
     const ch = this.saga ? charById(this.saga.ch) : charById(Save.d.sel);
     if (!ch || ch.soon || (!this.saga && !Save.d.unlocked.includes(ch.id))) return;   // en una saga juegas con su personaje
+    if (this.formIntro.on) this.formIntro.cancel();                  // una intro de la partida anterior a medias
     this.cine.warm(ch);                                              // prepara (recolorea) las animaciones a pantalla completa
     for (const f of Object.values(FUSION_PAIRS[ch.id] || {}).flat()) if (INTROS[f]) CutFx.warm('clash', INTROS[f].col);   // choque de las fusiones
     // Desafío diario: mapa con la semilla del día, 2 modificadores y dificultad NORMAL para todos
@@ -599,9 +601,14 @@ class Game {
     for (const m of this.modList) this.ui.toast(m.icon + ' ' + m.name + ': ' + m.text, true);
     SFX.music('battle');
     // Vegetto y Gogeta empiezan con la intro de su fusión (el mundo espera congelado)
+    FormIntros.prep(this.ui.sheets, ch);                            // intros de sus formas (al transformarse se usan sin esperar)
+    const back = () => { if (this.state !== 'intro') return; this.state = 'play'; this.grabMouse(); this.clock.getDelta(); this.openOracle(); };
     if (this.intro.has(ch.id)) {
       this.state = 'intro'; this.releaseMouse();
-      this.intro.start(ch.id, () => { if (this.state !== 'intro') return; this.state = 'play'; this.grabMouse(); this.clock.getDelta(); this.openOracle(); });
+      this.intro.start(ch.id, back);
+    } else if (this.formIntro.has(ch, 0) && !Save.d.opt.noCine) {   // los demás con hoja de intro: la de su forma base
+      this.state = 'intro'; this.releaseMouse();
+      this.formIntro.start(ch, 0, back);
     } else this.openOracle();
   }
 
@@ -2880,7 +2887,7 @@ class Game {
     } else if (s === 'talk') {                                         // diálogo del Modo Leyenda
       this.updateTalk(rawDt);
     } else if (s === 'intro' || s === 'ultcine') {                    // intro de la fusión / animación de la Ultimate, dentro del mapa
-      (s === 'intro' ? this.intro : this.ultCine).update(rawDt);
+      (s === 'intro' ? (this.formIntro.on ? this.formIntro : this.intro) : this.ultCine).update(rawDt);
       if (this.faceT > 0 && (this.faceT -= rawDt) <= 0 && this.faceGo) { const f = this.faceGo; this.faceGo = null; f(); }   // corte del retrato terminado
       const p = this.player;
       p.animT += rawDt; p.updSquash(rawDt); p.pose();
