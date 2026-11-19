@@ -130,6 +130,7 @@ class TransformScene {
     this.to = idx; this.form = f; this.t = 0; this.swapped = false; this.on = true; this.lastImp = -1; this.ringT = 0;
     this.end = this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + BANNER_TIME;
     // Intro de la forma nueva (js/intro.js): tras los impactos sale de la silueta con su animación; la escena dura lo que dure
+    this.ixA = !p.fusion && typeof ImpactArt !== 'undefined' ? ImpactArt.get(p.ch.id, idx) : null;   // impact frame dibujado de la forma nueva (js/impactfx.js)
     this.isp = !p.fusion && typeof FormIntros !== 'undefined' ? FormIntros.ready(g.ui.sheets, p.ch.id, idx) : null;
     if (this.isp) { p.batch(this.isp); this.end = Math.max(this.end, this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + FORM_INTRO_T); }
     this.cam0 = { dist: g.camDistT, pitch: g.camPitch };
@@ -347,7 +348,7 @@ class TransformScene {
     canvas.style.filter = '';
 
     const imp = t >= ch && t < impEnd ? c.frames[Math.floor((t - ch) / IMPACT_FRAME)] : null;
-    if (imp) { this.drawImpact(imp, px, py, W, H, S, canvas); this.letterbox(W, H, 1); return; }
+    if (imp) { this.impK = Math.floor((t - ch) / IMPACT_FRAME); this.drawImpact(imp, px, py, W, H, S, canvas); this.letterbox(W, H, 1); return; }
 
     const intro = clamp(t / 0.35, 0, 1), after = t >= impEnd ? clamp((t - impEnd) / BANNER_TIME, 0, 1) : 0;
     const out = t >= impEnd ? clamp((this.end - t) / 0.35, 0, 1) : 1;
@@ -520,6 +521,12 @@ class TransformScene {
     if (Save.d.opt.flash) {                               // modo «reducir destellos»: velo suave de color y líneas
       x.fillStyle = cssRgba(c.c1, 0.22); x.fillRect(0, 0, W, H);
       this.speedLines(px, py, W, H, S, cssRgba(c.c2, 0.5), 50, 0.12);
+      return;
+    }
+    if (this.ixA) {                                       // con su impact frame: la silueta de la forma nueva a pantalla completa
+      const fl = this.g.player.flip;
+      if (type === 'I') { canvas.style.filter = 'grayscale(1) contrast(9) invert(1)'; this.speedLines(px, py, W, H, S, 'rgba(0,0,0,.85)', 70, 0.12); ImpactArt.draw(x, this.ixA, 1, W / 2, H * 0.88, H * (0.62 + this.impK * 0.04), fl); }
+      else impactPanel(x, this.ixA, type === 'W' ? 'W' : type === 'B' ? 'B' : 'C', W, H, this.impK, c.c1, fl);
       return;
     }
     if (type === 'I') {                                   // negativo en blanco y negro

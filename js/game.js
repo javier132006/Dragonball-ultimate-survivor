@@ -601,7 +601,8 @@ class Game {
     for (const m of this.modList) this.ui.toast(m.icon + ' ' + m.name + ': ' + m.text, true);
     SFX.music('battle');
     // Vegetto y Gogeta empiezan con la intro de su fusión (el mundo espera congelado)
-    FormIntros.prep(this.ui.sheets, ch);                            // intros de sus formas (al transformarse se usan sin esperar)
+    FormIntros.prep(this.ui.sheets, ch);
+    ImpactArt.prep(ch);                                             // impact frames de sus formas (transformación y Ultimate)                            // intros de sus formas (al transformarse se usan sin esperar)
     const back = () => { if (this.state !== 'intro') return; this.state = 'play'; this.grabMouse(); this.clock.getDelta(); this.openOracle(); };
     if (this.intro.has(ch.id)) {
       this.state = 'intro'; this.releaseMouse();
@@ -2253,6 +2254,8 @@ class Game {
     if (D) this.after(0.6, () => { p.ud = D; p.udT = D.t; if (D.hp) p.hp = Math.max(1, p.hp - p.maxHp * D.hp); if (D.nodash) p.noDashT = Math.max(p.noDashT, D.t); this.ui.toast('✖ ' + D.name + ': ' + D.text, true); });
     const fire = () => {
       this.ultT = 0; this.ultCut = false;
+      const ic = p.fusion ? p.fusion.ch : p.ch;                    // impact frame de su forma al lanzarla (js/impactfx.js)
+      ImpactFlash.play(ic.id, p.fusion ? 0 : p.formIdx, U.col || p.form.ki, 'WBWB', p.flip);
       this.hitstop = Math.max(this.hitstop, 0.5);                // el mundo se congela mientras dura el destello
       this.shake(0.6); this.punchFov(8); rumble(400, 1, 0.6); this.player.squash(1.25); SFX.play('boom');
       this.fx.shock(this.player.x, this.player.z, 8, 0xffffff, 0.3); this.fx.debris(this.player.x, this.player.z, 10, 9);

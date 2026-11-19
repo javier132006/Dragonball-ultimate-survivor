@@ -221,6 +221,7 @@ class Versus {
     this.fxA = new VsParticles(scene, 700, false, 3); this.fx = new VsParticles(scene, 1100, true, 9); this.beam = new VsBeam(scene); this.beam2 = new VsBeam(scene);
     this.actors = chains.map((ch, i) => new VsActor(this, ch, sheets[i]));
     this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); });
+    chains.forEach((ch) => ch.forEach((d) => ImpactArt.load(d.id, d.ix)));          // impact frames (transformación y Ultimate)
     this.ghosts = []; for (let i = 0; i < 14; i++) { const s = new VsSprite(scene, false); s.mesh.visible = false; s.life = 0; s.mesh.renderOrder = 2; this.ghosts.push(s); }
     this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : VS_INTRO_T });
     this.intro = train ? null : { s: [{}, {}], q: -1 }; this.fin = null; this.vic = null; this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win'); this.ids = picks.map((p) => p.id);
@@ -421,7 +422,7 @@ class Versus {
       }
       case 'trSwap': {                                                  // estallido: nueva forma, onda expansiva y nombre
         if (e.i === 0) this.run.tr++; const a = this.actors[e.i], f = sim.f[e.i], h = this.ui.sides[e.i]; a.setForm(f.fi); a.pop = 1; const col = a.def.col, x = e.x, y = e.y + 1.7, z = e.z;
-        h.fm.textContent = nice(a.def.form) + (e.i ? this.sfx2 : ''); this.portrait(h.pt, a.def.sheet);
+        h.fm.textContent = nice(a.def.form) + (e.i ? this.sfx2 : ''); this.portrait(h.pt, a.def.sheet); ImpactFlash.play(a.def.id, a.def.ix, col, 'WBWB', a.flip);
         this.ui.ult.textContent = nice(a.def.form); this.ui.ult.style.setProperty('--c', '#' + col.toString(16).padStart(6, '0')); this.ui.ultBox.classList.remove('off'); this.dimCol = col;
         fx.add(0, x, y, z, 4, 0xffffff, { s1: 11, life: 0.4, a: 0.6 }); fx.add(0, x, y, z, 6, col, { s1: 20, life: 0.8, a: 0.3 }); fx.add(3, x, y, z, 6, 0xffffff, { s1: 13, life: 0.3, a: 0.8 });
         for (let k = 0; k < 3; k++) { fx.add(1, x, 0.1, z, 2, k ? col : 0xffffff, { s1: 44 + k * 24, life: 0.55 + k * 0.22, flat: true, a: 0.5 }); fx.add(1, x, y, z, 2, k ? col : 0xffffff, { s1: 20 + k * 14, life: 0.4 + k * 0.15, a: 0.5 }); }
@@ -440,7 +441,7 @@ class Versus {
         cam.play(VS.ULT_CINE, (k, P, L) => { const a = a0 + s * (0.5 - k * 1.0), r = 8.4 - 3 * k; L.set(f.x, f.y + 1.9, f.z); P.set(f.x + Math.cos(a) * r, f.y + 2.6 - k * 1.1, f.z + Math.sin(a) * r); return 36 - 8 * k; });
         this.flash = 0.35; SFX.play('charge'); break;
       }
-      case 'ultGo': this.el.classList.remove('cine'); cam.shake(0.9); this.blur = 1; this.flash = 0.3; this.lines = 1; SFX.play(e.type === 'beam' ? 'bigbeam' : e.type === 'rush' || e.type === 'slash' || e.type === 'grab' || e.type === 'clone' ? 'dash' : 'pulse'); break;
+      case 'ultGo': { const ua = this.actors[e.i]; ImpactFlash.play(ua.def.id, ua.def.ix, e.col, 'WBW', ua.flip); } this.el.classList.remove('cine'); cam.shake(0.9); this.blur = 1; this.flash = 0.3; this.lines = 1; SFX.play(e.type === 'beam' ? 'bigbeam' : e.type === 'rush' || e.type === 'slash' || e.type === 'grab' || e.type === 'clone' ? 'dash' : 'pulse'); break;
       case 'beamHit': this.burst(e.x, e.y, e.z, e.col, 7, 22, 1.5); fx.add(0, e.x, e.y, e.z, 3, e.col, { s1: 5, life: 0.14, a: 0.5 }); cam.shake(0.42); SFX.play('hit'); break;
       case 'rushLock': { const f = sim.f[1 - e.i], a0 = cam.ang; cam.play(1.5, (k, P, L) => { const a = a0 + k * 2.6; L.set(f.x, f.y + 1.6, f.z); P.set(f.x + Math.cos(a) * 9, f.y + 2.2 + Math.sin(k * 3.1) * 1.4, f.z + Math.sin(a) * 9); return 34; }); break; }
       case 'rushUp': { const f = sim.f[e.i], foe = sim.f[1 - e.i], a0 = cam.ang;                       // remate superior: contrapicado que sigue al rival hasta el cielo y de vuelta al suelo
