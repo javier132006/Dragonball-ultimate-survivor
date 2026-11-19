@@ -99,7 +99,7 @@ class VsSim {
     else if (this.phase === 'ko' && this.pt > (this.df ? 4.7 : 3.0)) this.endRound();   // el final destructivo dura más
     else if (this.phase === 'fight' && !this.ult && !this.o.noTime) {
       this.time -= VS_DT;
-      if (this.time <= 0) { this.time = 0; const w = a.hp / a.hpMax >= b.hp / b.hpMax ? 0 : 1; this.phase = 'ko'; this.pt = 0; this.ko = w; this.emit('timeup', { w }); }
+      if (this.time <= 0) { this.time = 0; const w = this.o.survive ? (a.hp > 0 ? 0 : 1) : a.hp / a.hpMax >= b.hp / b.hpMax ? 0 : 1; /* historia «resiste»: si sigues en pie, ganas */ this.phase = 'ko'; this.pt = 0; this.ko = w; this.emit('timeup', { w }); }
     }
     if (this.ult && this.ult.ph === 0) { if (this.ult.cw && this.tryClash(cmd)) return; this.stepUlt(); return; }   // presentación de la Ultimate: el mundo está parado (el rival aún puede responder)
     for (let i = 0; i < 2; i++) this.stepFighter(this.f[i], this.f[1 - i], cmd[i] || { mx: 0, mz: 0, b: 0 });

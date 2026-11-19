@@ -90,7 +90,7 @@ class VsActor {
 class Versus {
   constructor(game) {
     this.g = game; this.active = false; this.cfg = { mode: 'cpu', level: 'normal', arena: 'dia', rounds: 2, pick: [null, null], side: 0, dummy: 'still', tki: '1', ttm: '1' }; this.tw = null;
-    const st = document.createElement('style'); st.textContent = VS_CSS + VS_TUTO_CSS; document.head.appendChild(st);
+    const st = document.createElement('style'); st.textContent = VS_CSS + VS_TUTO_CSS + VS_STORY_CSS; document.head.appendChild(st);
     const el = this.el = document.createElement('div'); el.id = 'vs';
     const side = (c) => '<div class="side ' + c + '"><canvas class="pt" width="74" height="74"></canvas><div class="inf"><div class="nm"><span></span><small></small></div><div class="hp"><i class="g"></i><i class="v"></i></div>' +
       '<div class="row"><b class="kj">気</b><div class="ki"><i></i></div><div class="gd"><i></i></div><div class="pips"></div></div><div class="row"><div class="tr"><i></i></div><span class="trl"></span></div></div></div>';
@@ -98,6 +98,7 @@ class Versus {
       '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="vq"><b></b><span></span></div><div class="ult"><b></b></div>' +
       '<div class="clh"><div class="cht">¡CHOQUE DE ULTIMATES!</div><div class="chb"><i class="a"></i><i class="b"></i><b></b></div><div class="chn l"><span></span><em></em></div><div class="chn r"><span></span><em></em></div><div class="chk"></div></div>' +
       '<div class="clw"><b>¡RESPONDE!</b><span></span><i></i></div><div class="hint">' + vsHint() + '</div><div class="trn"></div><div class="tut"></div>' +
+      '<div class="sty" data-v="stnext"><canvas class="sdp" width="110" height="110"></canvas><div class="sdb"><div class="sdn"></div><div class="sdt"></div><div class="sdf"><span class="sdk"></span><span>Clic, Intro o Espacio para seguir</span><button data-v="stskip">Saltar ▶▶</button></div></div></div>' +
       '<div class="pnl pause"><div class="box"><h2>PAUSA</h2><p>Modo Versus</p><button class="go" data-v="resume">Seguir</button><button data-v="reselect">Cambiar luchadores</button><button data-v="exit">Salir al menú</button></div></div>' +
       '<div class="pnl end"><div class="box"></div></div>' +
       '<div class="sel"></div>';
@@ -106,10 +107,14 @@ class Versus {
     const q = (s) => el.querySelector(s), qa = (s) => [...el.querySelectorAll(s)];
     this.ui = { sides: qa('.side').map((s) => ({ pt: s.querySelector('.pt'), nm: s.querySelector('.nm span'), fm: s.querySelector('.nm small'), hp: s.querySelector('.hp'), g: s.querySelector('.hp .g'), v: s.querySelector('.hp .v'),
       ki: s.querySelector('.ki'), kiI: s.querySelector('.ki i'), gd: s.querySelector('.gd i'), pips: s.querySelector('.pips'), tr: s.querySelector('.tr'), trI: s.querySelector('.tr i'), trl: s.querySelector('.trl'), ghost: 1 })), cmb: qa('.cmb'), big: q('.big'), tag: q('.tag'), ult: q('.ult b'), ultBox: q('.ult'), clh: q('.clh'), chb: q('.chb'), chm: q('.chb b'), cha: q('.chb .a'), chbb: q('.chb .b'), chn: qa('.chn'), chk: q('.chk'), clw: q('.clw'),
-      vq: q('.vq'), clock: q('.clock span'), rnd: q('.clock small'), pause: q('.pause'), end: q('.end'), sel: q('.sel'), trn: q('.trn'), tut: q('.tut') };
+      vq: q('.vq'), clock: q('.clock span'), rnd: q('.clock small'), pause: q('.pause'), end: q('.end'), sel: q('.sel'), trn: q('.trn'), tut: q('.tut'), sty: q('.sty') };
     el.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) { e.stopPropagation(); this.cmd(b.dataset.v, b.dataset.a); } });
     window.addEventListener('keydown', (e) => {
       if (!this.active || e.repeat) return;
+      if (this.story && this.story.dlg) {                               // diálogo del modo historia: Intro / Espacio / golpe siguen, Esc salta
+        if (e.code === 'Escape') this.story.skipTalk(); else if (e.code === 'Enter' || e.code === 'Space' || e.code === VS_KEYS[0].ATK || e.code === 'NumpadEnter') this.story.nextLine(); else return;
+        e.preventDefault(); return;
+      }
       if (e.code === 'Escape') { if (this.sim && this.sim.phase !== 'end') this.cmd(this.paused ? 'resume' : 'pause'); else if (!this.sim) this.cmd('exit'); }
       else if (e.code === 'Enter' && !this.sim) this.cmd('fight');
       else if (this.trn && !this.paused) { const k = { Digit1: 'dummy', Digit2: 'ki', Digit3: 'tm', KeyR: 'pos', Digit4: 'base' }[e.code]; if (k) this.cmd('trn', k); }
@@ -131,11 +136,11 @@ class Versus {
   showSelect() {
     this.clearFight(); this.sim = null; this.paused = false; this.ui.pause.classList.remove('on'); this.ui.end.classList.remove('on'); this.el.classList.remove('cine');
     for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r', '.tc']) for (const n of this.el.querySelectorAll(k)) n.style.display = 'none';
-    this.ui.trn.classList.remove('on'); this.trn = null; this.ui.tut.classList.remove('on'); this.tuto = null; if (this.touch) this.touch.clear(); this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win');
+    this.ui.trn.classList.remove('on'); this.trn = null; this.ui.tut.classList.remove('on'); this.tuto = null; this.ui.sty.classList.remove('on'); this.story = null; this.el.classList.remove('story'); if (this.touch) this.touch.clear(); this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win');
     this.ui.sel.classList.add('on'); EntryFx.seen.vs0 = EntryFx.seen.vs1 = null; this.renderSelect(); SFX.music('menu');   // al entrar, las entradas vuelven a reproducirse
   }
   renderSelect() {
-    const c = this.cfg, R = this.roster(), lad = c.mode === 'ladder', trn = c.mode === 'train', tut = c.mode === 'tuto', L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal, tab = c.tab || 'grid';
+    const c = this.cfg, R = this.roster(), lad = c.mode === 'ladder', trn = c.mode === 'train', tut = c.mode === 'tuto', sto = c.mode === 'story', L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal, tab = c.tab || 'grid';
     const seg = (k, list) => '<div class="vseg">' + list.map(([v, t]) => '<button data-v="set" data-a="' + k + ':' + v + '"' + (String(c[k]) === String(v) ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>';
     const p2 = c.mode === 'cpu' ? 'CPU' : trn ? 'Rival de práctica' : 'Jugador 2';
     // Ficha de un luchador: retrato, formas (se elige con cuál empieza), pasiva y la Ultimate de cada forma
@@ -153,16 +158,16 @@ class Versus {
       (c.pick[0].id === ch.id ? 'J1' : '') + (!lad && c.pick[1].id === ch.id ? (c.pick[0].id === ch.id ? '+' : '') + (c.mode === 'cpu' ? 'CPU' : trn ? 'Rival' : 'J2') : '') + '</em></button>').join('') + '</div>';
     const tutoCard = '<section class="fp tw"><span class="who">Tutorial</span><h3 style="margin-top:14px">' + VS_TUTO.length + ' lecciones</h3><div class="twi">Aprende paso a paso todo lo del Versus: moverte y volar, combos, ganchos, disparos cargados, <b>guardia perfecta</b>, <b>esquiva perfecta</b>, agarres, la Ultimate, cómo <b>desviar</b> una Ultimate rival y el <b>choque de Ultimates</b>.<br><br>Cada lección te dice qué hacer y con qué teclas, y se supera sola. Puedes saltar o repetir las que quieras.</div></section>';
     const opt = (t, h) => '<span>' + t + '</span>' + h;
-    this.ui.sel.innerHTML = '<header><button class="back" data-v="exit">◀ Salir</button><h1>¡Modo Versus!</h1><nav class="vseg modes">' + [['cpu', 'Contra la CPU'], ['local', '2 jugadores'], ['ladder', 'Torre'], ['train', 'Entrenamiento'], ['tuto', 'Tutorial']].map(([v, t]) => '<button data-v="set" data-a="mode:' + v + '"' + (c.mode === v ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</nav></header>' +
-      panel(0) +
-      '<div class="mid"><div class="tabs">' + [['grid', 'Luchadores'], ['keys', 'Controles'], ['stats', 'Historial']].map(([v, t]) => '<button data-v="tab" data-a="' + v + '"' + (tab === v ? ' class="on"' : '') + '>' + t + '</button>').join('') +
-        (tab === 'grid' ? '<span>Eliges para ' + (c.side ? (c.mode === 'cpu' ? 'la CPU' : trn ? 'el rival de práctica' : 'el jugador 2') : 'el jugador 1') + '</span>' : '') + '</div>' +
-        '<div class="pane">' + (tab === 'keys' ? this.keysPane() : tab === 'stats' ? VsStats.html(c.pick[0].id) : grid) + '</div>' +
-        '<div class="opts">' + (c.mode === 'cpu' || lad ? opt('Dificultad', seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']])) : '') +
+    this.ui.sel.innerHTML = '<header><button class="back" data-v="exit">◀ Salir</button><h1>¡Modo Versus!</h1><nav class="vseg modes">' + [['story', 'Historia'], ['cpu', 'Contra la CPU'], ['local', '2 jugadores'], ['ladder', 'Torre'], ['train', 'Entrenamiento'], ['tuto', 'Tutorial']].map(([v, t]) => '<button data-v="set" data-a="mode:' + v + '"' + (c.mode === v ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</nav></header>' +
+      (sto ? vsStoryCard(this.storySel()) : panel(0)) +
+      '<div class="mid"><div class="tabs">' + [['grid', sto ? 'Capítulos' : 'Luchadores'], ['keys', 'Controles'], ['stats', 'Historial']].map(([v, t]) => '<button data-v="tab" data-a="' + v + '"' + (tab === v ? ' class="on"' : '') + '>' + t + '</button>').join('') +
+        (tab === 'grid' && !sto ? '<span>Eliges para ' + (c.side ? (c.mode === 'cpu' ? 'la CPU' : trn ? 'el rival de práctica' : 'el jugador 2') : 'el jugador 1') + '</span>' : '') + '</div>' +
+        '<div class="pane">' + (tab === 'keys' ? this.keysPane() : tab === 'stats' ? VsStats.html(c.pick[0].id) : sto ? vsStoryPane(this.storySel()) : grid) + '</div>' +
+        '<div class="opts">' + (sto ? '' : c.mode === 'cpu' || lad ? opt('Dificultad', seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']])) : '') +
           (trn ? opt('El rival', seg('dummy', Object.keys(VS_DUMMY).map((k) => [k, VS_DUMMY[k]]))) + opt('Ayudas', '<div class="vseg">' + seg('tki', [['1', 'Ki infinito'], ['0', 'Ki normal']]).slice(18, -6) + seg('ttm', [['1', 'Barra de transformación llena'], ['0', 'Barra normal']]).slice(18, -6) + '</div>') : '') +
-          (lad || tut ? '' : opt('Arena', seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', 'Al azar']])))) + (trn || tut ? '' : opt('Rondas para ganar', seg('rounds', [[1, '1'], [2, '2'], [3, '3']]))) + '</div>' +
-        '<button class="fight" data-v="fight">' + (lad ? '¡Subir a la Torre!' : trn ? '¡A entrenar!' : tut ? '¡Empezar el tutorial!' : '¡A luchar!') + '</button></div>' +
-      (lad ? tower : tut ? tutoCard : panel(1));
+          (lad || tut || sto ? '' : opt('Arena', seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', 'Al azar']])))) + (trn || tut || sto ? '' : opt('Rondas para ganar', seg('rounds', [[1, '1'], [2, '2'], [3, '3']]))) + '</div>' +
+        '<button class="fight" data-v="fight"' + (sto && !VsStoryData.open(...this.storySel()) ? ' disabled' : '') + '>' + (lad ? '¡Subir a la Torre!' : trn ? '¡A entrenar!' : tut ? '¡Empezar el tutorial!' : sto ? '¡Jugar capítulo!' : '¡A luchar!') + '</button></div>' +
+      (lad ? tower : tut ? tutoCard : sto ? this.storySide() : panel(1));
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-pt]')) this.portrait(cv, cv.dataset.pt);
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-full]')) this.portrait(cv, cv.dataset.full, true);
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-entry]')) EntryFx.play(cv, cv.dataset.entry, cv.dataset.k);
@@ -176,7 +181,7 @@ class Versus {
   }
   cmd(v, a) {
     const c = this.cfg;
-    if (v === 'set') { const [k, val] = a.split(':'); c[k] = k === 'rounds' ? +val : val; if (c.mode === 'ladder' || c.mode === 'tuto') c.side = 0; this.renderSelect(); }
+    if (v === 'set') { const [k, val] = a.split(':'); c[k] = k === 'rounds' ? +val : val; if (c.mode === 'ladder' || c.mode === 'tuto' || c.mode === 'story') c.side = 0; if (k === 'mode' && val === 'story') c.tab = 'grid'; this.renderSelect(); }
     else if (v === 'side') { c.side = +a; this.renderSelect(); }
     else if (v === 'char') { c.pick[c.side] = { id: a, f: 0 }; SFX.play('ki'); const pane = this.ui.sel.querySelector('.pane'), top = pane ? pane.scrollTop : 0; this.renderSelect(); const p2 = this.ui.sel.querySelector('.pane'); if (p2) p2.scrollTop = top; }   // sin perder el punto de la lista
     else if (v === 'form') { const [i, n] = a.split(':'); c.side = +i; c.pick[c.side].f = +n; this.renderSelect(); }
@@ -197,6 +202,10 @@ class Versus {
       SFX.play('ki'); this.renderTrn();
     }
     else if (v === 'tuto' && this.tuto) this.tuto.cmd(a);
+    else if (v === 'story') { const [si, ci] = a.split(':').map(Number); VsStoryData.d().sel = [si, ci]; Save.write(); SFX.play('ki'); const pane = this.ui.sel.querySelector('.pane'), top = pane ? pane.scrollTop : 0; this.renderSelect(); const p2 = this.ui.sel.querySelector('.pane'); if (p2) p2.scrollTop = top; }
+    else if (v === 'stnext' && this.story) this.story.nextLine();
+    else if (v === 'stskip' && this.story) this.story.skipTalk();
+    else if (v === 'stgo' && this.story) { const n = this.story.next(); if (n) { VsStoryData.d().sel = n; this.start(); } else this.showSelect(); }
     else if (v === 'reselect') this.showSelect();
     else if (v === 'pause') { if (!this.sim || this.sim.phase === 'end') return; this.paused = true; this.ui.pause.classList.add('on'); if (this.touch) this.touch.clear(); }
     else if (v === 'resume') { this.paused = false; this.ui.pause.classList.remove('on'); }
@@ -212,30 +221,32 @@ class Versus {
   async start() {
     if (this.loading) return; this.loading = true;
     const c = this.cfg, tw = c.mode === 'ladder' ? this.tw : null, tuto = c.mode === 'tuto', train = c.mode === 'train' || tuto, AK = Object.keys(VS_ARENAS);
-    const picks = [c.pick[0], tw ? tw.foes[tw.i] : tuto ? { id: this.roster().some((x) => x.id === 'goku') ? 'goku' : c.pick[1].id, f: 0 } : c.pick[1]];   // tutorial: el rival es Goku (su Kamehameha se puede desviar)
+    const sto = c.mode === 'story', SC = sto ? (() => { const [si, ci] = this.storySel(); return VS_STORY[si].ch[ci]; })() : null;
+    const picks = sto ? [{ id: SC.p[0], f: SC.p[1] }, { id: SC.r[0], f: SC.r[1] }] : [c.pick[0], tw ? tw.foes[tw.i] : tuto ? { id: this.roster().some((x) => x.id === 'goku') ? 'goku' : c.pick[1].id, f: 0 } : c.pick[1]];   // tutorial: el rival es Goku (su Kamehameha se puede desviar)
     const chains = picks.map((p) => vsChain(charById(p.id), p.f)), sheets = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))));
     const intros = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => FormIntros.has(d.id, d.ix) ? vsTexture(FormIntros.name(d.id, d.ix)) : null))));   // intro de cada forma (entrada y transformación)
     this.loading = false; if (!this.active || sheets.some((s) => !s[0])) return;
     chains.forEach((ch, i) => { const n = sheets[i].findIndex((s) => !s); if (n > 0) { ch.length = n; sheets[i].length = n; } });   // si una hoja no carga, la cadena acaba antes
+    if (sto && (SC.hp || SC.pow)) chains[1] = chains[1].map((d) => Object.assign({}, d, { hp: d.hp * (SC.hp || 1), pow: d.pow * (SC.pow || 1) }));   // historia: rival reforzado (también tras transformarse)
     const defs = chains.map((ch) => ch[0]);
     this.clearFight(); const g = this.g, r = g.renderer;
     // Estado del renderizador que tocamos: se guarda y se devuelve al salir
     this.saved = { auto: r.shadowMap.autoUpdate, clear: r.getClearColor(new THREE.Color()).getHex() }; r.shadowMap.autoUpdate = true;
     const scene = this.scene = new THREE.Scene(), low = Save.d.opt.quality === 'low';
     // La Torre cambia de arena en cada combate
-    this.arena = new VsArena(scene, tw || c.arena === 'azar' ? AK[(Math.random() * AK.length) | 0] : c.arena, low); this.cam = new VsCamera(); this.post = low ? null : new VsPost(r);
+    this.arena = new VsArena(scene, sto && VS_ARENAS[SC.ar] ? SC.ar : tw || c.arena === 'azar' ? AK[(Math.random() * AK.length) | 0] : c.arena, low); this.cam = new VsCamera(); this.post = low ? null : new VsPost(r);
     this.fxA = new VsParticles(scene, 700, false, 3); this.fx = new VsParticles(scene, 1100, true, 9); this.beam = new VsBeam(scene); this.beam2 = new VsBeam(scene);
     this.actors = chains.map((ch, i) => new VsActor(this, ch, sheets[i]));
     this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); });
     chains.forEach((ch) => ch.forEach((d) => ImpactArt.load(d.id, d.ix)));          // impact frames (transformación y Ultimate)
     this.ghosts = []; for (let i = 0; i < 14; i++) { const s = new VsSprite(scene, false); s.mesh.visible = false; s.life = 0; s.mesh.renderOrder = 2; this.ghosts.push(s); }
-    this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : VS_INTRO_T });
+    this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train || sto ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : VS_INTRO_T, time: sto && SC.goal === 'survive' ? SC.sec : undefined, survive: sto && SC.goal === 'survive' });
     this.intro = train ? null : { s: [{}, {}], q: -1 }; this.fin = null; this.vic = null; this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win'); this.ids = picks.map((p) => p.id);
     if (this.intro) { this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); }
     const p1 = new VsMulti([new VsKeyboard(VS_KEYS[0]), new VsGamepad(0)].concat(this.touch ? [this.touch] : []));
-    this.inputs = [p1, tw ? VS_TOWER.ai(tw) : tuto ? new VsTutorDummy() : train ? new VsDummy(c.dummy) : c.mode === 'cpu' ? new VsAI(c.level) : new VsMulti([new VsKeyboard(VS_KEYS[1]), new VsGamepad(1)])];
+    this.inputs = [p1, sto ? new VsAI(vsAiMix(SC.lvl)) : tw ? VS_TOWER.ai(tw) : tuto ? new VsTutorDummy() : train ? new VsDummy(c.dummy) : c.mode === 'cpu' ? new VsAI(c.level) : new VsMulti([new VsKeyboard(VS_KEYS[1]), new VsGamepad(1)])];
     this.run = { tr: 0, ult: 0, sup: 0, parry: 0, maxCombo: 0, maxDmg: 0 };       // lo que hace el jugador 1 en este combate (estadísticas)
-    this.trn = train && !tuto ? { cmb: 0, dmg: 0, max: 0 } : null; this.sfx2 = c.mode === 'local' ? '' : tuto ? ' · TUTORIAL' : train ? ' · PRÁCTICA' : ' · CPU'; this.shownT = null;
+    this.trn = train && !tuto ? { cmb: 0, dmg: 0, max: 0 } : null; this.sfx2 = c.mode === 'local' ? '' : sto ? ' · HISTORIA' : tuto ? ' · TUTORIAL' : train ? ' · PRÁCTICA' : ' · CPU'; this.shownT = null;
     this.acc = 0; this.time = 0; this.scale = 1; this.slow = 0; this.dim = 0; this.dimCol = 0; this.blur = 0; this.chroma = 0; this.flash = 0; this.lines = 0; this.ax = [0, 0, 0, 0]; this.stone = null; this.paused = false; this.chargeSnd = 0; this.trCol = 0xffffff; this.p2cpu = c.mode !== 'local';
     this.prev = this.sim.f.map((f) => ({ x: f.x, y: f.y, z: f.z }));
     // HUD
@@ -243,9 +254,19 @@ class Versus {
     for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r', '.tc']) for (const n of this.el.querySelectorAll(k)) n.style.display = '';
     this.ui.trn.classList.toggle('on', !!this.trn); if (this.trn) this.renderTrn(); if (this.touch) this.touch.clear();
     this.tuto = tuto ? new VsTutorial(this) : null; this.ui.tut.classList.toggle('on', tuto);
+    this.story = sto ? new VsStory(this, ...this.storySel()) : null; this.el.classList.toggle('story', sto);
     this.ui.sides.forEach((s, i) => { s.nm.textContent = defs[i].name; s.fm.textContent = nice(defs[i].form) + (i ? this.sfx2 : ''); s.ghost = 1; s.can = null; s.trl.textContent = ''; this.portrait(s.pt, defs[i].sheet);
-      s.kiI.style.background = ''; s.pips.innerHTML = train ? '' : '<b></b>'.repeat(c.rounds); s.wins = -1; });
+      s.kiI.style.background = ''; s.pips.innerHTML = train ? '' : '<b></b>'.repeat(sto ? 1 : c.rounds); s.wins = -1; });
     this.cam.update(0.016, this.sim, true); SFX.music('boss');
+    if (this.story) this.story.begin();                                 // diálogo de antes del combate
+  }
+  /** Capítulo elegido en el menú de la historia ([saga, capítulo]) */
+  storySel() { const s = VsStoryData.d().sel; return Array.isArray(s) && VS_STORY[s[0]] && VS_STORY[s[0]].ch[s[1]] ? s : [0, 0]; }
+  /** Columna derecha de la historia: progreso total */
+  storySide() {
+    const D = VsStoryData, tot = D.list().length, done = D.list().filter(([a, b]) => D.stars(a, b) > 0).length, sagas = VS_STORY.filter((s, k) => D.sagaDone(k)).length;
+    return '<section class="fp tw"><span class="who">Modo Historia</span><h3 style="margin-top:14px">' + D.total() + ' / ' + tot * 3 + ' ★</h3><div class="twi">Revive las grandes sagas: <b>' + VS_STORY.length + ' sagas</b> y <b>' + tot + ' capítulos</b>. Llevas ' + done + ' capítulos y ' + sagas + ' sagas completas.<br><br>' +
+      'Cada capítulo da hasta <b>3 estrellas</b>: superarlo, cumplir su <b>reto extra</b> y acabar con más de media vida. Ganas zeni y cristales la primera vez y por cada estrella nueva, y al completar una saga <b>desbloqueas guerreros</b>.</div></section>';
   }
   clearFight() {
     if (!this.scene) return; const r = this.g.renderer;
@@ -259,6 +280,10 @@ class Versus {
     const g = this.g, r = g.renderer; g.pad.poll(rawDt);
     if (!this.sim || !this.scene) { r.setRenderTarget(null); r.setClearColor(0x0d1022, 1); r.clear(); return; }
     const sim = this.sim;
+    if (this.story && this.story.dlg) {                                  // diálogo: letra a letra y botón del mando para seguir
+      this.story.tickTalk(rawDt); this.stPad = this.stPad || new VsGamepad(0); const pb = this.stPad.read().b, B = VB.ATK | VB.DASH;
+      if ((pb & B) && !(this.stPb & B)) this.story.nextLine(); this.stPb = pb;
+    }
     if (!this.paused) {
       if (this.slow > 0) { this.slow -= rawDt; this.scale = this.slow > 0 ? 0.22 : 1; }
       const dt = rawDt * this.scale; this.time += dt; this.acc = Math.min(this.acc + dt, VS_DT * 5);
@@ -269,6 +294,7 @@ class Versus {
         sim.step(c0, this.inputs[1].read(sim, 1));
         for (const e of sim.ev) this.onEvent(e); sim.ev.length = 0;
         if (this.tuto) this.tuto.step();                                   // tutorial: ayudas y comprobación de la lección
+        if (this.story) this.story.step();                                 // historia: sucesos en mitad del combate
         if (this.trn) {                                                    // entrenamiento: nadie muere y las ayudas rellenan las barras
           const a = sim.f[0], b = sim.f[1], c = this.cfg; a.hp = a.hpMax; if (a.cmb === 0 && b.st !== 'hurt' && b.st !== 'launched' && b.st !== 'held' && b.st !== 'down') b.hp = b.hpMax;
           if (c.tki === '1' && !sim.ult && !sim.clash) a.ki = 100;
@@ -345,6 +371,7 @@ class Versus {
   onEvent(e) {
     const sim = this.sim, cam = this.cam, fx = this.fx;
     if (this.tuto) this.tuto.onEvent(e);
+    if (this.story) this.story.onEvent(e);
     switch (e.t) {
       case 'round': { const tw = this.cfg.mode === 'ladder' && this.tw;
         this.rndTxt = this.trn ? 'ENTRENAMIENTO' : tw && e.n === 1 ? (tw.i === VS_TOWER.n - 1 ? 'JEFE FINAL' : 'RIVAL ' + (tw.i + 1) + ' DE ' + VS_TOWER.n) : 'RONDA ' + e.n; if (!(this.intro && e.n === 1)) this.say(this.rndTxt, 1.5);   // con entradas, el rótulo sale cuando acaban (draw)
@@ -628,7 +655,7 @@ class Versus {
   boomLite(e) { this.fx.add(0, e.x, e.y, e.z, 2, 0xffffff, { s1: 4.5, life: 0.3, a: 0.5 }); this.fx.add(1, e.x, e.y, e.z, 1.5, 0xffffff, { s1: 9, life: 0.4, a: 0.8 }); this.burst(e.x, e.y, e.z, 0xffffff, 22, 26, 1.1); }
   finish(w) {
     const d = this.actors[w].def, c = this.cfg, sim = this.sim, tw = c.mode === 'ladder' ? this.tw : null, win = w === 0, S = VsStats.d(), N = VS_TOWER.n;
-    VsStats.fight(c.pick[0].id, win, win && sim.f[1].wins === 0, Math.round(sim.tick / 60), this.run, c.mode === 'local');
+    VsStats.fight(this.ids[0], win, win && sim.f[1].wins === 0, Math.round(sim.tick / 60), this.run, c.mode === 'local');
     let h2 = '¡GANA ' + d.name + '!', p = (win ? 'Jugador 1' : c.mode === 'local' ? 'Jugador 2' : 'CPU') + ' · ' + sim.f[0].wins + ' - ' + sim.f[1].wins, btn = [['rematch', 'Revancha'], ['reselect', 'Cambiar luchadores'], ['exit', 'Salir al menú']];
     if (tw) {                                                           // Torre: premio por victoria, siguiente rival o fin
       if (win) {
@@ -640,8 +667,14 @@ class Versus {
       } else { h2 = 'DERROTA'; p = 'Has caído ante ' + d.name + ' en el combate ' + (tw.i + 1) + ' de ' + N + '.'; btn = tw.cont > 0 ? [['retry', 'Reintentar (queda 1 continuación)'], ['reselect', 'Abandonar la torre']] : [['reselect', 'Volver al Versus'], ['exit', 'Salir al menú']]; }
       Save.write();
     }
+    let quote = vsVoz(this.ids[w], 'w', this.ids[1 - w]);
+    if (this.story) {                                                    // historia: estrellas, premios y el diálogo de después
+      const R = this.story.result(w), nx = this.story.next(); h2 = R.h2; p = R.p;
+      btn = R.win ? (nx ? [['stgo', 'Siguiente capítulo'], ['rematch', 'Repetir'], ['reselect', 'Volver a la historia']] : [['reselect', 'Volver a la historia'], ['exit', 'Salir al menú']]) : [['rematch', 'Reintentar'], ['reselect', 'Volver a la historia']];
+      const post = R.win && this.story.C.post; if (post && post.length) quote = post.map(([who, t]) => (who === 'n' ? '' : this.actors[who].def.name + ': ') + t).join(' ');
+    }
     // Pantalla de victoria: la cámara rodea al ganador, que suelta su frase (distinta según a quién haya vencido)
-    const quote = vsVoz(this.ids[w], 'w', this.ids[1 - w]), wf = sim.f[w], a0 = this.cam.ang;
+    const wf = sim.f[w], a0 = this.cam.ang;
     this.vic = { w, t: 0 }; this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); this.ui.end.classList.add('win');
     this.cam.play(1e6, (k, P, L) => { const t = this.vic ? this.vic.t : 0, a = a0 + 0.5 - Math.min(1, t / 2.2) * 0.5 + t * 0.07, r = 17 - 4 * Math.min(1, t / 1.6); L.set(wf.x, wf.y + 0.7, wf.z); P.set(wf.x + Math.cos(a) * r, wf.y + 0.9 + 0.8 * Math.min(1, t / 2), wf.z + Math.sin(a) * r); return 31; });   // el ganador queda en la mitad de arriba, sobre el panel
     this.ui.end.firstChild.innerHTML = '<h2>' + h2 + '</h2><p>' + p + '</p><q>' + quote + '</q><div class="bt">' + btn.map((b, i) => '<button' + (i ? '' : ' class="go"') + ' data-v="' + b[0] + '">' + b[1] + '</button>').join('') + '</div>'; if (this.touch) this.touch.clear();
