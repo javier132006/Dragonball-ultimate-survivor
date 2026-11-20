@@ -1006,7 +1006,7 @@ class Capsules {
     x = clamp(x, -R, R); z = clamp(z, -R, R); [x, z] = fitPlay(x, z);
     if (world) { world.push(x, z, 1.4); x = world.px; z = world.pz; }
     const i = this.n++;
-    this.x[i] = x; this.z[i] = z; this.gold[i] = gold === 2 ? 2 : gold ? 1 : 0;       // 0 normal · 1 dorada · 2 maldita
+    this.x[i] = x; this.z[i] = z; this.gold[i] = gold === 3 ? 3 : gold === 2 ? 2 : gold ? 1 : 0;       // 0 normal · 1 dorada · 2 maldita · 3 cofre del jefe
   }
   removeAt(i) { const l = --this.n; this.x[i] = this.x[l]; this.z[i] = this.z[l]; this.gold[i] = this.gold[l]; }
   reset(world, count) {
@@ -1038,6 +1038,12 @@ class Capsules {
     this.spr.begin(); this.glow.begin();
     for (let i = 0; i < this.n; i++) {
       const b = Math.sin(this.t * 3 + i) * 0.12, g = this.gold[i];
+      if (g === 3) {                                                  // cofre del jefe: cápsula dorada grande con resplandor que late
+        const pu = Math.sin(this.t * 5) * 0.25;
+        this.spr.push(this.x[i], 0.2 + b, this.z[i], 1, 0, 0.25 + pu * 0.3, 2, 1);
+        this.glow.push(this.x[i], 1.1 + b, this.z[i], 0, 0, 0, 4 + pu, 1, 0xffb020); this.glow.push(this.x[i], 1.1 + b, this.z[i], 0, 0, 0, 2.2 - pu * 0.5, 1, 0xffffff);
+        continue;
+      }
       this.spr.push(this.x[i], 0.15 + b, this.z[i], g, 0, 0, g === 1 ? 1.25 : g === 2 ? 1.1 : 1, 1);
       this.glow.push(this.x[i], 0.8 + b, this.z[i], 0, 0, 0, 1.9 + (g === 1 ? 0.9 : g === 2 ? 0.5 : 0) + Math.sin(this.t * 4 + i) * 0.2, 1, g === 1 ? 0xffd24a : g === 2 ? 0xb040ff : 0xffffff);
     }

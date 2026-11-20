@@ -223,7 +223,8 @@ class UIManager {
     if (this.fpsAcc >= 0.5) { T(e.fps, String(Math.round(this.fpsN / this.fpsAcc))); this.fpsAcc = 0; this.fpsN = 0; }
     // Barra del jefe
     const bi = game.bossUid ? game.horde.indexOfUid(game.bossUid) : -1;
-    if (bi >= 0) { D(e.bossBox, 'block'); sc(e.bossBar, game.horde.hp[bi] / game.horde.maxHp[bi]); T(e.bossName, game.stage.boss.name + (game.stage.boss.forms ? ' · ' + game.stage.boss.forms[game.phase] : game.phase ? ' · FASE ' + (game.phase + 1) : '')); this.bossTicks(game, bi); }
+    if (bi >= 0) { D(e.bossBox, 'block'); BossEpic.hud(game, bi, this);   // barra por capas (js/bossepic.js)
+      T(e.bossName, game.stage.boss.name); this.bossTicks(game, bi); }   // la forma va en la píldora de debajo de la barra
     else { D(e.bossBox, 'none'); this.tickUid = 0; }
     this.updateStrip(game);
     this.mmT -= dt;
@@ -308,7 +309,7 @@ class UIManager {
     for (let i = 0; i < o.n; i++) dot(o.x[i], o.z[i], 4, '#57f0ff');
     const pk = game.pickups;
     for (let i = 0; i < pk.sn; i++) dot(pk.sx[i], pk.sz[i], 5, '#9cff6a');
-    const CC = ['#ff7ad0', '#ffd24a', '#b050ff'], cp = game.capsules;
+    const CC = ['#ff7ad0', '#ffd24a', '#b050ff', '#ff9a2a'], cp = game.capsules;
     for (let i = 0; i < cp.n; i++) if (pos(cp.x[i], cp.z[i]) && inBox()) { g.fillStyle = CC[cp.gold[i]]; g.strokeStyle = '#000'; g.lineWidth = 1.5; g.beginPath(); g.arc(this._mx, this._my, cp.gold[i] ? 6 : 5, 0, 6.2832); g.fill(); g.stroke(); }
     // Enemigos por tipo
     const h = game.horde, EC = ['#ff3a3a', '#7fe0ff', '#ff9a5a', '#ff2050', '#ffc83a', '#6aff3a', '#8ab0ff', '#ff8af0'], ES = [6, 6, 9, 12, 11, 7, 8, 7];
@@ -344,7 +345,7 @@ class UIManager {
     if (w.mini) g.drawImage(w.mini, 0, 0, N, N);
     const sq = (x, z, s, c) => { g.fillStyle = c; g.fillRect(X(x) - s / 2, X(z) - s / 2, s, s); };
     for (let i = 0; i < 7; i++) if (!game.pickups.got[i] && (p.ballSight || Math.hypot(game.pickups.bx[i] - p.x, game.pickups.bz[i] - p.z) < BALL_SEE)) sq(game.pickups.bx[i], game.pickups.bz[i], 3 * k, '#ffd84a');
-    const CC = ['#ff7ad0', '#ffd24a', '#b050ff'];
+    const CC = ['#ff7ad0', '#ffd24a', '#b050ff', '#ff9a2a'];
     for (let i = 0; i < game.capsules.n; i++) sq(game.capsules.x[i], game.capsules.z[i], (game.capsules.gold[i] ? 3 : 2) * k, CC[game.capsules.gold[i]]);
     const PC = { boss: '#ff3050', time: '#6fd0ff', temple: '#5be07a', merchant: '#ffd24a', swapper: '#ff9a3a', gacha: '#ff7a1a' };
     for (const o of game.points.list) {

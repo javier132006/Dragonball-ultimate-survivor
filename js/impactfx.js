@@ -95,9 +95,10 @@ const ImpactFlash = {
     document.body.appendChild(c); this.x = c.getContext ? c.getContext('2d') : null;
   },
   /** Destello de impacto de una forma. seq: tipos de fotograma (W, B, C). Sin dibujo de esa forma, no hace nada */
-  play(cid, fi, col, seq, flip) {
-    this.init(); if (!this.x) return false;
-    const A = ImpactArt.get(cid, fi); if (!A) return false;
+  play(cid, fi, col, seq, flip) { return this.playArt(ImpactArt.get(cid, fi), col, seq, flip); },
+  /** Igual que play, con el dibujo ya preparado (A = {im, d: {w, h}}: dos fotogramas, oscuro y blanco) */
+  playArt(A, col, seq, flip) {
+    this.init(); if (!this.x || !A) return false;
     const soft = typeof Save !== 'undefined' && Save.d && Save.d.opt && Save.d.opt.flash;   // «reducir destellos»
     this.A = A; this.B = null; this.duo = false; this.seq = soft ? 'S' : (seq || 'WBW'); this.col = '#' + new THREE.Color(col || 0xffffff).getHexString(); this.flip = !!flip;
     this.t = 0; this.k = -1; this.last = performance.now();
@@ -105,9 +106,10 @@ const ImpactFlash = {
     return true;
   },
   /** Destello doble: a = {cid, fi, col} a la izquierda, b igual a la derecha (basta con que uno tenga dibujo) */
-  playDuo(a, b, seq) {
+  playDuo(a, b, seq) { return this.playArtDuo(ImpactArt.get(a.cid, a.fi), ImpactArt.get(b.cid, b.fi), a.col, b.col, seq); },
+  playArtDuo(A, B, colA, colB, seq) {
     this.init(); if (!this.x) return false;
-    const A = ImpactArt.get(a.cid, a.fi), B = ImpactArt.get(b.cid, b.fi); if (!A && !B) return false;
+    if (!A && !B) return false; const a = { col: colA }, b = { col: colB };
     const soft = typeof Save !== 'undefined' && Save.d && Save.d.opt && Save.d.opt.flash, css = (c) => '#' + new THREE.Color(c || 0xffffff).getHexString();
     this.A = A; this.B = B || null; this.duo = !!(A && B); if (!A) { this.A = B; this.B = null; }
     this.seq = soft ? 'S' : (seq || 'CWBC'); this.col = css(a.col); this.colB = css(b.col); this.flip = !A; this.t = 0; this.k = -1; this.last = performance.now();

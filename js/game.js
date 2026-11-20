@@ -639,7 +639,7 @@ class Game {
     const S = STAGES[idx];
     S.boss = pickBoss(S);                                         // jefe de este mapa en esta partida (al azar entre los posibles)
     this.stageIdx = idx; this.stage = S; this.stageTime = 0; this.waveT = 60; this.swarm = false;
-    this.bossUid = 0; this.bossDead = false; this.bossSpawned = false; this.victoryT = 0; this.zoneBusy = null;
+    this.bossUid = 0; this.bossDead = false; this.bossSpawned = false; this.victoryT = 0; this.zoneBusy = null; if (typeof BossEpic !== 'undefined') BossEpic.reset();
     this.boss = { t: {}, next: 0 }; this.phase = 0; this.bossInv = 0; this.night = 0; this.wasNight = false; this.nightT = 0;
     CFG.ARENA = S.R; this.backdrop.set(S.id);
     if (this.world.th !== THEMES[S.theme] || this.world.R !== S.R || this.world.seedX !== WORLD_SEED_XOR || this.world.reliefSeed !== RELIEF_SEED) {
@@ -771,6 +771,7 @@ class Game {
     if (rn) return { t: '[E] GRIETA HACIA ' + STAGES[rn.to].name, ok: true };
     if (c.near >= 0) {
       const k = c.gold[c.near], cost = this.capsuleCost(k);
+      if (k === 3) return { t: '[E] ABRIR EL COFRE DEL JEFE', ok: true };
       return { t: '[E] ABRIR CÁPSULA' + (k === 1 ? ' DORADA' : k === 2 ? ' MALDITA ☠' : '') + ' · ' + cost + ' ZENI', ok: this.cash >= cost };
     }
     if (pts.near >= 0) {
@@ -1732,6 +1733,7 @@ class Game {
     this.fx.ring(this.fx.aura, p.x, 0.5, p.z, 40, 14, 0.7, 0.4, 0xb040ff);
   }
   openCapsule(gold, x, z) {
+    if (gold === 3) { BossEpic.openChest(this, x, z); return; }
     this.tuto.say('capsula');
     if (gold === 2) this.applyCurse();
     const it = this.rollItem(gold), p = this.player, rar = RARITIES[it.rarity], col = parseInt(rar.color.slice(1), 16);
@@ -1806,7 +1808,7 @@ class Game {
     if (v > (p[stat] || 0)) p[stat] = v;
   }
   gainCash(v) { this.cash += v * this.player.zeniMul * this.coinMul * (1 + Math.min(this.combo, 100) * 0.005); }   // la racha de combo da hasta +50% de Zeni
-  capsuleCost(gold) { return Math.round(20 * Math.pow(1.22, this.capsOpened) * (gold === 2 ? 0.4 : gold ? 1.6 : 1) * (this.mods.rich ? 0.5 : 1)); }
+  capsuleCost(gold) { if (gold === 3) return 0; return Math.round(20 * Math.pow(1.22, this.capsOpened) * (gold === 2 ? 0.4 : gold ? 1.6 : 1) * (this.mods.rich ? 0.5 : 1)); }
   /** E: abre la cápsula cercana si hay dinero suficiente. Cada apertura encarece las siguientes */
   tryOpenCapsule() {
     const c = this.capsules, i = c.near;
@@ -1920,13 +1922,13 @@ class Game {
     x = clamp(x, -CFG.ARENA, CFG.ARENA); z = clamp(z, -CFG.ARENA, CFG.ARENA);
     // La vida del jefe escala con tu nivel (+2,5% por nivel) para que el combate dure aunque llegues muy fuerte
     const lvMul = 1 + 0.025 * (this.player.level - 1);
-    const i = this.horde.spawn(x, z, B.hp * lvMul * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15) * (this.mods.bigboss ? 1.5 : 1) * this.diff.boss, T_BOSS);
+    const i = this.horde.spawn(x, z, B.hp * lvMul * this.diff.hp * (1 + this.curseHp * 0.5 + this.chal * 0.15) * (this.mods.bigboss ? 1.5 : 1) * this.diff.boss * BOSS_HARD.hp, T_BOSS);
     if (i >= 0) {
       if (this.bossWeak) { this.bossWeak = false; this.horde.hp[i] *= 0.5; this.ui.toast('¡El castigo de Shenron lo ha debilitado!', true); }
       this.bossUid = this.horde.uid[i]; this.bossSpawned = true;
       if (/^z_/.test(B.sheet)) ZL3.voice(B.sheet.slice(2), 'intro', 'ult');       // el jefe grita al aparecer
       this.boss = { t: {}, q: [], gap: 1.2, seen: {}, spiral: 0, spA: 0, spT: 0, spTint: 0, dashW: 0, sd: false };
-      this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = 0.62; this.horde.tints[T_BOSS] = B.tints[0];
+      this.phase = 0; this.bossInv = 0; ENEMY_TYPES[T_BOSS].spd = BOSS_HARD.spd; this.horde.tints[T_BOSS] = B.tints[0];
       // Cada jefe se dibuja con sus sprites: fila propia en la hoja "bosses" (o una fila por forma en la de Goku Black)
       const sh = this.ui.sheets && this.ui.sheets[B.sheet];
       this.horde.setBossSheet(sh || null, B.rows ? B.rows[0] : B.row, bossAnimOf(B.sheet, B.anim || BOSS_ANIM[B.sheet]), B.sheet);
@@ -1938,6 +1940,7 @@ class Game {
       this.fx.ring(this.fx.aura, x, 0.5, z, 60, 24, 0.8, 0.5, B.col || B.tints[0]);
       this.vfx.play('flare', x, 7, z, { size: 15, dur: 0.8, pri: 1 }); this.vfx.crater(x, z, 5); this.impact(0.12, 0);
       this.fx.shock(x, z, 9, B.col || B.tints[0]); this.fx.shock(x, z, 5, 0xffffff, 0.3); this.fx.debris(x, z, 14, 10);
+      BossEpic.onSpawn(this, x, z);                                     // entrada épica (js/bossepic.js)
     }
   }
   /** IA del jefe: una fase por cada lista de ataques (3, o 4 en Goku Black) y en cada una sus técnicas (BOSSES[].pat).
@@ -1946,14 +1949,15 @@ class Game {
     const h = this.horde, i = h.indexOfUid(this.bossUid);
     if (i < 0) return;
     const b = this.boss, st = Math.min(this.step, 3), p = this.player, B = this.stage.boss, frac = h.hp[i] / h.maxHp[i];
-    const bx = h.x[i], bz = h.z[i], dmg = this.enemyDamage() * 0.8 * this.diff.boss;   // jefes más duros según la dificultad
+    const bx = h.x[i], bz = h.z[i], dmg = this.enemyDamage() * 0.8 * this.diff.boss * BOSS_HARD.dmg;   // jefes más duros según la dificultad
     const NP = B.pat.length, target = Math.min(NP - 1, Math.floor((1 - frac) * NP));
     if (target > this.phase) { this.phase = target; this.onBossPhase(bx, bz); }
-    const ph = this.phase, pat = B.pat[ph], sp = 1 - ph * (0.45 / NP) - st * 0.05;
+    const ph = this.phase, pat = B.pat[ph], sp = (1 - ph * (0.45 / NP) - st * 0.05) * BOSS_HARD.cd;
     const a = Math.atan2(p.z - bz, p.x - bx);
     // Acciones programadas (ráfagas, rayos en cadena, teletransportes...)
     for (let k = b.q.length - 1; k >= 0; k--) { const q = b.q[k]; q.t -= dt; if (q.t <= 0) { b.q.splice(k, 1); q.f(); } }
     b.gap -= dt;
+    if (BossEpic.tick(this, dt, { i, bx, bz, a, dmg, ph })) return;      // ataque definitivo cargando: no lanza nada más
     for (const k of pat) {
       if (b.t[k] === undefined) b.t[k] = BOSS_CD[k] * 0.4 + rand(0, 1.5);
       b.t[k] -= dt;
@@ -2041,7 +2045,7 @@ class Game {
         S.mark(bx, bz, 15, 3.2, dmg * 4, { tint: 0xffe060, big: true, ring: 24 });
         this.vfx.play('gather', bx, 2.5, bz, { size: 10, grow: 1.6, loop: 3.2, dur: 1.2, pri: 1, frames: FXA.gather.f.slice(12) });
         h.posBoss('cast', 3.2); SFX.play('alarm');
-        this.later(3.2, () => { ENEMY_TYPES[T_BOSS].spd = 0.62 + this.phase * 0.12; this.ui.toast('¡HA SOBREVIVIDO A SU PROPIA EXPLOSIÓN!', true); });
+        this.later(3.2, () => { ENEMY_TYPES[T_BOSS].spd = BOSS_HARD.spd + this.phase * 0.12; this.ui.toast('¡HA SOBREVIVIDO A SU PROPIA EXPLOSIÓN!', true); });
         break;
 
       /* ---- BROLY ---- */
@@ -2175,7 +2179,8 @@ class Game {
   onBossPhase(bx, bz) {
     const p = this.player, ph = this.phase, B = this.stage.boss, last = ph === B.pat.length - 1;
     const col = B.tintSprite === false ? B.tints[ph] : (B.col || B.tints[ph]);   // color del aura de la nueva forma
-    this.bossInv = 1.2; ENEMY_TYPES[T_BOSS].spd = 0.62 + ph * 0.12;
+    if (BossEpic.u) BossEpic.endUlt(this);                             // si estaba cargando su ataque definitivo, lo corta
+    this.bossInv = 1.2; ENEMY_TYPES[T_BOSS].spd = BOSS_HARD.spd + ph * 0.12;
     this.horde.tints[T_BOSS] = B.tints[ph];
     ENEMY_TYPES[T_BOSS].scale = (B.scaleW || B.scale) * (1 + ph * 0.04);   // el jefe crece con cada transformación
     if (B.rows) this.horde.bossRow = B.rows[ph];                       // cambia a la fila de su nueva forma
@@ -2238,6 +2243,7 @@ class Game {
 
   /** Ultimate del personaje. Solo con la carga completa y jugando */
   ultimate() {
+    if (BossEpic.tryClash(this)) return;                                // el jefe carga su ataque definitivo: choque
     const p = this.player, U = p.ultD;
     if (!U || this.state !== 'play' || this.ultT >= 0 || p.ult < U.cost || p.dying) return;
     const kc = Math.round(p.maxKi * ULT_KI * p.kiUse);
@@ -2430,7 +2436,8 @@ class Game {
     } else if (type === T_BOSS) {
       this.track('bosses', 1); this.run.bosses++; this.rerolls++;
       this.bossUid = 0; this.pendingLevels++; this.bossDead = true; this.shots.reset(); this.bossInv = 0;
-      this.capsules.add(x, z, true, this.world);
+      BossEpic.reset();
+      this.capsules.add(x, z, 3, this.world);                           // cofre del jefe (gratis: dos objetos épicos o mejores, zeni y cristales)
       if (this.mods.bigboss) { this.capsules.add(x + 3, z, true, this.world); this.gainCash(200); }
       for (let i = 0, n = Math.max(1, Math.round(4 * this.diff.heal)); i < n; i++) this.pickups.drop(x + rand(-3, 3), z + rand(-3, 3));
       for (let i = 0; i < 12; i++) this.orbs.spawn(x, z, 5);
@@ -2840,7 +2847,7 @@ class Game {
     const rawDt = Math.min(this.clock.getDelta(), 0.05);              // delta time acotado
     if (this.versus.active) { this.versus.frame(rawDt); this.perfHud.frame(rawDt, this.renderer); return; }   // el Modo Versus lleva su propio fotograma
     const s = this.state;
-    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine' || s === 'bosscine' || s === 'talk';
+    const vf = s === 'play' || s === 'dying' || s === 'transform' || s === 'transition' || s === 'menu' || s === 'intro' || s === 'ultcine' || s === 'bosscine' || s === 'talk' || s === 'bossintro' || s === 'bossclash';
     if (vf) this.vfx.begin(this.camera);
     if (s !== 'play' && s !== 'transform' && this.impT > 0) { this.impT = 0; this.renderer.domElement.style.filter = ''; }
     if (s === 'play' && IS_TOUCH && window.innerHeight > window.innerWidth) this.togglePause();   // móvil en vertical: pausa
@@ -2885,6 +2892,8 @@ class Game {
       this.fx.update(rawDt); this.updateCamera(rawDt, rawDt, false);
       if (this.transT > 0.7 && !this.transDone) { this.transDone = true; this.nextStage(this.riftTo); this.ui.el.fade.style.opacity = 0; }
       if (this.transT > 1.4) { this.state = 'play'; this.clock.getDelta(); }
+    } else if (s === 'bossintro' || s === 'bossclash') {             // entrada del jefe y choque con su ataque definitivo (js/bossepic.js)
+      BossEpic.update(this, rawDt);
     } else if (s === 'bosscine') {                                     // transformación del jefe
       this.updateBossCine(rawDt);
     } else if (s === 'talk') {                                         // diálogo del Modo Leyenda
