@@ -45,12 +45,17 @@ class VsFighter {
     this.chain = Array.isArray(chain) ? chain : [chain]; this.fi = 0; this.tm = 0; const def = this.chain[0];
     this.i = i; this.def = def; this.hpMax = def.hp; this.pow = def.pow; this.spd = def.spd; this.wins = 0;
     this.pas = def.pas ? def.pas.type : ''; this.zk = 0;      // pasiva del guerrero (versus/extras.js) · zk: veces que el Zenkai le ha subido la fuerza
+    this.im = 0;                                              // Inmortalidad: ya la ha gastado en este combate
+    if (this.pas === 'potencial') this.tm = 50;               // Poder desbloqueado: empieza con media barra de transformación
     this.reset(i ? -7 : 7);
   }
   reset(x) {
     this.x = x; this.y = 0; this.z = 0; this.vx = this.vy = this.vz = 0;
     this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.pend = 0; this.q = 0; this.qt = 0; this.stun = 0;
     this.c = 0; this.n = 0; this.ok = false; this.buf = ''; this.jug = 0; this.spk = 0; this.ctr = 0; this.bo = 0; this.gt = 0; this.ft = 0; this.chg = 0; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.pu = 0; this.lh = 9; this.dx = 1; this.dz = 0; this.flash = 0;
+    // Pasivas que se renuevan cada ronda: vis (visión), el (élite), cp (copia), wk (debilitado), slow (congelado), tpb (golpe tras teletransporte)
+    this.vis = 0; this.el = 0; this.cp = 0; this.wk = 0; this.slow = 0; this.tpb = 0;
+    if (this.pas === 'potara') this.ki = 60;
     this.set('idle');
   }
   set(st) { this.st = st; this.t = 0; this.done = false; }
@@ -131,12 +136,14 @@ class VsSim {
     const ctl = this.phase === 'fight' && !(this.ult && (this.ult.who === f.i || this.ult.lock));
     f.t += dt; f.inv = Math.max(0, f.inv - dt); f.flash = Math.max(0, f.flash - dt);
     const pas = f.pas, tpk = pas === 'tp' ? 0.5 : 1, RE = VS.REACH + (pas === 'espada' ? 0.5 : 0);
+    if (f.wk > 0) f.wk -= dt; if (f.slow > 0) f.slow -= dt;
+    const low = pas === 'esperanza' && f.hp < f.hpMax * 0.3;           // Última esperanza: con poca vida, más ki y disparos más baratos
     if (f.st !== 'ko' && this.phase === 'fight') {
-      f.ki = Math.min(100, f.ki + VS.KI_REGEN * (pas === 'infinito' ? 3 : 1) * dt); f.lh += dt;
+      f.ki = Math.min(100, f.ki + VS.KI_REGEN * (pas === 'infinito' ? 3 : low ? 2 : 1) * dt); f.lh += dt;
       if (pas === 'regen' && f.lh > 3 && f.hp < f.hpMax) f.hp = Math.min(f.hpMax, f.hp + f.hpMax * 0.008 * dt);     // Regeneración: se cura si lleva 3 s sin recibir
       if (foe.pas === 'maligno' && foe.st !== 'ko' && Math.hypot(foe.x - f.x, foe.y - f.y, foe.z - f.z) < 6) f.ki = Math.max(0, f.ki - 6 * dt);   // Aura maligna del rival: cerca de él se pierde ki
     }
-    if (f.st !== 'guard') f.gm = Math.min(100, f.gm + 14 * dt);
+    if (f.st !== 'guard') f.gm = Math.min(100, f.gm + 14 * (pas === 'acero' ? 2 : 1) * dt);
     if (f.cmbT > 0 && (f.cmbT -= dt) <= 0) { f.cmb = 0; f.cmbDmg = 0; }
     // Dirección hacia el rival (horizontal y en 3D)
     const tx = foe.x - f.x, ty = foe.y - f.y, tz = foe.z - f.z, th = Math.hypot(tx, tz) || 0.001, td = Math.hypot(th, ty) || 0.001;
@@ -146,7 +153,7 @@ class VsSim {
     const brake = (k) => { const m = Math.max(0, 1 - k * dt); f.vx *= m; f.vy *= m; f.vz *= m; };
     switch (f.st) {
       case 'idle': case 'move': {
-        const k = Math.min(1, 14 * dt), sp = VS.SPD * f.spd * (pas === 'lobo' ? 1.08 : 1);
+        const k = Math.min(1, 14 * dt), sp = VS.SPD * f.spd * (pas === 'lobo' ? 1.08 : 1) * (f.slow > 0 ? 0.7 : 1);   // congelado por el rival: más lento
         f.vx += ((ctl ? wx * sp : 0) - f.vx) * k; f.vz += ((ctl ? wz * sp : 0) - f.vz) * k; f.vy += ((ctl ? my * VS.FLY : 0) - f.vy) * k;
         if (ctl) {
           if ((press & VB.TRANS) && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
@@ -168,6 +175,7 @@ class VsSim {
         if ((press & VB.ATK) && ctl && foe.st !== 'ko') { f.q = 0; f.set('grab'); this.emit('grabTry', { i: f.i }); break; }   // guardia + golpe = agarre
         if (!(held & VB.GUARD) && f.t > 0.12) f.set('idle'); if ((press & VB.TP) && f.ki >= VS.COST_TP * tpk && ctl) this.vanish(f, foe, VS.COST_TP * tpk); break;
       case 'charge': brake(12); f.ki = Math.min(100, f.ki + VS.KI_CHARGE * dt);
+        if (pas === 'fruto') f.hp = Math.min(f.hpMax, f.hp + f.hpMax * 0.025 * dt);     // Fruto del árbol sagrado: cargar ki también cura
         if ((press & VB.TRANS) && ctl && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
         if (!(held & VB.CHARGE) || !ctl) f.set('idle'); break;
       case 'dash':
@@ -191,10 +199,10 @@ class VsSim {
         break;
       }
       case 'flurry': {                                                   // ráfaga: golpes rápidos pegado al rival y remate que lo lanza
-        const F = VS.FLURRY, T = F.n * F.every;
+        const F = VS.FLURRY, FN = F.n + (pas === 'metamor' ? 3 : 0), T = FN * F.every;   // Metamor: tres golpes más
         if (!f.done && (foe.st !== 'hurt' || foe.inv > 0 || td > VS.REACH + 1.6)) { f.set('idle'); break; }     // se ha escapado
         if (!f.done) { f.vx = foe.vx + nx * (th - 1.9) * 12; f.vz = foe.vz + nz * (th - 1.9) * 12; f.vy = ty * 12; } else brake(14);
-        if (f.n < F.n && f.t >= f.n * F.every) { f.n++; foe.stun = 0.3; this.emit('swing', { i: f.i }); if (this.hit(f, foe, F.hit, nx, nz) !== 1) { f.set('idle'); break; } }
+        if (f.n < FN && f.t >= f.n * F.every) { f.n++; foe.stun = 0.3; this.emit('swing', { i: f.i }); if (this.hit(f, foe, F.hit, nx, nz) !== 1) { f.set('idle'); break; } }
         if (!f.done && f.t >= T + 0.1) { f.done = true; this.emit('swing', { i: f.i, heavy: 1 }); this.hit(f, foe, F.end, nx, nz); }
         if (f.t >= T + 0.42) f.set('idle');
         break;
@@ -251,11 +259,14 @@ class VsSim {
             const big = k >= 0, sp = big ? C.spd : VS.SHOT.spd, oy = 1.7, ay = (foe.y + 1.5) - (f.y + oy), ad = Math.hypot(th, ay) || 1;
             const sh = { o: f.i, x: f.x + nx * 1.2, y: f.y + oy, z: f.z + nz * 1.2, vx: tx / ad * sp, vy: ay / ad * sp, vz: tz / ad * sp, life: 1.5, r: 1.5, t: 0, col: f.def.col };
             if (pas === 'hakai') sh.pw = 5;                                 // Destrucción: sus disparos ganan cualquier choque de ki
+            if (pas === 'fantasma') { sh.hm = 1.3; sh.tr = 5; sh.life = 2.2; }   // Kamikaze fantasma: persiguen al rival mucho más
             if (big) {
               f.ki -= C.cost + C.costK * k; sh.chg = 1; sh.r = 1.9 + 1.3 * k; sh.pw = 2 + Math.round(k * 2); sh.life = 1.7;
               sh.hs = { dmg: C.dmg + C.dmgK * k, stun: 0.55 + 0.3 * k, kb: 14 + 10 * k, up: 6, launch: k >= 0.5, heavy: true, gbreak: 25 + 35 * k, fz: 5, shot: 1 };
+              if (pas === 'caramelo') sh.hs.weak = 1;                       // Rayo caramelo: debilita al rival
             } else if (pas === 'tirano') { f.ki -= VS.SHOT.cost * 0.6; sh.hs = Object.assign({ shot: 1 }, VS.SHOT, { dmg: VS.SHOT.dmg * 1.35 }); }   // Tirano: ki más barato y más dañino
-            else f.ki -= VS.SHOT.cost;
+            else if (pas === 'certero') { f.ki -= VS.SHOT.cost; sh.vx *= 1.4; sh.vy *= 1.4; sh.vz *= 1.4; sh.hs = Object.assign({ shot: 1 }, VS.SHOT, { stun: 0.42 }); }   // Disparo certero: más rápido y aturde más
+            else f.ki -= VS.SHOT.cost * (low ? 0.5 : 1);
             this.shots.push(sh); this.emit('shot', { i: f.i, x: sh.x, y: sh.y, z: sh.z, chg: big ? 1 + k : 0 }); f.chg = 0;
           }
         } else {
@@ -311,7 +322,10 @@ class VsSim {
     let x = foe.x + dx / h * 2.2, z = foe.z + dz / h * 2.2; if (Math.hypot(x, z) > VS.R - 0.5) { x = foe.x - dx / h * 2.2; z = foe.z - dz / h * 2.2; }
     f.x = x; f.z = z; f.y = foe.y; f.vx = f.vy = f.vz = 0; f.inv = 0.12; this.emit('counter', { i: f.i, x, y: f.y, z });
   }
-  boost(f, s) { if (!f.bo) return s; f.bo = 0; return Object.assign({}, s, { dmg: s.dmg * VS.DODGE_DMG, stun: s.stun + 0.2, ctr: 1 }); }
+  boost(f, s) {
+    if (f.tpb) { f.tpb = 0; s = Object.assign({}, s, { dmg: s.dmg * 1.35 }); this.emit('pas', { i: f.i, k: 'portal', x: f.x, y: f.y + 1.6, z: f.z }); }
+    if (!f.bo) return s; f.bo = 0; return Object.assign({}, s, { dmg: s.dmg * VS.DODGE_DMG, stun: s.stun + 0.2, ctr: 1 });
+  }
   /** El agarrado se suelta (o los dos agarraban a la vez): se separan sin daño */
   tech(a, b) {
     const dx = b.x - a.x, dz = b.z - a.z, h = Math.hypot(dx, dz) || 1;
@@ -324,6 +338,7 @@ class VsSim {
     this.emit('vanish', { i: f.i, x: f.x, y: f.y, z: f.z });
     f.x = foe.x + dx / h * 2.4; f.z = foe.z + dz / h * 2.4; f.y = foe.y; f.vx = f.vy = f.vz = 0; f.inv = 0.22; f.stun = 0;
     const r = Math.hypot(f.x, f.z); if (r > VS.R - 0.5) { f.x = foe.x - dx / h * 2.4; f.z = foe.z - dz / h * 2.4; }
+    if (f.pas === 'portal') f.tpb = 1;                                   // Brecha dimensional: el siguiente golpe pega más
     f.set('idle'); this.emit('appear', { i: f.i, x: f.x, y: f.y, z: f.z });
   }
 
@@ -334,10 +349,17 @@ class VsSim {
     if (ap === 'orgullo' && att.hp < att.hpMax * 0.35) dmg *= 1.18;      // Orgullo: con poca vida pega más
     else if (ap === 'rose') dmg *= 1 + 0.2 * (1 - att.hp / att.hpMax);   // cuanto más daño lleva encima, más pega
     else if (ap === 'zenkai') dmg *= 1 + 0.04 * att.zk;
+    else if (ap === 'copia') dmg *= 1 + 0.01 * att.cp;                   // Células perfectas: aprende de lo que recibe
+    else if (ap === 'furia' && att.ki >= 100) dmg *= 1.2;                // Berserker: con el ki lleno pega más
+    if (att.wk > 0) dmg *= 0.8;                                         // debilitado por el Rayo caramelo
+    if (dp === 'blindaje') dmg *= 0.88;
+    else if (dp === 'divino' && (this.ult || this.clash || this._shot)) dmg *= 0.82;   // Justicia divina: el ki le hace menos
+    else if (dp === 'copia') def.cp = Math.min(15, def.cp + 1);
     def.hp = Math.max(this.o.noKO ? 1 : 0, def.hp - dmg); def.flash = 0.1; def.lh = 0;
+    if (def.hp <= 0 && dp === 'inmortal' && !def.im) { def.im = 1; def.hp = 1; this.emit('pas', { i: def.i, k: 'inmortal', x: def.x, y: def.y + 1.6, z: def.z }); }   // una vez por combate no cae
     if (ap === 'parasito') att.hp = Math.min(att.hpMax, att.hp + dmg * 0.12);          // roba vida con cada golpe
     if (dp === 'senzu' && !def.pu && def.hp > 0 && def.hp < def.hpMax * 0.25) { def.pu = 1; def.hp += def.hpMax * 0.22; this.emit('pas', { i: def.i, k: 'senzu', x: def.x, y: def.y + 1.6, z: def.z }); }   // una judía por ronda
-    att.ki = Math.min(100, att.ki + dmg * 0.07 * (ap === 'fusion' ? 1.4 : 1)); def.ki = Math.min(100, def.ki + dmg * 0.035 * (dp === 'fusion' ? 1.4 : 1)); att.gain(dmg * VS.TR_DEAL); def.gain(dmg * VS.TR_TAKE * (dp === 'ira' ? 1.5 : 1));
+    att.ki = Math.min(100, att.ki + dmg * 0.07 * (ap === 'fusion' ? 1.4 : 1)); def.ki = Math.min(100, def.ki + dmg * 0.035 * (dp === 'fusion' ? 1.4 : 1)); att.gain(dmg * VS.TR_DEAL * (ap === 'salvaje' ? 1.35 : 1)); def.gain(dmg * VS.TR_TAKE * (dp === 'ira' ? 1.5 : 1));
     att.cmb++; att.cmbT = 1.3; att.cmbDmg += dmg; this.emit('dmg', { i: def.i, dmg, cmb: att.cmb, tot: att.cmbDmg });
     if (def.hp <= 0 && def.st !== 'ko') {
       def.set('ko'); this.phase = 'ko'; this.pt = 0; this.ko = att.i; this.freeze = 16; this.shots.length = 0;
@@ -352,7 +374,7 @@ class VsSim {
   }
   /** Golpe cuerpo a cuerpo o proyectil. Devuelve: 0 nada · 1 conecta · 2 bloqueado · 3 contraataque (guardia perfecta) */
   hit(att, def, s, nx, nz) {
-    if (def.st === 'dash' && def.inv > 0 && !(def.ctr > 0)) { def.ctr = VS.DODGE; def.ki = Math.min(100, def.ki + 8); this.emit('dodge', { i: def.i, x: def.x, y: def.y + 1.6, z: def.z }); }   // esquiva perfecta: tiene un contraataque
+    if (def.st === 'dash' && def.inv > 0 && !(def.ctr > 0)) { def.ctr = VS.DODGE; def.ki = Math.min(100, def.ki + 8); this.emit('dodge', { i: def.i, x: def.x, y: def.y + 1.6, z: def.z }); this.learn(def); }   // esquiva perfecta: tiene un contraataque
     if (def.inv > 0 || def.st === 'ko' || def.st === 'held' || def.st === 'grabd') return 0;
     const px = def.x - nx * 0.6, py = def.y + 1.6, pz = def.z - nz * 0.6;
     if (def.pas === 'armadura' && def.st === 'heavy' && def.t < 0.3 && !s.heavy && !s.raw) {     // Superarmadura: preparando el golpe fuerte, los golpes flojos no le cortan
@@ -361,7 +383,7 @@ class VsSim {
     if (def.st === 'guard') {
       if (s.shot && !s.raw && def.pas === 'absorbe') { def.ki = Math.min(100, def.ki + 12); this.emit('pas', { i: def.i, k: 'absorbe', x: px, y: py, z: pz }); return 2; }   // Absorción: el ki bloqueado se lo queda
       if (def.t < VS.PARRY * (def.pas === 'tiempo' ? 2 : 1) && !s.shot && !s.raw) {                                // guardia perfecta: el atacante queda vendido
-        att.set('stun'); att.stun = 0.75; att.vx = -nx * 6; att.vz = -nz * 6; def.ki = Math.min(100, def.ki + 12); this.freeze = 8;
+        att.set('stun'); att.stun = 0.75; att.vx = -nx * 6; att.vz = -nz * 6; def.ki = Math.min(100, def.ki + 12); this.freeze = 8; this.learn(def);
         this.emit('parry', { i: def.i, x: px, y: py, z: pz }); return 3;
       }
       def.gm -= (s.gbreak || 12) * (att.pas === 'espada' ? 1.8 : 1) * (def.pas === 'muralla' ? 0.5 : 1); def.vx = nx * (s.kb || 3) * 0.4; def.vz = nz * (s.kb || 3) * 0.4;
@@ -370,11 +392,29 @@ class VsSim {
       else this.emit('guard', { i: def.i, x: px, y: py, z: pz });
       return 2;
     }
-    const scale = s.raw ? 1 : Math.max(0.4, 1 - 0.07 * att.cmb);        // los combos largos pegan cada vez menos (las Ultimates no: raw)
+    if (def.pas === 'vision' && !def.vis && !s.raw && this.phase === 'fight') {   // Visión del futuro: el primer golpe de la ronda lo esquiva solo
+      def.vis = 1; def.inv = 0.35; def.ctr = VS.DODGE; this.emit('dodge', { i: def.i, x: def.x, y: def.y + 1.6, z: def.z }); this.emit('pas', { i: def.i, k: 'vision', x: def.x, y: def.y + 1.6, z: def.z }); return 0;
+    }
+    const scale = s.raw || att.pas === 'infantil' ? 1 : Math.max(0.4, 1 - 0.07 * att.cmb);   // los combos largos pegan cada vez menos (las Ultimates no: raw; Energía inagotable tampoco)
+    let mul = 1;
+    if (att.pas === 'elite' && !att.el && !s.raw) { att.el = 1; mul = 2; this.emit('pas', { i: att.i, k: 'elite', x: px, y: py, z: pz }); }   // Guerrero de élite: el primer golpe de la ronda
+    const gom = def.pas === 'goma' && s.heavy && !s.shot && !s.raw; if (gom) mul *= 0.7;   // Cuerpo de goma: los golpes fuertes rebotan
     this.emit('hit', { i: def.i, x: px, y: py, z: pz, heavy: !!s.heavy, rush: s.rush, col: att.def.col, nx, nz, up: s.up > 10 ? 1 : s.up < 0 ? -1 : 0 });
     this.freeze = Math.max(this.freeze, s.fz !== undefined ? s.fz : s.heavy ? 10 : 3);   // pausa de impacto: los golpes fuertes «pesan» más
     const air = def.st === 'launched' && !s.raw;                        // ya estaba en el aire: combo aéreo
-    if (this.damage(att, def, s.dmg * att.pow * scale, !!(s.heavy && s.launch))) { def.vx = nx * 20; def.vz = nz * 20; def.vy = 11; return 1; }
+    this._shot = !!s.shot; const ko = this.damage(att, def, s.dmg * att.pow * scale * mul, !!(s.heavy && s.launch)); this._shot = false;
+    if (ko) { def.vx = nx * 20; def.vz = nz * 20; def.vy = 11; return 1; }
+    if (s.weak && def.st !== 'ko') { if (!(def.wk > 0)) this.emit('pas', { i: att.i, k: 'caramelo', x: px, y: py, z: pz }); def.wk = 4; }
+    if (att.pas === 'frio' && s.heavy && !s.shot && !s.raw) { if (!(def.slow > 0)) this.emit('pas', { i: att.i, k: 'frio', x: px, y: py, z: pz }); def.slow = 2; }
+    if (def.pas === 'justicia' && s.shot && !s.heavy && !s.raw) return 1;   // Cuerpo de la justicia: el ki rápido no le interrumpe
+    if (gom) { const r = this.react(def, s, nx, nz, air); def.vx *= 0.35; def.vz *= 0.35; def.vy *= 0.6; return r; }
+    return this.react(def, s, nx, nz, air);
+  }
+  /** Aprendiz: cada guardia o esquiva perfecta llena la barra de transformación */
+  learn(f) { if (f.pas === 'aprendiz' && f.fi < f.chain.length - 1) { f.tm = Math.min(100, f.tm + 25); this.emit('pas', { i: f.i, k: 'aprendiz', x: f.x, y: f.y + 1.6, z: f.z }); } }
+  /** Cómo reacciona el que recibe un golpe que conecta (en el aire o en el suelo) */
+  react(def, s, nx, nz, air) {
+    const px = def.x - nx * 0.6, py = def.y + 1.6, pz = def.z - nz * 0.6, att = this.f[1 - def.i];
     if (air) {
       def.jug++; def.spk = 0;
       if (s === VS.HEAVY || (s.heavy && s.ctr && !s.upper && !s.shot)) {   // golpe fuerte: lo estrella contra el suelo

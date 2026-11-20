@@ -666,6 +666,13 @@ class Versus {
       case 'absorbe': fx.add(1, e.x, e.y, e.z, 7, col, { s1: 0.5, life: 0.25 }); fx.add(0, e.x, e.y, e.z, 2.5, 0xffffff, { s1: 0.4, life: 0.25, a: 0.8 }); SFX.play('ki'); break;
       case 'kamikaze': this.tag('¡AUTODESTRUCCIÓN!'); this.boom(e.x, e.y, e.z, 0xb8ff5a, 2); break;
       case 'cambio': this.tag('¡CAMBIO DE CUERPO!'); this.flash = Math.max(this.flash, 0.4); for (const f of this.sim.f) { fx.add(1, f.x, f.y + 1.6, f.z, 1, 0xc88aff, { s1: 12, life: 0.45 }); this.burst(f.x, f.y + 1.6, f.z, 0xc88aff, 16, 16, 1.2); } this.cam.shake(0.6); SFX.play('tp'); break;
+      // Pasivas propias de cada guerrero: un aviso corto y un destello de su color
+      default: {
+        const T = { portal: ['¡BRECHA DIMENSIONAL!', 0xc88aff, 'tp'], inmortal: ['¡INMORTAL!', 0xffe27a, 'heal'], caramelo: ['¡DEBILITADO!', 0xff8ad8, 'ki'], frio: ['¡CONGELADO!', 0x9fe6ff, 'guard'],
+          vision: ['¡VISIÓN DEL FUTURO!', 0xd04aff, 'tp'], elite: ['¡GOLPE DE ÉLITE!', 0xffb347, 'ki'], aprendiz: ['+25 TRANSFORMACIÓN', 0xffd84a, 'ki'] }[e.k];
+        if (!T) break;
+        this.tag(T[0]); fx.add(1, e.x, e.y, e.z, 1, T[1], { s1: 9, life: 0.4 }); this.burst(e.x, e.y, e.z, T[1], 12, 12, 1.1); SFX.play(T[2]);
+      }
     }
   }
   boomLite(e) { this.fx.add(0, e.x, e.y, e.z, 2, 0xffffff, { s1: 4.5, life: 0.3, a: 0.5 }); this.fx.add(1, e.x, e.y, e.z, 1.5, 0xffffff, { s1: 9, life: 0.4, a: 0.8 }); this.burst(e.x, e.y, e.z, 0xffffff, 22, 26, 1.1); }
@@ -689,6 +696,7 @@ class Versus {
       btn = R.win ? (nx ? [['stgo', 'Siguiente capítulo'], ['rematch', 'Repetir'], ['reselect', 'Volver a la historia']] : [['reselect', 'Volver a la historia'], ['exit', 'Salir al menú']]) : [['rematch', 'Reintentar'], ['reselect', 'Volver a la historia']];
       const post = R.win && this.story.C.post; if (post && post.length) quote = post.map(([who, t]) => (who === 'n' ? '' : this.actors[who].def.name + ': ') + t).join(' ');
     }
+    if (VsStats.newMast && VsStats.newMast.length) p += '<br>' + VsStats.newMast.map((m) => m.icon + ' Maestría: <b>' + m.name + '</b>').join(' · ') + ' (cóbrala en el Rastreador)';
     // Pantalla de victoria: la cámara rodea al ganador, que suelta su frase (distinta según a quién haya vencido)
     const wf = sim.f[w], a0 = this.cam.ang;
     this.vic = { w, t: 0 }; this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); this.ui.end.classList.add('win');

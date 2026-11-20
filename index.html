@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = '48f07272';
+  window.V = 'cb973d65';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=48f07272"></script>
+<script src="js/assetver.js?v=cb973d65"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1639,6 +1639,11 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
 html.hc #hud #lhud #pl,html.hc #hud #rhud #pr{background:#05070f;outline:2px solid #fff}
 html.hc #pl .row span,html.hc #pname{font-size:17px}
 html.hc #pl .bar{border-color:#fff;background:#000}
+/* Tamaño del texto (Opciones): la interfaz se escala entera; la partida 3D no */
+html.txz :is(#hud,#menu,#cards,#screen,#modal,#prompt,#feed,#itemPop,#tfTrait,#talk,#chapCard,#trade,#gacha){zoom:var(--tz)}   /* el Versus y los carteles de cine ya se ajustan solos a la pantalla */
+html.txz #hud #abil{zoom:calc(1 / var(--tz))}   /* la barra de habilidades ya es grande: se queda igual y no pisa las ayudas */
+/* Avisos sin parpadeo (Opciones): se quedan fijos en su color */
+html.noblink :is(#bossBox.warn .bar,.bar.ki.low i,#vs .hp.low .v,#vs .ki.full i,#vs .tr.full,#vs .clw b,#vs .clh.push .chb b,#vs .chn.burn em,#bossEpic.ult .beUlt b,#vs .svx .sbolt,#tbE.ready,#tbTf.ready,#tbUlt.ready,#abUlt.on,.dots u.go){animation:none!important}
 html.hc #pl .bar.hp em{font-size:15px}
 html.hc .ab{background:#000;border-color:#fff}.hc .ab span{font-size:21px}
 html.hc #controls{font-size:13px;background:#05070f;padding:8px 10px;border-radius:8px}
@@ -2123,7 +2128,7 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
       x.send();
     });
   };
-  const CODE = ['js/core.js', 'js/cutfx.js', 'js/entryfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/techicons.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/tuto.js', 'js/summon.js', 'js/impactfx.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
+  const CODE = ['js/core.js', 'js/cutfx.js', 'js/entryfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/techicons.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/mastery.js', 'js/tuto.js', 'js/summon.js', 'js/impactfx.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
     'js/versus/input.js', 'js/versus/sim.js', 'js/versus/view.js', 'js/versus/modes.js', 'js/versus/ults.js', 'js/versus/extras.js', 'js/versus/estilo.js', 'js/versus/tutorial.js', 'js/versus/story.js', 'js/versus/versus.js', 'js/bossepic.js'];   // Modo Versus (módulo aparte)
   const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', SUPA_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js';
   const ASSETS = ['assets/zl3.js', 'assets/broly3.js', 'assets/pfx.js', 'assets/summons.js', 'assets/summons2.js', 'assets/intros.js', 'assets/impacts.js'];   // impacts.js: impact frames de cada forma (tools/make_impacts.py)   // intros.js: intros de cada forma (tools/make_intros.py)

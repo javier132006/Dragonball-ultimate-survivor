@@ -499,7 +499,7 @@ class UIManager {
       // Progreso: lo que el jugador consulta
       '<nav class="wnav" aria-label="Tu progreso"><button class="wib" data-go="records" title="Récords: tus mejores partidas">' + WI.trophy + '<span>Récords</span></button>' +
       '<button class="wib" data-rtab-go="online" title="Ranking mundial">' + WI.rank + '<span>Ranking</span></button>' +
-      '<button class="wib" data-go="stats" title="Rastreador: tus estadísticas">' + WI.stats + '<span>Rastreador</span></button>' +
+      (() => { const nm = Mastery.pending(); return '<button class="wib wmast" data-go="stats" title="Rastreador: tus estadísticas' + (nm ? ' · ' + nm + ' medallas de maestría por cobrar' : '') + '">' + WI.stats + '<span>Rastreador</span>' + (nm ? '<u>' + nm + '</u>' : '') + '</button>'; })() +
       '<button class="wib wpass' + (npass ? ' has' : '') + '" data-go="pass" title="Pase de batalla: nivel ' + PS.lv + ' de ' + PASS_MAX + '">' + WI.pass + '<span>Pase <b>' + PS.lv + '</b></span>' + (npass ? '<u>' + npass + '</u>' : '') + '</button></nav>' +
       // Sistema: avisos, cuenta y ajustes
       '<div class="wsys"><button class="wic wbell' + (ntot ? ' has' : '') + '" data-notif title="Avisos" aria-label="Avisos' + (ntot ? ': ' + ntot + ' pendientes' : '') + '">' + WI.bell + (ntot ? '<b>' + ntot + '</b>' : '') + '</button>' +
@@ -671,7 +671,8 @@ class UIManager {
         '<div class="lcl"><div><span class="k2">Estadísticas</span>' + bar('Vida', v.hp, 160) + bar('Ki', v.ki, 160) + bar('Velocidad', Math.round(v.spd * 100), 150) + bar('Atq. físico', fF, 140, 'sf') + bar('Atq. ki', fK, 140, 'sk') + '</div>' +
           '<div><span class="k2">En partida</span><div class="kv"><span>Pasiva</span><b>' + v.passive.name + '</b></div>' + (v.ult ? '<div class="kv"><span>Ultimate [Q]</span><b>' + nice(v.ult.name) + '</b></div>' : '') +
           '<div class="kv"><span>Ataque básico</span><b>' + W0.name + '</b></div><div class="kv"><span>Técnicas</span><b>' + techs.length + '</b></div><div class="kv"><span>Transformaciones</span><b>' + (v.forms.length - 1) + '</b></div>' +
-          '<div class="kv"><span>Mejor partida</span><b>' + (best ? fmtTime(best.time) + ' · ' + best.kills + ' bajas' : '—') + '</b></div></div></div>' +
+          '<div class="kv"><span>Mejor partida</span><b>' + (best ? fmtTime(best.time) + ' · ' + best.kills + ' bajas' : '—') + '</b></div>' +
+          '<div class="kv"><span>Maestría</span><b>' + Mastery.pips(v.id) + '</b></div></div></div>' +
         '<div class="lsec"><span class="k2">Pasiva · ' + v.passive.name + '</span><p>' + v.passive.desc + '</p></div>' +
         (v.ult ? '<div class="lsec"><span class="k2">' + (v.ult.icon || '') + ' Ultimate [Q] · ' + v.ult.name + '</span><p>Se carga derrotando enemigos. ' + ULT_DESC[v.ult.type || 'rift'] + ' Cuesta un ' + Math.round(ULT_KI * 100) + '% del Ki máximo.' + (v.ult.debuff ? '<br><span class="trb">✖ Después: ' + v.ult.debuff.name.toLowerCase() + ', ' + v.ult.debuff.text + '.</span>' : '') + '</p></div>' : '') +
         '<div class="lsec"><span class="k2">Ataque básico</span><div class="tli"><p><i>' + W0.icon + '</i><span><b>' + W0.name + '</b> ' + chip(v.start[0]) + '<br>' + W0.lv[0] + '</span></p></div></div>' +
@@ -756,6 +757,11 @@ class UIManager {
       '<div class="item opt"><div><b>Efectos de Z Legends 3</b><p>Ráfagas, rayos, explosiones, impactos y llamas de aura con el pixel art de Z Legends 3. Desactívalo para volver a los efectos de siempre.</p></div><button class="tgl' + (O.z3fx !== false ? ' on' : '') + '" data-z3fx>' + (O.z3fx !== false ? 'Activado' : 'Desactivado') + '</button></div>' +
       '<div class="item opt"><div><b>Consejos</b><p>Un consejo corto la primera vez que pasa algo: tu primer jefe, la Ultimate lista, un enemigo nuevo… No pausa el juego.</p></div><button class="tgl' + (O.tips !== false ? ' on' : '') + '" data-tips>' + (O.tips !== false ? 'Activado' : 'Desactivado') + '</button><button class="tgl" data-tipsreset>Ver otra vez</button></div>' +
       '<div class="item opt"><div><b>Mostrar FPS</b><p>Contador de rendimiento en la esquina: FPS, milisegundos por cuadro, dibujos y triángulos. Útil para ver cómo va el juego en tu PC o móvil.</p></div><button class="tgl' + (O.fps ? ' on' : '') + '" data-fps>' + (O.fps ? 'Activado' : 'Desactivado') + '</button></div>' +
+      '<div class="item opt wide"><div><b>Tamaño del texto</b><div class="qbs">' + [[0.9, '90 %'], [1, '100 %'], [1.15, '115 %'], [1.3, '130 %']].map((q) => '<button class="qb' + ((O.tz || 1) === q[0] ? ' on' : '') + '" data-tz="' + q[0] + '">' + q[1] + '</button>').join('') + '</div>' +
+      '<p>Agranda o achica los menús y los datos de la partida de Supervivencia. Los carteles grandes y el Versus ya se ajustan solos al tamaño de la pantalla.</p></div></div>' +
+      '<div class="item opt"><div><b>Sensibilidad de la cámara</b><input type="range" min="30" max="200" value="' + Math.round((O.cam || 1) * 100) + '" data-cams></div><b>' + Math.round((O.cam || 1) * 100) + '%</b></div>' +
+      '<div class="item opt"><div><b>Invertir el eje vertical</b><p>Al subir el ratón, el stick derecho o el dedo, la cámara baja (y al revés).</p></div><button class="tgl' + (O.invY ? ' on' : '') + '" data-invy>' + (O.invY ? 'Activado' : 'Desactivado') + '</button></div>' +
+      '<div class="item opt"><div><b>Avisos sin parpadeo</b><p>Los avisos (ki bajo, jefe a punto de transformarse, vida baja en el Versus…) se quedan fijos en su color en vez de parpadear.</p></div><button class="tgl' + (O.noblink ? ' on' : '') + '" data-noblink>' + (O.noblink ? 'Activado' : 'Desactivado') + '</button></div>' +
       '<div class="item opt"><div><b>Temblor de pantalla</b><input type="range" min="0" max="100" value="' + Math.round(O.shake * 100) + '" data-shake></div><b>' + Math.round(O.shake * 100) + '%</b></div>' +
       '<div class="item opt wide"><div><b>Copia de seguridad</b><p>Exporta tu progreso (se descarga un archivo y se copia el texto) o importa una copia pegando el texto o eligiendo el archivo.</p>' +
       '<textarea id="saveTxt" spellcheck="false" placeholder="Aquí aparecerá el texto de la copia, o pega aquí una copia para importarla"></textarea>' +
@@ -799,6 +805,8 @@ class UIManager {
     const O = Save.d.opt, cb = O.cb || 'off', root = document.documentElement;
     root.classList.toggle('hc', !!O.hc);
     root.classList.toggle('nofx', !!O.flash);                         // «Reducir destellos» también para los marcos animados del perfil
+    root.classList.toggle('noblink', !!O.noblink);                    // avisos fijos, sin parpadeo
+    const tz = O.tz || 1; root.classList.toggle('txz', tz !== 1); root.style.setProperty('--tz', tz);   // tamaño del texto de la interfaz
     if (cb === 'off') { root.style.filter = ''; return; }
     // Matrices de simulación de Machado et al. (2009), severidad 1, en RGB lineal
     const SIM = {
@@ -875,7 +883,7 @@ class UIManager {
     // Guerrero elegido en la lista (por defecto, el primero que hayas jugado)
     const cs = Save.d.cs || {}, sel = this.stch && cs[this.stch] ? this.stch : ((CHARACTERS.find((c) => cs[c.id]) || {}).id || '');
     const best = CHARACTERS.filter((c) => Save.d.best[c.id]).sort((a, b) => Save.d.best[b.id].time - Save.d.best[a.id].time)
-      .map((c, i) => { const b = Save.d.best[c.id]; return '<div class="stch' + (c.id === sel ? ' on' : '') + '" data-stch="' + c.id + '">' + this.rankRow(i, c, nice(c.name), b.kills + ' bajas · NV ' + b.level, fmtTime(b.time)) + '</div>'; }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
+      .map((c, i) => { const b = Save.d.best[c.id]; return '<div class="stch' + (c.id === sel ? ' on' : '') + '" data-stch="' + c.id + '">' + this.rankRow(i, c, nice(c.name) + ' ' + Mastery.pips(c.id), b.kills + ' bajas · NV ' + b.level, fmtTime(b.time)) + '</div>'; }).join('') || '<p class="dim">Aún no has jugado ninguna partida.</p>';
     this.el.menuBody.innerHTML = '<div class="msplit"><div><div class="stt">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div></div>' +
       '<div class="pnl" style="padding:16px 18px;overflow-y:auto">' + this.charStatsHtml(sel) + '<h4 class="sec">Mejor partida de cada guerrero</h4><div class="rk">' + best + '</div></div></div>';
   }
@@ -901,7 +909,7 @@ class UIManager {
     const rows = [['Partidas', f('runs')], ['Victorias', f('wins')], ['Tiempo jugado', fmtTime(s.time || 0)], ['Enemigos derrotados', f('kills')], ['Jefes', f('bosses')], ['Daño total', f('damage')],
       ['Daño recibido', f('taken')], ['Dashes', f('dashes')], ['Nivel máximo', f('maxLevel')], ['Mapa más lejano', (s.maxStage || 0) + ' / ' + ROUTE_LEN], ['Combo máximo', f('maxCombo')], ['Golpe más fuerte', f('bestHit')]];
     if (v && v.fights) rows.push(['Versus · combates', v.fights], ['Versus · victorias', v.wins], ['Versus · transformaciones', v.tr], ['Versus · Ultimates', v.ult]);   // Modo Versus
-    return '<h4 class="sec">' + nice(c.name) + '</h4><div class="stt">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div>';
+    return '<h4 class="sec">' + nice(c.name) + '</h4>' + Mastery.html(id) + '<div class="stt">' + rows.map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div>';
   }
 
   /* ---------- Misiones (como los «Encargos»): las del día y las permanentes ---------- */

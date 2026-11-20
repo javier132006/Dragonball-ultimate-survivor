@@ -86,8 +86,9 @@ class TouchControls {
         e.preventDefault();
         const g = this.g;
         if (g.state === 'play' || g.state === 'dying') {
-          g.camYaw -= (t.clientX - this.cx) * 0.0065;
-          g.camPitch = clamp(g.camPitch + (t.clientY - this.cy) * 0.0045, 0.12, 1.35);
+          const O = Save.d.opt, k = O.cam || 1;                      // sensibilidad e inversión (Opciones)
+          g.camYaw -= (t.clientX - this.cx) * 0.0065 * k;
+          g.camPitch = clamp(g.camPitch + (t.clientY - this.cy) * 0.0045 * k * (O.invY ? -1 : 1), 0.12, 1.35);
         }
         this.cx = t.clientX; this.cy = t.clientY;
       }

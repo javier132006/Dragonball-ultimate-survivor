@@ -72,8 +72,9 @@ class PadInput {
     // Stick derecho: cámara
     const rx = ax[2] || 0, ry = ax[3] || 0;
     if ((g.state === 'play' || g.state === 'dying') && Math.hypot(rx, ry) > dz) {
-      g.camYaw -= rx * 2.6 * dt;
-      g.camPitch = clamp(g.camPitch + ry * 1.8 * dt, 0.12, 1.35);
+      const O = Save.d.opt, k = O.cam || 1;                          // sensibilidad e inversión (Opciones)
+      g.camYaw -= rx * 2.6 * k * dt;
+      g.camPitch = clamp(g.camPitch + ry * 1.8 * k * (O.invY ? -1 : 1) * dt, 0.12, 1.35);
     }
   }
 }

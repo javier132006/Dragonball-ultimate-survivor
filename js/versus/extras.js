@@ -5,6 +5,7 @@
      VS_INTRO  cómo entra al combate
      VS_VOZ    qué dice al entrar y al ganar (frases propias del juego)
    La lógica de cada tipo de pasiva está en sim.js (busca `pas ===`).
+   Cada guerrero tiene una pasiva propia: ningún tipo se repite en el plantel.
    ===================================================================== */
 
 /* Qué hace cada tipo de pasiva (texto del menú de selección) */
@@ -30,18 +31,41 @@ const VS_PAS_INFO = {
   parasito: 'Recupera como vida el 12 % del daño que hace.',
   maligno: 'El rival pierde ki mientras esté cerca de él.',
   piedra: 'Cuando rompe una guardia, el rival queda aturdido mucho más tiempo.',
-  muralla: 'Su guardia aguanta el doble y bloqueando no recibe daño.'
+  muralla: 'Su guardia aguanta el doble y bloqueando no recibe daño.',
+  portal: 'Tras teletransportarse, su siguiente golpe pega un 35 % más.',
+  copia: 'Aprende de cada golpe que recibe: +1 % de daño por golpe en la ronda (hasta +15 %).',
+  inmortal: 'Una vez por combate, el golpe que le noquearía le deja con 1 de vida.',
+  divino: 'Los disparos de ki y las Ultimates le hacen un 18 % menos de daño.',
+  goma: 'Los golpes fuertes le hacen un 30 % menos de daño y apenas lo empujan.',
+  caramelo: 'Sus disparos cargados debilitan al rival: pega un 20 % menos durante 4 s.',
+  potencial: 'Empieza el combate con la barra de transformación a la mitad.',
+  esperanza: 'Por debajo del 30 % de vida regenera ki el doble y sus disparos cuestan la mitad.',
+  frio: 'Sus golpes fuertes congelan: el rival se mueve un 30 % más lento durante 2 s.',
+  acero: 'Su barra de guardia se recupera el doble de rápido.',
+  vision: 'Ve venir el primer golpe de cada ronda y lo esquiva solo.',
+  elite: 'Su primer golpe que conecta en cada ronda hace el doble de daño.',
+  fruto: 'Mientras carga ki también recupera vida.',
+  salvaje: 'Su barra de transformación se llena un 35 % más rápido al pegar.',
+  aprendiz: 'Cada guardia perfecta o esquiva perfecta le da 25 de barra de transformación.',
+  infantil: 'Sus combos no pierden fuerza: los golpes seguidos pegan siempre igual.',
+  metamor: 'Su ráfaga (quinta pulsación) suelta tres golpes más.',
+  potara: 'Empieza cada ronda con 60 de ki en lugar de 25.',
+  fantasma: 'Sus disparos de ki persiguen al rival mucho más tiempo.',
+  furia: 'Con el ki al máximo pega un 20 % más.',
+  justicia: 'Los disparos de ki rápidos no le interrumpen: recibe el daño pero sigue a lo suyo.',
+  blindaje: 'Recibe un 12 % menos de daño de todo.',
+  certero: 'Sus disparos de ki rápidos van un 40 % más deprisa y aturden más.'
 };
 const VS_PAS = {
   goku: 'tp|TRANSMISIÓN INSTANTÁNEA', vegeta: 'orgullo|ORGULLO SAIYAN', black: 'rose|EL DOLOR ME FORTALECE', piccolo: 'regen|REGENERACIÓN NAMEKIANA',
-  gohan: 'ira|PODER OCULTO', gohankid: 'ira|FURIA DORMIDA', gohanf: 'ira|ÚLTIMA ESPERANZA', freezer: 'tirano|CRUELDAD DEL EMPERADOR', cooler: 'tirano|FRIALDAD ABSOLUTA',
-  krilin: 'senzu|JUDÍA SENZU', trunks: 'espada|FILO DEL FUTURO', trunksarm: 'espada|ACERO TEMPLADO', cell: 'regen|CÉLULAS PERFECTAS',
-  bardock: 'zenkai|ZENKAI', bardockb: 'zenkai|ZENKAI OSCURO', raditz: 'zenkai|SANGRE GUERRERA', turles: 'zenkai|FRUTO DEL PODER', caulifla: 'zenkai|TALENTO SALVAJE', kyabe: 'zenkai|DISCÍPULO APLICADO', gotenss5: 'zenkai|HERENCIA SAIYAN',
-  vegito: 'fusion|FUSIÓN POTARA', gogeta: 'fusion|FUSIÓN METAMOR', kefla: 'fusion|FUSIÓN DEL UNIVERSO 6', gotenks: 'fusion|FUSIÓN TRAVIESA',
-  zamasuf: 'regen|CUERPO INMORTAL', zamasu: 'regen|INMORTALIDAD', majin: 'regen|CUERPO DE GOMA', superbuu: 'regen|MASA ELÁSTICA',
-  broly: 'armadura|FURIA IMPARABLE', kale: 'armadura|BERSERKER', toppo: 'armadura|CUERPO DE LA JUSTICIA', andro16: 'armadura|BLINDAJE PESADO',
-  jiren: 'muralla|FUERZA ABSOLUTA', janemba: 'tp|BRECHA DIMENSIONAL', hitto: 'tiempo|SALTO TEMPORAL', bills: 'hakai|ENERGÍA DE LA DESTRUCCIÓN',
-  andro17: 'infinito|ENERGÍA INFINITA', andro18: 'infinito|REACTOR INAGOTABLE', andro35: 'absorbe|ABSORCIÓN DE ENERGÍA', saibaman: 'kamikaze|AUTODESTRUCCIÓN',
+  gohan: 'potencial|PODER DESBLOQUEADO', gohankid: 'ira|FURIA DORMIDA', gohanf: 'esperanza|ÚLTIMA ESPERANZA', freezer: 'tirano|CRUELDAD DEL EMPERADOR', cooler: 'frio|FRIALDAD ABSOLUTA',
+  krilin: 'senzu|JUDÍA SENZU', trunks: 'espada|FILO DEL FUTURO', trunksarm: 'acero|ACERO TEMPLADO', cell: 'copia|CÉLULAS PERFECTAS',
+  bardock: 'zenkai|ZENKAI', bardockb: 'vision|VISIÓN DEL FUTURO', raditz: 'elite|GUERRERO DE ÉLITE', turles: 'fruto|FRUTO DEL ÁRBOL SAGRADO', caulifla: 'salvaje|TALENTO SALVAJE', kyabe: 'aprendiz|DISCÍPULO APLICADO', gotenss5: 'infantil|ENERGÍA INAGOTABLE',
+  vegito: 'fusion|FUSIÓN POTARA', gogeta: 'metamor|FUSIÓN METAMOR', kefla: 'potara|POTARA DEL UNIVERSO 6', gotenks: 'fantasma|ATAQUE KAMIKAZE FANTASMA',
+  zamasuf: 'divino|JUSTICIA DIVINA', zamasu: 'inmortal|INMORTALIDAD', majin: 'goma|CUERPO DE GOMA', superbuu: 'caramelo|RAYO CARAMELO',
+  broly: 'armadura|FURIA IMPARABLE', kale: 'furia|BERSERKER', toppo: 'justicia|CUERPO DE LA JUSTICIA', andro16: 'blindaje|BLINDAJE PESADO',
+  jiren: 'muralla|FUERZA ABSOLUTA', janemba: 'portal|BRECHA DIMENSIONAL', hitto: 'tiempo|SALTO TEMPORAL', bills: 'hakai|ENERGÍA DE LA DESTRUCCIÓN',
+  andro17: 'infinito|ENERGÍA INFINITA', andro18: 'certero|DISPARO CERTERO', andro35: 'absorbe|ABSORCIÓN DE ENERGÍA', saibaman: 'kamikaze|AUTODESTRUCCIÓN',
   yamcha: 'lobo|LOBO DEL DESIERTO', ginyu: 'cambio|CAMBIO DE CUERPO', babyv: 'parasito|PARÁSITO TSUFUR', kamba: 'maligno|AURA MALIGNA', dabura: 'piedra|SALIVA DE PIEDRA'
 };
 function vsPas(ch) { const m = /^([a-z]+)\|(.+)$/.exec(VS_PAS[ch.id] || ''); return m && VS_PAS_INFO[m[1]] ? { type: m[1], name: m[2], info: VS_PAS_INFO[m[1]] } : null; }

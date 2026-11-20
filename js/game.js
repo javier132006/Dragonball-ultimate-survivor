@@ -268,8 +268,9 @@ class Game {
     window.addEventListener('mousemove', (e) => {
       if (this.state !== 'play' && this.state !== 'dying') return;
       if (!this.locked() && !this.drag) return;                       // sin captura: botón derecho + arrastrar
-      this.camYaw -= e.movementX * 0.0025;
-      this.camPitch = clamp(this.camPitch + e.movementY * 0.0025, 0.12, 1.35);
+      const O = Save.d.opt, k = 0.0025 * (O.cam || 1);              // sensibilidad e inversión (Opciones)
+      this.camYaw -= e.movementX * k;
+      this.camPitch = clamp(this.camPitch + e.movementY * k * (O.invY ? -1 : 1), 0.12, 1.35);
     });
     // Si el navegador libera el ratón (Esc) durante la partida, se pausa
     document.addEventListener('pointerlockchange', () => { if (!this.locked() && this.state === 'play') this.togglePause(); });
@@ -277,7 +278,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-notif],[data-bind],[data-bindreset],[data-cb],[data-hc],[data-chtg],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-versus],[data-ptab],[data-pset],[data-passclaim],[data-passall],[data-pweye]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-notif],[data-bind],[data-bindreset],[data-cb],[data-hc],[data-tz],[data-invy],[data-noblink],[data-chtg],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-mclaim],[data-versus],[data-ptab],[data-pset],[data-passclaim],[data-passall],[data-pweye]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -309,6 +310,10 @@ class Game {
       else if (D.otab) { ui.otab = D.otab; ui.renderMenu(); }
       else if (D.ctab) { ui.ctab = D.ctab; ui.renderMenu(); }
       else if (D.stch) { ui.stch = D.stch; ui.renderMenu(); }
+      else if (D.mclaim) {                                             // maestría: cobra las medallas listas de ese guerrero
+        const r = Mastery.claim(D.mclaim), c = charById(D.mclaim); ui.stch = D.mclaim; ui.keepScroll(() => ui.renderMenu(), '.pnl');
+        if (r.n) Shenron.summon({ kicker: 'Maestría de ' + nice(c.name), title: r.cry ? '¡Maestro!' : '¡Medalla conseguida!', sub: r.n + (r.n === 1 ? ' medalla' : ' medallas') + ' de maestría', html: '<span class="big">+' + r.zeni + ' monedas</span>' + (r.cry ? '<span class="bigc">+' + r.cry + ' cristales</span>' : '') });
+      }
       else if (D.versus !== undefined) this.versus.open();
       else if (D.lsel !== undefined) { ui.lsel = +D.lsel; ui.renderMenu(); }
       else if (D.book !== undefined) { ui.book = +D.book < 0 ? null : +D.book; ui.lchap = null; ui.renderMenu(); }
@@ -325,6 +330,9 @@ class Game {
       else if (D.bindreset !== undefined) { Binds.reset(); Save.write(); ui.refreshKeys(); ui.keepScroll(() => ui.renderMenu()); }
       else if (D.cb) { Save.d.opt.cb = D.cb; Save.write(); ui.applyAccess(); ui.keepScroll(() => ui.renderMenu()); }
       else if (D.hc !== undefined) { Save.d.opt.hc = !Save.d.opt.hc; Save.write(); ui.applyAccess(); ui.keepScroll(() => ui.renderMenu()); }
+      else if (D.tz) { Save.d.opt.tz = +D.tz; Save.write(); ui.applyAccess(); ui.keepScroll(() => ui.renderMenu()); }
+      else if (D.invy !== undefined) { Save.d.opt.invY = !Save.d.opt.invY; Save.write(); ui.keepScroll(() => ui.renderMenu()); }
+      else if (D.noblink !== undefined) { Save.d.opt.noblink = !Save.d.opt.noblink; Save.write(); ui.applyAccess(); ui.keepScroll(() => ui.renderMenu()); }
       else if (D.chtg !== undefined) { Save.d.opt.chargeToggle = !Save.d.opt.chargeToggle; keys._charge = false; Save.write(); ui.keepScroll(() => ui.renderMenu()); }
       else if (D.z3fx !== undefined) { Save.d.opt.z3fx = Save.d.opt.z3fx === false; Save.write(); if (this.vfx) this.vfx.z3 = Save.d.opt.z3fx !== false && !!FXA.ZkbY && !!(this.ui.sheets && this.ui.sheets.zfx); ui.renderMenu(); }
       else if (D.exp !== undefined) this.exportSave();
@@ -359,6 +367,11 @@ class Game {
     ui.el.exit.addEventListener('click', () => ui.showExit(false));
     // Volumen (pantalla de opciones)
     ui.el.menu.addEventListener('input', (e) => {
+      if (e.target.dataset && e.target.dataset.cams !== undefined) {    // sensibilidad de la cámara
+        Save.d.opt.cam = +e.target.value / 100; Save.write();
+        const lab = e.target.closest('.item').lastElementChild; if (lab) lab.textContent = e.target.value + '%';
+        return;
+      }
       if (e.target.dataset && e.target.dataset.shake !== undefined) {
         Save.d.opt.shake = +e.target.value / 100; Save.write();
         const lab = e.target.parentNode.querySelector('b'); if (lab) lab.textContent = e.target.value + '%';
@@ -1515,6 +1528,7 @@ class Game {
     const p = this.player, id = p.ch.id, d = this.diff;
     if (this.practice) return { coins: 0, bonus: 0, score: 0, crys: 0 };    // el entrenamiento no da recompensas
     this.trackCh(id, win);                        // estadísticas de este guerrero (Rastreador)
+    for (const m of Mastery.fresh(id)) this.ui.toast(m.icon + ' Maestría: ' + m.name + ' · cóbrala en el Rastreador');
     // Pase de batalla: experiencia por la partida (todos los modos menos el entrenamiento)
     const pass = Profile.addXp(Profile.runXp({ time: this.time, bosses: this.run.bosses, level: p.level, win, diff: d.id }));
     let coins = Math.floor(this.zeniRun * d.coins), bonus = 0;
