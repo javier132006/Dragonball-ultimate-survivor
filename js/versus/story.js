@@ -273,48 +273,167 @@ class VsStory {
     Save.d.zeni += zeni; Save.d.crystals = (Save.d.crystals || 0) + cry; Save.write();
     const B = C.bonus, st = (on, t) => '<span class="' + (on ? 'on' : '') + '">★ ' + t + '</span>';
     return { win: true, h2: n === 3 ? '¡CAPÍTULO PERFECTO!' : '¡CAPÍTULO SUPERADO!',
-      p: '<span class="sst">' + st(true, C.goal === 'survive' ? 'Resistir' : 'Ganar') + st(b, B ? VS_STORY_BONUS[B.k](B.v) : 'Reto') + st(hp, 'Acabar con más de media vida') + '</span>' +
+      p: '<span class="hsst">' + st(true, C.goal === 'survive' ? 'Resistir' : 'Ganar') + st(b, B ? VS_STORY_BONUS[B.k](B.v) : 'Reto') + st(hp, 'Acabar con más de media vida') + '</span>' +
         (got.length ? got.join(' · ') : 'Sin premios nuevos (ya los tenías)') + (unl.length ? '<br><b>¡Nuevos guerreros desbloqueados: ' + unl.join(', ') + '!</b>' : '') };
   }
   /** Siguiente capítulo (o null si era el último) */
   next() { const L = VsStoryData.list(), n = L.findIndex(([a, b]) => a === this.si && b === this.ci); return L[n + 1] || null; }
 }
 
-/** Ficha de un capítulo para el menú del Versus */
-function vsStoryPane(sel) {
-  const D = VsStoryData, [si, ci] = sel, S = VS_STORY[si], C = S.ch[ci], open = D.open(si, ci);
-  const sagas = VS_STORY.map((s, k) => {
-    const got = s.ch.reduce((a, c, j) => a + D.stars(k, j), 0), lock = !D.open(k, 0);
-    return '<div class="ssg' + (k === si ? ' on' : '') + (lock ? ' lock' : '') + '"><h4>' + (lock ? '🔒 ' : '') + s.t + '<small>' + got + ' / ' + s.ch.length * 3 + ' ★</small></h4><div class="sch">' +
-      s.ch.map((c, j) => { const ok = D.open(k, j), st = D.stars(k, j); return '<button data-v="story" data-a="' + k + ':' + j + '"' + (k === si && j === ci ? ' class="on"' : '') + (ok ? '' : ' disabled') + '><b>' + (ok ? c.t : '???') + '</b><i>' + '★'.repeat(st) + '<u>' + '★'.repeat(3 - st) + '</u></i></button>'; }).join('') + '</div></div>';
-  }).join('');
-  return '<div class="story">' + sagas + '</div>';
-}
-function vsStoryCard(sel) {
-  const D = VsStoryData, [si, ci] = sel, S = VS_STORY[si], C = S.ch[ci], open = D.open(si, ci), st = D.stars(si, ci), B = C.bonus, pc = charById(C.p[0]), rc = charById(C.r[0]);
-  const fm = (ch, f) => nice((ch.forms[f] || ch.forms[0]).name);
-  const rows = [['Juegas con', nice(pc.name) + ' · ' + fm(pc, C.p[1])], ['Rival', nice(rc.name) + ' · ' + fm(rc, C.r[1]) + (C.hp > 1.05 ? ' · vida ×' + C.hp : '')],
-    ['Objetivo', C.goal === 'survive' ? 'Resiste ' + C.sec + ' segundos' : 'Gana el combate'], ['Reto extra', B ? VS_STORY_BONUS[B.k](B.v) : '—'],
-    ['Dificultad', C.lvl < 0.7 ? 'Fácil' : C.lvl < 1.3 ? 'Normal' : C.lvl < 1.8 ? 'Difícil' : 'Muy difícil']];
-  if (C.mid && C.mid.some((m) => m.tr)) rows.push(['Ojo', 'El rival se transformará en mitad del combate']);
-  if (C.mid && C.mid.some((m) => m.pt)) rows.push(['Giro', 'Podrás transformarte cuando llegue el momento']);
+/* ---------------- Menú del modo historia (pantalla propia) ----------------
+   Arriba, el mapa de sagas: un planeta por saga unido por una ruta, con un anillo de progreso y el radar
+   parpadeando en la saga en curso. Debajo, la saga elegida: su rótulo con kanji, el camino de capítulos
+   (bolas de dragón numeradas) y la ficha del capítulo, con el cara a cara de los dos luchadores. */
+const VS_STORY_LOOK = {
+  saiyan:  { n: 'Saiyan', kj: 'サイヤ人', c1: '#ffb347', c2: '#8a3a12', d: 'Llegan a la Tierra los últimos Saiyans: un hermano que Goku no conocía y el orgulloso príncipe de su raza.' },
+  freezer: { n: 'Freezer', kj: 'フリーザ', c1: '#9effc0', c2: '#145a4a', d: 'De la destrucción del Planeta Vegeta a la batalla en Namek: el tirano del universo contra la leyenda del Super Saiyan.' },
+  cell:    { n: 'Cell', kj: 'セル', c1: '#b6ff6a', c2: '#2c5a1a', d: 'Un viajero del futuro, los androides del Dr. Gero y un ser perfecto que pone a prueba a la nueva generación.' },
+  buu:     { n: 'Majin Buu', kj: '魔人ブウ', c1: '#ff9ad6', c2: '#6a1a4a', d: 'Babidi despierta a Majin Buu. Las fusiones serán la última esperanza de la Tierra.' },
+  dioses:  { n: 'Dioses', kj: '神', c1: '#d6a8ff', c2: '#3a1a6a', d: 'Un Dios de la Destrucción, un emperador que vuelve dorado y el mejor asesino de otro universo.' },
+  black:   { n: 'Goku Black', kj: 'ブラック', c1: '#ff7ab8', c2: '#4a0a2a', d: 'En el futuro de Trunks, un ser con la cara de Goku y un dios que odia a los mortales.' },
+  torneo:  { n: 'Torneo', kj: '力の大会', c1: '#8ad8ff', c2: '#123a6a', d: 'Ocho universos en una plataforma. El que pierda, desaparece.' },
+  broly:   { n: 'Broly', kj: 'ブロリー', c1: '#a8ff5a', c2: '#1a4a2a', d: 'Un Saiyan criado en un planeta helado cuyo poder no conoce límites.' }
+};
+/** Bola de dragón con n estrellas (on: encendida) */
+const vsDball = (n, on, big) => '<span class="sdb' + (on ? ' son' : '') + (big ? ' sbig' : '') + '">' + '<i>★</i>'.repeat(n) + '</span>';
+/** Saga y capítulo «en curso»: el primero abierto sin superar */
+function vsStoryNow() { const D = VsStoryData; for (const [si, ci] of D.list()) if (D.open(si, ci) && !D.stars(si, ci)) return [si, ci]; return null; }
+function vsStoryMenu(sel) {
+  const D = VsStoryData, [si, ci] = sel, S = VS_STORY[si], L = VS_STORY_LOOK[S.id] || {}, C = S.ch[ci], open = D.open(si, ci), st = D.stars(si, ci), B = C.bonus, now = vsStoryNow();
+  const tot = D.list().length, got = D.total();
+  // Mapa de sagas
+  const map = VS_STORY.map((g, k) => {
+    const lk = VS_STORY_LOOK[g.id] || {}, lock = !D.open(k, 0), max = g.ch.length * 3, have = g.ch.reduce((a, c, j) => a + D.stars(k, j), 0), done = D.sagaDone(k);
+    return '<button class="ssg' + (k === si ? ' son' : '') + (lock ? ' slock' : '') + (done ? ' sdone' : '') + '" data-v="ssaga" data-a="' + k + '"' + (lock ? ' disabled' : '') + ' style="--c1:' + lk.c1 + ';--c2:' + lk.c2 + ';--p:' + Math.round(have / max * 100) + '%;--d:' + (k * 0.06) + 's">' +
+      '<span class="spl"><span class="spk">' + (lock ? '?' : lk.kj) + '</span>' + (now && now[0] === k ? '<span class="sradar"></span>' : '') + '</span><b>' + (lock ? '???' : lk.n || g.t) + '</b><small>' + (lock ? 'Bloqueada' : have + ' / ' + max + ' ★') + '</small></button>';
+  }).join('<span class="ssgl"></span>');
+  // Camino de capítulos (bolas de dragón)
+  const path = S.ch.map((c, j) => {
+    const ok = D.open(si, j), s2 = D.stars(si, j);
+    return '<button class="scp' + (j === ci ? ' son' : '') + (ok ? '' : ' slock') + (s2 ? ' sdone' : '') + (now && now[0] === si && now[1] === j ? ' snow' : '') + '" data-v="story" data-a="' + si + ':' + j + '"' + (ok ? '' : ' disabled') + '>' +
+      '<span class="scb">' + (ok ? j + 1 : '🔒') + '</span><span class="hcs">' + [1, 2, 3].map((n) => '<i class="' + (n <= s2 ? 'son' : '') + '"></i>').join('') + '</span><em>' + (ok ? c.t : '???') + '</em></button>';
+  }).join('<span class="scl"></span>');
+  // Progreso de la saga: las siete bolas se encienden según las estrellas, y los guerreros que desbloquea
+  const smax = S.ch.length * 3, shave = S.ch.reduce((a, c, j) => a + D.stars(si, j), 0), lit = Math.round(shave / smax * 7), sdone = D.sagaDone(si);
+  const sagaBox = '<div class="sprog"><h4>Reúne las 7 bolas <small>' + shave + ' / ' + smax + ' ★</small></h4><div class="s7">' + [1, 2, 3, 4, 5, 6, 7].map((n) => vsDball(n, n <= lit)).join('') + '</div>' +
+    ((S.unlock || []).length ? '<h4>' + (sdone ? 'Guerreros conseguidos' : 'Completa la saga y consigue') + '</h4><div class="sunl">' + S.unlock.map((id) => { const ch = charById(id), has = Save.d.unlocked.includes(id);
+      return ch ? '<span class="' + (has ? 'has' : '') + '"><canvas data-pt="' + ch.forms[0].sheet + '" width="56" height="56"></canvas><b>' + nice(ch.name) + '</b></span>' : ''; }).join('') + '</div>' : '') + '</div>';
+  // Ficha del capítulo
+  const pd = vsChain(charById(C.p[0]), C.p[1])[0], rd = vsChain(charById(C.r[0]), C.r[1])[0], hx = (n) => '#' + n.toString(16).padStart(6, '0');
+  const lvlTxt = C.lvl < 0.7 ? 'Fácil' : C.lvl < 1.3 ? 'Normal' : C.lvl < 1.8 ? 'Difícil' : 'Muy difícil';
+  const warn = [];
+  if (C.mid && C.mid.some((m) => m.tr)) warn.push('<span class="swn str">⚡ El rival se transformará en mitad del combate</span>');
+  if (C.mid && C.mid.some((m) => m.pt)) warn.push('<span class="swn spt">✦ Llegará tu momento de transformarte</span>');
+  if (C.goal === 'survive') warn.push('<span class="swn ssv">⏱ No hace falta ganar: resiste ' + C.sec + ' s</span>');
   const unl = (S.unlock || []).filter((id) => !Save.d.unlocked.includes(id)).map((id) => nice(charById(id).name));
-  return '<section class="fp tw scard"><span class="who">' + S.t + ' · Capítulo ' + (ci + 1) + '</span><h3 style="margin-top:14px">' + (open ? C.t : 'Bloqueado') + '</h3><div class="twi">' +
-    (open ? '<div class="sstars">' + '★'.repeat(st) + '<u>' + '★'.repeat(3 - st) + '</u></div>' + rows.map(([a, b]) => '<p><span>' + a + '</span><b>' + b + '</b></p>').join('') +
-      '<p class="pay">' + (st ? 'Ya superado: ganas cristales por cada estrella nueva.' : 'Primera vez: <b>+' + VS_STORY_PAY.first + ' zeni</b> y <b>+' + VS_STORY_PAY.firstCry + ' cristales</b>.') + (unl.length ? ' Al completar la saga desbloqueas: <b>' + unl.join(', ') + '</b>.' : '') + '</p>'
-      : 'Supera el capítulo anterior para jugar este.') + '</div></section>';
+  const card = !open ? '<div class="sdx slock"><div class="slk">🔒</div><h3>Capítulo bloqueado</h3><p>Supera el capítulo anterior para seguir la historia.</p></div>' :
+    '<div class="sdx"><div class="sfo">' +
+      '<div class="sfx l" style="--c:' + hx(pd.col) + '"><span class="sau"></span><canvas data-full="' + pd.sheet + '" width="200" height="200"></canvas><b>' + pd.name + '</b><small>' + nice(pd.form) + '</small></div>' +
+      '<div class="svx"><svg viewBox="0 0 100 100" class="sbolt"><path d="M58 2 L30 52 L48 52 L38 98 L74 40 L54 40 L66 2 Z"/></svg><span>VS</span></div>' +
+      '<div class="sfx r" style="--c:' + hx(rd.col) + '"><span class="sau"></span><canvas data-full="' + rd.sheet + '" width="200" height="200"></canvas><b>' + rd.name + '</b><small>' + nice(rd.form) + (C.hp > 1.05 ? ' · vida ×' + C.hp : '') + '</small></div>' +
+    '</div><div class="sinf"><div class="sct"><small>Capítulo ' + (ci + 1) + '</small><h3>' + C.t + '</h3><div class="sdbs">' + [1, 2, 3].map((n) => vsDball(n, n <= st, true)).join('') + '</div></div>' +
+      '<ul class="sobj"><li><span>' + vsDball(1, st >= 1) + '</span><b>' + (C.goal === 'survive' ? 'Resiste ' + C.sec + ' segundos' : 'Gana el combate') + '</b></li>' +
+        '<li><span>' + vsDball(2, !!D.d().st[D.key(si, ci) + ':b']) + '</span><b>' + (B ? VS_STORY_BONUS[B.k](B.v) : '—') + '</b></li>' +
+        '<li><span>' + vsDball(3, !!D.d().st[D.key(si, ci) + ':h']) + '</span><b>Acaba con más de media vida</b></li></ul>' +
+      '<div class="spw"><span>Nivel de poder del rival</span><div class="spb"><i style="width:' + Math.round(Math.min(1, (C.lvl + 0.25) / 2.25) * 100) + '%"></i></div><b>' + lvlTxt + '</b></div>' +
+      (warn.length ? '<div class="sws">' + warn.join('') + '</div>' : '') +
+      '<p class="spay">' + (st ? 'Ya superado · <b>+' + VS_STORY_PAY.starCry + ' cristales</b> por cada estrella nueva' : 'Primera vez: <b>+' + VS_STORY_PAY.first + ' zeni</b> y <b>+' + VS_STORY_PAY.firstCry + ' cristales</b>') + (unl.length ? '<br>Completa la saga y desbloquea: <b>' + unl.join(', ') + '</b>' : '') + '</p>' +
+      '<button class="sgo" data-v="fight">¡A LUCHAR!</button></div></div>';
+  return '<div class="smenu" style="--c1:' + L.c1 + ';--c2:' + L.c2 + '"><div class="sbg"></div>' +
+    '<header class="shd"><button class="back" data-v="sback">◀ Versus</button><div class="stl"><span class="skj">物語</span><h1>Modo Historia</h1></div><div class="stot">' + vsDball(4, true) + '<b>' + got + '</b><small>/ ' + tot * 3 + ' estrellas</small></div></header>' +
+    '<nav class="smap">' + map + '</nav>' +
+    '<section class="sbody"><div class="ssaga"><div class="sban"><span class="bkj">' + (L.kj || '') + '</span><div><h2>' + S.t + '</h2><p>' + (L.d || '') + '</p></div></div><div class="cpath">' + path + '</div>' + sagaBox + '</div>' + card + '</section>' +
+    '<div class="skeys">←/→ capítulo · ↑/↓ saga · Intro: luchar · Esc: volver</div></div>';
 }
 
 const VS_STORY_CSS = `
-#vs .story{display:flex;flex-direction:column;gap:10px;padding:2px 2px 8px}
-#vs .ssg h4{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 5px;font:400 19px/1.1 var(--mg);letter-spacing:.04em;color:var(--gold)}#vs .ssg h4 small{font:800 11px/1 var(--body);color:#cfd6ee}
-#vs .ssg.lock h4{color:#7b8199}
-#vs .sch{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
-#vs .sch button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 9px;text-align:left;font:700 12px/1.25 var(--body)}
-#vs .sch button b{font-weight:800}#vs .sch button i{font-style:normal;color:var(--gold);letter-spacing:1px}#vs .sch button i u{text-decoration:none;color:rgba(255,255,255,.22)}
-#vs .sch button:disabled{opacity:.45;cursor:not-allowed}
-#vs .scard .twi p{display:flex;justify-content:space-between;gap:10px;margin:0 0 5px;font-size:12.5px}#vs .scard .twi p span{color:#9fb0d8;flex:none}#vs .scard .twi p b{text-align:right}
-#vs .scard .twi p.pay{display:block;margin-top:10px;color:#cfd6ee}#vs .sstars{font-size:26px;color:var(--gold);letter-spacing:3px;margin:-4px 0 8px}#vs .sstars u{text-decoration:none;color:rgba(255,255,255,.2)}
+#vs :where(.smenu) button{background:none;border:0;border-radius:0;box-shadow:none;text-shadow:none;padding:0;transition:none;font-family:inherit}#vs :where(.smenu) button:active{transform:none}
+#vs .sel.on.storyon{display:block;padding:0;overflow:hidden}
+#vs .smenu{position:absolute;inset:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:10px;padding:12px 20px 10px;overflow:hidden;color:#fff;
+  background:radial-gradient(ellipse 120% 80% at 50% 115%,var(--c2,#3a1a0a) 0,#0a0b18 62%)}
+#vs .sbg{position:absolute;inset:-50%;z-index:-1;background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.045) 0 2.5deg,transparent 2.5deg 9deg);animation:vssbg 90s linear infinite;pointer-events:none}
+#vs .smenu::after{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(circle at 50% 55%,rgba(255,180,60,.16),transparent 55%);pointer-events:none}
+@keyframes vssbg{to{transform:rotate(360deg)}}
+#vs .shd{display:flex;align-items:center;gap:18px}
+#vs .shd .back{padding:6px 14px 4px;font:400 18px var(--mg);letter-spacing:.05em;color:#fff;background:var(--ink);border:3px solid #fff;box-shadow:3px 3px 0 rgba(0,0,0,.5);transform:skewX(-10deg)}
+#vs .stl{position:relative;flex:1}#vs .stl h1{margin:0;font:400 clamp(30px,4.4vw,52px)/1 var(--mg);letter-spacing:.05em;color:#fff6c8;-webkit-text-stroke:.14em var(--ink);paint-order:stroke fill;text-shadow:.05em .07em 0 var(--gi);transform:rotate(-2deg);position:relative;z-index:1}
+#vs .skj{position:absolute;left:-6px;top:-18px;font:900 clamp(44px,6vw,78px)/1 var(--kj);color:rgba(255,120,30,.22);letter-spacing:.05em;pointer-events:none}
+#vs .stot{display:flex;align-items:center;gap:8px;padding:6px 14px;background:rgba(10,11,24,.75);border:3px solid var(--ink);box-shadow:0 0 0 2px var(--gold)}#vs .stot b{font:400 28px/1 var(--mg);color:var(--gold)}#vs .stot small{font:700 12px var(--body);color:#cfd6ee}
+/* Bolas de dragón */
+#vs .sdb{position:relative;display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:center;align-content:center;width:22px;height:22px;border-radius:50%;
+  background:radial-gradient(circle at 34% 28%,#fff7cf 0 9%,#ffc94a 26%,#f08a12 62%,#b4520a 100%);box-shadow:inset -2px -3px 4px rgba(120,40,0,.45),0 0 8px rgba(255,170,40,.45);filter:grayscale(1) brightness(.45);transition:filter .3s}
+#vs .sdb.son{filter:none}#vs .sdb i{font-style:normal;color:#d4141e;font-size:7px;line-height:6px;width:7px;text-align:center;text-shadow:0 0 1px #fff}
+#vs .sdb.sbig{width:40px;height:40px}#vs .sdb.sbig i{font-size:11px;line-height:10px;width:11px}#vs .sdb.son.sbig{animation:vsdb 2.4s ease-in-out infinite}
+@keyframes vsdb{50%{box-shadow:inset -2px -3px 4px rgba(120,40,0,.45),0 0 18px rgba(255,190,60,.9)}}
+/* Mapa de sagas */
+#vs .smap{display:flex;align-items:center;gap:0;overflow-x:auto;padding:6px 4px 10px;scrollbar-width:thin}
+#vs .ssgl{flex:1 0 18px;height:4px;margin:0 -4px 34px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.4) 0 8px,transparent 8px 14px)}
+#vs .ssg{position:relative;flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;width:104px;padding:0;background:none;border:0;color:#fff;cursor:pointer;animation:vssg .5s var(--d) cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes vssg{from{opacity:0;transform:translateY(-16px) scale(.7)}}
+#vs .ssg .spl{position:relative;display:grid;place-items:center;width:66px;height:66px;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.75) 0 8%,var(--c1) 30%,var(--c2) 100%);box-shadow:0 0 0 4px #0a0b18,0 0 0 7px rgba(255,255,255,.12),inset -8px -10px 14px rgba(0,0,0,.45);transition:transform .2s}
+#vs .ssg .spl::before{content:"";position:absolute;inset:-7px;border-radius:50%;background:conic-gradient(var(--gold) var(--p),transparent 0);-webkit-mask:radial-gradient(circle,transparent 36px,#000 37px);mask:radial-gradient(circle,transparent 36px,#000 37px);z-index:-1}
+#vs .ssg .spk{font:900 15px/1 var(--kj);color:#fff;text-shadow:0 0 3px #000,0 2px 0 #000;max-width:58px;text-align:center;word-break:keep-all}
+#vs .ssg b{font:400 15px/1.05 var(--mg);letter-spacing:.04em;text-align:center;-webkit-text-stroke:3px var(--ink);paint-order:stroke fill}#vs .ssg small{font:800 10px/1 var(--body);color:#cfd6ee}
+#vs .ssg:hover .spl,#vs .ssg:focus-visible .spl{transform:scale(1.08)}
+#vs .ssg.son .spl{transform:scale(1.18);box-shadow:0 0 0 4px #0a0b18,0 0 0 7px var(--gold),0 0 26px var(--c1),inset -8px -10px 14px rgba(0,0,0,.45);animation:vspl 1.6s ease-in-out infinite}
+@keyframes vspl{50%{box-shadow:0 0 0 4px #0a0b18,0 0 0 7px var(--gold),0 0 40px var(--c1),inset -8px -10px 14px rgba(0,0,0,.45)}}
+#vs .ssg.son b{color:var(--gold);margin-top:6px}#vs .ssg.sdone small{color:#6dff9c}
+#vs .ssg.slock{cursor:not-allowed;animation-name:vssg}#vs .ssg.slock .spl{filter:grayscale(1) brightness(.4)}#vs .ssg.slock b{color:#6a7090}
+#vs .sradar{position:absolute;right:-4px;top:-4px;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,#b8ffb0 0 25%,#2ccf5a 30% 60%,#0c4a1c 64%);border:2px solid #0a0b18}
+#vs .sradar::after{content:"";position:absolute;inset:-2px;border-radius:50%;border:2px solid #6dff9c;animation:vsrad 1.2s ease-out infinite}@keyframes vsrad{to{transform:scale(2.4);opacity:0}}
+/* Cuerpo: saga y capítulo */
+#vs .sbody{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;min-height:0}
+#vs .ssaga{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
+#vs .sban{position:relative;display:flex;gap:14px;align-items:center;padding:12px 16px;background:linear-gradient(100deg,var(--c2) 0,rgba(10,11,24,.9) 70%);border:3px solid var(--ink);box-shadow:0 0 0 2px var(--c1),6px 6px 0 rgba(0,0,0,.4);overflow:hidden}
+#vs .bkj{flex:none;font:900 clamp(30px,3.4vw,46px)/1 var(--kj);color:var(--c1);writing-mode:vertical-rl;text-shadow:0 0 12px var(--c1),2px 2px 0 #000;max-height:120px}
+#vs .sban h2{margin:0 0 4px;font:400 clamp(24px,3vw,36px)/1 var(--mg);letter-spacing:.05em;color:#fff6c8;-webkit-text-stroke:5px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--gi)}
+#vs .sban p{margin:0;font:600 13px/1.45 var(--body);color:#dfe6ff}
+#vs .cpath{display:flex;flex-wrap:wrap;align-items:flex-start;gap:4px 0;padding:6px 2px}
+#vs .scl{flex:0 0 18px;height:3px;margin-top:27px;background:rgba(255,255,255,.25)}
+#vs .scp{display:flex;flex-direction:column;align-items:center;gap:4px;width:92px;padding:0;background:none;border:0;color:#fff;cursor:pointer}
+#vs .scp .scb{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;font:400 24px/1 var(--mg);color:#c0141e;text-shadow:0 1px 0 #fff;
+  background:radial-gradient(circle at 34% 28%,#fff7cf 0 9%,#ffc94a 26%,#f08a12 62%,#b4520a 100%);box-shadow:inset -3px -4px 6px rgba(120,40,0,.45),0 0 0 3px #0a0b18;transition:transform .15s}
+#vs .scp .hcs{display:flex;gap:3px}#vs .scp .hcs i{width:7px;height:7px;transform:rotate(45deg);background:rgba(255,255,255,.18)}#vs .scp .hcs i.son{background:var(--gold);box-shadow:0 0 5px var(--gold)}
+#vs .scp em{font:700 11px/1.2 var(--body);font-style:normal;text-align:center;color:#cfd6ee;min-height:2.4em}
+#vs .scp:hover .scb{transform:scale(1.08)}#vs .scp.son .scb{transform:scale(1.18);box-shadow:inset -3px -4px 6px rgba(120,40,0,.45),0 0 0 3px #0a0b18,0 0 0 6px var(--gold),0 0 22px rgba(255,190,60,.8)}#vs .scp.son em{color:var(--gold)}
+#vs .scp.sdone .scb{box-shadow:inset -3px -4px 6px rgba(120,40,0,.45),0 0 0 3px #0a0b18,0 0 0 5px #6dff9c}
+#vs .scp.snow .scb{animation:vscpn 1s ease-in-out infinite}@keyframes vscpn{50%{transform:scale(1.12)}}
+#vs .scp.slock{cursor:not-allowed}#vs .scp.slock .scb{filter:grayscale(1) brightness(.45);font-size:18px}
+/* Ficha del capítulo */
+#vs .sdx{display:grid;grid-template-rows:auto minmax(0,1fr);gap:8px;min-height:0;padding:12px 14px;background:rgba(10,11,24,.86);border:3px solid var(--ink);box-shadow:0 0 0 2px var(--gold),8px 8px 0 rgba(0,0,0,.4);overflow:auto;animation:vssdx .35s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes vssdx{from{opacity:0;transform:translateX(30px)}}
+#vs .sdx.slock{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}#vs .sdx.slock .slk{font-size:54px;filter:grayscale(1)}#vs .sdx.slock h3{font:400 28px var(--mg);margin:6px 0}
+#vs .sfo{position:relative;display:grid;grid-template-columns:1fr auto 1fr;align-items:end;min-height:120px}
+#vs .sfx{position:relative;display:flex;flex-direction:column;align-items:center}
+#vs .sfx canvas{position:relative;width:min(128px,12.5vw);height:min(128px,12.5vw);image-rendering:pixelated;filter:drop-shadow(0 0 2px #000) drop-shadow(0 6px 6px rgba(0,0,0,.5))}#vs .sfx.r canvas{transform:scaleX(-1)}
+#vs .sfx .sau{position:absolute;left:50%;bottom:34px;width:120%;height:85%;transform:translateX(-50%);border-radius:50% 50% 40% 40%;background:radial-gradient(ellipse at 50% 70%,var(--c) 0,transparent 68%);opacity:.55;filter:blur(4px);animation:vsau .5s ease-in-out infinite alternate}
+@keyframes vsau{to{opacity:.85;transform:translateX(-50%) scaleY(1.08)}}
+#vs .sfx b{font:400 24px/1 var(--mg);letter-spacing:.04em;-webkit-text-stroke:4px var(--ink);paint-order:stroke fill;color:#fff;text-shadow:2px 3px 0 var(--c),0 0 14px var(--c)}#vs .sfx small{font:800 11px/1.3 var(--body);color:var(--c)}
+#vs .sfx.l{animation:vsfl .45s cubic-bezier(.2,.9,.3,1.2)}#vs .sfx.r{animation:vsfr .45s cubic-bezier(.2,.9,.3,1.2)}@keyframes vsfl{from{opacity:0;transform:translateX(-60px)}}@keyframes vsfr{from{opacity:0;transform:translateX(60px)}}
+#vs .svx{position:relative;align-self:center;width:90px;height:110px;display:grid;place-items:center}
+#vs .svx .sbolt{position:absolute;inset:0;width:100%;height:100%;fill:var(--gold);filter:drop-shadow(0 0 10px #ffd84a);animation:vsbolt .14s steps(2) infinite}
+@keyframes vsbolt{50%{opacity:.55;transform:scale(1.05) rotate(3deg)}}
+#vs .svx span{position:relative;font:400 54px/1 var(--mg);color:#fff;-webkit-text-stroke:6px var(--ink);paint-order:stroke fill;text-shadow:4px 4px 0 var(--gi);transform:rotate(-8deg)}
+#vs .sinf{display:flex;flex-direction:column;gap:8px}
+#vs .sct{display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px}#vs .sct small{font:800 11px var(--body);color:var(--gold);letter-spacing:.08em;flex-basis:100%}
+#vs .sct h3{margin:0;flex:1;font:400 clamp(24px,2.8vw,34px)/1 var(--mg);letter-spacing:.04em;color:#fff6c8;-webkit-text-stroke:5px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--gi),0 0 18px rgba(255,140,40,.45)}#vs .sct .sdbs{display:flex;gap:6px}
+#vs .sobj{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}#vs .sobj li{display:flex;align-items:center;gap:10px;font:700 13px/1.3 var(--body)}#vs .sobj li span{flex:none;display:flex}
+#vs .spw{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;font:800 11px var(--body);color:#cfd6ee}
+#vs .spw .spb{height:10px;background:#1a1020;border:2px solid var(--ink);box-shadow:0 0 0 1.5px rgba(255,255,255,.5);transform:skewX(-18deg);overflow:hidden}#vs .spw .spb i{display:block;height:100%;background:linear-gradient(90deg,#ffe14a,#ff7a1a,#ff2a4a)}#vs .spw b{color:#ff9a5a}
+#vs .sws{display:flex;flex-direction:column;gap:3px}#vs .sws .swn{font:700 12px/1.3 var(--body);padding:3px 8px;border-left:4px solid;background:rgba(255,255,255,.05)}#vs .sws .str{border-color:#ff5a6a;color:#ffb0b8}#vs .sws .spt{border-color:var(--gold);color:#ffe8a8}#vs .sws .ssv{border-color:#8ad8ff;color:#cfeeff}
+#vs .sdx .spay{margin:0;font:600 12px/1.45 var(--body);color:#cfd6ee}
+#vs .sdx .sgo{position:sticky;bottom:0;z-index:2;align-self:stretch;margin-top:2px;padding:10px 14px 7px;font:400 clamp(24px,3vw,34px)/1 var(--mg);letter-spacing:.06em;color:var(--ink);background:linear-gradient(180deg,#ffe27a,#ffb21a);border:4px solid var(--ink);box-shadow:5px 5px 0 rgba(0,0,0,.5);transform:skewX(-8deg);cursor:pointer;animation:vsgo 1.4s ease-in-out infinite}
+#vs .sdx .sgo:hover{filter:brightness(1.1)}@keyframes vsgo{50%{box-shadow:5px 5px 0 rgba(0,0,0,.5),0 0 22px rgba(255,190,60,.8)}}
+#vs .sprog{display:flex;flex-direction:column;gap:6px;padding:10px 14px;background:rgba(10,11,24,.78);border:3px solid var(--ink);box-shadow:0 0 0 2px rgba(255,255,255,.12)}
+#vs .sprog h4{display:flex;justify-content:space-between;align-items:baseline;margin:0;font:400 18px/1.1 var(--mg);letter-spacing:.05em;color:var(--gold)}#vs .sprog h4 small{font:800 11px var(--body);color:#cfd6ee}
+#vs .s7{display:flex;gap:6px;flex-wrap:wrap}#vs .s7 .sdb{width:30px;height:30px}#vs .s7 .sdb i{font-size:8px;line-height:7px;width:8px}
+#vs .sunl{display:flex;gap:10px;flex-wrap:wrap}#vs .sunl span{display:flex;flex-direction:column;align-items:center;gap:2px;width:64px}
+#vs .sunl canvas{width:56px;height:56px;image-rendering:pixelated;background:linear-gradient(165deg,#3a4066,#191b2e 80%);border:2px solid var(--ink);box-shadow:0 0 0 2px rgba(255,255,255,.25);filter:brightness(.25) grayscale(1)}
+#vs .sunl span.has canvas{filter:none;box-shadow:0 0 0 2px var(--gold),0 0 10px rgba(255,190,60,.6)}#vs .sunl b{font:800 10px/1.15 var(--body);text-align:center;color:#cfd6ee}
+#vs .skeys{text-align:center;font:600 11px var(--body);color:#8f9bc0}
+@media (max-width:820px){#vs .sbody{grid-template-columns:1fr;overflow:auto;align-content:start}#vs .ssaga,#vs .sdx{overflow:visible;min-height:auto}#vs .smenu{grid-template-rows:auto auto minmax(0,1fr)}#vs .skeys{display:none}#vs .sfx canvas{width:110px;height:110px}#vs .stot small{display:none}}
+@media (prefers-reduced-motion:reduce){#vs .sbg,#vs .ssg,#vs .ssg.son .spl,#vs .sradar::after,#vs .scp.snow .scb,#vs .sfx .sau,#vs .svx .sbolt,#vs .sdx,#vs .sfx.l,#vs .sfx.r,#vs .sdx .sgo,#vs .sdb.son.sbig{animation:none}}
 #vs .sty{position:absolute;left:50%;bottom:6%;transform:translateX(-50%);width:min(860px,92%);display:none;align-items:center;gap:16px;padding:16px 20px 14px;background:rgba(17,18,28,.94);border:4px solid var(--ink);box-shadow:0 0 0 3px var(--c,var(--gold)),8px 8px 0 rgba(0,0,0,.45);z-index:5;pointer-events:auto;cursor:pointer}
 #vs .sty.on{display:flex}#vs .sty.r{flex-direction:row-reverse}#vs .sty.n{box-shadow:0 0 0 3px #cfd6ee,8px 8px 0 rgba(0,0,0,.45)}#vs .sty.n .sdp{display:none}
 #vs .sty .sdp{flex:none;width:110px;height:110px;image-rendering:pixelated;background:linear-gradient(165deg,var(--c,#888) 0,var(--ink) 90%);border:3px solid var(--ink)}
@@ -323,7 +442,7 @@ const VS_STORY_CSS = `
 #vs .sty .sdf{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font:700 11px/1 var(--body);color:#8f9bc0}
 #vs .sty .sdf button{font:800 12px/1 var(--body);padding:6px 12px}
 #vs.story .tc{opacity:.3}
-#vs .pnl .sst{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 16px;margin:16px 0 8px;font:800 14px/1.3 var(--body);color:rgba(255,255,255,.35)}#vs .pnl .sst span.on{color:var(--gold);text-shadow:0 0 8px rgba(255,197,49,.6)}
-#vs .pnl.win .box p:has(.sst){display:block;font-size:13px}
+#vs .pnl .hsst{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 16px;margin:16px 0 8px;font:800 14px/1.3 var(--body);color:rgba(255,255,255,.35)}#vs .pnl .hsst span.on{color:var(--gold);text-shadow:0 0 8px rgba(255,197,49,.6)}
+#vs .pnl.win .box p:has(.hsst){display:block;font-size:13px}
 @media (max-width:700px){#vs .sty .sdp{width:70px;height:70px}#vs .sty .sdt{font-size:14px}}
 `;

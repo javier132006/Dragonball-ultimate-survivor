@@ -115,8 +115,17 @@ class Versus {
         if (e.code === 'Escape') this.story.skipTalk(); else if (e.code === 'Enter' || e.code === 'Space' || e.code === VS_KEYS[0].ATK || e.code === 'NumpadEnter') this.story.nextLine(); else return;
         e.preventDefault(); return;
       }
-      if (e.code === 'Escape') { if (this.sim && this.sim.phase !== 'end') this.cmd(this.paused ? 'resume' : 'pause'); else if (!this.sim) this.cmd('exit'); }
+      if (e.code === 'Escape') { if (this.sim && this.sim.phase !== 'end') this.cmd(this.paused ? 'resume' : 'pause'); else if (!this.sim) this.cmd(this.cfg.mode === 'story' ? 'sback' : 'exit'); }
       else if (e.code === 'Enter' && !this.sim) this.cmd('fight');
+      else if (!this.sim && this.cfg.mode === 'story' && /^Arrow/.test(e.code)) {           // menú de la historia: flechas para elegir capítulo y saga
+        const D = VsStoryData, [si, ci] = this.storySel(), L = D.list(), n = L.findIndex(([a, b]) => a === si && b === ci);
+        let to = null;
+        if (e.code === 'ArrowRight' && L[n + 1] && D.open(...L[n + 1])) to = L[n + 1];
+        else if (e.code === 'ArrowLeft' && n > 0) to = L[n - 1];
+        else if (e.code === 'ArrowDown' && VS_STORY[si + 1] && D.open(si + 1, 0)) { this.cmd('ssaga', String(si + 1)); e.preventDefault(); return; }
+        else if (e.code === 'ArrowUp' && si > 0) { this.cmd('ssaga', String(si - 1)); e.preventDefault(); return; }
+        if (to) this.cmd('story', to.join(':')); e.preventDefault();
+      }
       else if (this.trn && !this.paused) { const k = { Digit1: 'dummy', Digit2: 'ki', Digit3: 'tm', KeyR: 'pos', Digit4: 'base' }[e.code]; if (k) this.cmd('trn', k); }
     });
   }
@@ -140,7 +149,15 @@ class Versus {
     this.ui.sel.classList.add('on'); EntryFx.seen.vs0 = EntryFx.seen.vs1 = null; this.renderSelect(); SFX.music('menu');   // al entrar, las entradas vuelven a reproducirse
   }
   renderSelect() {
-    const c = this.cfg, R = this.roster(), lad = c.mode === 'ladder', trn = c.mode === 'train', tut = c.mode === 'tuto', sto = c.mode === 'story', L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal, tab = c.tab || 'grid';
+    if (this.cfg.mode === 'story') {                                   // Historia: menú propio a pantalla completa (versus/story.js)
+      const S = this.ui.sel; S.classList.add('storyon'); S.innerHTML = vsStoryMenu(this.storySel());
+      for (const cv of S.querySelectorAll('canvas[data-full]')) this.portrait(cv, cv.dataset.full, true);
+      for (const cv of S.querySelectorAll('canvas[data-pt]')) this.portrait(cv, cv.dataset.pt);
+      const on = S.querySelector('.ssg.son'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center' });
+      return;
+    }
+    this.ui.sel.classList.remove('storyon');
+    const c = this.cfg, R = this.roster(), lad = c.mode === 'ladder', trn = c.mode === 'train', tut = c.mode === 'tuto', sto = false, L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal, tab = c.tab || 'grid';
     const seg = (k, list) => '<div class="vseg">' + list.map(([v, t]) => '<button data-v="set" data-a="' + k + ':' + v + '"' + (String(c[k]) === String(v) ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>';
     const p2 = c.mode === 'cpu' ? 'CPU' : trn ? 'Rival de práctica' : 'Jugador 2';
     // Ficha de un luchador: retrato, formas (se elige con cuál empieza), pasiva y la Ultimate de cada forma
@@ -159,15 +176,15 @@ class Versus {
     const tutoCard = '<section class="fp tw"><span class="who">Tutorial</span><h3 style="margin-top:14px">' + VS_TUTO.length + ' lecciones</h3><div class="twi">Aprende paso a paso todo lo del Versus: moverte y volar, combos, ganchos, disparos cargados, <b>guardia perfecta</b>, <b>esquiva perfecta</b>, agarres, la Ultimate, cómo <b>desviar</b> una Ultimate rival y el <b>choque de Ultimates</b>.<br><br>Cada lección te dice qué hacer y con qué teclas, y se supera sola. Puedes saltar o repetir las que quieras.</div></section>';
     const opt = (t, h) => '<span>' + t + '</span>' + h;
     this.ui.sel.innerHTML = '<header><button class="back" data-v="exit">◀ Salir</button><h1>¡Modo Versus!</h1><nav class="vseg modes">' + [['story', 'Historia'], ['cpu', 'Contra la CPU'], ['local', '2 jugadores'], ['ladder', 'Torre'], ['train', 'Entrenamiento'], ['tuto', 'Tutorial']].map(([v, t]) => '<button data-v="set" data-a="mode:' + v + '"' + (c.mode === v ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</nav></header>' +
-      (sto ? vsStoryCard(this.storySel()) : panel(0)) +
+      panel(0) +
       '<div class="mid"><div class="tabs">' + [['grid', sto ? 'Capítulos' : 'Luchadores'], ['keys', 'Controles'], ['stats', 'Historial']].map(([v, t]) => '<button data-v="tab" data-a="' + v + '"' + (tab === v ? ' class="on"' : '') + '>' + t + '</button>').join('') +
         (tab === 'grid' && !sto ? '<span>Eliges para ' + (c.side ? (c.mode === 'cpu' ? 'la CPU' : trn ? 'el rival de práctica' : 'el jugador 2') : 'el jugador 1') + '</span>' : '') + '</div>' +
-        '<div class="pane">' + (tab === 'keys' ? this.keysPane() : tab === 'stats' ? VsStats.html(c.pick[0].id) : sto ? vsStoryPane(this.storySel()) : grid) + '</div>' +
+        '<div class="pane">' + (tab === 'keys' ? this.keysPane() : tab === 'stats' ? VsStats.html(c.pick[0].id) : grid) + '</div>' +
         '<div class="opts">' + (sto ? '' : c.mode === 'cpu' || lad ? opt('Dificultad', seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']])) : '') +
           (trn ? opt('El rival', seg('dummy', Object.keys(VS_DUMMY).map((k) => [k, VS_DUMMY[k]]))) + opt('Ayudas', '<div class="vseg">' + seg('tki', [['1', 'Ki infinito'], ['0', 'Ki normal']]).slice(18, -6) + seg('ttm', [['1', 'Barra de transformación llena'], ['0', 'Barra normal']]).slice(18, -6) + '</div>') : '') +
           (lad || tut || sto ? '' : opt('Arena', seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', 'Al azar']])))) + (trn || tut || sto ? '' : opt('Rondas para ganar', seg('rounds', [[1, '1'], [2, '2'], [3, '3']]))) + '</div>' +
-        '<button class="fight" data-v="fight"' + (sto && !VsStoryData.open(...this.storySel()) ? ' disabled' : '') + '>' + (lad ? '¡Subir a la Torre!' : trn ? '¡A entrenar!' : tut ? '¡Empezar el tutorial!' : sto ? '¡Jugar capítulo!' : '¡A luchar!') + '</button></div>' +
-      (lad ? tower : tut ? tutoCard : sto ? this.storySide() : panel(1));
+        '<button class="fight" data-v="fight">' + (lad ? '¡Subir a la Torre!' : trn ? '¡A entrenar!' : tut ? '¡Empezar el tutorial!' : sto ? '¡Jugar capítulo!' : '¡A luchar!') + '</button></div>' +
+      (lad ? tower : tut ? tutoCard : panel(1));
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-pt]')) this.portrait(cv, cv.dataset.pt);
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-full]')) this.portrait(cv, cv.dataset.full, true);
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-entry]')) EntryFx.play(cv, cv.dataset.entry, cv.dataset.k);
@@ -188,6 +205,7 @@ class Versus {
     else if (v === 'tab') { c.tab = a; this.renderSelect(); }
     else if (v === 'bind') this.startBind(+a[0], a.slice(2));
     else if (v === 'bindreset') { VsBinds.reset(); Save.write(); this.refreshHint(); this.renderSelect(); }
+    else if (v === 'fight' && c.mode === 'story' && !this.sim && !VsStoryData.open(...this.storySel())) return;   // capítulo bloqueado
     else if (v === 'fight') { if (c.mode === 'ladder') { this.tw = VS_TOWER.build(this.roster(), c.pick[0].id, VS_TOWER.levels[c.level] ? c.level : 'normal'); VsStats.d().towerRuns++; } this.start(); }
     else if (v === 'rematch') this.start();
     else if (v === 'next' && this.tw) { this.tw.i++; this.start(); }                    // Torre: siguiente rival
@@ -203,6 +221,10 @@ class Versus {
     }
     else if (v === 'tuto' && this.tuto) this.tuto.cmd(a);
     else if (v === 'story') { const [si, ci] = a.split(':').map(Number); VsStoryData.d().sel = [si, ci]; Save.write(); SFX.play('ki'); const pane = this.ui.sel.querySelector('.pane'), top = pane ? pane.scrollTop : 0; this.renderSelect(); const p2 = this.ui.sel.querySelector('.pane'); if (p2) p2.scrollTop = top; }
+    else if (v === 'ssaga') { const si = +a, D = VsStoryData, now = vsStoryNow(), cur = this.storySel(); let ci = cur[0] === si ? cur[1] : now && now[0] === si ? now[1] : 0;
+      if (cur[0] !== si) { const L = VS_STORY[si].ch; for (let j = L.length - 1; j >= 0; j--) if (D.open(si, j)) { ci = now && now[0] === si ? now[1] : j; break; } }
+      D.d().sel = [si, ci]; Save.write(); SFX.play('ki'); this.renderSelect(); }
+    else if (v === 'sback') { c.mode = 'cpu'; SFX.play('tp'); this.renderSelect(); }
     else if (v === 'stnext' && this.story) this.story.nextLine();
     else if (v === 'stskip' && this.story) this.story.skipTalk();
     else if (v === 'stgo' && this.story) { const n = this.story.next(); if (n) { VsStoryData.d().sel = n; this.start(); } else this.showSelect(); }
@@ -262,12 +284,6 @@ class Versus {
   }
   /** Capítulo elegido en el menú de la historia ([saga, capítulo]) */
   storySel() { const s = VsStoryData.d().sel; return Array.isArray(s) && VS_STORY[s[0]] && VS_STORY[s[0]].ch[s[1]] ? s : [0, 0]; }
-  /** Columna derecha de la historia: progreso total */
-  storySide() {
-    const D = VsStoryData, tot = D.list().length, done = D.list().filter(([a, b]) => D.stars(a, b) > 0).length, sagas = VS_STORY.filter((s, k) => D.sagaDone(k)).length;
-    return '<section class="fp tw"><span class="who">Modo Historia</span><h3 style="margin-top:14px">' + D.total() + ' / ' + tot * 3 + ' ★</h3><div class="twi">Revive las grandes sagas: <b>' + VS_STORY.length + ' sagas</b> y <b>' + tot + ' capítulos</b>. Llevas ' + done + ' capítulos y ' + sagas + ' sagas completas.<br><br>' +
-      'Cada capítulo da hasta <b>3 estrellas</b>: superarlo, cumplir su <b>reto extra</b> y acabar con más de media vida. Ganas zeni y cristales la primera vez y por cada estrella nueva, y al completar una saga <b>desbloqueas guerreros</b>.</div></section>';
-  }
   clearFight() {
     if (!this.scene) return; const r = this.g.renderer;
     this.scene.traverse((o) => { if (o.geometry && o.geometry !== VS_QUAD) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.customDepthMaterial) o.customDepthMaterial.dispose(); });
