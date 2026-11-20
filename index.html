@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = 'cb973d65';
+  window.V = 'd40149d5';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=cb973d65"></script>
+<script src="js/assetver.js?v=d40149d5"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1637,7 +1637,7 @@ h1,#cardTitle,#menuNav h3,.detail h3,#loading h2,#scrTitle{font-family:var(--her
 .qb:disabled{opacity:.45;cursor:default}
 /* ---------- Contraste alto: fondos opacos y letra más grande en lo que se lee durante la partida ---------- */
 html.hc #hud #lhud #pl,html.hc #hud #rhud #pr{background:#05070f;outline:2px solid #fff}
-html.hc #pl .row span,html.hc #pname{font-size:17px}
+html.hc #pl .row span{font-size:17px}
 html.hc #pl .bar{border-color:#fff;background:#000}
 /* Tamaño del texto (Opciones): la interfaz se escala entera; la partida 3D no */
 html.txz :is(#hud,#menu,#cards,#screen,#modal,#prompt,#feed,#itemPop,#tfTrait,#talk,#chapCard,#trade,#gacha){zoom:var(--tz)}   /* el Versus y los carteles de cine ya se ajustan solos a la pantalla */
