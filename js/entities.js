@@ -347,8 +347,8 @@ class Player {
       }
       // Aviso de Ki bajo estando transformado (una vez cada vez que baja del 25%)
       if (this.formIdx > 0) {
-        if (!this.kiLowWarned && this.ki < this.maxKi * 0.25) {
-          this.kiLowWarned = true;
+        if (!this.kiLowWarned && this.ki < this.maxKi * 0.25 && !game.run.kiLowMsg) {   // el mensaje sale solo la primera vez de la partida
+          this.kiLowWarned = true; game.run.kiLowMsg = true;
           const rf = T.kiDrain ? this.formRegen : Math.min(1, 0.35 + this.formRegen), net = drain - this.kiRegenEff() * rf;
           game.ui.toast('¡KI BAJO!' + (net > 0 ? ' ~' + Math.ceil(this.ki / net) + ' s' : '') + ' · CARGA CON [' + (typeof Binds !== 'undefined' ? Binds.label('charge') : 'C') + '] O PERDERÁS LA FORMA', true);
           SFX.play('warn');
