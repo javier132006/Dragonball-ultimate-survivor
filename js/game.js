@@ -278,7 +278,7 @@ class Game {
 
     // Menú (delegación de eventos): cada botón lleva un data-* con su acción
     ui.el.menu.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-notif],[data-bind],[data-bindreset],[data-cb],[data-hc],[data-tz],[data-invy],[data-noblink],[data-chtg],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-mclaim],[data-versus],[data-ptab],[data-pset],[data-passclaim],[data-passall],[data-pweye]');
+      const t = e.target.closest('[data-go],[data-tab],[data-mtab],[data-rtab],[data-ch],[data-buy],[data-equip],[data-lab],[data-item],[data-tech],[data-claim],[data-diff],[data-start],[data-exit],[data-q],[data-flash],[data-notif],[data-bind],[data-bindreset],[data-cb],[data-hc],[data-tz],[data-invy],[data-noblink],[data-chtg],[data-z3fx],[data-fps],[data-tips],[data-tipsreset],[data-exp],[data-imp],[data-impfile],[data-reset],[data-acct],[data-atab],[data-otab],[data-rtab-go],[data-ctab],[data-lsel],[data-book],[data-lchap],[data-place],[data-claimch],[data-pull],[data-gtab],[data-rates],[data-gform],[data-stch],[data-mclaim],[data-vbook],[data-vchap],[data-vstory],[data-vsback],[data-versus],[data-ptab],[data-pset],[data-passclaim],[data-passall],[data-pweye]');
       if (!t) return;
       SFX.play('click');
       const D = t.dataset;
@@ -318,6 +318,11 @@ class Game {
       else if (D.lsel !== undefined) { ui.lsel = +D.lsel; ui.renderMenu(); }
       else if (D.book !== undefined) { ui.book = +D.book < 0 ? null : +D.book; ui.lchap = null; ui.renderMenu(); }
       else if (D.lchap !== undefined) { ui.lchap = +D.lchap; ui.renderMenu(); }
+      // Historia del Versus (mismo aspecto que el Modo Leyenda): abrir libro, elegir capítulo, jugar y volver al Versus
+      else if (D.vbook !== undefined) { ui.vbook = +D.vbook < 0 ? null : +D.vbook; ui.vchap = null; ui.renderMenu(); }
+      else if (D.vchap !== undefined) { ui.vchap = +D.vchap; ui.keepScroll(() => ui.renderMenu(), '.chl'); }
+      else if (D.vstory) { const [si, ci] = D.vstory.split(':').map(Number); if (VsStoryData.open(si, ci)) this.versus.storyFight(si, ci); }
+      else if (D.vsback !== undefined) { ui.vbook = null; this.versus.open(); }
       else if (D.atab) { ui.atab = D.atab; ui.renderMenu(); }
       else if (D.rtabGo) { ui.rtab = D.rtabGo; this.go('records'); }
       else if (D.acct === 'out') this.online.signOut().then(() => { ui.atab = 'login'; ui.renderMenu(); });

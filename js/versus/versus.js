@@ -115,17 +115,8 @@ class Versus {
         if (e.code === 'Escape') this.story.skipTalk(); else if (e.code === 'Enter' || e.code === 'Space' || e.code === VS_KEYS[0].ATK || e.code === 'NumpadEnter') this.story.nextLine(); else return;
         e.preventDefault(); return;
       }
-      if (e.code === 'Escape') { if (this.sim && this.sim.phase !== 'end') this.cmd(this.paused ? 'resume' : 'pause'); else if (!this.sim) this.cmd(this.cfg.mode === 'story' ? 'sback' : 'exit'); }
+      if (e.code === 'Escape') { if (this.sim && this.sim.phase !== 'end') this.cmd(this.paused ? 'resume' : 'pause'); else if (!this.sim) this.cmd('exit'); }
       else if (e.code === 'Enter' && !this.sim) this.cmd('fight');
-      else if (!this.sim && this.cfg.mode === 'story' && /^Arrow/.test(e.code)) {           // menú de la historia: flechas para elegir capítulo y saga
-        const D = VsStoryData, [si, ci] = this.storySel(), L = D.list(), n = L.findIndex(([a, b]) => a === si && b === ci);
-        let to = null;
-        if (e.code === 'ArrowRight' && L[n + 1] && D.open(...L[n + 1])) to = L[n + 1];
-        else if (e.code === 'ArrowLeft' && n > 0) to = L[n - 1];
-        else if (e.code === 'ArrowDown' && VS_STORY[si + 1] && D.open(si + 1, 0)) { this.cmd('ssaga', String(si + 1)); e.preventDefault(); return; }
-        else if (e.code === 'ArrowUp' && si > 0) { this.cmd('ssaga', String(si - 1)); e.preventDefault(); return; }
-        if (to) this.cmd('story', to.join(':')); e.preventDefault();
-      }
       else if (this.trn && !this.paused) { const k = { Digit1: 'dummy', Digit2: 'ki', Digit3: 'tm', KeyR: 'pos', Digit4: 'base' }[e.code]; if (k) this.cmd('trn', k); }
     });
   }
@@ -149,14 +140,7 @@ class Versus {
     this.ui.sel.classList.add('on'); EntryFx.seen.vs0 = EntryFx.seen.vs1 = null; this.renderSelect(); SFX.music('menu');   // al entrar, las entradas vuelven a reproducirse
   }
   renderSelect() {
-    if (this.cfg.mode === 'story') {                                   // Historia: menú propio a pantalla completa (versus/story.js)
-      const S = this.ui.sel; S.classList.add('storyon'); S.innerHTML = vsStoryMenu(this.storySel());
-      for (const cv of S.querySelectorAll('canvas[data-full]')) this.portrait(cv, cv.dataset.full, true);
-      for (const cv of S.querySelectorAll('canvas[data-pt]')) this.portrait(cv, cv.dataset.pt);
-      const on = S.querySelector('.ssg.son'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center' });
-      return;
-    }
-    this.ui.sel.classList.remove('storyon');
+    if (this.cfg.mode === 'story') { if (!this.noSel) this.toStoryMenu(); return; }   // Historia: se elige en el menú de libros (ui.renderVsLegend)
     const c = this.cfg, R = this.roster(), lad = c.mode === 'ladder', trn = c.mode === 'train', tut = c.mode === 'tuto', sto = false, L = VS_TOWER.levels[c.level] || VS_TOWER.levels.normal, tab = c.tab || 'grid';
     const seg = (k, list) => '<div class="vseg">' + list.map(([v, t]) => '<button data-v="set" data-a="' + k + ':' + v + '"' + (String(c[k]) === String(v) ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</div>';
     const p2 = c.mode === 'cpu' ? 'CPU' : trn ? 'Rival de práctica' : 'Jugador 2';
@@ -220,11 +204,6 @@ class Versus {
       SFX.play('ki'); this.renderTrn();
     }
     else if (v === 'tuto' && this.tuto) this.tuto.cmd(a);
-    else if (v === 'story') { const [si, ci] = a.split(':').map(Number); VsStoryData.d().sel = [si, ci]; Save.write(); SFX.play('ki'); const pane = this.ui.sel.querySelector('.pane'), top = pane ? pane.scrollTop : 0; this.renderSelect(); const p2 = this.ui.sel.querySelector('.pane'); if (p2) p2.scrollTop = top; }
-    else if (v === 'ssaga') { const si = +a, D = VsStoryData, now = vsStoryNow(), cur = this.storySel(); let ci = cur[0] === si ? cur[1] : now && now[0] === si ? now[1] : 0;
-      if (cur[0] !== si) { const L = VS_STORY[si].ch; for (let j = L.length - 1; j >= 0; j--) if (D.open(si, j)) { ci = now && now[0] === si ? now[1] : j; break; } }
-      D.d().sel = [si, ci]; Save.write(); SFX.play('ki'); this.renderSelect(); }
-    else if (v === 'sback') { c.mode = 'cpu'; SFX.play('tp'); this.renderSelect(); }
     else if (v === 'stnext' && this.story) this.story.nextLine();
     else if (v === 'stskip' && this.story) this.story.skipTalk();
     else if (v === 'stgo' && this.story) { const n = this.story.next(); if (n) { VsStoryData.d().sel = n; this.start(); } else this.showSelect(); }
@@ -236,6 +215,7 @@ class Versus {
   close() {
     if (this.bindOff) this.bindOff();
     const g = this.g; this.clearFight(); this.sim = null; this.active = false; this.el.classList.remove('on', 'cine'); this.ui.sel.classList.remove('on');
+    if (this.cfg.mode === 'story') this.cfg.mode = 'cpu';             // la historia se elige en el menú de libros: al volver al Versus, contra la CPU
     g.ui.el.menu.style.display = ''; g.ui.el.hud.style.display = ''; g.toMenu();
   }
 
@@ -283,6 +263,19 @@ class Versus {
     if (this.story) this.story.begin();                                 // diálogo de antes del combate
   }
   /** Capítulo elegido en el menú de la historia ([saga, capítulo]) */
+  /** Va al menú de libros de la historia (menú principal), con la saga del capítulo elegido abierta */
+  toStoryMenu() {
+    const ui = this.g.ui, [si, ci] = this.storySel();
+    this.cfg.mode = 'cpu'; if (this.active) this.close();
+    ui.screen = 'vslegend'; ui.vbook = si; ui.vchap = ci; ui.renderMenu(); SFX.play('tp');
+  }
+  /** Juega un capítulo de la historia desde el menú de libros: abre el Versus y empieza el combate sin pasar por la selección */
+  storyFight(si, ci) {
+    VsStoryData.d().sel = [si, ci]; Save.write();
+    this.cfg.mode = 'story'; this.cfg.side = 0;
+    this.noSel = true; this.open(); this.noSel = false;
+    this.start();
+  }
   storySel() { const s = VsStoryData.d().sel; return Array.isArray(s) && VS_STORY[s[0]] && VS_STORY[s[0]].ch[s[1]] ? s : [0, 0]; }
   clearFight() {
     if (!this.scene) return; const r = this.g.renderer;

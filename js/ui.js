@@ -454,7 +454,7 @@ class UIManager {
     e.cryMenu.textContent = (Save.d.crystals || 0).toLocaleString('es-ES');
     e.menu.classList.toggle('ishome', s === 'home');
     this.hdr = { t: '', s: '', c: '', tabs: '' };
-    const R = { home: this.renderHome, legend: this.renderLegend, play: this.renderPlay, shop: this.renderShopScreen, stats: this.renderStatsScreen, options: this.renderOptions,
+    const R = { home: this.renderHome, legend: this.renderLegend, vslegend: this.renderVsLegend, play: this.renderPlay, shop: this.renderShopScreen, stats: this.renderStatsScreen, options: this.renderOptions,
       records: this.renderRecords, summon: this.renderSummon, account: this.renderAccount, pass: this.renderPass, credits: this.renderCredits, missions: this.renderMissions };
     (R[s] || this.renderMissions).call(this);
     const H = this.hdr;
@@ -609,6 +609,76 @@ class UIManager {
         '<div class="cch"><span class="chip p">' + GI[C.goal.type] + ' ' + C.goal.text + '</span>' + (C.lvl > 1 ? '<span class="chip b">Empiezas en NV ' + C.lvl + '</span>' : '') + '<span class="chip y"><span class="coin"></span> ' + (sv ? 'Completado' : '+' + C.reward) + '</span>' + (Save.d.unlocked.includes(hero.id) ? '' : '<span class="chip o">Solo en este capítulo</span>') + '</div>' +
         '<div class="cst">' + conds + '</div>' +
         '<div class="cgo"><button class="go" data-start="chap:' + C.id + '"><span class="dball"></span>' + (sv ? 'Volver a jugar' : 'Jugar capítulo') + '</button><span>' + (sv && sv.best ? 'Mejor tiempo ' + fmtTime(sv.best) : '+50 monedas por cada estrella nueva') + '</span></div></div></div></div>';
+  }
+  /* ---------- Historia del Versus: el mismo aspecto que el Modo Leyenda (versus/story.js tiene los datos) ----------
+     Cada saga es un libro; dentro, sus capítulos y el cara a cara. Al jugar, el combate se abre en el Versus. */
+  vsSagaCols(S) {
+    const L = VS_STORY_LOOK[S.id] || {}, c1 = L.c1 || '#ffb347';
+    const lite = '#' + c1.slice(1).match(/../g).map((x) => Math.round(parseInt(x, 16) + (255 - parseInt(x, 16)) * 0.35).toString(16).padStart(2, '0')).join('');
+    return { L, b1: c1, b2: lite };
+  }
+  /** Héroe y villano de la portada: el primer luchador de la saga y el último rival */
+  vsSagaCover(S) { return this.storyPic(charById(S.ch[0].p[0])) + '|' + this.storyPic(charById(S.ch[S.ch.length - 1].r[0])); }
+  vsSagaArt(S) { const [h, v] = this.vsSagaCover(S).split('|'); return '<span class="bkart"><span class="bkh">' + h + '</span><span class="bkv">' + v + '</span></span>'; }
+  renderVsLegend() {
+    const D = VsStoryData;
+    if (this.vbook != null && VS_STORY[this.vbook] && D.open(this.vbook, 0)) return this.renderVsBook(this.vbook);
+    this.vbook = null;
+    const done = VS_STORY.filter((S, i) => D.sagaDone(i)).length;
+    this.hdr = { t: 'Historia del Versus', s: done + ' de ' + VS_STORY.length + ' libros · ★ ' + D.total() + ' / ' + D.list().length * 3, c: 'c-pur', k: '物', back: 'data-vsback' };
+    const covers = VS_STORY.map((S, i) => {
+      const { L, b1, b2 } = this.vsSagaCols(S), open = D.open(i, 0), dn = D.sagaDone(i), n = S.ch.length, nd = S.ch.filter((C, j) => D.stars(i, j) > 0).length, s = S.ch.reduce((a, C, j) => a + D.stars(i, j), 0);
+      return '<button class="bk' + (open ? '' : ' lk') + (dn ? ' dn' : '') + '" data-vbook="' + i + '" style="--b1:' + b1 + ';--b2:' + b2 + '"' + (open ? '' : ' disabled') + '>' +
+        '<span class="bkn">Libro ' + (i + 1) + '</span>' + this.vsSagaArt(S) +
+        '<span class="bkt"><b>' + S.t + '</b><small>' + (L.n ? L.kj + ' · ' + n + ' combates' : n + ' combates') + '</small></span>' +
+        '<span class="bkp"><i style="width:' + (nd / n * 100) + '%"></i></span>' +
+        '<span class="bkf"><span>' + nd + '/' + n + ' capítulos</span><span class="bks">★ ' + s + '/' + n * 3 + '</span></span>' +
+        (dn ? '<span class="bkr">Completado</span>' : '') + (open ? '' : '<span class="bkl">🔒<small>Completa el libro ' + i + '</small></span>') + '</button>';
+    }).join('');
+    this.el.menuBody.innerHTML = '<div class="lib"><div class="shelf">' + covers + '</div></div>';
+  }
+  /** Un libro (saga) abierto: portada, premio y capítulos a la izquierda; el capítulo elegido a la derecha con su «VS» */
+  renderVsBook(si) {
+    const D = VsStoryData, S = VS_STORY[si], { L, b1, b2 } = this.vsSagaCols(S), n = S.ch.length, nd = S.ch.filter((C, j) => D.stars(si, j) > 0).length, P = VS_STORY_PAY;
+    if (this.vchap == null || !S.ch[this.vchap] || !D.open(si, this.vchap)) { const k = S.ch.findIndex((C, j) => D.open(si, j) && !D.stars(si, j)); this.vchap = k < 0 ? 0 : k; }
+    const ci = this.vchap, C = S.ch[ci], st = D.stars(si, ci), key = D.key(si, ci);
+    const pd = vsChain(charById(C.p[0]), C.p[1])[0], rd = vsChain(charById(C.r[0]), C.r[1])[0], hero = charById(C.p[0]), riv = charById(C.r[0]);
+    const goal = (X) => X.goal === 'survive' ? '⏱ Resiste ' + X.sec + ' s ante ' + nice(charById(X.r[0]).name) : '⚔ Gana a ' + nice(charById(X.r[0]).name);
+    const dark = (hx) => '#' + hx.slice(1).match(/../g).map((x) => Math.round(parseInt(x, 16) * 0.62).toString(16).padStart(2, '0')).join('');
+    this.hdr = { t: S.t, s: L.d ? L.kj + ' · Historia del Versus' : 'Historia del Versus', c: '', k: '物', st: '--bg:linear-gradient(100deg,' + b1 + ',' + b2 + ');--be:' + dark(b1), back: 'data-vbook="-1"' };
+    const rows = S.ch.map((X, j) => {
+      const o = D.open(si, j), s2 = D.stars(si, j);
+      return '<button class="chr' + (j === ci ? ' on' : '') + (s2 ? ' dn' : '') + (o ? '' : ' lk') + '" data-vchap="' + j + '"' + (o ? '' : ' disabled') + '><em>' + (s2 ? '✓' : j + 1) + '</em>' +
+        '<span class="chp">' + (o ? this.storyPic(charById(X.p[0]), vsChain(charById(X.p[0]), X.p[1])[0].sheet, 72) : '🔒') + '</span><span class="cht"><b>' + (o ? X.t : '???') + '</b><small>' + (o ? goal(X) : 'Completa el capítulo anterior') + '</small></span>' +
+        '<span class="chs">' + this.starsHtml(s2) + '</span></button>';
+    }).join('');
+    // Premio del libro: los guerreros que desbloquea y los cristales de la saga
+    const U = (S.unlock || []).map(charById).filter(Boolean), sdn = D.sagaDone(si), has = U.length && U.every((c) => Save.d.unlocked.includes(c.id));
+    const prize = '<div class="bvz"><span class="bzp">' + (U[0] ? this.storyPic(U[0], null, 72) : '') + '</span><div><span class="k2">Premio del libro</span><b>' +
+      (sdn ? '✓ Conseguido' : U.length ? 'Desbloquea a ' + U.map((c) => nice(c.name)).join(' y ') : '+' + P.sagaCry + ' cristales') + '</b><small>' +
+      (sdn ? 'Has completado la saga' : (has ? 'Ya los tienes · ' : '') + '+' + P.sagaCry + ' cristales al completar todos los capítulos') + '</small></div></div>';
+    // Ficha del capítulo
+    const intro = (C.pre || []).find((l) => l[0] === 'n') || (C.pre || [])[0], lvl = C.lvl < 0.7 ? 'Fácil' : C.lvl < 1.3 ? 'Normal' : C.lvl < 1.8 ? 'Difícil' : 'Muy difícil';
+    const chips = ['<span class="chip p">' + goal(C) + '</span>', '<span class="chip b">Rival: ' + lvl + (C.hp > 1.05 ? ' · vida ×' + C.hp : '') + '</span>'];
+    if (C.mid && C.mid.some((m) => m.tr)) chips.push('<span class="chip o">⚡ El rival se transforma</span>');
+    if (C.mid && C.mid.some((m) => m.pt)) chips.push('<span class="chip o">✦ Te transformarás a mitad</span>');
+    chips.push('<span class="chip y"><span class="coin"></span> ' + (st ? 'Completado' : '+' + P.first) + '</span>');
+    if (!Save.d.unlocked.includes(hero.id)) chips.push('<span class="chip o">Solo en este capítulo</span>');
+    const B = C.bonus, ok = [st > 0, !!D.d().st[key + ':b'], !!D.d().st[key + ':h']];
+    const conds = [C.goal === 'survive' ? 'Resiste ' + C.sec + ' segundos' : 'Gana el combate', B ? VS_STORY_BONUS[B.k](B.v) : 'Reto especial', 'Acaba con más de media vida']
+      .map((t, i) => '<div class="' + (ok[i] ? 'ok' : '') + '"><i>★</i>' + t + '</div>').join('');
+    const fm = (d, c) => d.form && d.form !== c.forms[0].name ? '<small class="vfm">' + nice(d.form) + '</small>' : '';
+    this.el.menuBody.innerHTML = '<div class="bv" style="--b1:' + b1 + ';--b2:' + b2 + '">' +
+      '<div class="pnl bvl"><div class="bvh">' + this.vsSagaArt(S) +
+        '<div class="bvi"><span class="k2">Libro ' + (si + 1) + ' de ' + VS_STORY.length + '</span><b>' + nd + ' / ' + n + ' capítulos</b><span class="bkp"><i style="width:' + (nd / n * 100) + '%"></i></span><span class="bks">★ ' + S.ch.reduce((a, X, j) => a + D.stars(si, j), 0) + ' / ' + n * 3 + '</span></div></div>' +
+        '<p class="bvd">' + (L.d || '') + '</p>' + prize +
+        '<div class="chl">' + rows + '</div></div>' +
+      '<div class="pnl bvr"><div class="vs"><div class="vsl">' + this.storyPic(hero, pd.sheet, 160) + '<b>' + nice(hero.name) + fm(pd, hero) + '</b></div><div class="vsx">VS</div><div class="vsr">' + this.storyPic(riv, rd.sheet, 160) + '<b>' + nice(riv.name) + fm(rd, riv) + '</b></div></div>' +
+        '<div class="cdt"><span class="k2">Capítulo ' + (ci + 1) + ' de ' + n + ' · ' + ((VS_ARENAS[C.ar] || {}).name || 'Arena') + '</span><h2>' + C.t + '</h2><p>' + (intro ? intro[1] : '') + '</p>' +
+        '<div class="cch">' + chips.join('') + '</div>' +
+        '<div class="cst">' + conds + '</div>' +
+        '<div class="cgo"><button class="go" data-vstory="' + si + ':' + ci + '"><span class="dball"></span>' + (st ? 'Volver a jugar' : 'Jugar capítulo') + '</button><span>' +
+          (st ? '+' + P.starCry + ' cristales por cada estrella nueva' : 'Primera vez: +' + P.first + ' monedas y +' + P.firstCry + ' cristales') + '</span></div></div></div></div>';
   }
   /** Tarjeta del desafío diario: modificadores de hoy, tu mejor puntuación y botón para jugar */
   dailyCard() {
