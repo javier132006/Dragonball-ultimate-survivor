@@ -58,7 +58,7 @@ class Player {
     this.x = 0; this.z = 0; this.vx = 0; this.vz = 0; this.flip = 0;
     this.level = 1; this.xp = 0; this.xpNext = this.xpFor(1);
     this.sq = 1; this.sqV = 0; this.idle0 = -1; this.dashT = 0; this.dashCd = 0; this.dashX = 1; this.dashZ = 0; this.iframes = 0; this.ghostT = 0;
-    this.charging = false; this.shockT = 0; this.prevSpace = false; this.auraAcc = 0;
+    this.charging = false; this.shockT = 0; this.prevSpace = false; this.auraAcc = 0; this.exhaustT = 0; this.kiLowWarned = false;
     this.animT = 0; this.atkT = 0; this.beamT = 0; this.atkFrame = 0; this.hurtT = 0; this.moving = false;
     this.dying = false; this.deathT = 0;
     this.setForm(0);
@@ -127,7 +127,10 @@ class Player {
   /** Ki que cuesta transformarse a la forma idx (se gasta al transformarte): de la mitad al 90% del Ki máximo */
   tfCost(idx) { return Math.round(this.maxKi * Math.min(0.9, 0.5 + 0.045 * idx) * this.kiUse); }
   /** Ki por segundo que consume mantener la forma actual (sube con cada forma) */
-  formUpkeep() { return this.formIdx > 0 ? 0.6 + 0.3 * this.formIdx : 0; }
+  /** Mantener la forma gasta Ki: más cuanto más alta es (forma 1: 3,4/s · forma 3: 6,2/s · forma 6: 10,4/s) */
+  formUpkeep() { return this.formIdx > 0 ? 2 + 1.4 * this.formIdx : 0; }
+  /** Regeneración de Ki real: rendimientos decrecientes (hasta 5/s cuenta entera; luego cada punto vale menos, con techo cerca de 14/s) */
+  kiRegenEff() { const x = this.kiRegen; return x <= 5 ? x : 5 + 9 * (1 - Math.exp(-(x - 5) / 9)); }
   /** Gasta Ki con el ahorro de Control del Ki aplicado; devuelve lo gastado */
   spendKi(n) { const c = n * this.kiUse; this.ki = Math.max(0, this.ki - c); return c; }
 
@@ -268,7 +271,7 @@ class Player {
 
     // --- Movimiento ---
     this.buffT = Math.max(0, this.buffT - dt);
-    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1) * (this.fusion ? 1.2 : 1);   // fusión: +20% de velocidad
+    const speed = 9 * this.speedMul * this.form.spd * (this.buffT > 0 ? 1.2 : 1) * this.slow * (this.slowT > 0 ? 0.55 : 1) * this.grav * this.wade * (this.udT > 0 && this.ud.spd ? 1 - this.ud.spd : 1) * (this.fusion ? 1.2 : 1) * (this.exhaustT > 0 ? 0.7 : 1);   // fusión: +20% de velocidad · agotado: -30%
     if (this.dashT > 0) {
       this.dashT -= dt;
       this.vx = this.dashX * CFG.DASH_SPEED * this.dashBoost; this.vz = this.dashZ * CFG.DASH_SPEED * this.dashBoost;
@@ -295,7 +298,7 @@ class Player {
     if (!game.mods.noregen && !this.noRegen) this.hp = Math.min(this.maxHp, this.hp + this.regen * dt);
     this.traitTick(dt, game);
     if (this.charging) {
-      this.ki = Math.min(this.maxKi, this.ki + 35 * this.chargeMul * dt);
+      this.ki = Math.min(this.maxKi, this.ki + 35 * this.chargeMul * (this.exhaustT > 0 ? 0.5 : 1) * dt);   // agotado: cargas a la mitad
       if (!game.mods.noregen) this.hp = Math.min(this.maxHp, this.hp + 6 * this.chargeHeal * dt);
       const n = Math.max(1, Math.round(dt * 130)), ac = this.form.aura || 0xfff2b0;
       for (let i = 0; i < n; i++) {
@@ -311,8 +314,11 @@ class Player {
         game.shake(0.14, 2);
       }
     } else {
-      // Las formas que gastan Ki no lo regeneran solas, salvo la parte que da formRegen
-      if (!(this.udT > 0 && this.ud.noki)) { const rf = this.tr.kiDrain ? this.formRegen : 1; if (rf > 0) this.ki = Math.min(this.maxKi, this.ki + this.kiRegen * rf * dt); }
+      // Transformado regeneras mucho menos (35% + formRegen); las formas con «gasta Ki» solo lo que da formRegen; agotado, nada
+      if (!(this.udT > 0 && this.ud.noki) && !(this.exhaustT > 0)) {
+        const rf = this.tr.kiDrain ? this.formRegen : this.formIdx > 0 ? Math.min(1, 0.35 + this.formRegen) : 1;
+        if (rf > 0) this.ki = Math.min(this.maxKi, this.ki + this.kiRegenEff() * rf * dt);
+      }
       this.shockT = 0;
     }
 
@@ -329,10 +335,25 @@ class Player {
 
   /** Efectos continuos del rasgo de la forma: gasto de Ki o vida, aura que quema y rayos */
   traitTick(dt, game) {
-    const T = this.tr, drain = ((T.kiDrain || 0) + this.formUpkeep()) * this.kiUse;      // mantener la forma gasta Ki
+    if (this.exhaustT > 0) this.exhaustT -= dt;
+    const T = this.tr, drain = ((T.kiDrain || 0) + this.formUpkeep() * (T.kiDrain ? 0.5 : 1)) * this.kiUse;      // mantener la forma gasta Ki
     if (drain > 0) {
       this.ki = Math.max(0, this.ki - drain * dt);
-      if (this.ki <= 0 && this.formIdx > 0) { game.revertForm('¡SIN KI! PIERDES LA TRANSFORMACIÓN'); return; }
+      if (this.ki <= 0 && this.formIdx > 0) {                         // sin Ki: pierdes la forma y quedas agotado
+        this.exhaustT = 6; this.kiLowWarned = false;
+        game.revertForm('¡SIN KI! AGOTADO: MÁS LENTO Y SIN REGENERAR KI 6 s');
+        game.fx.burst(game.fx.trail, this.x, 1.6, this.z, 14, 4, 0.8, 0.4, -2);
+        return;
+      }
+      // Aviso de Ki bajo estando transformado (una vez cada vez que baja del 25%)
+      if (this.formIdx > 0) {
+        if (!this.kiLowWarned && this.ki < this.maxKi * 0.25) {
+          this.kiLowWarned = true;
+          const rf = T.kiDrain ? this.formRegen : Math.min(1, 0.35 + this.formRegen), net = drain - this.kiRegenEff() * rf;
+          game.ui.toast('¡KI BAJO!' + (net > 0 ? ' ~' + Math.ceil(this.ki / net) + ' s' : '') + ' · CARGA CON [' + (typeof Binds !== 'undefined' ? Binds.label('charge') : 'C') + '] O PERDERÁS LA FORMA', true);
+          SFX.play('warn');
+        } else if (this.kiLowWarned && this.ki > this.maxKi * 0.4) this.kiLowWarned = false;
+      }
     }
     if (T.hpDrain && this.hp > this.maxHp * 0.15) this.hp = Math.max(this.maxHp * 0.15, this.hp - this.maxHp * T.hpDrain * dt);
     if (T.aura) {

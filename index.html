@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = '57d89a44';
+  window.V = 'a387a5ab';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=57d89a44"></script>
+<script src="js/assetver.js?v=a387a5ab"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1650,6 +1650,9 @@ html.hc .card p{color:#fff;font-size:15px}
   .pframe{width:66px;height:66px}
   #pl .row{margin-top:7px}
   #pl .bar.hp{height:22px}#pl .bar.hp em{font-size:13px;line-height:16px}
+  .bar.ki.low i{animation:kiLow .32s steps(2) infinite}.bar.ki.low{box-shadow:0 0 0 2px #ff3a3a,0 0 12px rgba(255,60,60,.7)}@keyframes kiLow{50%{filter:brightness(2.2) saturate(.3)}}
+  .bar.ki.exh i{filter:grayscale(1) brightness(.6)}.bar.ki.exh em{color:#ffb0a8}
+  @media (prefers-reduced-motion:reduce){.bar.ki.low i{animation:none}}
   #pl .bar.ki{flex:0 1 82%;height:16px}#pl .bar.ki em{font-size:11px;line-height:10px}
   #pl .bar.xp{flex:0 1 64%;height:10px}
   .ab{height:46px}

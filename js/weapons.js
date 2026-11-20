@@ -8,7 +8,7 @@
 const BASE_DMG = 10;
 // Ki de las técnicas propias de cada personaje: de media gastan KI_DRAIN por segundo cada una (la regeneración base
 // es 4 Ki/s); cada lanzamiento cuesta entre KI_MIN y KI_MAX según lo que tarda en recargar
-const KI_DRAIN = 0.8, KI_MIN = 2, KI_MAX = 20;
+const KI_DRAIN = 1.6, KI_MIN = 3, KI_MAX = 30;   // Ki por segundo que gasta cada técnica automática (el doble que antes: el Ki importa)
 /** Tipo de la técnica (física o de ki) y su gasto de Ki, para su carta */
 function kiNote(id, p) {
   const D = WEAPONS[id]; if (!D || !p) return '';

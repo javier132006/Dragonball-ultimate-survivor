@@ -960,7 +960,7 @@ class Game {
       ['NIVEL', p.level], ['VIDA', Math.max(0, Math.ceil(p.hp)) + ' / ' + Math.ceil(p.maxHp)], ['REGENERACIÓN', p.regen.toFixed(1) + '/s'], ['ARMADURA', pc(p.armor)],
       ['ESQUIVA', pc(p.dodge)], ['VIDA POR BAJA', p.killHeal.toFixed(1)], ['DAÑO', 'x' + p.damageMul().toFixed(2)], ['ATQ FÍSICO', 'x' + p.catMul('fis').toFixed(2)], ['ATQ KI', 'x' + p.catMul('ki').toFixed(2)], ['CADENCIA', 'x' + p.rateMul.toFixed(2)],
       ['CRÍTICO', pc(p.crit)], ['DAÑO CRÍTICO', 'x' + p.critDmg.toFixed(2)], ['VELOCIDAD', pc(p.speedMul)], ['DASH', 'x' + p.dashMul.toFixed(2)],
-      ['KI MÁXIMO', Math.round(p.maxKi)], ['REGEN. KI', p.kiRegen.toFixed(1) + '/s'], ['IMÁN', p.magnet.toFixed(1)], ['SUERTE', p.luck],
+      ['KI MÁXIMO', Math.round(p.maxKi)], ['REGEN. KI', p.kiRegenEff().toFixed(1) + '/s' + (p.kiRegen > 5.05 ? ' (de ' + p.kiRegen.toFixed(1) + ')' : '')], ['IMÁN', p.magnet.toFixed(1)], ['SUERTE', p.luck],
       ['EXPERIENCIA', 'x' + p.xpMul.toFixed(2)], ['ZENI', 'x' + (p.zeniMul * this.coinMul).toFixed(2)]].map((x) => row(x[0], x[1])).join('') + '</div>';
     h += '<h4 class="sh">PARTIDA</h4><div class="sum">' + [
       ['MAPA', (this.step + 1) + ' / ' + ROUTE_LEN + ' · ' + this.stage.name], ['TIEMPO EN EL MAPA', fmtTime(this.stageTime)], ['ENEMIGOS', this.kills], ['DAÑO TOTAL', Math.floor(r.damage)],
@@ -1678,7 +1678,7 @@ class Game {
     this.state = 'wish'; this.releaseMouse(); this.cardT = 0;
     this.ui.showCards('TRANSFORMACIÓN', 'ELIGE TU FORMA [1 · 2 · 3 · 4]', list.map((i) => {
       const f = p.ch.forms[i], T = traitOf(p.ch, i);
-      return { type: 'form', id: i, icon: '⚡', tag: 'NV ' + f.lvl + ' · DAÑO x' + f.dmg.toFixed(2), title: f.name, text: T ? '<b>' + T.name + '</b><br><span class="trg">✚ ' + T.good + '</span><br><span class="trb">✖ ' + T.bad + '</span>' : '', max: 0, lv: 0 };
+      return { type: 'form', id: i, icon: '⚡', tag: 'NV ' + f.lvl + ' · DAÑO x' + f.dmg.toFixed(2), title: f.name, text: (T ? '<b>' + T.name + '</b><br><span class="trg">✚ ' + T.good + '</span><br><span class="trb">✖ ' + T.bad + '</span><br>' : '') + '<span class="trb">⚡ Gasta ' + ((((T && T.t && T.t.kiDrain) || 0) + (2 + 1.4 * i) * (T && T.t && T.t.kiDrain ? 0.5 : 1)) * p.kiUse).toFixed(1) + ' de Ki/s</span>', max: 0, lv: 0 };
     }), (c) => { this.ui.hideCards(); this.state = 'play'; this.startCine(c.id); });
   }
   startCine(idx) {

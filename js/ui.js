@@ -145,7 +145,9 @@ class UIManager {
     const sc = (el, v) => { const k = clamp(v, 0, 1).toFixed(3); if (el._s !== k) { el._s = k; el.style.transform = 'scaleX(' + k + ')'; } };
     sc(e.hpBar, p.hp / p.maxHp); sc(e.kiBar, p.ki / p.maxKi); sc(e.xpBar, p.xp / p.xpNext);
     T(e.hpTxt, Math.max(0, Math.ceil(p.hp)) + ' / ' + Math.ceil(p.maxHp));
-    T(e.kiTxt, Math.floor(p.ki) + ' / ' + Math.round(p.maxKi));
+    T(e.kiTxt, p.exhaustT > 0 ? 'AGOTADO · ' + Math.ceil(p.exhaustT) + ' s' : Math.floor(p.ki) + ' / ' + Math.round(p.maxKi));
+    { const kb = e.kiBar.parentNode, lo = p.formIdx > 0 && p.ki < p.maxKi * 0.25, ex = p.exhaustT > 0;   // Ki bajo transformado: parpadea · agotado: gris
+      if (kb._lo !== lo) { kb._lo = lo; kb.classList.toggle('low', lo); } if (kb._ex !== ex) { kb._ex = ex; kb.classList.toggle('exh', ex); } }
     T(e.xpTxt, Math.floor(p.xp) + ' / ' + p.xpNext);
     T(e.lvl, String(p.level));
     // Fusionado: nombre de la fusión y segundos que le quedan
