@@ -115,6 +115,26 @@ const ZMoves = {
   },
   /** Fotograma del plan a los t segundos (el último se queda) */
   at(P, t) { const F = P.F; let lo = 0, hi = F.length - 1; if (t >= F[hi].t0) return F[hi]; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (F[m].t0 <= t) lo = m; else hi = m - 1; } return F[lo]; },
+  /** Fotograma de la parte `name` a los t segundos (en bucle si loop; si no, el último se queda) */
+  partFrame(cid, name, t, loop) {
+    const d = this.D[cid], A = d && d.a[name]; if (!A) return null;
+    const fps = A.fps || 12; let tot = 0; for (const f of A.f) tot += (f[7] || 1) / fps;
+    let tt = loop && tot > 0 ? t % tot : Math.min(t, tot - 1e-4), f = A.f[A.f.length - 1];
+    for (const g of A.f) { const dt = (g[7] || 1) / fps; if (tt < dt) { f = g; break; } tt -= dt; }
+    return { pg: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6] };
+  },
+  /** Fotograma de una secuencia [[parte, segundos, bucle]…] a los t segundos. loopLast: la última parte se repite */
+  seqFrame(cid, seq, t, loopLast) {
+    for (let i = 0; i < seq.length; i++) {
+      const p = seq[i], last = i === seq.length - 1;
+      if (t < p[1] || last) return this.partFrame(cid, p[0], t, last ? loopLast || !!p[2] : false);
+      t -= p[1];
+    }
+    return null;
+  },
+  /** Efecto del paquete fx que se reproduce una vez · y lo que dura */
+  fxAt(a, t) { const d = this.D.fx, A = d && d.a[a]; if (!A) return null; const f = A.f[Math.min(A.f.length - 1, Math.floor(t * (A.fps || 12)))]; return { pg: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6] }; },
+  fxDur(a) { const d = this.D.fx, A = d && d.a[a]; return A ? A.f.length / (A.fps || 12) : 0; },
   /** Fotograma de un efecto del paquete fx (anim `a`, en bucle) */
   fx(a, t) { const d = this.D.fx, A = d && d.a[a]; if (!A) return null; const n = A.f.length, f = A.f[Math.floor(t * (A.fps || 12)) % n]; return { pg: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6] }; },
   /** Luchadores de Z Legends 3 de las formas de un personaje (por forma: id o null) */

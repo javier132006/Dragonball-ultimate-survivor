@@ -31,11 +31,97 @@ FIGHTERS = ['gokubase', 'gokussj', 'gokublue', 'gokuui', 'vegetasagasaiyan', 've
             'brolyikari', 'ginyu', 'superbaby2', 'kidbuu', 'nappa', 'moro73']
 # (se guardan con el id que usa el juego: el segundo campo de make_zl3.FIGHTERS)
 # Animaciones que se guardan: las técnicas en el suelo (las variantes en el aire, agachado o hacia arriba/abajo no se usan en 3D)
-KEEP = re.compile(r'^(Special|Ultimate|Ultimatel|UltimateAttack|UltimateSsj|Transformation|Sparking)')
-SKIP = re.compile(r'(_Ar(_|$)|Aereo|Agachado|agachado|_Cima|_Baixo|Errou|_Ar_|_leve$|_Leve)')
+KEEP = re.compile(r'^(Special|Ultimate|Ultimatel|UltimateAttack|UltimateSsj|Transformation|Sparking|Intro|DramaticIntro|Vitoria|Pose_De_Vitoria)')
+SKIP = re.compile(r'(_Ar(_|$)|Aereo|Agachado|agachado|_Cima|_Baixo|_Ar_|_leve$|_Leve)')
 # Efectos sueltos compartidos: tipo de objeto -> animaciones (None = todas)
 FX = {'esferadekigigante_sprite': None, 'genkidamaefeito_sprite': None, 'explosion_specialball_effect': None,
-      'explosaodeki_effect_sprite': None, 'efeitobranconatela_sprite': None}
+      'explosaodeki_effect_sprite': None, 'efeitobranconatela_sprite': None,
+      'freeza_efeitos_sprite': ['DeathBall_Loop', 'DeathBall_Explosion'], 'bills_effects': ['Beerus_Ball', 'Hakai_Destruction_Effect'],
+      'vegetaego_effects': ['Hakai_Loop', 'Hakai_Desaparecer'], 'kidbuu_e_cell_effects': ['Planet_Buster_Ball', 'Planet_Buster_Explosion_Final'],
+      'android17_effects': ['SuperElectricStrike_NãoEspelhado_Effect', 'SuperElectricStrike_NãoEspelhado_Destroy_Effect'],
+      'lightinggranade_sprite': None, 'explosao_sprite': ['Explosao4', 'Explosao8', 'Explosao10', 'Explosao11', 'Explosao15'],
+      'moro73_lavaball_sprite': ['Explodindo']}
+
+# Ultimate del Versus de cada luchador (id del juego): técnica (prefijo de sus partes, o lista de partes), tipo y efectos.
+#   beam: lo que lanza va dibujado en el sprite; alcanza si el rival está dentro de lo que mide el sprite al soltarla
+#   rush: en la parte en bucle se lanza contra el rival; si lo toca, lo atrapa (si tarda demasiado, falla)
+#   warp: aparece junto al rival y lo atrapa · area: estalla a su alrededor · proj: lanza el efecto `p`, que explota con `x`
+#   (H: parte «acertó», E: parte «falló» si las tiene; las ramas se buscan solas: <técnica>_Acertou… / _Errou…)
+ULTS = {
+    'goku': (['Special_EveryoneLendMeYourEnergy', 'Ultimate_SuperSpiritBomb'], 'proj', {'p': 'esferadekigigante:Goku', 'x': 'explosao:Explosao15', 'orb': 1, 'hold': 1.3, 'rel': [1, 0.25]}),
+    'gokussj': ('Ultimate_MeteorSmash', 'beam', None), 'gokublue': ('Ultimate_GalickKamehameha', 'rush', None),
+    'gokuui': ('UltimateAttack2', 'rush', None), 'vegeta': ('UltimateAttack_GalaxyBreaker', 'area', {'x': 'explosao:Explosao15'}),
+    'vegetassj': ('Special_FinalFlash', 'beam', None), 'vegetaego': ('Ultimate_HakaiGiganticBall', 'proj', {'p': 'vegetaego:Hakai_Loop', 'x': 'vegetaego:Hakai_Desaparecer'}),
+    'gohanssj2': ('UltimateAttack_FatherSonKamehameha', 'beam', None), 'gohanbeast': ('Ultimate_UltraMakankoSappo', 'beam', None),
+    'miraigohan': ('UltimateAttack', 'beam', None), 'miraitrunks': ('Ultimate_SwordOfHope', 'rush', None),
+    'piccolo': ('Ultimate_LightGrenade', 'proj', {'p': 'lightinggranade:Jogador', 'x': 'lightinggranade:Jogador_Acertou'}), 'cell': ('Ultimate_SolarKamehameha', 'beam', None),
+    'freezer': ('Ultimate_DeathBall', 'proj', {'p': 'freeza_efeitos:DeathBall_Loop', 'x': 'freeza_efeitos:DeathBall_Explosion'}),
+    'bardock': ('UltimateAttack_RevengeAssault', 'rush', None), 'bardockssj': ('UltimateAttack_RevengeAssault', 'rush', None),
+    'vegettoblue': ('UltimateAttack_FinalKamehameha', 'beam', None), 'gogetassj4': ('Special_x100BigBangKamehameha', 'beam', None),
+    'gogetablue': ('Ultimate_UltimateKamehameha', 'beam', None), 'kefla': ('UltimateAttack_GiganticBurst', 'beam', None),
+    'janemba': ('Ultimate_NeedleLightShower', 'beam', None), 'jiren': ('Ultimate_BlazingMagnetron', 'beam', None),
+    'beerus': ('Ultimate_BeerusBallOfDestruction', 'proj', {'p': 'bills:Beerus_Ball', 'x': 'bills:Hakai_Destruction_Effect'}),
+    'hit': ('Ultimate_IKeepImproving', 'warp', None), 'raditz': ('UltimateAttack', 'beam', None),
+    'a17': ('Ultimate_SuperElectricStrike', 'proj', {'p': 'android17:SuperElectricStrike_NãoEspelhado_Effect', 'x': 'android17:SuperElectricStrike_NãoEspelhado_Destroy_Effect'}),
+    'a18': ('Ultimate_AccelDance', 'warp', None), 'black': ('Ultimate_TheWorkOfAGod', 'warp', None),
+    'zamasu': ('Ultimate_LightningOfAbsolution', 'beam', None), 'brolyz': ('UltimateAttack', 'proj', {'p': 'esferadekigigante:Broly_Pt2', 'x': 'explosao:Explosao11'}),
+    'brolydbs': ('UltimateAttack', 'rush', None), 'ginyu': ('Ultimate_BodyChange', 'beam', None), 'baby': ('Ultimate_GreatApeAssault', 'beam', None),
+    'kidbuu': ('Ultimate_PlanetBurst', 'proj', {'p': 'kidbuu_e_cell:Planet_Buster_Ball', 'x': 'kidbuu_e_cell:Planet_Buster_Explosion_Final'}),
+    'nappa': ('Ultimate_BreakCannon', 'beam', None), 'moro': ('UltimateAttack', 'proj', {'p': 'esferadekigigante:Moro73_Ulltimate', 'x': 'moro73_lavaball:Explodindo'}),
+}
+
+
+def fxname(key, n):
+    return re.sub(r'(_effects?_sprite|_effects?|_sprite)$', '', key) + ':' + n
+
+
+def adur(a):
+    return round(sum(f['d'] or 1 for f in a['f']) / (a['speed'] or 12), 3)
+
+
+def timing(cid, A):
+    """Tabla fija (va en list.js, se carga siempre): la simulación del Versus la usa igual en los dos lados del online"""
+    T = {}
+    iw = A['Parado']['f'][0]['w']
+    if cid in ULTS:
+        base, kind, fx = ULTS[cid]
+        if isinstance(base, list): main = base; H = E = []
+        else:
+            esc = re.escape(base)
+            main = [n for n in A if re.match(esc + r'(_Pt\d+(_\d+)?|_Final|_Start|_Charge|_Liberar)?$', n)]
+            H = [n for n in A if re.match(esc + r'_Acertou', n)]; E = [n for n in A if re.match(esc + r'_Errou', n)]
+        main = [n for n in main if n in A]
+        # punto de comprobación: el primer fotograma que se ensancha (la energía sale); si tiene rama de acierto, al acabar
+        if kind == 'rush' and not any(A[n]['loop'] for n in main): kind = 'warp'   # sin parte en bucle no hay embestida: aparece junto a él
+        rel = None
+        mw = max(f['w'] for n in main for f in A[n]['f'])
+        if kind == 'warp' and len(main) > 1: rel = [0, adur(A[main[0]])]          # aparece junto al rival al acabar la primera parte
+        elif kind != 'rush':                                             # la energía sale: el primer fotograma casi tan ancho como el más ancho
+            for pi, n in enumerate(main):
+                for k, f in enumerate(A[n]['f']):
+                    if rel is None and f['w'] >= max(iw * 1.9, mw * 0.55): rel = [pi, round(sum((g['d'] or 1) for g in A[n]['f'][:k]) / (A[n]['speed'] or 12), 3)]
+        if H or rel is None: rel = [len(main) - 1, adur(A[main[-1]])]
+        lp = next((i for i, n in enumerate(main) if A[n]['loop'] and i <= rel[0]), -1)
+        reach = 0
+        for n in main[rel[0]:] + H:
+            for f in A[n]['f']: reach = max(reach, f['w'] - f['hx'] * f['w'])
+        if fx and fx.get('rel'): rel = fx['rel']
+        rel = [rel[0], min(rel[1], max(0, adur(A[main[rel[0]]]) - 0.03))]      # dentro de su parte (si no, la parte acabaría antes)
+        PP = [[n, adur(A[n]), 1 if A[n]['loop'] else 0] for n in main]
+        if fx and fx.get('hold'): PP[0][1] = round(PP[0][1] + fx['hold'], 3)       # la Genkidama crece: la primera parte se alarga (su último fotograma se queda)
+        b = main[-1] if isinstance(base, list) else base
+        nm = re.sub(r'^(UltimateAttack|Ultimate|Special)_?', '', b); nm = re.sub(r'_(Pt\d+|Final)$', '', nm)
+        nm = re.sub(r'([a-z0-9])([A-Z])', r'\1 \2', re.sub(r'([A-Z])([A-Z][a-z])', r'\1 \2', nm)).replace('_', ' ').strip().upper() or 'ULTIMATE'
+        nm = {'SUPER SPIRIT BOMB': 'SUPER GENKIDAMA', '2': 'ULTIMATE', 'ATTACK2': 'ULTIMATE', 'ULTIMATE': 'ULTIMATE', 'X100 BIG BANG KAMEHAMEHA': 'BIG BANG KAMEHAMEHA X100',
+              'X10 KAIOKEN KAMEHAMEHA': 'KAMEHAMEHA KAIOKEN X10'}.get(nm, nm)
+        if fx and fx.get('n'): nm = fx['n']
+        T['U'] = {'n': nm, 'P': PP, 'H': [[n, adur(A[n]), 0] for n in H], 'E': [[n, adur(A[n]), 0] for n in E],
+                  'k': kind, 'rel': rel, 'lp': lp, 'R': round(reach), 'fx': fx}
+    intro = [n for n in A if re.match(r'^Intro(_Pt\d+|_Final)?$', n)] or [n for n in A if re.match(r'^DramaticIntro(_Pt\d+)?$', n)]
+    if intro: T['I'] = [[n, adur(A[n]), 1 if A[n]['loop'] else 0] for n in intro]
+    vic = [n for n in A if re.match(r'^Vitoria(_Pt\d+|_Final)?$', n)]
+    if vic: T['V'] = [[n, adur(A[n]), 0] for n in vic] + ([['Pose_De_Vitoria', adur(A['Pose_De_Vitoria']), 1]] if 'Pose_De_Vitoria' in A else [])
+    return T
 
 
 def pages_of(frames):
@@ -125,11 +211,14 @@ def main():
     only = [a for a in sys.argv[2:] if not a.startswith('--') and a != PREV]
     total = 0
     ours = {f[0]: f[1] for f in Z.FIGHTERS}
+    TMP = os.path.join(OUT, 'timing.json'); TM = json.load(open(TMP)) if os.path.exists(TMP) and only else {}
     for src in FIGHTERS:
         cid = ours.get(src, src)
         if only and cid not in only and src not in only: continue
         A = Z.anims_of(Z.best_type(src)[1])
         names = [n for n in A if KEEP.match(n) and not SKIP.search(n)]
+        TM[cid] = timing(cid, A)
+        if 'Pose_De_Vitoria' in A and 'Pose_De_Vitoria' not in names: names.append('Pose_De_Vitoria')
         idle = A['Parado']['f'][0]
         s = write(cid, A, names, {'g': groups(names), 'iw': idle['w'], 'ih': idle['h']}); total += s
         print('%-18s %3d animaciones · %5d KB' % (cid, len(names), s // 1024))
@@ -140,11 +229,14 @@ def main():
             if not bt: continue
             for n, a in Z.anims_of(bt[1]).items():
                 if want is None or n in want:
-                    nm = key.replace('_sprite', '').replace('_effect', '') + ':' + n; A2[nm] = a; names.append(nm)
+                    nm = fxname(key, n); A2[nm] = a; names.append(nm)
         s = write('fx', A2, names); total += s
         print('%-18s %3d animaciones · %5d KB' % ('fx', len(names), s // 1024))
     have = sorted(f[:-3] for f in os.listdir(OUT) if f.endswith('.js') and f not in ('fx.js', 'list.js'))
-    open(os.path.join(OUT, 'list.js'), 'w').write('// Generado por tools/make_zl3_moves.py: luchadores con técnicas animadas (js/zmoves.js)\nwindow.ZMOVE_LIST = %s;\n' % json.dumps(have))
+    json.dump(TM, open(TMP, 'w'), ensure_ascii=False)
+    open(os.path.join(OUT, 'list.js'), 'w').write('// Generado por tools/make_zl3_moves.py: luchadores con técnicas animadas (js/zmoves.js)\nwindow.ZMOVE_LIST = %s;\n'
+        '// Tiempos de la Ultimate (U), la intro (I) y la victoria (V) de cada uno: [parte, segundos, bucle]. La simulación del Versus usa estos números\n'
+        'window.ZMOVE_T = %s;\n' % (json.dumps(have), json.dumps(TM, separators=(',', ':'), ensure_ascii=False)))
     print('total', total // 1024, 'KB en', os.path.relpath(OUT, ROOT))
 
 

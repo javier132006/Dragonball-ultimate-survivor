@@ -65,6 +65,12 @@ class VsFighter {
   get busy() { return this.st !== 'idle' && this.st !== 'move'; }
 }
 
+/** Ultimate de Z Legends 3 de una forma (tabla fija de assets/zl3/m/list.js), o null si su forma no sale de ese juego */
+function vsZUlt(def) {
+  const T = typeof window !== 'undefined' && window.ZMOVE_T, z = def && /^z_/.test(def.sheet || '') ? def.sheet.slice(2) : null;
+  return T && z && T[z] && T[z].U ? T[z].U : null;
+}
+
 class VsSim {
   constructor(defA, defB, opt) {
     opt = opt || {}; this.o = opt;       // opt.noKO: la vida no baja de 1 · opt.noTime: sin reloj (entrenamiento)
@@ -520,9 +526,10 @@ class VsSim {
      u.sup (transformado durante el combate) = +30 % de daño */
   startUlt(f, foe) {
     f.ki = 0; f.vx = f.vy = f.vz = 0; f.inv = 99; f.set('ult');
-    const U = f.def.ult;
-    this.ult = { who: f.i, type: U.type, v: U.v || 0, sup: !!U.sup, t: 0, ph: 0, hitT: 0, n: 0, lock: false, y0: f.y, D: 300 * (U.sup ? 1.3 : 1) };
-    this.emit('ultStart', { i: f.i, type: U.type, v: this.ult.v, sup: this.ult.sup, name: U.name, col: f.def.col });
+    const U = f.def.ult, Z = vsZUlt(f.def);
+    this.ult = { who: f.i, type: Z ? 'zl3' : U.type, v: U.v || 0, sup: !!U.sup, t: 0, ph: 0, hitT: 0, n: 0, lock: false, y0: f.y, D: 300 * (U.sup ? 1.3 : 1) };
+    if (Z) Object.assign(this.ult, { Z, seq: Z.P, si: 0, pi: 0, pt: 0, zt: 0, res: 0, zid: f.def.sheet.slice(2) });   // Ultimate de Z Legends 3 (u_zl3)
+    this.emit('ultStart', { i: f.i, type: U.type, v: this.ult.v, sup: this.ult.sup, name: Z && Z.n && Z.n !== 'ULTIMATE' ? Z.n : U.name, col: f.def.col });
     if (this.canClash(foe)) { this.ult.cw = 1; this.emit('counterWin', { i: foe.i, dur: VS.CLASH.win }); }   // el rival tiene la barra llena: puede responder
   }
 
@@ -602,6 +609,7 @@ class VsSim {
   }
   stepUlt() {
     const u = this.ult, dt = VS_DT, f = this.f[u.who], foe = this.f[1 - u.who];
+    if (u.type === 'zl3') { u.t += dt; this.u_zl3(u, f, foe); return; }
     u.t += dt;
     let dx = foe.x - f.x, dy = foe.y - f.y, dz = foe.z - f.z, dh = Math.hypot(dx, dz) || 0.001, d = Math.hypot(dh, dy) || 0.001;
     if (u.ph === 0) {
@@ -632,6 +640,76 @@ class VsSim {
     const melee = u.type === 'rush' || u.type === 'slash' || u.type === 'grab' || u.type === 'cage';
     if (foe.st === 'ko' && !melee) { this.endUlt(0.4); return; }
     this['u_' + u.type](u, f, foe, { dx, dy, dz, dh, d });
+  }
+  /* ---------------- Ultimate de Z Legends 3 ----------------
+     La animación manda: u.seq son sus partes [nombre, segundos, bucle] (window.ZMOVE_T, igual en los dos lados del online);
+     u.si, u.pt: parte y tiempo dentro de ella (la vista dibuja ese fotograma). Al llegar al momento en que suelta la energía
+     (Z.rel) se decide si acierta: rayo (cabe en lo que mide el sprite), zona, aparición junto al rival, proyectil que viaja,
+     o embestida (en la parte en bucle se lanza contra él). Si acierta lo atrapa hasta el final y recibe el daño de golpe;
+     si falla, sigue la parte de fallo (si la hay) o se corta. Mientras carga, el mundo está parado VS.ULT_CINE como mucho. */
+  u_zl3(u, f, foe) {
+    const dt = VS_DT, Z = u.Z, relT = Z.P.slice(0, Z.rel[0]).reduce((a, p) => a + p[1], 0) + Z.rel[1];
+    if (u.ph === 0 && (u.t >= Math.min(VS.ULT_CINE, Math.max(0.2, relT - 0.15)))) { u.ph = 1; u.t = 0; this.emit('ultGo', { i: f.i, type: 'zl3', v: 0, sup: u.sup, col: f.def.col }); }
+    const dx = foe.x - f.x, dz = foe.z - f.z, dh = Math.hypot(dx, dz) || 0.001; u.hx = dx / dh; u.hz = dz / dh;
+    // avanza la animación
+    const P = u.seq[u.si]; u.pt += dt; u.zt += dt;
+    const rushing = !u.res && Z.k === 'rush' && u.seq === Z.P && u.si === Z.lp;
+    if (rushing) {                                                         // embestida: vuela hacia él; si lo toca, lo atrapa
+      const dy = foe.y + 0.3 - f.y, d = Math.hypot(dh, dy) || 0.001; f.x += dx / d * 55 * dt; f.y = Math.max(0, f.y + dy / d * 55 * dt); f.z += dz / d * 55 * dt;
+      if (d < 2.6 && foe.inv <= 0 && foe.st !== 'ko') this.zl3Hit(u, f, foe); else if (u.pt > 1.2) this.zl3Miss(u, f, foe);
+      if (!u.res) return;
+    } else if (P && u.pt >= Math.max(P[1], P[2] ? 0.6 : 0)) {
+      if (u.si < u.seq.length - 1) { u.si++; u.pt = 0; }
+      else if (u.seq === Z.P && u.res === 1 && Z.H.length) { u.seq = Z.H; u.si = 0; u.pt = 0; }   // acertó: su remate
+      else if (!u.pj) { this.zl3End(u, f, foe); return; }
+    }
+    // momento de soltarla
+    if (!u.res && Z.k !== 'rush' && u.seq === Z.P && (u.si > Z.rel[0] || (u.si === Z.rel[0] && u.pt >= Z.rel[1]))) {
+      const dy = foe.y - f.y, d = Math.hypot(dh, dy);
+      if (foe.st === 'ko' || foe.inv > 0) this.zl3Miss(u, f, foe);
+      else if (Z.k === 'proj') {                                          // el proyectil viaja hasta donde estaba el rival
+        const orb = Z.fx && Z.fx.orb, ox = f.x + u.hx * (orb ? 0 : 1.2), oy = f.y + (orb ? 5 : 2.2), oz = f.z + u.hz * (orb ? 0 : 1.2), T = Math.max(0.25, d / 34);
+        u.pj = { t: 0, T, ox, oy, oz, tx: foe.x, ty: foe.y + 1.2, tz: foe.z }; u.res = 3;
+        this.emit('zProj', { i: f.i, ox, oy, oz, tx: foe.x, ty: foe.y + 1.2, tz: foe.z, T, fx: Z.fx && Z.fx.p });
+      } else if (Z.k === 'warp') {                                         // aparece a su lado y lo atrapa
+        this.emit('vanish', { i: f.i, x: f.x, y: f.y, z: f.z });
+        let px = foe.x - u.hx * 2.3, pz = foe.z - u.hz * 2.3; if (Math.hypot(px, pz) > VS.R - 0.5) { px = foe.x + u.hx * 2.3; pz = foe.z + u.hz * 2.3; }
+        f.x = px; f.z = pz; f.y = foe.y; this.emit('appear', { i: f.i, x: f.x, y: f.y, z: f.z }); this.zl3Hit(u, f, foe);
+      } else {
+        const reach = Z.k === 'area' ? 9 : Math.max(4, Z.R * 0.056 + 1.4);
+        if (d <= reach && Math.abs(dy) < (Z.k === 'area' ? 7 : 4.2)) this.zl3Hit(u, f, foe); else this.zl3Miss(u, f, foe);
+      }
+    }
+    if (u.pj) {                                                          // proyectil en vuelo
+      const j = u.pj; j.t += dt;
+      if (j.t >= j.T) {
+        const r = Math.hypot(foe.x - j.tx, foe.y + 1.2 - j.ty, foe.z - j.tz); u.pj = null;
+        this.emit('zBoom', { i: f.i, x: j.tx, y: j.ty, z: j.tz, fx: Z.fx && Z.fx.x, col: f.def.col });
+        if (r < 4.5 && foe.inv <= 0 && foe.st !== 'ko' && !(foe.st === 'guard' && foe.t < VS.PARRY_ULT)) { u.res = 1; this.zl3Dmg(u, f, foe, foe.st === 'guard' ? 0.35 : 1); }
+        else { if (foe.st === 'guard' && foe.t < VS.PARRY_ULT) this.parryUlt(f, foe, j.tx, j.ty, j.tz); u.res = 2; }
+      }
+    }
+    if (u.res === 2 && !u.pj && u.seq === Z.P && !Z.E.length && u.zt > (u.missT || 0) + 0.5) this.zl3End(u, f, foe);   // falló y no tiene parte de fallo: se corta
+  }
+  /** Acierta: lo atrapa (se queda quieto hasta el final). Con la guardia justa la desvía; con guardia normal, menos daño */
+  zl3Hit(u, f, foe) {
+    if (foe.st === 'guard' && foe.t < VS.PARRY_ULT && u.Z.k !== 'warp') { this.parryUlt(f, foe, foe.x, foe.y + 1.5, foe.z); this.zl3Miss(u, f, foe); return; }
+    u.res = 1; u.g = foe.st === 'guard' ? 0.35 : 1; u.lock = true; foe.set('held'); foe.vx = foe.vy = foe.vz = 0;
+    if (u.Z.k === 'rush') { u.si++; u.pt = 0; }
+    this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col }); this.freeze = Math.max(this.freeze, 4);
+  }
+  zl3Miss(u, f, foe) {
+    u.res = 2; u.missT = u.zt; this.emit('zMiss', { i: f.i });
+    if (u.Z.E.length) { u.seq = u.Z.E; u.si = 0; u.pt = 0; }
+  }
+  zl3Dmg(u, f, foe, g) {
+    this.emit('boom', { x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, big: 2 });
+    foe.set('idle'); u.lock = false;
+    this.hit(f, foe, { dmg: u.D * f.pow * 0.95 * g + (u.sup ? 60 : 40) * g, raw: 1, stun: 1.1, kb: 28, up: 11, launch: true, heavy: true, gbreak: 100 }, u.hx, u.hz);
+  }
+  zl3End(u, f, foe) {
+    if (u.res === 1 && u.lock) this.zl3Dmg(u, f, foe, u.g || 1);
+    if (this.ult === u) this.endUlt(0.35);
   }
   /** Embestida inicial de las Ultimates cuerpo a cuerpo: vuela hacia el rival y lo engancha. Devuelve true mientras no lo tenga */
   ultReach(u, f, foe, c, grab) {
