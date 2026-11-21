@@ -86,6 +86,15 @@ class VsSprite {
       this.mesh.customDepthMaterial = new THREE.ShaderMaterial({ uniforms: this.du, vertexShader: VSS_VS, fragmentShader: VSS_DEPTH_FS, side: THREE.DoubleSide });
     } else { this.mat.blendDst = THREE.OneFactor; this.u.uGhost.value = 1; }
   }
+  /** Fotograma con recorte libre de un atlas de Z Legends 3 (js/zmoves.js): f = {x, y, w, h, ax, ay} en píxeles de la página */
+  poseRect(f, flip, sx, sy, k) {
+    const iw = this.s.iw, ih = this.s.ih, K = k || 1;
+    for (const u of this.du ? [this.u, this.du] : [this.u]) {
+      u.uRect.value.set(f.x / iw, 1 - (f.y + f.h) / ih, f.w / iw, f.h / ih);
+      u.uSize.value.set(f.w * VS_U * (sx || 1) * K, f.h * VS_U * (sy || 1) * K);
+      u.uAnchor.value.set(flip ? 1 - f.ax / f.w : f.ax / f.w, 1 - f.ay / f.h); u.uFlip.value = flip ? 1 : 0; u.uRoll.value = 0;
+    }
+  }
   setSheet(s) { this.s = s; for (const u of this.du ? [this.u, this.du] : [this.u]) { u.map.value = s.tex; u.uTex.value.set(s.iw, s.ih); } }
   /** Fotograma, volteo, giro y escala (sx, sy para estirar y aplastar) */
   pose(frame, flip, roll, sx, sy) {

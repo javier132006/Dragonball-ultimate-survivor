@@ -121,6 +121,36 @@ class Versus {
     });
   }
 
+  /* ---------------- Técnicas de Z Legends 3 (js/zmoves.js) ----------------
+     Ultimate: en la presentación (mundo parado) la parte de carga, encajada en VS.ULT_CINE; al soltarla, el resto a su
+     velocidad. Ki cargado: la carga de su técnica de energía, que se queda en el último fotograma. Solo se dibuja:
+     la simulación no cambia (el online sigue igual en los dos lados). */
+  zPose(a, f, u, S, x, y, z, sx, sy) {
+    const zid = a.zid && a.zid[a.fi]; if (!zid || !ZMoves.ready(zid)) { if (a.orb) a.orb.mesh.visible = false; return; }
+    const Z = a.zp || (a.zp = {}), key = zid + '|' + a.fi;
+    if (!Z[key]) Z[key] = { ult: ZMoves.planFor(zid, a.def.ult && a.def.ult.name), beam: ZMoves.beamPlan(zid) };
+    let P = null, tt = 0, orbU = -1;
+    if (f.st === 'ult' && u && Z[key].ult) {
+      P = Z[key].ult; const t0 = Math.max(0, P.relT - 2.2); tt = u.ph === 0 ? t0 + Math.min(1, u.t / VS.ULT_CINE) * (P.relT - t0) : P.relT + u.t;   // cargas largas: solo su final
+      if (u.ph === 0 && P.orb) orbU = Math.min(1, u.t / VS.ULT_CINE);
+      if (tt >= P.dur) P = null;
+    } else if (f.st === 'shot' && !f.done && f.chg && Z[key].beam) {
+      P = Z[key].beam; tt = Math.min(f.t * 1.3, Math.max(0, P.relT - 0.01));
+    }
+    if (a.orb) a.orb.mesh.visible = false;
+    if (!P) return;
+    const F = ZMoves.at(P, tt), T = ZMoves.tex(zid, F.pg, 'v'); if (!T) return;
+    if (S.s !== T) S.setSheet(T);
+    S.poseRect(F, a.flip, sx, sy);
+    if (orbU >= 0) {                                                       // la esfera crece sobre su cabeza
+      const O = P.orb, Fo = ZMoves.fx(O.a, a.t), To = Fo && ZMoves.tex('fx', Fo.pg, 'v'); if (!To) return;
+      if (!a.orb) { a.orb = new VsSprite(this.scene, false); a.orb.mat.blendDst = THREE.OneMinusSrcAlphaFactor; a.orb.u.uGhost.value = 0; a.orb.mesh.renderOrder = 3; }
+      const k = O.s[0] + (O.s[1] - O.s[0]) * orbU, R = Fo.h * VS_U * k * 0.5;
+      a.orb.setSheet(To); a.orb.poseRect(Fo, false, 1, 1, k); a.orb.u.uRight.value.copy(S.u.uRight.value); a.orb.u.uAmb.value.setRGB(1, 1, 1); a.orb.u.uKey.value.setRGB(0, 0, 0); a.orb.u.uRim.value.setRGB(0, 0, 0);
+      a.orb.mesh.position.set(x, y + 3.1 + R - (Fo.ay - Fo.h / 2) * VS_U * k, z); a.orb.mesh.visible = true;
+    }
+  }
+
   /* ---------------- Menú de selección ---------------- */
   roster() { return CHARACTERS.filter((c) => !c.soon && Save.d.unlocked.includes(c.id) && c.forms && c.forms.length && SPRITE_DATA[c.forms[0].sheet]); }
   open() {
@@ -239,7 +269,7 @@ class Versus {
     this.arena = new VsArena(scene, sto && VS_ARENAS[SC.ar] ? SC.ar : tw || c.arena === 'azar' ? AK[(Math.random() * AK.length) | 0] : c.arena, low); this.cam = new VsCamera(); this.post = low ? null : new VsPost(r);
     this.fxA = new VsParticles(scene, 700, false, 3); this.fx = new VsParticles(scene, 1100, true, 9); this.beam = new VsBeam(scene); this.beam2 = new VsBeam(scene);
     this.actors = chains.map((ch, i) => new VsActor(this, ch, sheets[i]));
-    this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); });
+    this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.concat(['fx']).forEach((c) => c && ZMoves.load(c)); });   // técnicas de Z Legends 3 (se descargan mientras empieza)
     chains.forEach((ch) => ch.forEach((d) => ImpactArt.load(d.id, d.ix)));          // impact frames (transformación y Ultimate)
     this.ghosts = []; for (let i = 0; i < 14; i++) { const s = new VsSprite(scene, false); s.mesh.visible = false; s.life = 0; s.mesh.renderOrder = 2; this.ghosts.push(s); }
     this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train || sto ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : VS_INTRO_T, time: sto && SC.goal === 'survive' ? SC.sec : undefined, survive: sto && SC.goal === 'survive' });
@@ -969,6 +999,7 @@ class Versus {
       if (this.vic && this.vic.w === i) powMin = 0.28;
       a.px = x + ox; a.py = y + oy; a.pz = z + oz;
       S.pose(a.fr, a.flip, roll, sx, sy);
+      if (!itx && !hide) this.zPose(a, f, u, S, x, y, z, sx, sy);              // técnicas animadas de Z Legends 3 (js/zmoves.js)
       const jit = f.st === 'held' || (f.st === 'hurt' && f.t < 0.1) ? (Math.random() - 0.5) * 0.22 : tq > 0 ? (Math.random() - 0.5) * 0.3 * tq : 0;
       S.mesh.position.set(x + ox + RX * jit, y + oy, z + oz + RZ * jit); S.mesh.visible = !hide; U.uRight.value.set(RX, 0, RZ); S.du.uRight.value.set(-sd.z / sl, 0, sd.x / sl);
       // Luz: ambiente y sol de la arena + la energía más cercana como luz de borde

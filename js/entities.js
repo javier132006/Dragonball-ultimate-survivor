@@ -42,6 +42,7 @@ class Player {
     const cs = ch.chgSheet || ch.id + '_chg';                                        // hoja de cargar ki (los del altar traen la suya)
     this.chgSheet = this.sheets[cs] ? cs : null; if (this.chgSheet) this.batch(this.chgSheet);
     this.cineChg = false; this.chgPose = false;
+    this.zHide = false;
     this.introSpr = null;                          // intro de la forma (js/intro.js): { name: hoja in_<id>_<forma>, frame } en vez del sprite normal
     this.stacks = {}; this.stackMul = {}; this.items = {}; this.buffs = []; this.reviveUsed = false; this.formReady = -1;
     this.ult = 0;                                  // carga de la Ultimate del personaje (0..100), si el personaje tiene una
@@ -437,6 +438,22 @@ class Player {
     if (fr >= 0 && !this.dying && !this.introHide && !this.menuHide) B.push(this.x + V.bk.x * 0.3, 0, this.z + V.bk.z * 0.3, fr, ((t * 4) | 0) & 1, 0, sc, al, 0xffffff);
   }
 
+  /** Arranque de la técnica de energía de Z Legends 3 (0,22 s antes de la pose de disparo). Devuelve true si lo dibuja */
+  zBeam() {
+    if (typeof ZMoves === 'undefined') return false;
+    if (this.beamT > (this.zbLast || 0) + 0.02) this.zbT0 = this.animT;       // acaba de disparar
+    this.zbLast = this.beamT;
+    const z = /^z_/.test(this.form.sheet) && !this.fusion && !this.introSpr && !this.dying && !this.zHide && !this.menuHide ? this.form.sheet.slice(2) : null;
+    const k = this.animT - (this.zbT0 === undefined ? -9 : this.zbT0), D = 0.22;
+    if (!z || k > D || this.beamT <= 0 || !ZMoves.ready(z)) { if (this.zbs) this.zbs.hide(); return false; }
+    const C = this.zbP || (this.zbP = {}), P = C[z] !== undefined ? C[z] : (C[z] = ZMoves.beamPlan(z));
+    if (!P || P.relT < 0.1) return false;
+    if (!this.zbs) this.zbs = new ZMoveSprite(this.scene, 3.4);
+    const t0 = Math.max(0, P.relT - D);
+    this.zbs.show(z, ZMoves.at(P, t0 + Math.min(D, k) * ((P.relT - 0.001 - t0) / D)), this.x, this.z, this.flip, 0, 1, 1);
+    return true;
+  }
+
   syncSprite(shadows) {
     let y = 0, alpha = 1, flash = 0, scale = 1, breath = 1, sheet = this.drawSheet, frame = this.frame;
     for (const k in this.spr) { this.spr[k].begin(); this.gho[k].begin(); }
@@ -456,10 +473,12 @@ class Player {
         const w = Math.min(1, (this.animT - this.idle0) / 0.5);
         breath = 1 + Math.sin((this.animT - this.idle0) * 2.6) * 0.02 * w;
       }
-      if (this.introHide || this.menuHide) alpha = 0;            // menuHide: en las pantallas del menú (menos el inicio) no se ve                               // intro de la fusión: aún no ha aparecido
+      if (this.introHide || this.menuHide || this.zHide) alpha = 0;   // zHide: la técnica de Z Legends 3 lo dibuja en su lugar (js/zmoves.js)            // menuHide: en las pantallas del menú (menos el inicio) no se ve                               // intro de la fusión: aún no ha aparecido
       const I = this.introSpr;
       if (I && this.spr[I.name]) { sheet = I.name; frame = I.frame; y = 0; breath = 1; if (!this.menuHide) alpha = 1; }   // intro de la forma: su hoja en lugar del sprite
     }
+    // Técnica de energía (js/zmoves.js): al dispararla, su arranque de Z Legends 3 (las manos juntas cargando) durante un instante
+    const zs = this.zBeam(); if (zs) alpha = 0;
     // Tinte de estado: morado = controles invertidos (Ginyu), rosa = ralentizado (caramelo de Buu, hielo de Omega)
     const stTint = this.confT > 0 ? 0xc89aff : this.slowT > 0 ? 0xffb8e0 : this.poisonT > 0 ? 0xb8ff9a : this.weakT > 0 ? 0xb0b0c0 : this.noDashT > 0 ? 0xffb0c8 : this.introSpr ? 0xffffff : this.form.tint;   // la intro ya trae sus colores (sin el tinte de la forma)
     this.spr[sheet].push(this.x, y, this.z, frame, this.flip, flash, scale, alpha, stTint, 0, this.dying ? 1 : this.sq * breath);
@@ -470,7 +489,7 @@ class Player {
     // Escudo de Bulma sin técnica de barrera: la burbuja la pone el jugador (con la técnica, la dibuja ella)
     if (useFx && this.shopBar && this.shopBarFx && this.barHits > 0 && !this.dying && !this.menuHide)
       V.pnow('Pshield', this.animT, this.x, 1.35, this.z, 8.6 * (1 + Math.sin(this.animT * 9) * 0.03), 0.8, this.barCol);
-    if (useFx && !this.dying && !this.introHide && !this.menuHide && !this.introSpr) {      // durante la intro de la forma, el aura ya va dibujada en su hoja
+    if (useFx && !this.dying && !this.introHide && !this.menuHide && !this.introSpr && !this.zHide) {      // durante la intro de la forma, el aura ya va dibujada en su hoja
       const ka = this.buffT > 0, au = this.form.aura || 0, F = formFx(this.ch, this.formIdx);
       const zA = V.z3 && this.auraB && window.ZAURA;
       if (zA) this.z3Aura(ka ? 0xff3a2a : au || 0xffffff, au || ka);   // forma base: aura blanca, como en Z Legends 3
@@ -534,6 +553,7 @@ class HordeManager {
     if (!this.bsb[k]) this.bsb[k] = new SpriteBatch(this.scene, { max: 2, texture: sheet.tex, cols: sheet.cols, rows: sheet.rows, w: this.H * (sheet.w / sheet.h), h: this.H, anchor: 0.04, renderOrder: 0 });
     for (const n in this.bsb) if (n !== k) this.bsb[n].reset();
     this.bossSb = this.bsb[k]; this.bossCols = sheet.cols; this.bossRow = row | 0; this.bossAnim = anim || BOSS_ANIM.bosses; this.bossPose = 0;
+    this.bossName = k; this.bossPx = this.H / sheet.h;                         // técnicas de Z Legends 3 del jefe (js/bossepic.js): nombre de la hoja y unidades por píxel
   }
   /** El jefe muestra la pose de ataque ('atk') o de técnica ('cast') durante t segundos */
   posBoss(kind, t) { if (this.bossAnim) { this.bossPoseC = this.bossAnim[kind]; this.bossPose = t; } }
@@ -821,7 +841,7 @@ class HordeManager {
       if (ty === T_BOSS && bossOwn) {                                  // el jefe usa su hoja: caminar, golpe, técnica o aturdido
         const A = this.bossAnim, base = this.bossRow * this.bossCols;
         const col = hit > 0.05 ? A.hit : st ? A.stun : this.bossPose > 0 ? this.bossPoseC : A.walk[(ph | 0) % A.walk.length];
-        bsb.push(this.x[i], y, this.z[i], base + col, this.flip[i], hit * 8, sc * (1 + hit * 0.5), 1, this.bossTint ? tint : 0xffffff, 0, 1 - hit * 1.3);
+        if (!this.bossHide) bsb.push(this.x[i], y, this.z[i], base + col, this.flip[i], hit * 8, sc * (1 + hit * 0.5), 1, this.bossTint ? tint : 0xffffff, 0, 1 - hit * 1.3);   // bossHide: lo dibuja su técnica de Z Legends 3
       } else {
         const col = em ? 6 : hit > 0.05 || st ? 4 : this.pose[i] > 0 ? this.poseC[i] : walk[(ph | 0) % 4];
         sb.push(this.x[i], y, this.z[i], rows[ty] * 8 + col, this.flip[i], hit * 8, sc * (1 + hit * 0.5), 1, tint, 0, 1 - hit * 1.3);   // golpe: se aplasta (squash)

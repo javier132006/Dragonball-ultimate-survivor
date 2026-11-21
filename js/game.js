@@ -620,7 +620,7 @@ class Game {
     SFX.music('battle');
     // Vegetto y Gogeta empiezan con la intro de su fusión (el mundo espera congelado)
     FormIntros.prep(this.ui.sheets, ch);
-    ImpactArt.prep(ch);                                             // impact frames de sus formas (transformación y Ultimate)                            // intros de sus formas (al transformarse se usan sin esperar)
+    ImpactArt.prep(ch); ZMoves.prep(ch);                            // técnicas de Z Legends 3 (js/zmoves.js) · impact frames de sus formas (transformación y Ultimate)                            // intros de sus formas (al transformarse se usan sin esperar)
     const back = () => { if (this.state !== 'intro') return; this.state = 'play'; this.grabMouse(); this.clock.getDelta(); this.openOracle(); };
     if (this.intro.has(ch.id)) {
       this.state = 'intro'; this.releaseMouse();
@@ -2287,9 +2287,10 @@ class Game {
     };
     // Animación propia de cada personaje (el mundo espera congelado) y después la Ultimate
     const go = () => {
-      if (this.ultCine.has(p.ultId) && !Save.d.opt.noCine) {
+      const zf = !p.fusion && /^z_/.test(p.form.sheet) ? p.form.sheet.slice(2) : null, zp = zf && ZMoves.ready(zf) ? ZMoves.planFor(zf, U.name) : null;   // animación completa de Z Legends 3 (js/zmoves.js)
+      if ((zp || this.ultCine.has(p.ultId)) && !Save.d.opt.noCine) {
         this.state = 'ultcine';
-        this.ultCine.start(p.ultId, UN, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); });
+        this.ultCine.start(p.ultId, UN, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); }, zp, '#' + new THREE.Color(U.col || p.form.ki).getHexString());
       } else { this.state = 'play'; this.clock.getDelta(); fire(); }
     };
     // Guerreros y formas del Altar de Shenron: antes, corte en diagonal con su retrato grande

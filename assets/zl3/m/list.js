@@ -1,0 +1,2 @@
+// Generado por tools/make_zl3_moves.py: luchadores con técnicas animadas (js/zmoves.js)
+window.ZMOVE_LIST = ["a17", "a18", "baby", "bardock", "bardockssj", "beerus", "black", "brolydbs", "brolyz", "cell", "freezer", "ginyu", "gogetablue", "gogetassj4", "gohanbeast", "gohanssj2", "goku", "gokublue", "gokussj", "gokuui", "hit", "janemba", "jiren", "kefla", "kidbuu", "miraigohan", "miraitrunks", "moro", "nappa", "piccolo", "raditz", "vegeta", "vegetaego", "vegetassj", "vegettoblue", "zamasu"];

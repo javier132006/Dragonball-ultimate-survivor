@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = 'a12f2e77';
+  window.V = '1b8a6077';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=a12f2e77"></script>
+<script src="js/assetver.js?v=1b8a6077"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2129,7 +2129,7 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
       x.send();
     });
   };
-  const CODE = ['js/core.js', 'js/cutfx.js', 'js/entryfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/techicons.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/mastery.js', 'js/tuto.js', 'js/summon.js', 'js/impactfx.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
+  const CODE = ['js/core.js', 'js/cutfx.js', 'js/entryfx.js', 'js/vfx.js', 'js/packdata.js', 'js/zl3.js', 'js/data.js', 'js/techicons.js', 'js/story.js', 'assets/shenron.js', 'js/shenron.js', 'js/menufx.js', 'js/worldmap.js', 'js/world.js', 'js/entities.js', 'js/poi.js', 'js/gacha.js', 'js/extras.js', 'js/weapons.js', 'js/audio.js', 'js/ui.js', 'js/profile.js', 'js/mastery.js', 'js/tuto.js', 'js/summon.js', 'js/impactfx.js', 'js/zmoves.js', 'assets/zl3/m/list.js', 'js/transform.js', 'js/intro.js', 'js/touch.js', 'js/pad.js',
     'js/versus/input.js', 'js/versus/sim.js', 'js/versus/view.js', 'js/versus/modes.js', 'js/versus/ults.js', 'js/versus/extras.js', 'js/versus/estilo.js', 'js/versus/tutorial.js', 'js/versus/story.js', 'js/versus/versus.js', 'js/bossepic.js'];   // Modo Versus (módulo aparte)
   const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', SUPA_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.js';
   const ASSETS = ['assets/zl3.js', 'assets/broly3.js', 'assets/pfx.js', 'assets/summons.js', 'assets/summons2.js', 'assets/intros.js', 'assets/impacts.js'];   // impacts.js: impact frames de cada forma (tools/make_impacts.py)   // intros.js: intros de cada forma (tools/make_intros.py)

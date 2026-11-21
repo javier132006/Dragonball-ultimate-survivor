@@ -90,6 +90,7 @@ const BossEpic = {
   /* ---------- Entrada ---------- */
   onSpawn(game, x, z) {
     this.init(); this.u = null; this.c = null; this.hudUid = 0;
+    { const B0 = game.stage.boss; if (typeof ZMoves !== 'undefined' && B0) for (const n of [].concat(B0.sheets || [], B0.sheet || [])) if (/^z_/.test(n)) { ZMoves.load(n.slice(2)); ZMoves.load('fx'); } }   // técnicas de Z Legends 3 del jefe
     const b = game.boss; b.ultT = undefined;
     if (Save.d.opt.noCine || game.state !== 'play') return;
     const B = game.stage.boss, L = this.look(B), e = this.el;
@@ -138,6 +139,19 @@ const BossEpic = {
     game.vfx.play('gather', ctx.bx, 2.5, ctx.bz, { size: 11, grow: 1.5, loop: BE.CHARGE, dur: 1.2, pri: 1, frames: FXA.gather ? FXA.gather.f.slice(12) : undefined });
     SFX.play('charge'); SFX.play('alarm'); SFX.scream(BE.CHARGE * 0.8, 140); game.shake(0.5);
   },
+  /** Animación de Z Legends 3 del ataque definitivo (js/zmoves.js): la carga encajada en BE.CHARGE y, al soltarlo, el resto */
+  zDraw(game, ctx) {
+    const h = game.horde, u = this.u, z = /^z_/.test(h.bossName || '') ? h.bossName.slice(2) : null;
+    if (!u || !z || !ZMoves.ready(z) || ctx.i === undefined || ctx.i < 0) { this.zHide(game); return; }
+    if (!u.zp) u.zp = ZMoves.planFor(z, u.n) || 0;
+    const P = u.zp; if (!P) { this.zHide(game); return; }
+    const t0 = Math.max(0, P.relT - 2.2), tt = u.t < u.T ? t0 + (u.t / u.T) * (P.relT - t0) : P.relT + (u.t - u.T);
+    if (tt >= P.dur) { this.zHide(game); return; }
+    if (!this.zs) this.zs = new ZMoveSprite(game.scene, 3.3);
+    const T = ENEMY_TYPES[T_BOSS], sc = T.scale * (1 + h.grow[ctx.i]);
+    this.zs.show(z, ZMoves.at(P, tt), h.x[ctx.i], h.z[ctx.i], h.flip[ctx.i], 0, (h.bossPx || ZM_U) / ZM_U * sc, 1); h.bossHide = true;
+  },
+  zHide(game) { if (this.zs) this.zs.hide(); game.horde.bossHide = false; },
   canClashP(p) { return !!(p.ultD && p.ult >= p.ultD.cost && !p.dying); },
   stepUlt(game, dt, ctx) {
     const u = this.u, p = game.player, S = game.shots, bx = ctx.bx, bz = ctx.bz; u.t += dt;
@@ -153,9 +167,11 @@ const BossEpic = {
       if (u.type === 'ball') S.ball(bx, bz, p.x, p.z, 1.5, 8.5, ctx.dmg * 5.5, { tint: u.col, size: 20, ring: 26 });
       game.vfx.flash(bx, 2.5, bz, 9, u.col); game.shake(1); SFX.play(u.type === 'beam' ? 'bigbeam' : 'bigboom');
     }
+    if (typeof ZMoves !== 'undefined') this.zDraw(game, ctx);
     if (u.t >= u.T + 0.5) this.endUlt(game);
   },
   endUlt(game) {
+    if (typeof ZMoves !== 'undefined') this.zHide(game);
     this.u = null; this.el.classList.remove('ult');
     if (game.horde.indexOfUid(game.bossUid) >= 0) ENEMY_TYPES[T_BOSS].spd = BOSS_HARD.spd + game.phase * 0.12;
   },

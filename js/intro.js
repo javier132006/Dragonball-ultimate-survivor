@@ -367,11 +367,20 @@ class UltCine {
     this.ctx = c.getContext ? c.getContext('2d') : null;
   }
   has(id) { return !!ULT_CINE[id] && !!this.ctx; }
-  start(id, name, done) {
+  /** zp: plan de Z Legends 3 (js/zmoves.js). Con él, el personaje hace la animación completa de su Ultimate en vez de cargar con la esfera dibujada */
+  start(id, name, done, zp, col) {
     const g = this.g;
-    this.R = ULT_CINE[id]; this.S = { col: this.R.col }; this.name = name; this.done = done; this.t = 0; this.on = true; this.lastImp = ''; this.gq = -1;
+    this.R = ULT_CINE[id] || { quote: '', kanji: '', col: col || '#ffffff', orb: { at: 'hands' }, gather: 0xffffff, imp: 'BIWC' };
+    this.S = { col: this.R.col }; this.name = name; this.done = done; this.t = 0; this.on = true; this.lastImp = ''; this.gq = -1;
     const T = ULT_CINE_T; this.total = T.zoom + T.charge + T.strike + T.hold;
-    this.cam = g.camDistT; g.camDistT = this.R.orb.at === 'head' ? 15 : 10;      // con la esfera sobre la cabeza, la cámara se aleja un poco
+    this.zp = zp || null;
+    if (zp) {
+      if (!this.zs) { this.zs = new ZMoveSprite(g.scene, 3.5); this.zo = new ZMoveSprite(g.scene, 3.6); }
+      this.zk = Math.min(1.6, Math.max(1, zp.dur / 4.2));                        // las muy largas se aceleran un poco y empiezan más adelante (4,2 s como mucho)
+      this.zSkip = Math.max(0, Math.min(zp.relT - 0.4, zp.dur - 4.2 * this.zk)); this.zT = (zp.dur - this.zSkip) / this.zk; this.total = 0.15 + this.zT + T.strike + T.hold;
+      g.player.zHide = true;
+    }
+    this.cam = g.camDistT; g.camDistT = zp ? (zp.orb ? 16 : 12.5) : this.R.orb.at === 'head' ? 15 : 10;      // con la esfera sobre la cabeza, la cámara se aleja un poco
     this.cv.style.display = 'block'; this.resize(); g.ui.showHud(false); cineToasts(false);
     SFX.play('charge'); SFX.scream(1.4, 160);
   }
@@ -380,7 +389,27 @@ class UltCine {
     const g = this.g, p = g.player;
     this.on = false; this.cv.style.display = 'none';
     p.cineChg = false; g.camDistT = this.cam || 19; g.renderer.domElement.style.filter = ''; g.ui.showHud(true); cineToasts(true);
+    p.zHide = false; if (this.zs) { this.zs.hide(); this.zo.hide(); } this.zp = null;
     if (this.done) this.done();
+  }
+  /** Animación de Z Legends 3: el personaje (sprite suelto) y, si la tiene, la esfera que crece sobre su cabeza */
+  zUpdate(t) {
+    const G = this.g, p = G.player, P = this.zp, tt = this.zSkip + Math.max(0, t - 0.15) * this.zk, f = ZMoves.at(P, tt), O = P.orb;
+    this.zs.show(P.cid, f, p.x, p.z, p.flip, 0, 1, 1);
+    if (O) {
+      const pi = P.parts.indexOf(f.part), on = O.on, grow = pi <= on, Fo = ZMoves.fx(O.a, t);
+      const e = P.F.filter((x) => P.parts.indexOf(x.part) === on), u = e.length ? Math.max(0, Math.min(1, (tt - (O.d || 0)) / (e[e.length - 1].t1 - (O.d || 0)))) : 1;
+      if (tt < (O.d || 0)) { this.zo.hide(); return; }
+      const s = O.s[0] + (O.s[1] - O.s[0]) * u, h = Fo ? Fo.h * s * ZM_U : 0;
+      const sx = (p.flip ? -1 : 1) * G.camCos, sz = (p.flip ? -1 : 1) * -G.camSin;
+      const go = grow ? 0 : Math.max(0, tt - P.F.find((x) => P.parts.indexOf(x.part) > on).t0);   // lanzada: avanza hacia delante
+      const r = h * 0.5, lift = 3.6 + r - (Fo ? (Fo.ay - Fo.h / 2) * s * ZM_U : 0) - go * go * 6;
+      if (Fo && go < 0.7) this.zo.show('fx', Fo, p.x + sx * go * 26, p.z + sz * go * 26, false, lift, s, Math.max(0, 1 - go * 1.4));
+      else this.zo.hide();
+      if (grow) G.shake(0.12 + u * 0.3);
+    }
+    // Rayo de luz del lanzamiento: temblor y destello
+    if (tt >= P.relT && !this.zRel) { this.zRel = true; G.shake(0.9); G.punchFov && G.punchFov(6); SFX.play('bigbeam'); }
   }
   resize() { const r = Math.min(2, window.devicePixelRatio || 1); this.cv.width = Math.round(window.innerWidth * r); this.cv.height = Math.round(window.innerHeight * r); }
   /** Dibuja un fotograma de una animación de efectos (en su lote) para este cuadro */
@@ -398,6 +427,12 @@ class UltCine {
     this.t += dt;
     if (this.t >= this.total) { this.end(); return true; }
     const G = this.g, p = G.player, R = this.R, O = R.orb, T = ULT_CINE_T, t = this.t;
+    if (this.zp) {                                                               // animación completa de Z Legends 3
+      if (t < 0.02) this.zRel = false;
+      const ts = t - 0.15 - this.zT;
+      if (ts < 0) this.zUpdate(t); else { this.zs.hide(); this.zo.hide(); p.zHide = false; p.beamT = Math.max(p.beamT, 0.2); }
+      return this.overlay(t, ts, t >= 0.15 && ts < 0, ts >= 0, 0.15);
+    }
     const tc = t - T.zoom, ts = tc - T.charge, charging = tc >= 0 && ts < 0, striking = ts >= 0;
     const u = clamp(tc / T.charge, 0, 1);                                    // avance de la carga
     // Hacia dónde mira el personaje (en el eje «derecha» de la cámara)
@@ -426,7 +461,11 @@ class UltCine {
       if (this.gq % 9 === 0) G.fx.ring(G.fx.aura, p.x, 0.4, p.z, 30, 6 + u * 4, 0.45, 0.35, R.gather);
       G.shake(0.15 + u * 0.35);
     }
-    // Capa 2D: barras de cine, nombre y frase, impact frames
+    return this.overlay(t, ts, charging, striking, T.zoom);
+  }
+  /** Capa 2D: barras de cine, nombre y frase, impact frames. ts: segundos desde el golpe (negativo antes) */
+  overlay(t, ts, charging, striking, z0) {
+    const G = this.g, R = this.R, T = ULT_CINE_T, tc = t - z0;
     const g = this.ctx, W = this.cv.width, H = this.cv.height;
     if (W !== Math.round(window.innerWidth * Math.min(2, window.devicePixelRatio || 1))) this.resize();
     g.clearRect(0, 0, W, H);
