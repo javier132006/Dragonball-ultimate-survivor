@@ -29,7 +29,7 @@ const ZM_ULT = {
 const ZM_BEAM = /kamehame|galick|finalflash|masenko|makanko|beamcannon|cannon|energywave|deathbeam|wave|ray|flash|blast|ball|sphere/i;
 
 const ZMoves = {
-  D: {}, img: {}, pend: {}, tx: {},
+  D: {}, img: {}, pend: {}, tx: {}, cimg: {},
   /** El paquete del luchador llega (lo llama assets/zl3/m/<id>.js) */
   add(cid, d) { this.D[cid] = d; const r = this.pend[cid]; if (r && r.ok) r.ok(); },
   has(cid) { return cid === 'fx' || !!(cid && window.ZMOVE_LIST && ZMOVE_LIST.includes(cid)); },
@@ -45,7 +45,9 @@ const ZMoves = {
           const im = new Image(); im.decoding = 'async';
           im.onload = () => res(im); im.onerror = () => res(null); im.src = av('assets/zl3/m/' + cid + '_' + i + '.webp');
         }));
-        Promise.all(L).then((ims) => { this.img[cid] = ims; ok(!ims.some((x) => !x)); });
+        const T = window.ZMOVE_T && ZMOVE_T[cid];
+        if (T && T.C) L.push(new Promise((res) => { const im = new Image(); im.onload = () => { this.cimg[cid] = im; res(true); }; im.onerror = () => res(true); im.src = av('assets/zl3/m/c_' + cid + '.webp'); }));   // paneles de cinemática
+        Promise.all(L).then((ims) => { ims = ims.filter((x) => x !== true); this.img[cid] = ims; ok(!ims.some((x) => !x)); });
       };
       const s = document.createElement('script'); s.src = av('assets/zl3/m/' + cid + '.js'); s.onerror = () => ok(false); document.head.appendChild(s);
     });

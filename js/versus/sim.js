@@ -65,6 +65,7 @@ class VsFighter {
   get busy() { return this.st !== 'idle' && this.st !== 'move'; }
 }
 
+const VS_ZCUT_MAX = 2.8;                    // segundos como mucho de paneles de cinemática al lanzar una Ultimate de Z Legends 3
 /** Ultimate de Z Legends 3 de una forma (tabla fija de assets/zl3/m/list.js), o null si su forma no sale de ese juego */
 function vsZUlt(def) {
   const T = typeof window !== 'undefined' && window.ZMOVE_T, z = def && /^z_/.test(def.sheet || '') ? def.sheet.slice(2) : null;
@@ -528,7 +529,11 @@ class VsSim {
     f.ki = 0; f.vx = f.vy = f.vz = 0; f.inv = 99; f.set('ult');
     const U = f.def.ult, Z = vsZUlt(f.def);
     this.ult = { who: f.i, type: Z ? 'zl3' : U.type, v: U.v || 0, sup: !!U.sup, t: 0, ph: 0, hitT: 0, n: 0, lock: false, y0: f.y, D: 300 * (U.sup ? 1.3 : 1) };
-    if (Z) Object.assign(this.ult, { Z, seq: Z.P, si: 0, pi: 0, pt: 0, zt: 0, res: 0, zid: f.def.sheet.slice(2) });   // Ultimate de Z Legends 3 (u_zl3)
+    if (Z) {                                                             // Ultimate de Z Legends 3 (u_zl3)
+      const T = window.ZMOVE_T[f.def.sheet.slice(2)], C = T && T.C && T.C.U, ms = C ? C.reduce((a, q) => a + q[4], 0) : 0;
+      Object.assign(this.ult, { Z, seq: Z.P, si: 0, pi: 0, pt: 0, zt: 0, res: 0, zid: f.def.sheet.slice(2), kt: 0, cut: ms ? Math.min(VS_ZCUT_MAX, ms / 1000) : 0 });
+      this.ult.cut0 = this.ult.cut;                                     // paneles de cinemática: el mundo espera mientras salen
+    }
     this.emit('ultStart', { i: f.i, type: U.type, v: this.ult.v, sup: this.ult.sup, name: Z && Z.n && Z.n !== 'ULTIMATE' ? Z.n : U.name, col: f.def.col });
     if (this.canClash(foe)) { this.ult.cw = 1; this.emit('counterWin', { i: foe.i, dur: VS.CLASH.win }); }   // el rival tiene la barra llena: puede responder
   }
@@ -649,29 +654,58 @@ class VsSim {
      si falla, sigue la parte de fallo (si la hay) o se corta. Mientras carga, el mundo está parado VS.ULT_CINE como mucho. */
   u_zl3(u, f, foe) {
     const dt = VS_DT, Z = u.Z, relT = Z.P.slice(0, Z.rel[0]).reduce((a, p) => a + p[1], 0) + Z.rel[1];
-    if (u.ph === 0 && (u.t >= Math.min(VS.ULT_CINE, Math.max(0.2, relT - 0.15)))) { u.ph = 1; u.t = 0; this.emit('ultGo', { i: f.i, type: 'zl3', v: 0, sup: u.sup, col: f.def.col }); }
+    if (u.cut > 0) { u.cut -= dt; u.t = 0; return; }                    // paneles de cinemática (la vista los dibuja)
+    const SUM = (n) => Z.P.slice(0, n).reduce((a, p) => a + p[1], 0), D0 = Z.fx && Z.fx.d, dashT = D0 ? SUM(D0[0]) + D0[1] : Z.k === 'rush' && Z.lp >= 0 ? SUM(Z.lp) : 99;
+    if (u.ph === 0 && (u.t >= Math.min(VS.ULT_CINE, Math.max(0.2, relT - 0.15), dashT))) {   // el mundo vuelve a moverse antes de que salga la energía o se lance: se puede esquivar
+      u.ph = 1; u.t = 0; this.emit('ultGo', { i: f.i, type: 'zl3', v: 0, sup: u.sup, col: f.def.col }); }
     const dx = foe.x - f.x, dz = foe.z - f.z, dh = Math.hypot(dx, dz) || 0.001; u.hx = dx / dh; u.hz = dz / dh;
     // avanza la animación
     const P = u.seq[u.si]; u.pt += dt; u.zt += dt;
-    const rushing = !u.res && Z.k === 'rush' && u.seq === Z.P && u.si === Z.lp;
+    const D = Z.fx && Z.fx.d, past = (q) => q && (u.si > q[0] || (u.si === q[0] && u.pt >= q[1]));
+    if (D && !u.res && u.seq === Z.P && past(D) && u.dash === undefined) u.dash = 0;   // se lanza contra él (el primer golpe decide)
+    if (u.dash !== undefined && !u.res) u.dash += dt;
+    const rushing = !u.res && u.seq === Z.P && ((Z.k === 'rush' && u.si === Z.lp) || u.dash !== undefined);
     if (rushing) {                                                         // embestida: vuela hacia él; si lo toca, lo atrapa
       const dy = foe.y + 0.3 - f.y, d = Math.hypot(dh, dy) || 0.001; f.x += dx / d * 55 * dt; f.y = Math.max(0, f.y + dy / d * 55 * dt); f.z += dz / d * 55 * dt;
-      if (d < 2.6 && foe.inv <= 0 && foe.st !== 'ko') this.zl3Hit(u, f, foe); else if (u.pt > 1.2) this.zl3Miss(u, f, foe);
-      if (!u.res) return;
-    } else if (P && u.pt >= Math.max(P[1], P[2] ? 0.6 : 0)) {
+      if (d < 2.6 && foe.inv <= 0 && foe.st !== 'ko') this.zl3Hit(u, f, foe); else if ((u.dash !== undefined ? u.dash : u.pt) > (u.dash !== undefined ? 0.7 : 1.2)) this.zl3Miss(u, f, foe);
+      if (!u.res && u.dash === undefined) return;                        // la embestida en bucle espera a tocarlo; desde d, la animación sigue
+    }
+    if (!(rushing && u.dash === undefined) && P && u.pt >= Math.max(P[1], P[2] ? 0.6 : 0)) {
       if (u.si < u.seq.length - 1) { u.si++; u.pt = 0; }
       else if (u.seq === Z.P && u.res === 1 && Z.H.length) { u.seq = Z.H; u.si = 0; u.pt = 0; }   // acertó: su remate
       else if (!u.pj) { this.zl3End(u, f, foe); return; }
     }
+    // Combo: lo atrapó y lo va persiguiendo por el escenario, golpe a golpe; antes del remate de energía lo despide lejos
+    const F = Z.fx && Z.fx.f;
+    if (u.res === 1 && u.lock && u.seq === Z.P && F) {
+      if (u.si >= F[0] && u.si < F[1]) {
+        u.kt -= dt;
+        if (u.kt <= 0) {
+          u.kt = 0.34; const L = 2.6 + this.rand() * 1.6; let a = Math.atan2(u.hz, u.hx) + (this.rand() - 0.5) * 2.4;
+          if (Math.hypot(foe.x + Math.cos(a) * L, foe.z + Math.sin(a) * L) > VS.R * 0.55) a = Math.atan2(-foe.z, -foe.x) + (this.rand() - 0.5) * 1.4;   // cerca del borde: lo manda hacia el centro
+          let tx = foe.x + Math.cos(a) * L, tz = foe.z + Math.sin(a) * L; const r = Math.hypot(tx, tz), lim = VS.R - 2; if (r > lim) { tx *= lim / r; tz *= lim / r; }
+          u.fx = tx; u.fz = tz; u.fy = Math.max(0, Math.min(VS.TOP - 4, foe.y + (this.rand() - 0.35) * 2.4));
+          this.emit('hit', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, rush: 1 }); this.emit('rushHit', { i: f.i, n: ++u.n }); this.freeze = Math.max(this.freeze, 2);
+        }
+      } else if (u.si >= F[1] && !u.away && u.si < u.seq.length) {      // el remate: lo aparta para que la energía le llegue
+        u.away = 1; let a = Math.atan2(u.hz, u.hx); if (Math.hypot(f.x + u.hx * 8, f.z + u.hz * 8) > VS.R - 1.5) a = Math.atan2(-f.z, -f.x);   // hacia donde hay sitio
+        let tx = f.x + Math.cos(a) * 8, tz = f.z + Math.sin(a) * 8; const r = Math.hypot(tx, tz), lim = VS.R - 1.5; if (r > lim) { tx *= lim / r; tz *= lim / r; }
+        u.fx = tx; u.fz = tz; u.fy = f.y; this.emit('hit', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col }); this.freeze = Math.max(this.freeze, 4);
+      }
+      if (u.fx !== undefined) {                                          // el rival vuela al sitio del golpe y el atacante lo sigue
+        const k = Math.min(1, dt * 16); foe.x += (u.fx - foe.x) * k; foe.z += (u.fz - foe.z) * k; foe.y += (u.fy - foe.y) * k;
+        if (!u.away) { const k2 = Math.min(1, dt * 11), bx = foe.x - u.hx * 1.8, bz = foe.z - u.hz * 1.8; f.x += (bx - f.x) * k2; f.z += (bz - f.z) * k2; f.y += (foe.y - f.y) * k2; }
+      }
+    }
     // momento de soltarla
-    if (!u.res && Z.k !== 'rush' && u.seq === Z.P && (u.si > Z.rel[0] || (u.si === Z.rel[0] && u.pt >= Z.rel[1]))) {
+    if (!u.res && Z.k !== 'rush' && u.dash === undefined && u.seq === Z.P && (u.si > Z.rel[0] || (u.si === Z.rel[0] && u.pt >= Z.rel[1]))) {
       const dy = foe.y - f.y, d = Math.hypot(dh, dy);
       if (foe.st === 'ko' || foe.inv > 0) this.zl3Miss(u, f, foe);
       else if (Z.k === 'proj') {                                          // el proyectil viaja hasta donde estaba el rival
         const orb = Z.fx && Z.fx.orb, ox = f.x + u.hx * (orb ? 0 : 1.2), oy = f.y + (orb ? 5 : 2.2), oz = f.z + u.hz * (orb ? 0 : 1.2), T = Math.max(0.25, d / 34);
         u.pj = { t: 0, T, ox, oy, oz, tx: foe.x, ty: foe.y + 1.2, tz: foe.z }; u.res = 3;
         this.emit('zProj', { i: f.i, ox, oy, oz, tx: foe.x, ty: foe.y + 1.2, tz: foe.z, T, fx: Z.fx && Z.fx.p });
-      } else if (Z.k === 'warp') {                                         // aparece a su lado y lo atrapa
+      } else if (Z.k === 'warp' && false) {                                // (antes aparecía a su lado: ahora se lanza contra él desde fx.d)
         this.emit('vanish', { i: f.i, x: f.x, y: f.y, z: f.z });
         let px = foe.x - u.hx * 2.3, pz = foe.z - u.hz * 2.3; if (Math.hypot(px, pz) > VS.R - 0.5) { px = foe.x + u.hx * 2.3; pz = foe.z + u.hz * 2.3; }
         f.x = px; f.z = pz; f.y = foe.y; this.emit('appear', { i: f.i, x: f.x, y: f.y, z: f.z }); this.zl3Hit(u, f, foe);

@@ -32,6 +32,16 @@ function vsDef(ch, fi, k) {
     ix: ch.forms.indexOf(f),                                                // número de la forma (para su intro, assets/intros.js)
     trX: typeof FormIntros !== 'undefined' && FormIntros.has(ch.id, ch.forms.indexOf(f)) ? Math.max(0, FORM_INTRO_T + 0.05 - (VS.TR_CINE - VS.TR_SWAP)) : 0 };   // con intro, la transformación dura lo que ella
 }
+/** Entrada de Z Legends 3 de una forma: animación (A s, acelerada k) y paneles (P s, acelerados kp), y lo que ocupa en la presentación */
+function vsZIntro(sheet) {
+  const z = /^z_/.test(sheet || '') ? sheet.slice(2) : null, T = z && window.ZMOVE_T && ZMOVE_T[z];
+  if (!T || !T.I) return null;
+  const a = T.I.reduce((s, p) => s + p[1], 0), k = Math.max(1, a / 6), C = T.C && T.C.I, pm = C ? C.reduce((s, q) => s + q[4], 0) / 1000 : 0, kp = Math.max(1, pm / 4);
+  const A = a / k, P = pm / kp;
+  return { z, A, k, P, kp, at: (T.C && T.C.at) || 0, len: Math.max(VS_INTRO_SLOT, A + P + 0.5) };
+}
+/** Formas que se presentan fusionándose (Gogeta, Vegetto): si el combate empieza antes de ellas, empieza en ellas */
+const VS_FUSION_START = ['z_gogetablue', 'z_gogetassj4', 'z_vegettoblue'];
 /** Cadena de formas de un combate: de la forma inicial elegida a la última que tenga sprites */
 function vsChain(ch, fi) {
   const out = []; for (let i = fi; i < ch.forms.length; i++) if (SPRITE_DATA[ch.forms[i].sheet]) out.push(vsDef(ch, i, out.length));
@@ -130,13 +140,17 @@ class Versus {
     if (!zid || !ZMoves.ready(zid)) return false;
     const TM = window.ZMOVE_T && ZMOVE_T[zid], i = a === this.actors[0] ? 0 : 1;
     let F = null, orbU = -1;
-    if (zi !== undefined && TM && TM.I) {                                   // su entrada de Z Legends 3 (encajada en el hueco de cada luchador)
-      const tot = TM.I.reduce((s, p) => s + p[1], 0), k = Math.max(1, tot / (VS_INTRO_SLOT - 0.2));
-      F = ZMoves.seqFrame(zid, TM.I, zi * k, false);
-    } else if (this.vic && this.vic.w === i && TM && TM.V) {               // pose de victoria (la última parte se repite)
-      F = ZMoves.seqFrame(zid, TM.V, this.vic.t, true);
+    if (zi !== undefined && TM && TM.I) {                                   // su entrada de Z Legends 3, con sus paneles de cinemática en medio
+      const Q = vsZIntro(a.def.sheet), t0 = Q.at * Q.A; let ts = zi;
+      if (Q.P && zi >= t0) { if (zi < t0 + Q.P) { ts = t0; this.zCut(zid, TM.C.I, (zi - t0) * Q.kp); } else ts = zi - Q.P; }
+      F = ZMoves.seqFrame(zid, TM.I, ts * Q.k, false);
+    } else if (this.vic && this.vic.w === i && TM && TM.V) {               // victoria: sus paneles y después la pose (la última parte se repite)
+      const C = TM.C && TM.C.V, pm = C ? C.reduce((s, q) => s + q[4], 0) / 1000 : 0, kp = Math.max(1, pm / 3), P = pm / kp;
+      if (P && this.vic.t < P) this.zCut(zid, C, this.vic.t * kp);
+      F = ZMoves.seqFrame(zid, TM.V, Math.max(0, this.vic.t - P), true);
     } else if (f.st === 'ult' && u && u.type === 'zl3' && u.who === i) {   // su Ultimate: la parte y el instante que lleva la simulación
       const p = u.seq[u.si]; if (p) F = ZMoves.partFrame(zid, p[0], u.pt, !!p[2]);
+      if (u.cut > 0 && TM && TM.C && TM.C.U) { const ms = TM.C.U.reduce((s, q) => s + q[4], 0) / 1000; this.zCut(zid, TM.C.U, (u.cut0 - u.cut) * ms / u.cut0); }   // paneles de su Ultimate
       if (u.Z.fx && u.Z.fx.orb && u.seq === u.Z.P && u.si === 0 && !u.res) orbU = Math.min(1, u.pt / Math.max(0.3, u.seq[0][1]));
     } else if (f.st === 'shot' && !f.done && f.chg) {                       // ki cargado: la carga de su técnica de energía
       const Z = a.zp || (a.zp = {}); if (Z[zid] === undefined) Z[zid] = ZMoves.beamPlan(zid);
@@ -149,6 +163,22 @@ class Versus {
     if (orbU >= 0) this.zOrb(a, S, x, y, z, 'esferadekigigante:Goku', 0.05 + 0.55 * orbU);
     return true;
   }
+  /** Panel de cinemática de Z Legends 3 (160x90, pixel art) a pantalla completa con bandas: el de la lista L a los t segundos */
+  zCut(cid, L, t) {
+    const im = ZMoves.cimg[cid]; if (!im || !L || !L.length) return;
+    let el = this.zc;
+    if (!el) {
+      el = this.zc = document.createElement('div');
+      el.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#000;z-index:40;pointer-events:none';
+      el.innerHTML = '<canvas width="160" height="90" style="width:min(100vw,177.8vh);height:auto;image-rendering:pixelated;image-rendering:crisp-edges"></canvas>';
+      this.el.appendChild(el); this.zcc = el.firstChild.getContext('2d'); this.zcc.imageSmoothingEnabled = false;
+    }
+    let k = 0, ms = t * 1000; while (k < L.length - 1 && ms >= L[k][4]) { ms -= L[k][4]; k++; }
+    const [x, y, w, h] = L[k], c = this.zcc, s = Math.max(1, Math.floor(Math.min(160 / w, 90 / h)));
+    if (this.zcK !== cid + k) { this.zcK = cid + k; c.fillStyle = '#000'; c.fillRect(0, 0, 160, 90); c.drawImage(im, x, y, w, h, ((160 - w * s) / 2) | 0, ((90 - h * s) / 2) | 0, w * s, h * s); }
+    el.style.display = 'flex'; this.zcOn = true;
+  }
+  zCutHide() { if (this.zc) this.zc.style.display = 'none'; this.zcK = null; }
   /** Esfera gigante sobre la cabeza (Genkidama) */
   zOrb(a, S, x, y, z, anim, k) {
     const Fo = ZMoves.fx(anim, a.t), To = Fo && ZMoves.tex('fx', Fo.pg, 'v'); if (!To) return;
@@ -284,7 +314,11 @@ class Versus {
     if (this.loading) return; this.loading = true;
     const c = this.cfg, tw = c.mode === 'ladder' ? this.tw : null, tuto = c.mode === 'tuto', train = c.mode === 'train' || tuto, AK = Object.keys(VS_ARENAS);
     const sto = c.mode === 'story', SC = sto ? (() => { const [si, ci] = this.storySel(); return VS_STORY[si].ch[ci]; })() : null;
-    const picks = sto ? [{ id: SC.p[0], f: SC.p[1] }, { id: SC.r[0], f: SC.r[1] }] : [c.pick[0], tw ? tw.foes[tw.i] : tuto ? { id: this.roster().some((x) => x.id === 'goku') ? 'goku' : c.pick[1].id, f: 0 } : c.pick[1]];   // tutorial: el rival es Goku (su Kamehameha se puede desviar)
+    let picks = sto ? [{ id: SC.p[0], f: SC.p[1] }, { id: SC.r[0], f: SC.r[1] }] : [c.pick[0], tw ? tw.foes[tw.i] : tuto ? { id: this.roster().some((x) => x.id === 'goku') ? 'goku' : c.pick[1].id, f: 0 } : c.pick[1]];   // tutorial: el rival es Goku (su Kamehameha se puede desviar)
+    if (!train) picks = picks.map((p) => {                               // Gogeta y Vegetto entran fusionándose: empiezan en esa forma
+      const ch = charById(p.id); if (!ch || VS_FUSION_START.includes((ch.forms[p.f] || {}).sheet)) return p;
+      const k = ch.forms.findIndex((f, i) => i > p.f && VS_FUSION_START.includes(f.sheet) && SPRITE_DATA[f.sheet]); return k > 0 ? { id: p.id, f: k } : p;
+    });
     const chains = picks.map((p) => vsChain(charById(p.id), p.f)), sheets = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))));
     const intros = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => FormIntros.has(d.id, d.ix) ? vsTexture(FormIntros.name(d.id, d.ix)) : null))));   // intro de cada forma (entrada y transformación)
     this.loading = false; if (!this.active || sheets.some((s) => !s[0])) return;
@@ -306,7 +340,8 @@ class Versus {
     }
     chains.forEach((ch) => ch.forEach((d) => ImpactArt.load(d.id, d.ix)));          // impact frames (transformación y Ultimate)
     this.ghosts = []; for (let i = 0; i < 14; i++) { const s = new VsSprite(scene, false); s.mesh.visible = false; s.life = 0; s.mesh.renderOrder = 2; this.ghosts.push(s); }
-    this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train || sto ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : VS_INTRO_T, time: sto && SC.goal === 'survive' ? SC.sec : undefined, survive: sto && SC.goal === 'survive' });
+    this.iS = chains.map((ch) => { const z = vsZIntro(ch[0].sheet); return z ? z.len : VS_INTRO_SLOT; }); this.iEnd = this.iS[0] + this.iS[1];   // segundos de entrada de cada uno
+    this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train || sto ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : this.iEnd + 2.3, time: sto && SC.goal === 'survive' ? SC.sec : undefined, survive: sto && SC.goal === 'survive' });
     this.intro = train ? null : { s: [{}, {}], q: -1 }; this.fin = null; this.vic = null; this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win'); this.ids = picks.map((p) => p.id);
     if (this.intro) { this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); }
     const p1 = new VsMulti([new VsKeyboard(VS_KEYS[0]), new VsGamepad(0)].concat(this.touch ? [this.touch] : []));
@@ -342,6 +377,7 @@ class Versus {
   }
   storySel() { const s = VsStoryData.d().sel; return Array.isArray(s) && VS_STORY[s[0]] && VS_STORY[s[0]].ch[s[1]] ? s : [0, 0]; }
   clearFight() {
+    this.zCutHide && this.zCutHide();
     if (this.zfx) for (const q of this.zfx) if (q.s) q.s.mesh.visible = false; this.zfx = [];
     if (!this.scene) return; const r = this.g.renderer;
     this.scene.traverse((o) => { if (o.geometry && o.geometry !== VS_QUAD) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.customDepthMaterial) o.customDepthMaterial.dispose(); });
@@ -364,7 +400,7 @@ class Versus {
       while (this.acc >= VS_DT) {                                         // paso fijo: la lógica no depende de los FPS
         this.acc -= VS_DT; for (let i = 0; i < 2; i++) { const f = sim.f[i], p = this.prev[i]; p.x = f.x; p.y = f.y; p.z = f.z; }
         const c0 = this.inputs[0].read(sim, 0);
-        if (this.intro && sim.phase === 'intro' && sim.pt > 0.4 && sim.pt < VS_INTRO_T - 2.3 && c0 && (c0.b & (VB.ATK | VB.HEAVY | VB.KI | VB.DASH))) sim.pt = VS_INTRO_T - 2.3;   // cualquier botón de ataque salta las entradas
+        if (this.intro && sim.phase === 'intro' && sim.pt > 0.4 && sim.pt < this.iEnd && c0 && (c0.b & (VB.ATK | VB.HEAVY | VB.KI | VB.DASH))) sim.pt = this.iEnd;   // cualquier botón de ataque salta las entradas
         sim.step(c0, this.inputs[1].read(sim, 1));
         for (const e of sim.ev) this.onEvent(e); sim.ev.length = 0;
         if (this.tuto) this.tuto.step();                                   // tutorial: ayudas y comprobación de la lección
@@ -628,22 +664,22 @@ class Versus {
   }
   /** Reparto de la presentación: cada luchador tiene VS_INTRO_SLOT segundos; después sale el rótulo de la ronda */
   stepIntro() {
-    const sim = this.sim, I = this.intro, t = sim.pt, end = VS_INTRO_T - 2.3;
+    const sim = this.sim, I = this.intro, t = sim.pt, end = this.iEnd;
     if (sim.phase !== 'intro' || sim.round !== 1 || t >= end) {            // se acabó (o la han saltado)
       this.intro = null; this.quote(); this.el.classList.remove('cine'); this.ui.ultBox.classList.remove('off'); this.cam.cine = null;
-      if (sim.round === 1 && sim.phase === 'intro') this.say(this.rndTxt, 1.5); return;
+      this.zCutHide(); if (sim.round === 1 && sim.phase === 'intro') this.say(this.rndTxt, 1.5); return;
     }
-    const q = Math.min(1, Math.floor(t / VS_INTRO_SLOT));
+    const q = t >= this.iS[0] ? 1 : 0, SL = this.iS[q];
     if (q !== I.q) {                                                      // plano corto del que entra
       I.q = q; this.quote(); const f = sim.f[q], sd = q ? -1 : 1, cam = this.cam;
-      cam.play(VS_INTRO_SLOT, (k, P, L) => { L.set(f.x, 2.5, f.z); P.set(f.x + sd * (3.5 - 2.5 * k), 2.1 + 0.5 * k, f.z - 11.5 + 1.8 * k); return 34; });
+      cam.play(SL, (k, P, L) => { L.set(f.x, 2.5, f.z); P.set(f.x + sd * (3.5 - 2.5 * k), 2.1 + 0.5 * k, f.z - 11.5 + 1.8 * k); return 34; });
       cam.pos.set(f.x + sd * 3.5, 2.1, f.z - 11.5); cam.look.set(f.x, 2.5, f.z);
     }
-    if (!I.s[q].said && t - q * VS_INTRO_SLOT > 1.0) { I.s[q].said = 1; this.quote(q, vsVoz(this.ids[q], 'i', this.ids[1 - q])); }
+    if (!I.s[q].said && t - (q ? this.iS[0] : 0) > 1.0) { I.s[q].said = 1; this.quote(q, vsVoz(this.ids[q], 'i', this.ids[1 - q])); }
   }
   /** Dónde y cómo se dibuja el luchador i mientras duran las entradas. Devuelve {x, y, z (desplazamiento), hide, fr, pow, roll, sq} */
   introPose(i, a, x, z, T) {
-    const sim = this.sim, I = this.intro, st = I.s[i], t = sim.pt - i * VS_INTRO_SLOT, kind = VS_INTRO[this.ids[i]] || 'fly', col = a.def.col, A = a.def.anim, fx = this.fx, o = { x: 0, y: 0, z: 0, hide: false };
+    const sim = this.sim, I = this.intro, st = I.s[i], t = sim.pt - (i ? this.iS[0] : 0), kind = VS_INTRO[this.ids[i]] || 'fly', col = a.def.col, A = a.def.anim, fx = this.fx, o = { x: 0, y: 0, z: 0, hide: false };
     if (t < 0) { o.hide = true; return o; }
     const once = (k, at, fn) => { if (!st[k] && t >= at) { st[k] = 1; fn(); } };
     const zid = a.zid && a.zid[0];
@@ -952,6 +988,7 @@ class Versus {
     this.blur = Math.max(0, this.blur - rawDt * 2.6); this.chroma = Math.max(0, this.chroma - rawDt * 0.07); this.flash = Math.max(0, this.flash - rawDt * (this.flash > 0.45 ? 6 : 2.2));   // los fundidos a blanco se abren rápido
     if (this.intro) this.stepIntro(); if (this.fin) this.stepFinal(rawDt); if (this.vic) this.vic.t += rawDt;
     this.zFxStep(rawDt);
+    if (!this.zcOn) this.zCutHide(); this.zcOn = false;
     this.arena.update(dt, T, this.dim, this.dimCol); cam.update(rawDt, sim, false);
     const m = cam.cam.matrixWorld.elements, rx = m[0], rz = m[2], rl = Math.hypot(rx, rz) || 1, RX = rx / rl, RZ = rz / rl;       // derecha de la cámara, en horizontal
     const P = this.arena.P, sd = this.arena.sun.position, sl = Math.hypot(sd.x, sd.z) || 1, dim = this.arena.dim;

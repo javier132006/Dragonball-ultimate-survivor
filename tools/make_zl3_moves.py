@@ -49,23 +49,23 @@ FX = {'esferadekigigante_sprite': None, 'genkidamaefeito_sprite': None, 'explosi
 #   (H: parte «acertó», E: parte «falló» si las tiene; las ramas se buscan solas: <técnica>_Acertou… / _Errou…)
 ULTS = {
     'goku': (['Special_EveryoneLendMeYourEnergy', 'Ultimate_SuperSpiritBomb'], 'proj', {'p': 'esferadekigigante:Goku', 'x': 'explosao:Explosao15', 'orb': 1, 'hold': 1.3, 'rel': [1, 0.25]}),
-    'gokussj': ('Ultimate_MeteorSmash', 'beam', None), 'gokublue': ('Ultimate_GalickKamehameha', 'rush', None),
-    'gokuui': ('UltimateAttack2', 'rush', None), 'vegeta': ('UltimateAttack_GalaxyBreaker', 'area', {'x': 'explosao:Explosao15'}),
+    'gokussj': ('Ultimate_MeteorSmash', 'beam', {'d': [0, 0.25], 'f': [0, 1]}), 'gokublue': ('Ultimate_GalickKamehameha', 'rush', {'f': [4, 9]}),
+    'gokuui': ('UltimateAttack2', 'rush', {'f': [2, 5]}), 'vegeta': ('UltimateAttack_GalaxyBreaker', 'area', {'x': 'explosao:Explosao15'}),
     'vegetassj': ('Special_FinalFlash', 'beam', None), 'vegetaego': ('Ultimate_HakaiGiganticBall', 'proj', {'p': 'vegetaego:Hakai_Loop', 'x': 'vegetaego:Hakai_Desaparecer'}),
     'gohanssj2': ('UltimateAttack_FatherSonKamehameha', 'beam', None), 'gohanbeast': ('Ultimate_UltraMakankoSappo', 'beam', None),
-    'miraigohan': ('UltimateAttack', 'beam', None), 'miraitrunks': ('Ultimate_SwordOfHope', 'rush', None),
+    'miraigohan': ('UltimateAttack', 'beam', {'d': [0, 0.15], 'f': [0, 1]}), 'miraitrunks': ('Ultimate_SwordOfHope', 'warp', {'d': [1, 0.0], 'f': [1, 4]}),
     'piccolo': ('Ultimate_LightGrenade', 'proj', {'p': 'lightinggranade:Jogador', 'x': 'lightinggranade:Jogador_Acertou'}), 'cell': ('Ultimate_SolarKamehameha', 'beam', None),
     'freezer': ('Ultimate_DeathBall', 'proj', {'p': 'freeza_efeitos:DeathBall_Loop', 'x': 'freeza_efeitos:DeathBall_Explosion'}),
-    'bardock': ('UltimateAttack_RevengeAssault', 'rush', None), 'bardockssj': ('UltimateAttack_RevengeAssault', 'rush', None),
+    'bardock': ('UltimateAttack_RevengeAssault', 'rush', {'f': [2, 4]}), 'bardockssj': ('UltimateAttack_RevengeAssault', 'rush', {'f': [2, 4]}),
     'vegettoblue': ('UltimateAttack_FinalKamehameha', 'beam', None), 'gogetassj4': ('Special_x100BigBangKamehameha', 'beam', None),
-    'gogetablue': ('Ultimate_UltimateKamehameha', 'beam', None), 'kefla': ('UltimateAttack_GiganticBurst', 'beam', None),
+    'gogetablue': ('Ultimate_UltimateKamehameha', 'beam', None), 'kefla': ('UltimateAttack_GiganticBurst', 'beam', {'f': [4, 6]}),
     'janemba': ('Ultimate_NeedleLightShower', 'beam', None), 'jiren': ('Ultimate_BlazingMagnetron', 'beam', None),
     'beerus': ('Ultimate_BeerusBallOfDestruction', 'proj', {'p': 'bills:Beerus_Ball', 'x': 'bills:Hakai_Destruction_Effect'}),
-    'hit': ('Ultimate_IKeepImproving', 'warp', None), 'raditz': ('UltimateAttack', 'beam', None),
+    'hit': ('Ultimate_IKeepImproving', 'warp', {'d': [1, 0.0], 'f': [1, 4]}), 'raditz': ('UltimateAttack', 'beam', {'d': [0, 0.1], 'f': [0, 1]}),
     'a17': ('Ultimate_SuperElectricStrike', 'proj', {'p': 'android17:SuperElectricStrike_NãoEspelhado_Effect', 'x': 'android17:SuperElectricStrike_NãoEspelhado_Destroy_Effect'}),
-    'a18': ('Ultimate_AccelDance', 'warp', None), 'black': ('Ultimate_TheWorkOfAGod', 'warp', None),
+    'a18': ('Ultimate_AccelDance', 'warp', {'d': [1, 0.0], 'f': [1, 5]}), 'black': ('Ultimate_TheWorkOfAGod', 'warp', {'d': [0, 0.3], 'f': [0, 2]}),
     'zamasu': ('Ultimate_LightningOfAbsolution', 'beam', None), 'brolyz': ('UltimateAttack', 'proj', {'p': 'esferadekigigante:Broly_Pt2', 'x': 'explosao:Explosao11'}),
-    'brolydbs': ('UltimateAttack', 'rush', None), 'ginyu': ('Ultimate_BodyChange', 'beam', None), 'baby': ('Ultimate_GreatApeAssault', 'beam', None),
+    'brolydbs': ('UltimateAttack', 'beam', None), 'ginyu': ('Ultimate_BodyChange', 'beam', None), 'baby': ('Ultimate_GreatApeAssault', 'beam', None),
     'kidbuu': ('Ultimate_PlanetBurst', 'proj', {'p': 'kidbuu_e_cell:Planet_Buster_Ball', 'x': 'kidbuu_e_cell:Planet_Buster_Explosion_Final'}),
     'nappa': ('Ultimate_BreakCannon', 'beam', None), 'moro': ('UltimateAttack', 'proj', {'p': 'esferadekigigante:Moro73_Ulltimate', 'x': 'moro73_lavaball:Explodindo'}),
 }
@@ -77,6 +77,36 @@ def fxname(key, n):
 
 def adur(a):
     return round(sum(f['d'] or 1 for f in a['f']) / (a['speed'] or 12), 3)
+
+
+# Paneles de cinemática (cutscenes_sprite, 160x90): entrada (I), Ultimate (U) y victoria (V) de cada luchador
+CUT_I = re.compile(r'_Intro|^GokuUi$|^GogetaFusion$|^Bills_(Pt\d|Final)|^BrolyZ_Pt')
+CUT_V = re.compile(r'Vitoria|WinPose')
+CUT_SKIP = re.compile(r'Vs[A-Z]|_DF|_DI_|Background|Lava|NoHardFeelings|IHaveNoUse|Blindness|Together|Bojack|AtaqueLight|BarrierExplosion|EnergyWave|StardustFall|Transcedence|'
+                      r'AcceleratingBattleSpirit|^VegetaGod$|UltimateImpact|UltBBKame|GokuBlue_Ultimate_(Pt1|Final)$|^Vegeta_FinalFlash')
+CUT_AT = {'gogetassj4': 0.5, 'gogetablue': 0.22}      # la fusión: los paneles salen en mitad de la entrada (cuando se tocan los dedos)
+
+
+def cut_panels(cid, src):
+    """Atlas c_<cid>.webp con los paneles y su tabla {I|U|V: [[x, y, w, h, ms]...], at}"""
+    CUT = Z.anims_of(Z.best_type('cutscenes_sprite', None)[1])
+    cuts = next((f[3] for f in Z.FIGHTERS if f[0] == src), [])
+    L = [n for n in CUT if any(n == g or n.startswith(g + '_') for g in cuts)]
+    G = {'I': [n for n in L if CUT_I.search(n) and not CUT_V.search(n) and not CUT_SKIP.search(n)],
+         'V': [n for n in L if CUT_V.search(n) and not CUT_SKIP.search(n)]}
+    G['U'] = [n for n in L if n not in G['I'] and n not in G['V'] and not CUT_SKIP.search(n)]
+    ims, rows = [], {}
+    for k, names in G.items():
+        fr = [(f, CUT[n]) for n in names for f in CUT[n]['f'] if f['w'] >= 100]
+        if not fr: continue
+        rows[k] = []
+        for f, a in fr: rows[k].append([len(ims), int(round(1000 * (f['d'] or 1) / (a['speed'] or 12)))]); ims.append(Z.crop(f))
+    if not ims: return None
+    atlas, co = Z.pack(ims, 2048)
+    atlas.save(os.path.join(OUT, 'c_%s.webp' % cid), 'WEBP', lossless=True, quality=100, method=6, exact=True)
+    out = {k: [[co[i][0], co[i][1], ims[i].width, ims[i].height, ms] for i, ms in v] for k, v in rows.items()}
+    if cid in CUT_AT: out['at'] = CUT_AT[cid]
+    return out
 
 
 def timing(cid, A):
@@ -95,7 +125,7 @@ def timing(cid, A):
         if kind == 'rush' and not any(A[n]['loop'] for n in main): kind = 'warp'   # sin parte en bucle no hay embestida: aparece junto a él
         rel = None
         mw = max(f['w'] for n in main for f in A[n]['f'])
-        if kind == 'warp' and len(main) > 1: rel = [0, adur(A[main[0]])]          # aparece junto al rival al acabar la primera parte
+        if kind == 'warp': rel = (fx or {}).get('d') or [0, 0.2]                                         # se lanza contra él en d (el primer golpe decide)
         elif kind != 'rush':                                             # la energía sale: el primer fotograma casi tan ancho como el más ancho
             for pi, n in enumerate(main):
                 for k, f in enumerate(A[n]['f']):
@@ -218,6 +248,8 @@ def main():
         A = Z.anims_of(Z.best_type(src)[1])
         names = [n for n in A if KEEP.match(n) and not SKIP.search(n)]
         TM[cid] = timing(cid, A)
+        cp = cut_panels(cid, src)
+        if cp: TM[cid]['C'] = cp
         if 'Pose_De_Vitoria' in A and 'Pose_De_Vitoria' not in names: names.append('Pose_De_Vitoria')
         idle = A['Parado']['f'][0]
         s = write(cid, A, names, {'g': groups(names), 'iw': idle['w'], 'ih': idle['h']}); total += s
