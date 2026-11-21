@@ -43,6 +43,9 @@ def game_sheets():
     for line in open(os.path.join(ROOT, 'assets', 'broly3.js'), encoding='utf-8'):   # hoja propia de Broly SSJ3
         m = re.match(r'window\.SPRITE_DATA\[("[^"]+")\] = (.*);\s*$', line)
         if m: sheets.setdefault(json.loads(m.group(1)), json.loads(m.group(2)))
+    for line in open(os.path.join(ROOT, 'assets', 'summons.js'), encoding='utf-8'):  # guerreros del altar (u_<id>)
+        m = re.match(r'window\.SPRITE_DATA\[("[^"]+")\] = (.*);\s*$', line)
+        if m: sheets.setdefault(json.loads(m.group(1)), json.loads(m.group(2)))
     return sheets, zl3
 
 def form_sheets():
@@ -53,6 +56,9 @@ def form_sheets():
         if m.group(1) not in out:                                       # solo la primera vez (luego hay mapas con el mismo id)
             out[m.group(1)] = re.findall(r"form\('[^']*', \d+, '(\w+)'", m.group(2))
     out.get('gogeta', []).append('z_gogetassj4')                          # js/zl3.js añade Gogeta SSJ4 como última forma
+    pk = open(os.path.join(ROOT, 'js', 'packdata.js'), encoding='utf-8').read()
+    for cid in re.findall(r"sumChar\(\{ id: '(\w+)'", pk):                 # guerreros del altar: 4 formas con la hoja u_<id>
+        out.setdefault(cid, ['u_' + cid] * 4)
     return out
 
 def sheet_image(meta):
