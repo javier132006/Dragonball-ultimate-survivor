@@ -688,13 +688,19 @@ class VsSim {
           this.emit('hit', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, rush: 1 }); this.emit('rushHit', { i: f.i, n: ++u.n }); this.freeze = Math.max(this.freeze, 2);
         }
       } else if (u.si >= F[1] && !u.away && u.si < u.seq.length) {      // el remate: lo aparta para que la energía le llegue
-        u.away = 1; let a = Math.atan2(u.hz, u.hx); if (Math.hypot(f.x + u.hx * 8, f.z + u.hz * 8) > VS.R - 1.5) a = Math.atan2(-f.z, -f.x);   // hacia donde hay sitio
-        let tx = f.x + Math.cos(a) * 8, tz = f.z + Math.sin(a) * 8; const r = Math.hypot(tx, tz), lim = VS.R - 1.5; if (r > lim) { tx *= lim / r; tz *= lim / r; }
-        u.fx = tx; u.fz = tz; u.fy = f.y; this.emit('hit', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col }); this.freeze = Math.max(this.freeze, 4);
+        // en la línea del rayo del sprite: ang grados hacia arriba (Goku UI, Bardock) o hacia abajo (Kefla, que se eleva)
+        const g = ((Z.fx.ang || 0) * Math.PI) / 180, L = 9, hl = Math.cos(g) * L, vl = Math.sin(g) * L;
+        u.away = 1; let a = Math.atan2(u.hz, u.hx); if (Math.hypot(f.x + u.hx * hl, f.z + u.hz * hl) > VS.R - 1.5) a = Math.atan2(-f.z, -f.x);   // hacia donde hay sitio
+        let tx = f.x + Math.cos(a) * hl, tz = f.z + Math.sin(a) * hl; const r = Math.hypot(tx, tz), lim = VS.R - 1.5; if (r > lim) { tx *= lim / r; tz *= lim / r; }
+        let fy = f.y + vl; u.ay = f.y;
+        if (fy > VS.TOP - 3) { u.ay = f.y - (fy - (VS.TOP - 3)); fy = VS.TOP - 3; }  // sin sitio arriba: baja el atacante
+        if (fy < 0) { u.ay = f.y - fy; fy = 0; }                                       // rayo hacia abajo: el atacante sube y el rival queda en el suelo
+        u.ay = Math.max(0, u.ay); u.fx = tx; u.fz = tz; u.fy = fy; this.emit('hit', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col }); this.freeze = Math.max(this.freeze, 4);
       }
       if (u.fx !== undefined) {                                          // el rival vuela al sitio del golpe y el atacante lo sigue
         const k = Math.min(1, dt * 16); foe.x += (u.fx - foe.x) * k; foe.z += (u.fz - foe.z) * k; foe.y += (u.fy - foe.y) * k;
         if (!u.away) { const k2 = Math.min(1, dt * 11), bx = foe.x - u.hx * 1.8, bz = foe.z - u.hz * 1.8; f.x += (bx - f.x) * k2; f.z += (bz - f.z) * k2; f.y += (foe.y - f.y) * k2; }
+        else if (u.ay !== undefined) f.y += (u.ay - f.y) * Math.min(1, dt * 12);
       }
     }
     // momento de soltarla
