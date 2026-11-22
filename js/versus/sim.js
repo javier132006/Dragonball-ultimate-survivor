@@ -710,7 +710,7 @@ class VsSim {
         let px = foe.x - u.hx * 2.3, pz = foe.z - u.hz * 2.3; if (Math.hypot(px, pz) > VS.R - 0.5) { px = foe.x + u.hx * 2.3; pz = foe.z + u.hz * 2.3; }
         f.x = px; f.z = pz; f.y = foe.y; this.emit('appear', { i: f.i, x: f.x, y: f.y, z: f.z }); this.zl3Hit(u, f, foe);
       } else {
-        const reach = Z.k === 'area' ? 9 : Math.max(4, Z.R * 0.056 + 1.4);
+        const reach = Z.fx && Z.fx.reach ? Z.fx.reach : Z.k === 'area' ? 9 : Math.max(4, Z.R * 0.056 + 1.4);   // reach: rayos que en Z Legends 3 son un objeto aparte (más largos que el sprite)
         if (d <= reach && Math.abs(dy) < (Z.k === 'area' ? 7 : 4.2)) this.zl3Hit(u, f, foe); else this.zl3Miss(u, f, foe);
       }
     }
@@ -723,7 +723,8 @@ class VsSim {
         else { if (foe.st === 'guard' && foe.t < VS.PARRY_ULT) this.parryUlt(f, foe, j.tx, j.ty, j.tz); u.res = 2; }
       }
     }
-    if (u.res === 2 && !u.pj && u.seq === Z.P && !Z.E.length && u.zt > (u.missT || 0) + 0.5) this.zl3End(u, f, foe);   // falló y no tiene parte de fallo: se corta
+    // falló sin parte de fallo: los rayos y las zonas siguen hasta el final (la energía pasa de largo); las embestidas se cortan
+    if (u.res === 2 && !u.pj && u.seq === Z.P && !Z.E.length && (Z.k !== 'beam' && Z.k !== 'area') && u.zt > (u.missT || 0) + 0.5) this.zl3End(u, f, foe);
   }
   /** Acierta: lo atrapa (se queda quieto hasta el final). Con la guardia justa la desvía; con guardia normal, menos daño */
   zl3Hit(u, f, foe) {
@@ -735,6 +736,7 @@ class VsSim {
   zl3Miss(u, f, foe) {
     u.res = 2; u.missT = u.zt; this.emit('zMiss', { i: f.i });
     if (u.Z.E.length) { u.seq = u.Z.E; u.si = 0; u.pt = 0; }
+    else if (u.Z.fx && u.Z.fx.miss !== undefined && u.si < u.Z.fx.miss) { u.si = u.Z.fx.miss; u.pt = 0; }   // salta las partes del impacto (fogonazos)
   }
   zl3Dmg(u, f, foe, g) {
     this.emit('boom', { x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, big: 2 });

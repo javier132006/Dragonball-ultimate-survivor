@@ -52,7 +52,7 @@ ULTS = {
     'gokussj': ('Ultimate_MeteorSmash', 'beam', {'d': [0, 0.25], 'f': [0, 1]}), 'gokublue': ('Ultimate_GalickKamehameha', 'rush', {'f': [4, 9]}),
     'gokuui': ('UltimateAttack2', 'rush', {'f': [2, 5]}), 'vegeta': ('UltimateAttack_GalaxyBreaker', 'area', {'x': 'explosao:Explosao15'}),
     'vegetassj': ('Special_FinalFlash', 'beam', None), 'vegetaego': ('Ultimate_HakaiGiganticBall', 'proj', {'p': 'vegetaego:Hakai_Loop', 'x': 'vegetaego:Hakai_Desaparecer'}),
-    'gohanssj2': ('UltimateAttack_FatherSonKamehameha', 'beam', None), 'gohanbeast': ('Ultimate_UltraMakankoSappo', 'beam', None),
+    'gohanssj2': ('UltimateAttack_FatherSonKamehameha', 'beam', None), 'gohanbeast': ('Ultimate_UltraMakankoSappo', 'beam', {'rel': [2, 0.0], 'reach': 34, 'miss': 6}),
     'miraigohan': ('UltimateAttack', 'beam', {'d': [0, 0.15], 'f': [0, 1]}), 'miraitrunks': ('Ultimate_SwordOfHope', 'warp', {'d': [1, 0.0], 'f': [1, 4]}),
     'piccolo': ('Ultimate_LightGrenade', 'proj', {'p': 'lightinggranade:Jogador', 'x': 'lightinggranade:Jogador_Acertou'}), 'cell': ('Ultimate_SolarKamehameha', 'beam', None),
     'freezer': ('Ultimate_DeathBall', 'proj', {'p': 'freeza_efeitos:DeathBall_Loop', 'x': 'freeza_efeitos:DeathBall_Explosion'}),
