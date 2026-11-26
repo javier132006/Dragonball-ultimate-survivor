@@ -51,6 +51,10 @@ const ZMoves = {
       };
       const s = document.createElement('script'); s.src = av('assets/zl3/m/' + cid + '.js'); s.onerror = () => ok(false); document.head.appendChild(s);
     });
+    if (window.ZMOVE_CHL && ZMOVE_CHL.includes(cid)) {                  // lógica de sus especiales (js/versus/zchoreo.js): el combate la espera
+      const pc = new Promise((res) => { const c = document.createElement('script'); c.src = av('assets/zl3/m/ch_' + cid + '.js'); c.onload = c.onerror = () => res(); document.head.appendChild(c); });
+      r.p = Promise.all([r.p, pc]).then((v) => v[0]);
+    }
     return r.p;
   },
   ready(cid) { return !!(this.img[cid] && this.img[cid].length && !this.img[cid].some((x) => !x)); },

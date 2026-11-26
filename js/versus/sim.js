@@ -58,7 +58,7 @@ class VsFighter {
     this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.pend = 0; this.q = 0; this.qt = 0; this.stun = 0;
     this.c = 0; this.n = 0; this.ok = false; this.buf = ''; this.jug = 0; this.spk = 0; this.ctr = 0; this.bo = 0; this.gt = 0; this.ft = 0; this.chg = 0; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.pu = 0; this.lh = 9; this.dx = 1; this.dz = 0; this.flash = 0;
     // Pasivas que se renuevan cada ronda: vis (visión), el (élite), cp (copia), wk (debilitado), slow (congelado), tpb (golpe tras teletransporte)
-    this.vis = 0; this.el = 0; this.cp = 0; this.wk = 0; this.slow = 0; this.tpb = 0; this.sb = 0; this.sp = null;
+    this.vis = 0; this.el = 0; this.cp = 0; this.wk = 0; this.slow = 0; this.tpb = 0; this.sb = 0; this.sp = null; this.zh = 0; this.zc = 0;
     if (this.pas === 'potara') this.ki = 60;
     this.set('idle');
   }
@@ -125,7 +125,7 @@ class VsSim {
     this.stepShots();
     // Los cuerpos no se atraviesan
     const ex = b.x - a.x, ez = b.z - a.z, eh = Math.hypot(ex, ez);
-    if (eh < 1.5 && Math.abs(b.y - a.y) < 2.4 && a.st !== 'ko' && b.st !== 'ko' && !(this.ult && this.ult.lock)) {
+    if (eh < 1.5 && Math.abs(b.y - a.y) < 2.4 && a.st !== 'ko' && b.st !== 'ko' && !(this.ult && this.ult.lock) && !(a.zh > 0 || b.zh > 0 || a.sp && a.sp.z || b.sp && b.sp.z)) {
       const p = (1.5 - eh) / 2, nx = eh > 0.01 ? ex / eh : 1, nz = eh > 0.01 ? ez / eh : 0;
       a.x -= nx * p; a.z -= nz * p; b.x += nx * p; b.z += nz * p;
     }
@@ -164,6 +164,7 @@ class VsSim {
     // Movimiento pedido, de pantalla a mundo: derecha de pantalla = (cz, -cx), fondo = (-cx, -cz)
     const wx = this.cz * cmd.mx - this.cx * cmd.mz, wz = -this.cx * cmd.mx - this.cz * cmd.mz, my = (held & VB.UP ? 1 : 0) - (held & VB.DOWN ? 1 : 0);
     const brake = (k) => { const m = Math.max(0, 1 - k * dt); f.vx *= m; f.vy *= m; f.vz *= m; };
+    if (f.zh > 0 && f.st !== 'ko') { f.zh -= dt; f.vx = f.vy = f.vz = 0; return; }   // sujeto por un especial del original (lo mueve su lógica)
     switch (f.st) {
       case 'idle': case 'move': {
         const k = Math.min(1, 14 * dt), sp = VS.SPD * f.spd * (pas === 'lobo' ? 1.08 : 1) * (f.slow > 0 ? 0.7 : 1);   // congelado por el rival: más lento
@@ -348,16 +349,19 @@ class VsSim {
     f.ki -= cost; f.vx = f.vy = f.vz = 0; f.set('spec');
     const dx = foe.x - f.x, dy = foe.y - f.y, dz = foe.z - f.z, d = Math.hypot(dx, dy, dz) || 1;
     f.sp = { S, seq: S.P, si: 0, pt: 0, tt: 0, res: 0, dx: dx / d, dy: dy / d, dz: dz / d };
+    this.zcStart(f, foe, f.sp);                                          // su lógica del juego original, si la tiene (js/versus/zchoreo.js)
     this.emit('spec', { i: f.i, name: S.n, col: f.def.col, k: S.k });
     return true;
   }
   stepSpec(f, foe) {
     const p = f.sp, dt = VS_DT; if (!p || this.phase !== 'fight') { f.set('idle'); return; }
-    const S = p.S, P = p.seq[p.si]; p.pt += dt; p.tt += dt;
+    p.pt += dt * (p.z ? p.z.rate : 1); p.tt += dt;
+    if (p.z) { if (this.zcTick(f, foe, p) || !f.sp) return; }           // la lógica del original manda (puede cambiar de parte o acabar)
+    const S = p.S, P = p.seq[p.si], ZG = !(p.z && (p.z.info.melee || p.z.info.guard));   // ZG: golpe genérico de su tipo (si el original no pega él mismo)
     const tx = foe.x - f.x, ty = foe.y - f.y, tz = foe.z - f.z, th = Math.hypot(tx, tz) || 0.001, td = Math.hypot(th, ty) || 0.001, nx = tx / th, nz = tz / th;
     const atRel = p.seq === S.P && (p.si > S.rel[0] || (p.si === S.rel[0] && p.pt >= S.rel[1]));
     f.vx = f.vy = f.vz = 0;
-    if (S.k === 'rush' && p.seq === S.P && !p.res) {                     // embestida: vuela hacia él hasta tocarlo
+    if (ZG && S.k === 'rush' && p.seq === S.P && !p.res) {                     // embestida: vuela hacia él hasta tocarlo
       if (td > 2.2) { const v = 40; f.vx = tx / td * v; f.vy = ty / td * v; f.vz = tz / td * v; }
       if (td < VS.REACH + 0.4) {
         const left = p.seq.slice(p.si).reduce((a, q) => a + q[1], 0) - p.pt;
@@ -365,14 +369,15 @@ class VsSim {
         if (r === 1) { p.res = 1; this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, sp: 1 }); } else if (r) { p.res = 2; }
       } else if (p.tt > 0.75) { p.res = 2; this.emit('zMiss', { i: f.i }); }
       if (p.res === 2) { f.set('stun'); f.stun = 0.3; return; }
-    } else if (S.k === 'rush' && p.res === 1 && foe.st === 'hurt' && td > 2.4) {   // lo va siguiendo mientras le pega
+    } else if (ZG && S.k === 'rush' && p.res === 1 && foe.st === 'hurt' && td > 2.4) {   // lo va siguiendo mientras le pega
       const k = Math.min(1, dt * 10); f.x += (foe.x - nx * 2 - f.x) * k; f.z += (foe.z - nz * 2 - f.z) * k; f.y += (foe.y - f.y) * k;
     }
-    if (atRel && !p.res) {
+    if (ZG && atRel && !p.res) {
       if (S.k === 'beam') {
         const ax = foe.x - f.x, ay = foe.y - f.y, az = foe.z - f.z, along = ax * p.dx + ay * p.dy + az * p.dz;
         const lat = Math.hypot(ax - p.dx * along, ay - p.dy * along, az - p.dz * along), reach = Math.max(6, S.R * 0.056 + 1.4);
-        if (along > 0 && along < reach && lat < 2.6 && foe.inv <= 0 && foe.st !== 'ko') {
+        if (along > 0 && along < reach && lat < 2.6 && foe.inv <= 0 && foe.st !== 'ko' && p.z && p.z.info.proj) { p.res = 1; p.z.ph = 1; }   // acierta: el daño y el lanzamiento los hacen sus eventos del original
+        else if (along > 0 && along < reach && lat < 2.6 && foe.inv <= 0 && foe.st !== 'ko') {
           p.res = 1; const r = this.hit(f, foe, { dmg: VS.SPEC.beam, stun: 0.9, kb: 26, up: 7, launch: true, heavy: true, gbreak: 60, fz: 6, shot: 1 }, nx, nz);
           if (r === 1) this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, sp: 1 });
         } else { p.res = 2; this.emit('zMiss', { i: f.i }); }
@@ -398,11 +403,13 @@ class VsSim {
     if (p.tt > 7) this.endSpec(f, foe, nx, nz);                         // red de seguridad
   }
   endSpec(f, foe, nx, nz) {
-    const p = f.sp, S = p.S; f.sp = null;
-    if (S.k === 'rush' && p.res === 1 && foe.st === 'hurt' && Math.hypot(foe.x - f.x, foe.y - f.y, foe.z - f.z) < 5) {   // remate
+    const p = f.sp, S = p.S; f.sp = null; this.zcEnd(f, foe, p);
+    if (nx === undefined) { const h = Math.hypot(foe.x - f.x, foe.z - f.z) || 1; nx = (foe.x - f.x) / h; nz = (foe.z - f.z) / h; }
+    const zm = p.z && (p.z.info.melee || p.z.info.guard);               // con la lógica del original, ni remate ni potenciador genéricos
+    if (!zm && S.k === 'rush' && p.res === 1 && foe.st === 'hurt' && Math.hypot(foe.x - f.x, foe.y - f.y, foe.z - f.z) < 5) {   // remate
       foe.stun = 0; this.hit(f, foe, { dmg: VS.SPEC.rushEnd, stun: 0.9, kb: 28, up: 8, launch: true, heavy: true, gbreak: 60, fz: 7 }, nx, nz);
     }
-    if (S.k === 'buff') { f.sb = VS.SPEC.buffT; this.emit('sBuff', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col }); }
+    if (S.k === 'buff' && !zm) { f.sb = VS.SPEC.buffT; this.emit('sBuff', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col }); }
     f.set('idle');
   }
   /** Contraataque: con animación de Z Legends 3 la hace entera y pega al final; sin ella aparece a su espalda con un golpe fuerte */
@@ -476,6 +483,9 @@ class VsSim {
   /** Golpe cuerpo a cuerpo o proyectil. Devuelve: 0 nada · 1 conecta · 2 bloqueado · 3 contraataque (guardia perfecta) */
   hit(att, def, s, nx, nz) {
     if (def.st === 'dash' && def.inv > 0 && !(def.ctr > 0)) { def.ctr = VS.DODGE; def.ki = Math.min(100, def.ki + 8); this.emit('dodge', { i: def.i, x: def.x, y: def.y + 1.6, z: def.z }); this.learn(def); }   // esquiva perfecta: tiene un contraataque
+    if (def.st === 'spec' && def.sp && def.sp.z && def.sp.z.v.A[24] && def.inv <= 0) {   // postura de contraataque del original (se está defendiendo): el golpe la dispara
+      const z = def.sp.z; z.gh = z.n; this.freeze = Math.max(this.freeze, 4); this.emit('guard', { i: def.i, x: def.x, y: def.y + 1.6, z: def.z }); return 2;
+    }
     if (def.inv > 0 || def.st === 'ko' || def.st === 'held' || def.st === 'grabd') return 0;
     if (def.st === 'ctrw' && !s.shot && !s.raw && this.phase === 'fight') { this.ctrHit(def, att); return 3; }   // esperaba el golpe: contraataca
     const px = def.x - nx * 0.6, py = def.y + 1.6, pz = def.z - nz * 0.6;
