@@ -166,7 +166,7 @@ const ZMoves = {
   /** Luchadores de Z Legends 3 de las formas de un personaje (por forma: id o null) */
   fightersOf(ch) { return ch && ch.forms ? ch.forms.map((f) => (/^z_/.test(f.sheet) ? f.sheet.slice(2) : null)) : []; },
   /** Descarga lo que usa un personaje (sus formas de Z Legends 3 y los efectos) */
-  prep(ch) { const ids = this.fightersOf(ch).filter((x) => x && this.has(x)); if (!ids.length) return Promise.resolve(); return Promise.all(ids.concat(['fx']).map((c) => this.load(c))); }
+  prep(ch) { const ids = this.fightersOf(ch).filter((x) => x && this.has(x)); ids.forEach((c) => ZSnd.load(c)); if (ch && window.ZMOVE_X) for (const f of ch.forms) { const X = ZMOVE_X[ch.id + '/' + f.name]; if (X) ZSnd.load(X[0]); } if (!ids.length) return Promise.resolve(); return Promise.all(ids.concat(['fx']).map((c) => this.load(c))); }
 };
 
 /* ---------- Sprite con recorte libre del atlas (Supervivencia) ---------- */
@@ -189,6 +189,60 @@ void main() {
 const ZMS_FS = `
 uniform sampler2D uMap; uniform float uAlpha; uniform vec3 uTint; varying vec2 vUv;
 void main() { vec4 c = texture2D(uMap, vUv); if (c.a < 0.02) discard; gl_FragColor = vec4(c.rgb * uTint, c.a * uAlpha); }`;
+/* ---------- Sonidos de Z Legends 3 de cada técnica: voces y efectos en el fotograma en que suenan en el original ----------
+   Datos: assets/zl3/m/snd.js (window.ZMOVE_SND = {luchador: {parte: [[segundos, efecto | [voces al azar]]]}}), audios en assets/zl3/a/s/.
+   Se descargan al empezar (los del luchador) y suenan por el bus de efectos de SFX (su volumen). */
+const ZSnd = {
+  buf: {}, pend: {},
+  has(cid) { return !!(cid && window.ZMOVE_SND && ZMOVE_SND[cid]); },
+  /** Tiene sonidos para alguna de estas partes */
+  hasAny(cid, parts) { const S = this.has(cid) && ZMOVE_SND[cid]; return !!(S && parts && parts.some((p) => S[p])); },
+  load(cid) {
+    const S = this.has(cid) && ZMOVE_SND[cid]; if (!S || typeof SFX === 'undefined') return;
+    if (!SFX.ctx && SFX.init) SFX.init();
+    for (const p in S) for (const e of S[p]) for (const n of [].concat(e[1])) this.get(n);
+  },
+  get(n) {
+    if (n in this.buf || this.pend[n] || typeof SFX === 'undefined' || !SFX.ctx || typeof fetch === 'undefined') return;
+    const c = SFX.ctx;
+    this.pend[n] = fetch(av('assets/zl3/a/s/' + n + '.m4a')).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+      .then((b) => new Promise((res, rej) => c.decodeAudioData(b, res, rej))).then((B) => { this.buf[n] = B; }).catch(() => { this.buf[n] = null; });
+  },
+  play(n, vol) {
+    const B = this.buf[n]; if (!B) { if (!(n in this.buf)) this.get(n); return; }
+    const c = SFX.ctx; if (!c || !SFX.sfxG) return;
+    try { const s = c.createBufferSource(), g = c.createGain(); s.buffer = B; g.gain.value = vol; s.connect(g); g.connect(SFX.sfxG); s.start(); } catch (e) { /* sin audio */ }
+  },
+  /** Sigue una parte de una animación. o: estado propio (un objeto cualquiera) · key: cambia al empezar otra parte · pt: segundos dentro de la parte.
+   *  Suena lo que cae entre la llamada anterior y esta; si el tiempo vuelve atrás (técnica nueva), empieza de cero */
+  part(o, cid, key, part, pt) {
+    const S = o && this.has(cid) && ZMOVE_SND[cid]; if (!S) return;
+    if (o.k !== key || pt + 0.05 < o.t) { o.k = key; o.t = -1e-3; }
+    const L = S[part];
+    if (L) for (const e of L) if (e[0] > o.t && e[0] <= pt) { const v = Array.isArray(e[1]); this.play(v ? e[1][(Math.random() * e[1].length) | 0] : e[1], v ? 1.3 : 0.85); }
+    o.t = pt;
+  },
+  /** Sigue una secuencia [[parte, segundos, bucle]…] a los t segundos */
+  seq(o, cid, seq, t) {
+    const S = o && this.has(cid) && ZMOVE_SND[cid]; if (!S) return;
+    if (o.q !== seq || t + 0.05 < o.t) { o.q = seq; o.t = -1e-3; }
+    let s = 0;
+    for (let i = 0; i < seq.length && s <= t; i++) {                          // también lo de las partes que se haya saltado (fotogramas lentos)
+      const L = S[seq[i][0]], last = i === seq.length - 1;
+      if (L) for (const e of L) { const at = s + e[0]; if (at > o.t && at <= t && (last || e[0] < seq[i][1])) { const v = Array.isArray(e[1]); this.play(v ? e[1][(Math.random() * e[1].length) | 0] : e[1], v ? 1.3 : 0.85); } }
+      s += seq[i][1];
+    }
+    o.t = t;
+  },
+  /** Sigue un plan de ZMoves (fotogramas con su parte) a los tt segundos */
+  plan(o, P, tt) {
+    if (!P || !this.has(P.cid)) return;
+    const f = ZMoves.at(P, tt); let i = P.F.indexOf(f); if (i < 0) return;
+    while (i > 0 && P.F[i - 1].part === f.part) i--;
+    this.part(o, P.cid, f.part + '@' + i, f.part, tt - P.F[i].t0);
+  }
+};
+
 class ZMoveSprite {
   constructor(scene, order) {
     this.u = Object.assign({ uMap: { value: null }, uRect: { value: new THREE.Vector4(0, 0, 1, 1) }, uAnc: { value: new THREE.Vector2(0, 0) }, uTex: { value: new THREE.Vector2(1, 1) },

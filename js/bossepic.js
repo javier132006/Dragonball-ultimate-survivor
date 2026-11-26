@@ -90,7 +90,7 @@ const BossEpic = {
   /* ---------- Entrada ---------- */
   onSpawn(game, x, z) {
     this.init(); this.u = null; this.c = null; this.hudUid = 0;
-    { const B0 = game.stage.boss; if (typeof ZMoves !== 'undefined' && B0) for (const n of [].concat(B0.sheets || [], B0.sheet || [])) if (/^z_/.test(n)) { ZMoves.load(n.slice(2)); ZMoves.load('fx'); } }   // técnicas de Z Legends 3 del jefe
+    { const B0 = game.stage.boss; if (typeof ZMoves !== 'undefined' && B0) for (const n of [].concat(B0.sheets || [], B0.sheet || [])) if (/^z_/.test(n)) { ZMoves.load(n.slice(2)); ZMoves.load('fx'); ZSnd.load(n.slice(2)); } }   // técnicas de Z Legends 3 del jefe
     const b = game.boss; b.ultT = undefined;
     if (Save.d.opt.noCine || game.state !== 'play') return;
     const B = game.stage.boss, L = this.look(B), e = this.el;
@@ -151,6 +151,7 @@ const BossEpic = {
     if (!this.zs) this.zs = new ZMoveSprite(game.scene, 3.3);
     const T = ENEMY_TYPES[T_BOSS], sc = T.scale * (1 + h.grow[ctx.i]);
     this.zs.show(z, ZMoves.at(P, tt), h.x[ctx.i], h.z[ctx.i], h.flip[ctx.i], 0, (h.bossPx || ZM_U) / ZM_U * sc, 1); h.bossHide = true;
+    ZSnd.plan(u.so || (u.so = {}), P, tt);
   },
   zHide(game) { if (this.zs) this.zs.hide(); game.horde.bossHide = false; },
   canClashP(p) { return !!(p.ultD && p.ult >= p.ultD.cost && !p.dying); },
@@ -210,6 +211,7 @@ const BossEpic = {
     if (!this.zs) this.zs = new ZMoveSprite(game.scene, 3.3);
     const F = ZMoves.seqFrame(P.z, P.seq, P.t, false), sc = ENEMY_TYPES[T_BOSS].scale * (1 + h.grow[ctx.i]);
     if (F) { this.zs.show(P.z, F, h.x[ctx.i], h.z[ctx.i], P.side, 0, (h.bossPx || ZM_U) / ZM_U * sc, 1); h.bossHide = true; }
+    ZSnd.seq(P.so || (P.so = {}), P.z, P.seq, P.t);
     if (P.t >= P.dur) this.endSpec(game);
   },
   endSpec(game) {

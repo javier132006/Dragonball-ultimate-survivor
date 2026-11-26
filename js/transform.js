@@ -135,6 +135,7 @@ class TransformScene {
     // Transformación animada de Z Legends 3 (la misma del Versus): la carga dura lo que la animación y la forma cambia al acabar
     const X = !p.fusion && window.ZMOVE_X && typeof ZMoves !== 'undefined' ? ZMOVE_X[p.ch.id + '/' + f.name] : null;
     this.zx = X && ZMoves.ready(X[0]) ? X : null;
+    this.so = {};
     if (this.zx) { this.cfg.charge = this.zx[1].reduce((a, q) => a + q[1], 0); if (!this.zs) this.zs = new ZMoveSprite(g.scene, 3.5); }
     this.to = idx; this.form = f; this.t = 0; this.swapped = false; this.on = true; this.lastImp = -1; this.ringT = 0;
     this.end = this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + BANNER_TIME;
@@ -229,6 +230,7 @@ class TransformScene {
     if (this.zx && t < ch) {                                           // el personaje hace su transformación de Z Legends 3
       const F = ZMoves.seqFrame(this.zx[0], this.zx[1], t, false);
       if (F) { p.zHide = true; this.zs.show(this.zx[0], F, p.x, p.z, p.flip, 0, 1, 1); }
+      ZSnd.seq(this.so || (this.so = {}), this.zx[0], this.zx[1], t);
     }
     if (t < ch) {
       const col1 = parseInt(c.c1.slice(1), 16), col2 = parseInt(c.c2.slice(1), 16);

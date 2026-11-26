@@ -404,7 +404,7 @@ class UltCine {
       // Combo: el objetivo al que persigue (el jefe o el enemigo más cercano)
       const p = g.player, b = g.bossAt && g.bossAt(), ni = b ? -1 : g.horde.nearest(p.x, p.z, 14);
       this.tg = b && Math.hypot(b.x - p.x, b.z - p.z) < 18 ? { x: b.x, z: b.z } : ni >= 0 ? { x: g.horde.x[ni], z: g.horde.z[ni] } : null;
-      this.sx = p.x; this.sz = p.z; this.ck = -1;
+      this.sx = p.x; this.sz = p.z; this.ck = -1; this.so = {};
       // Paneles de cinemática de Z Legends 3 antes de la Ultimate (los mismos del Versus)
       const TM = window.ZMOVE_T && ZMOVE_T[zp.cid], L = TM && TM.C && TM.C.U, ms = L ? L.reduce((a, q) => a + q[4], 0) / 1000 : 0;
       this.pc = L && L.length && ZMoves.cimg[zp.cid] && ms > 0 ? { L, cid: zp.cid, t: 0, d: Math.min(ms, 2.6), k: ms / Math.min(ms, 2.6) } : null;
@@ -432,7 +432,7 @@ class UltCine {
         const n = Math.floor((tt - a) / 0.34);
         if (n !== this.ck) {
           this.ck = n; const an = n * 2.3 + 0.7; this.cx = T.x + Math.cos(an) * 1.7; this.cz = T.z + Math.sin(an) * 1.7;
-          G.fx.burst(G.fx.sparks, T.x, 1.4, T.z, 12, 8, 0.35, 0.3, 6, 0xffffff); G.fx.shock(T.x, T.z, 3, 0xffffff, 0.2); G.shake(0.3); SFX.play('boom');
+          G.fx.burst(G.fx.sparks, T.x, 1.4, T.z, 12, 8, 0.35, 0.3, 6, 0xffffff); G.fx.shock(T.x, T.z, 3, 0xffffff, 0.2); G.shake(0.3); if (!ZSnd.has(P.cid)) SFX.play('boom');
         }
         gx = this.cx; gz = this.cz;
       }
@@ -440,6 +440,7 @@ class UltCine {
       if (tt >= a) flip = (T.x - x) * G.camCos + (T.z - z) * -G.camSin < 0;   // mirando al objetivo
     }
     this.zs.show(P.cid, f, x, z, flip, 0, 1, 1);
+    ZSnd.plan(this.so, P, tt);                                                 // voces y efectos de Z Legends 3
     if (O) {
       const pi = P.parts.indexOf(f.part), on = O.on, grow = pi <= on, Fo = ZMoves.fx(O.a, t);
       const e = P.F.filter((x) => P.parts.indexOf(x.part) === on), u = e.length ? Math.max(0, Math.min(1, (tt - (O.d || 0)) / (e[e.length - 1].t1 - (O.d || 0)))) : 1;

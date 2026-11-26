@@ -142,13 +142,14 @@ class Versus {
     const tr = this.sim && this.sim.tr, i = a === this.actors[0] ? 0 : 1;
     if (f.st === 'trans' && tr && tr.zx && !tr.sw && ZMoves.ready(tr.zx[0])) {   // transformación animada de Z Legends 3 (paquete propio: empieza en la forma de antes)
       const F = ZMoves.seqFrame(tr.zx[0], tr.zx[1], tr.t, false), T = F && ZMoves.tex(tr.zx[0], F.pg, 'v'); if (!T) return false;
+      ZSnd.seq(a.zso || (a.zso = {}), tr.zx[0], tr.zx[1], tr.t);
       if (S.s !== T) S.setSheet(T); S.u.uTint.value.setHex(0xffffff); S.poseRect(F, a.flip, sx, sy); return true;
     }
     if (!zid || !ZMoves.ready(zid)) return false;
     const TM = window.ZMOVE_T && ZMOVE_T[zid];
     let F = null, orbU = -1;
     if (f.st === 'spec' && f.sp) {                                          // especial o contraataque: la parte y el instante que lleva la simulación
-      const q = f.sp.seq[f.sp.si]; if (q) F = ZMoves.partFrame(zid, q[0], f.sp.pt, !!q[2]);
+      const q = f.sp.seq[f.sp.si]; if (q) { F = ZMoves.partFrame(zid, q[0], f.sp.pt, !!q[2]); ZSnd.part(a.zso || (a.zso = {}), zid, 's' + f.sp.si + q[0], q[0], f.sp.pt); }
     } else if (f.st === 'ctrw' && TM && TM.K) {                             // esperando el golpe: primer fotograma de su contraataque
       F = ZMoves.partFrame(zid, TM.K.P[0][0], 0, false);
     } else if (zi !== undefined && TM && TM.I) {                                   // su entrada de Z Legends 3, con sus paneles de cinemática en medio
@@ -160,7 +161,7 @@ class Versus {
       if (P && this.vic.t < P) this.zCut(zid, C, this.vic.t * kp);
       F = ZMoves.seqFrame(zid, TM.V, Math.max(0, this.vic.t - P), true);
     } else if (f.st === 'ult' && u && u.type === 'zl3' && u.who === i) {   // su Ultimate: la parte y el instante que lleva la simulación
-      const p = u.seq[u.si]; if (p) F = ZMoves.partFrame(zid, p[0], u.pt, !!p[2]);
+      const p = u.seq[u.si]; if (p) { F = ZMoves.partFrame(zid, p[0], u.pt, !!p[2]); if (!(u.cut > 0)) ZSnd.part(a.zso || (a.zso = {}), zid, 'u' + u.si + p[0], p[0], u.pt); }   // sus voces y efectos (tras los paneles)
       if (u.cut > 0 && TM && TM.C && TM.C.U) { const ms = TM.C.U.reduce((s, q) => s + q[4], 0) / 1000; this.zCut(zid, TM.C.U, (u.cut0 - u.cut) * ms / u.cut0); }   // paneles de su Ultimate
       if (u.Z.fx && u.Z.fx.orb && u.seq === u.Z.P && u.si === 0 && !u.res) orbU = Math.min(1, u.pt / Math.max(0.3, u.seq[0][1]));
     } else if (f.st === 'shot' && !f.done && f.chg) {                       // ki cargado: la carga de su técnica de energía
@@ -346,7 +347,7 @@ class Versus {
     this.actors = chains.map((ch, i) => new VsActor(this, ch, sheets[i]));
     this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); });
     {                                                                    // técnicas, entradas y victorias de Z Legends 3: se esperan (4 s como mucho) para que la entrada salga bien
-      const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => c && L.push(ZMoves.load(c))); a.chain.forEach((d) => { const X = window.ZMOVE_X && ZMOVE_X[d.id + '/' + d.form]; if (X) L.push(ZMoves.load(X[0])); }); }); L.push(ZMoves.load('fx'));
+      const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => { if (c) { L.push(ZMoves.load(c)); ZSnd.load(c); } }); a.chain.forEach((d) => { const X = window.ZMOVE_X && ZMOVE_X[d.id + '/' + d.form]; if (X) { L.push(ZMoves.load(X[0])); ZSnd.load(X[0]); } }); }); L.push(ZMoves.load('fx'));
       await Promise.race([Promise.all(L), new Promise((r) => setTimeout(r, 4000))]);
     }
     chains.forEach((ch) => ch.forEach((d) => ImpactArt.load(d.id, d.ix)));          // impact frames (transformación y Ultimate)

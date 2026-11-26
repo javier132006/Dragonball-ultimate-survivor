@@ -12,8 +12,9 @@ Cada animación: {fps, l: bucle, f: [[página, x, y, w, h, ax, ay, dur, px, py],
   px, py: punto de disparo (Imagepoint 1 del juego original) en píxeles dentro del fotograma, si lo tiene
 Los fotogramas repetidos se guardan una sola vez. Mismo tamaño de píxel que las hojas z_<id> (no se reescala nada).
 """
-import json, os, re, sys
+import collections, json, os, re, subprocess, sys
 from PIL import Image
+from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -316,7 +317,64 @@ def write(cid, A, names, extra=None):
     return size
 
 
+SAFE = lambda n: re.sub(r'[^a-z0-9_-]', '_', n.lower())
+VOZ = re.compile(r'^v[a-z]{2,5}\d{3}$')                      # voces del luchador (las «_vs_» son frases contra un rival concreto: fuera)
+
+
+def sounds():
+    """Sonidos de Z Legends 3 de cada técnica que usamos (Ultimate, especiales, contraataque, transformación), en el fotograma en que suenan.
+    Escribe assets/zl3/m/snd.js: window.ZMOVE_SND = {cid: {parte: [[segundos, [voces al azar...] | efecto]]}} y los audios en assets/zl3/a/s/"""
+    TM = json.load(open(os.path.join(OUT, 'timing.json')))
+    X = {}
+    for key, (pk, base) in TRANSFORMS.items(): X.setdefault(pk, set())
+    src_of = {f[1]: f[0] for f in Z.FIGHTERS}
+    char_types = {}
+    for src, cid, *_ in Z.FIGHTERS:
+        for i, t, k in Z.TYPES:
+            if k and re.sub(r'_(jogador|inimigo)$', '', k) == src and 'Parado' in Z.anims_of(t): char_types[i] = (cid, Z.anims_of(t))
+    snd = Z.sound_map(char_types)
+    lst = os.path.join(OUT, 'list.js'); L = open(lst, encoding='utf-8').read()
+    XM = json.loads(re.search(r'window\.ZMOVE_X = (\{.*?\});', L).group(1)) if 'window.ZMOVE_X' in L else {}
+    out, files = {}, set()
+    for cid in sorted(set(TM) | {v[0] for v in XM.values()}):
+        tm = TM.get(cid, {}); parts = set()
+        for mv in [tm.get('U'), tm.get('K')] + list(tm.get('S') or []):
+            if mv:
+                for k in 'PHE': parts.update(q[0] for q in mv.get(k) or [])
+        for v in XM.values():
+            if v[0] == cid: parts.update(q[0] for q in v[1])
+        if not parts or cid not in src_of: continue
+        A = Z.anims_of(Z.best_type(src_of[cid])[1]); M = snd.get(cid, {}); R = {}
+        for part in sorted(parts):
+            ev = M.get(part) or M.get(re.sub(r'_Chao$', '', part)) or set()
+            a = A.get(part)
+            if not ev or not a: continue
+            by = collections.OrderedDict()
+            for fr, sn in sorted(ev):
+                if '_vs_' in sn: continue
+                sec = round(sum(f['d'] or 1 for f in a['f'][:fr]) / (a['speed'] or 12), 3)
+                by.setdefault(sec, []).append(sn)
+            row = []
+            for sec, L2 in by.items():
+                vo = [x for x in L2 if VOZ.match(x)]; fx = [x for x in L2 if not VOZ.match(x)]
+                if vo: row.append([sec, sorted(set(SAFE(x) for x in vo))])     # una voz al azar de entre estas
+                for x in sorted(set(fx)): row.append([sec, SAFE(x)])
+                files.update(L2)
+            if row: R[part] = row
+        if R: out[cid] = R
+    dst = os.path.join(ROOT, 'assets', 'zl3', 'a', 's'); os.makedirs(dst, exist_ok=True)
+    def conv(n):
+        f = os.path.join(dst, SAFE(n) + '.m4a')
+        if not os.path.exists(f):
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', os.path.join(Z.WWW, 'media', Z.MEDIA[n]), '-ac', '1', '-ar', '32000', '-c:a', 'aac', '-b:a', '40k', f], check=True)
+        return os.path.getsize(f)
+    with ThreadPoolExecutor(8) as ex: tot = sum(ex.map(conv, sorted(files)))
+    open(os.path.join(OUT, 'snd.js'), 'w', encoding='utf-8').write('window.ZMOVE_SND = ' + json.dumps(out, separators=(',', ':')) + ';\n')
+    print('sonidos', len(files), 'ficheros', tot // 1024, 'KB ·', len(out), 'luchadores')
+
+
 def main():
+    if '--snd' in sys.argv: return sounds()
     only = [a for a in sys.argv[2:] if not a.startswith('--') and a != PREV]
     total = 0
     ours = {f[0]: f[1] for f in Z.FIGHTERS}

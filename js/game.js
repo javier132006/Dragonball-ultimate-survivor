@@ -1722,6 +1722,7 @@ class Game {
     } else { p.x = Z.px; p.z = Z.pz; }
     p.vx = p.vz = 0; p.zHide = true;
     const F = ZMoves.seqFrame(Z.cid, Z.seq, t, false); if (F) this.zspS.show(Z.cid, F, p.x, p.z, p.flip, 0, 1, 1);
+    ZSnd.seq(Z.so || (Z.so = {}), Z.cid, Z.seq, t);                       // sus voces y efectos
     if (t >= Z.relT) {
       const base = ((p.ultD && p.ultD.dmg) || 60) * p.damageMul(), col = p.form.ki || 0x8ad8ff;
       DMG_SRC = 'otros';
@@ -2339,7 +2340,8 @@ class Game {
     if (p.ki < kc) { this.ui.toast('NECESITAS ' + kc + ' DE KI PARA LA ULTIMATE · CARGA CON [C]', true); SFX.play('warn'); return; }
     this.endSpec();
     p.ki -= kc; p.ult = 0; p.iframes = Math.max(p.iframes, 1.2);
-    ZL3.voice(ZL3.fighterOf(p.fusion ? p.fusion.ch : p.ch, p.fusion ? 0 : p.formIdx), 'ult');   // grito de Z Legends 3
+    { const zv = ZL3.fighterOf(p.fusion ? p.fusion.ch : p.ch, p.fusion ? 0 : p.formIdx), U3 = zv && window.ZMOVE_T && ZMOVE_T[zv] && ZMOVE_T[zv].U;
+      if (!(U3 && !p.fusion && !Save.d.opt.noCine && ZMoves.ready(zv) && ZSnd.hasAny(zv, U3.P.concat(U3.H || []).map((q) => q[0])))) ZL3.voice(zv, 'ult'); }   // grito de Z Legends 3 (si su Ultimate trae sus propias voces, suenan en la animación)
     // Ataque combinado: el aliado más cercano (a menos de COMBO_R) ataca contigo y la Ultimate hace +50% de daño
     let ca = null, cd = COMBO_R;
     for (const a of this.allies.list) { const d = Math.hypot(a.x - p.x, a.z - p.z); if (d < cd) { cd = d; ca = a; } }
