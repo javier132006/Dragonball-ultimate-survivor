@@ -35,7 +35,7 @@ const VsStats = {
     return '<h4>TU HISTORIAL</h4><div class="vst">' + [['Combates', n(s.fights)], ['Victorias', n(s.wins) + ' · ' + pct(s.wins, s.fights)], ['Sin perder ronda', n(s.perfect)], ['Transformaciones', n(s.tr)], ['Ultimates', n(s.ult) + ' (' + n(s.sup) + ' sup.)'],
       ['Contraataques', n(s.parry)], ['Mejor combo', n(s.maxCombo) + ' golpes'], ['Combo más dañino', n(s.maxDmg)], ['Torre', T + ' · récord ' + n(s.towerBest) + '/' + VS_TOWER.n]]
       .map((r) => '<div><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('') + '</div>' +
-      (c && c.fights ? '<h4>CON ' + nice(charById(id).name).toUpperCase() + '</h4><div class="vst"><div><span>Combates</span><b>' + n(c.fights) + '</b></div><div><span>Victorias</span><b>' + n(c.wins) + ' · ' + pct(c.wins, c.fights) + '</b></div></div>' : '');
+      (c && c.fights ? '<h4>CON ' + nice(vsCharById(id).name).toUpperCase() + '</h4><div class="vst"><div><span>Combates</span><b>' + n(c.fights) + '</b></div><div><span>Victorias</span><b>' + n(c.wins) + ' · ' + pct(c.wins, c.fights) + '</b></div></div>' : '');
   }
 };
 

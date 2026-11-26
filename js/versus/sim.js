@@ -36,6 +36,10 @@ const VS = {
   CTR: { cost: 15, win: 0.4, miss: 0.38, dmg: 95 },
   // Dragon Rush (botón RUSH): la embestida de Z Legends 3 con su lógica original; de cerca, rompe la guardia. lunge: velocidad del acercamiento
   DR: { cost: 33, lunge: 22, reach: 6 },
+  // Sparking de Z Legends 3: CARGAR KI + hacia atrás, una vez por combate. Dura t s; pega dmg veces más (5→7, 7→9 en el original)
+  // y la barra de transformación sube el doble. anim: lo que dura su animación (si su paquete no la trae)
+  SPARK: { t: 14, dmg: 1.35, anim: 1.1 },
+  TM_ZL: 2.5,                             // Z Legends 3: la barra de transformación sube sola, 1 % cada 0,4 s
   ULT_CINE: 1.25,                         // segundos de presentación de la Ultimate (el mundo se para)
   TR_CINE: 2.7, TR_SWAP: 1.75,            // transformación: duración total y momento del estallido (cambio de forma)
   TR_DEAL: 0.11, TR_TAKE: 0.16,           // barra de transformación ganada por punto de daño hecho / recibido
@@ -49,6 +53,7 @@ class VsFighter {
   /** chain: fichas de sus formas, de la inicial a la última. La forma y la barra de transformación duran todo el combate */
   constructor(i, chain) {
     this.chain = Array.isArray(chain) ? chain : [chain]; this.fi = 0; this.tm = 0; const def = this.chain[0];
+    this.spark = 0; this.spkUsed = 0;                         // Sparking: segundos que le quedan · ya gastado en este combate
     this.i = i; this.def = def; this.hpMax = def.hp; this.pow = def.pow; this.spd = def.spd; this.wins = 0;
     this.pas = def.pas ? def.pas.type : ''; this.zk = 0;      // pasiva del guerrero (versus/extras.js) · zk: veces que el Zenkai le ha subido la fuerza
     this.im = 0;                                              // Inmortalidad: ya la ha gastado en este combate
@@ -57,7 +62,7 @@ class VsFighter {
   }
   reset(x) {
     this.x = x; this.y = 0; this.z = 0; this.vx = this.vy = this.vz = 0;
-    this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.pend = 0; this.q = 0; this.qt = 0; this.stun = 0;
+    this.spark = 0; this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.pend = 0; this.q = 0; this.qt = 0; this.stun = 0;
     this.c = 0; this.n = 0; this.ok = false; this.buf = ''; this.jug = 0; this.spk = 0; this.ctr = 0; this.bo = 0; this.gt = 0; this.ft = 0; this.chg = 0; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.pu = 0; this.lh = 9; this.dx = 1; this.dz = 0; this.flash = 0;
     // Pasivas que se renuevan cada ronda: vis (visión), el (élite), cp (copia), wk (debilitado), slow (congelado), tpb (golpe tras teletransporte)
     this.vis = 0; this.el = 0; this.cp = 0; this.wk = 0; this.slow = 0; this.tpb = 0; this.sb = 0; this.sp = null; this.zh = 0; this.zc = 0;
@@ -67,7 +72,7 @@ class VsFighter {
   set(st) { this.st = st; this.t = 0; this.done = false; }
   get canTrans() { return this.tm >= 100 && this.fi < this.chain.length - 1; }
   /** Llena la barra de transformación (cada forma cuesta un poco más que la anterior) */
-  gain(v) { if (this.fi < this.chain.length - 1) this.tm = Math.min(100, this.tm + v / (1 + 0.3 * this.fi)); }
+  gain(v) { if (this.fi < this.chain.length - 1 && !this.def.zl) this.tm = Math.min(100, this.tm + v / (1 + 0.3 * this.fi)); }   // los de Z Legends 3 la llenan con el tiempo (stepFighter)
   get busy() { return this.st !== 'idle' && this.st !== 'move'; }
 }
 
@@ -154,6 +159,8 @@ class VsSim {
     if (f.wk > 0) f.wk -= dt; if (f.slow > 0) f.slow -= dt; if (f.sb > 0) f.sb -= dt;   // sb: potenciador de un especial (Kaioken...)
     const low = pas === 'esperanza' && f.hp < f.hpMax * 0.3;           // Última esperanza: con poca vida, más ki y disparos más baratos
     if (f.st !== 'ko' && this.phase === 'fight') {
+      if (f.spark > 0 && f.st !== 'sparking') f.spark = Math.max(0, f.spark - dt);
+      if (f.def.zl && f.fi < f.chain.length - 1) f.tm = Math.min(100, f.tm + VS.TM_ZL * (f.spark > 0 ? 2 : 1) * dt);   // como en el original: sube sola (el doble con Sparking)
       f.ki = Math.min(100, f.ki + VS.KI_REGEN * (pas === 'infinito' ? 3 : low ? 2 : 1) * dt); f.lh += dt;
       if (pas === 'regen' && f.lh > 3 && f.hp < f.hpMax) f.hp = Math.min(f.hpMax, f.hp + f.hpMax * 0.008 * dt);     // Regeneración: se cura si lleva 3 s sin recibir
       if (foe.pas === 'maligno' && foe.st !== 'ko' && Math.hypot(foe.x - f.x, foe.y - f.y, foe.z - f.z) < 6) f.ki = Math.max(0, f.ki - 6 * dt);   // Aura maligna del rival: cerca de él se pierde ki
@@ -194,9 +201,11 @@ class VsSim {
         if ((press & VB.ATK) && ctl && foe.st !== 'ko') { f.q = 0; f.set('grab'); this.emit('grabTry', { i: f.i }); break; }   // guardia + golpe = agarre
         if (!(held & VB.GUARD) && f.t > 0.12) f.set('idle'); if ((press & VB.TP) && f.ki >= VS.COST_TP * tpk && ctl) this.vanish(f, foe, VS.COST_TP * tpk); break;
       case 'charge': brake(12); f.ki = Math.min(100, f.ki + VS.KI_CHARGE * dt);
+        if (ctl && !f.spkUsed && !this.ult && foe.st !== 'ko' && wx * nx + wz * nz < -0.5) { this.startSpark(f); break; }   // Sparking: cargando, hacia atrás
         if (pas === 'fruto') f.hp = Math.min(f.hpMax, f.hp + f.hpMax * 0.025 * dt);     // Fruto del árbol sagrado: cargar ki también cura
         if ((press & VB.TRANS) && ctl && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
         if (!(held & VB.CHARGE) || !ctl) f.set('idle'); break;
+      case 'sparking': brake(14); if (f.t >= f.spkT) { f.spark = VS.SPARK.t; f.inv = 0; f.set('idle'); this.emit('sparkOn', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col }); } break;
       case 'dash':
         f.vx = f.dx * VS.DASH; f.vz = f.dz * VS.DASH; f.vy = f.dy * VS.DASH;
         if (f.t >= VS.DASH_T) { f.vx *= 0.3; f.vy *= 0.3; f.vz *= 0.3; f.set('idle'); }
@@ -491,6 +500,7 @@ class VsSim {
   /** big: golpe de los que mandan volando (decide si el K.O. que cierra el combate es un FINAL DESTRUCTIVO) */
   damage(att, def, dmg, big) {
     const ap = att.pas, dp = def.pas;
+    if (att.spark > 0) dmg *= VS.SPARK.dmg;                              // Sparking: pega más
     if (ap === 'orgullo' && att.hp < att.hpMax * 0.35) dmg *= 1.18;      // Orgullo: con poca vida pega más
     else if (ap === 'rose') dmg *= 1 + 0.2 * (1 - att.hp / att.hpMax);   // cuanto más daño lleva encima, más pega
     else if (ap === 'zenkai') dmg *= 1 + 0.04 * att.zk;
@@ -638,10 +648,17 @@ class VsSim {
      Con la barra llena el luchador sube a su siguiente forma. Mientras dura (TR_CINE) el mundo está parado y él es
      intocable; en TR_SWAP cambia de forma y la onda expansiva aparta al rival. Cada forma pega más, corre más y
      cambia su Ultimate por la versión superior de su familia. */
+  /** Sparking (Z Legends 3): su animación y, al acabar, 14 s de golpes más fuertes. Mientras se activa no le pueden tocar */
+  startSpark(f) {
+    f.spkUsed = 1; f.vx = f.vy = f.vz = 0; f.inv = 99; f.set('sparking');
+    const zid = /^z_/.test(f.def.sheet || '') ? f.def.sheet.slice(2) : null, D = zid && typeof ZMoves !== 'undefined' && ZMoves.D[zid], A = D && D.a.Sparking;
+    f.spkT = A ? A.f.reduce((s, g) => s + (g[7] || 1), 0) / (A.fps || 12) : VS.SPARK.anim;
+    this.emit('spark', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col });
+  }
   startTrans(f) {
     const nd = f.chain[f.fi + 1]; f.vx = f.vy = f.vz = 0; f.inv = 99; f.tm = 0; f.set('trans');
     this.tr = { who: f.i, t: 0, sw: false, y1: Math.max(f.y, 1.3), end: VS.TR_CINE + (nd.trX || 0), swapAt: VS.TR_SWAP };   // trX: la forma nueva tiene intro y la escena dura un poco más
-    const X = typeof window !== 'undefined' && window.ZMOVE_X && ZMOVE_X[nd.id + '/' + nd.form];   // transformación animada de Z Legends 3: dura lo que ella y cambia de forma al acabar
+    const X = typeof window !== 'undefined' && window.ZMOVE_X && ZMOVE_X[nd.id + '/' + (nd.form0 || nd.form)];   // transformación animada de Z Legends 3: dura lo que ella y cambia de forma al acabar
     if (X) { const d = X[1].reduce((a, q) => a + q[1], 0); Object.assign(this.tr, { zx: X, swapAt: d, end: d + 0.75 }); }
     this.emit('trStart', { i: f.i, col: nd.col, name: nd.form, dur: this.tr.end, sw: this.tr.swapAt });
   }

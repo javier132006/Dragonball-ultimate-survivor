@@ -182,7 +182,10 @@ class VsAI {
       }
       return c;
     }
-    if (this.plan === 'charge') { if (d < 8 || me.ki >= 100) this.pt = 0; else c.b |= VB.CHARGE; return c; }
+    if (this.plan === 'charge') {
+      if (me.st === 'charge' && !me.spkUsed && me.t > 0.25 && (me.hp < me.hpMax * 0.65 || (me.ki >= 60 && rnd() < L.aggro * 0.5))) { c.b |= VB.CHARGE; c.mx = -toward; return c; }   // Sparking (Z Legends 3): cargando, hacia atrás
+      if (d < 8 || me.ki >= 100) this.pt = 0; else c.b |= VB.CHARGE; return c;
+    }
     if (this.plan === 'shoot') {                                      // de lejos, a veces carga el disparo
       if (me.st === 'shot' && this.kHold > 0) { this.kHold -= dt; c.b |= VB.KI; return c; }
       if (me.ki < 8) this.pt = 0; else if (this.tap <= 0) { this.tap = 0.3; c.b |= VB.KI; this.kHold = d > 11 && me.ki > 40 && rnd() < 0.3 ? 0.45 + rnd() * 0.5 : 0; if (this.kHold) this.tap = this.kHold + 0.4; }

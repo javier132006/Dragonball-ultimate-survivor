@@ -29,7 +29,7 @@ PAGE = 2048
 FIGHTERS = ['gokubase', 'gokussj', 'gokublue', 'gokuui', 'vegetasagasaiyan', 'vegetassj', 'vegetaegosuperior', 'gohanssj2', 'gohanbeast',
             'miraigohan', 'miraitrunks', 'piccolo', 'cell', 'freeza', 'bardock', 'bardockssj', 'vegettossjblue', 'gogetassj4', 'gogetassjblue',
             'kefla', 'janemba', 'jiren', 'bills', 'hitto', 'raditz', 'android17', 'android18', 'gokublackrose', 'zamasufusion', 'brolyz',
-            'brolyikari', 'ginyu', 'superbaby2', 'kidbuu', 'nappa', 'moro73']
+            'brolyikari', 'ginyu', 'superbaby2', 'kidbuu', 'nappa', 'moro73', 'tienshihan']
 # (se guardan con el id que usa el juego: el segundo campo de make_zl3.FIGHTERS)
 # Animaciones que se guardan: las técnicas en el suelo (las variantes en el aire, agachado o hacia arriba/abajo no se usan en 3D)
 KEEP = re.compile(r'^(Special|Ultimate|Ultimatel|UltimateAttack|UltimateSsj|Transformation|Sparking|Intro|DramaticIntro|Vitoria|Pose_De_Vitoria)')
@@ -43,7 +43,7 @@ FX = {'esferadekigigante_sprite': None, 'genkidamaefeito_sprite': None, 'explosi
       'vegetaego_effects': ['Hakai_Loop', 'Hakai_Desaparecer'], 'kidbuu_e_cell_effects': ['Planet_Buster_Ball', 'Planet_Buster_Explosion_Final'],
       'android17_effects': ['SuperElectricStrike_NãoEspelhado_Effect', 'SuperElectricStrike_NãoEspelhado_Destroy_Effect'],
       'lightinggranade_sprite': None, 'explosao_sprite': ['Explosao4', 'Explosao8', 'Explosao10', 'Explosao11', 'Explosao15'],
-      'moro73_lavaball_sprite': ['Explodindo']}
+      'moro73_lavaball_sprite': ['Explodindo'], 'sparking_ativo_effect_jogador_sprite': ['Default']}
 
 # Ultimate del Versus de cada luchador (id del juego): técnica (prefijo de sus partes, o lista de partes), tipo y efectos.
 #   beam: lo que lanza va dibujado en el sprite; alcanza si el rival está dentro de lo que mide el sprite al soltarla

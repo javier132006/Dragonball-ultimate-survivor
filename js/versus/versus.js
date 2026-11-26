@@ -19,18 +19,20 @@ const VS_KEYS_TIPS = '' +
   '<h4>MANDO</h4><b>X</b> golpe · <b>Y</b> fuerte · <b>B</b> ki · <b>A</b> dash · <b>LB</b> guardia · <b>RB</b> teletransporte · <b>LT</b> cargar · <b>RT</b> Ultimate · <b>pulsar un stick</b> transformarse · cruceta ↑↓ subir/bajar<br>El primer mando es del jugador 1; el segundo, del jugador 2.' +
   '<h4>COMBO</h4>Cada pulsación de <b>golpe</b> es un golpe. Si conectas los 4, pulsa una vez más: sale sola una <b>ráfaga</b> de golpes rápidos que manda al rival volando. Tras cualquier golpe puedes cortar con el <b>golpe fuerte</b>.' +
   '<h4>TÉCNICAS</h4><b>Agarre</b>: guardia + golpe. Rompe la guardia; si te agarran, pulsa golpe al instante para soltarte. <b>Gancho</b>: golpe fuerte con «subir» pulsado; levanta al rival para seguir pegándole en el aire, y un golpe fuerte en el aire lo <b>estrella</b> contra el suelo. <b>Esquiva perfecta</b>: haz dash justo cuando llega el golpe y tu siguiente ataque aparece a su espalda y pega más. <b>Ki cargado</b>: mantén el botón de ki. Los disparos de los dos <b>chocan</b> entre sí: gana el más fuerte.' +
-  '<h4>TRANSFORMACIÓN</h4>La barra naranja se llena al pegar y al recibir daño. Llena, <b>transfórmate</b>: más fuerza, algo de vida y una <b>Ultimate distinta</b>, la de esa forma. Puedes encadenar todas las formas del guerrero.' +
-  '<h4>PASIVA</h4>Cada guerrero tiene una <b>habilidad única</b> siempre activa (la ves al elegirlo): unos se curan, otros pegan más con poca vida, aguantan golpes, absorben ki...' +
+  '<h4>TRANSFORMACIÓN</h4>Como en Z Legends 3, solo se transforman en combate Goku (base → Super Saiyan → Blue) y Bardock (→ Super Saiyan). La barra naranja se llena sola con el tiempo. Llena, <b>transfórmate</b>: la nueva forma trae sus técnicas y su Ultimate.' +
+  '<h4>SPARKING</h4>Mientras <b>cargas ki</b>, tira <b>hacia atrás</b>. Una vez por combate: durante 14 segundos pegas más y la barra de transformación sube el doble de rápido.' +
   '<h4>TRUCOS</h4>Guardia justo antes del golpe: <b>contraataque</b>. Dash cuando el rival sale volando: <b>persecución</b>. Teletransporte mientras te pegan: <b>escapas</b> (30 de ki).';
 
 /** Ficha de un luchador a partir de un guerrero del juego y una de sus formas. k = transformaciones hechas en el combate hasta llegar a ella */
 function vsDef(ch, fi, k) {
   k = k || 0; const f = ch.forms[fi] || ch.forms[0];
-  return { id: ch.id, name: nice(ch.name), form: f.name, sheet: f.sheet, anim: f.anim, tint: f.tint === undefined ? 0xffffff : f.tint, col: f.ki || 0x8ad8ff,
+  // Luchador de Z Legends 3 (versus/roster.js): voces, entradas e intros salen del guerrero del juego (bid, y su número de forma)
+  const zl = !!ch.zl, B = (zl && ch.base) || ch, id = zl ? ch.bid : ch.id, ix = zl ? ch.ix[ch.forms.indexOf(f)] : ch.forms.indexOf(f);
+  return { id, zl: zl ? ch.id : null, name: nice(ch.name), form: f.name, form0: f.on || f.name, sheet: f.sheet, anim: f.anim, tint: f.tint === undefined ? 0xffffff : f.tint, col: f.ki || 0x8ad8ff,
     hp: Math.round(1000 * Math.max(0.88, Math.min(1.22, (ch.hp || 110) / 112))), spd: Math.max(0.94, Math.min(1.12, 0.9 + (ch.spd || 1) * 0.1 + fi * 0.01)) * (1 + 0.02 * Math.min(4, k)), pow: (1 + Math.min(4, fi) * 0.015) * (1 + 0.08 * Math.min(4, k) + 0.02 * Math.max(0, k - 4)),
-    ult: vsUlt(ch, f, ch.forms.indexOf(f), k), pas: vsPas(ch),            // cada forma tiene su propia Ultimate (versus/ults.js)
-    ix: ch.forms.indexOf(f),                                                // número de la forma (para su intro, assets/intros.js)
-    trX: typeof FormIntros !== 'undefined' && FormIntros.has(ch.id, ch.forms.indexOf(f)) ? Math.max(0, FORM_INTRO_T + 0.05 - (VS.TR_CINE - VS.TR_SWAP)) : 0 };   // con intro, la transformación dura lo que ella
+    ult: vsUlt(B, f, ix < 0 ? fi : ix, k), pas: zl ? null : vsPas(ch),    // cada forma tiene su propia Ultimate (versus/ults.js; las de Z Legends 3, de su tabla) · sin pasivas inventadas en el plantel del original
+    ix,                                                                     // número de la forma (para su intro, assets/intros.js)
+    trX: typeof FormIntros !== 'undefined' && ix >= 0 && FormIntros.has(id, ix) ? Math.max(0, FORM_INTRO_T + 0.05 - (VS.TR_CINE - VS.TR_SWAP)) : 0 };   // con intro, la transformación dura lo que ella
 }
 /** Entrada de Z Legends 3 de una forma: animación (A s, acelerada k) y paneles (P s, acelerados kp), y lo que ocupa en la presentación */
 function vsZIntro(sheet) {
@@ -169,6 +171,7 @@ class Versus {
       case 'grab': return fit('Attack_Medium', t, 0.5);
       case 'grabd': case 'held': return pf(air ? 'Dano_Aereo1' : 'Dano_Chao1', t, false);
       case 'guard': return pf(air ? 'Defesa_Ar' : 'Defesa_Chao', t, false);
+      case 'sparking': if (has('Sparking')) ZSnd.seq(a.zso || (a.zso = {}), zid, [['Sparking', dur('Sparking'), 0]], t); return pf('Sparking', t, false) || pf('CarregandoKi_Stage3', t, true);   // Sparking de Z Legends 3 (con sus sonidos)
       case 'charge': { const d1 = has('CarregandoKi_Stage1') ? dur('CarregandoKi_Stage1') : 0; return t < d1 ? pf('CarregandoKi_Stage1', t, false) : pf(f.ki >= 100 && has('CarregandoKi_Stage3') ? 'CarregandoKi_Stage3' : 'CarregandoKi_Stage2', t - d1, true); }
       case 'dash': { const d0 = has('Dash_Start') ? dur('Dash_Start') : 0; return t < d0 ? pf('Dash_Start', t, false) : pf('Dash', t - d0, true); }
       case 'hurt': case 'stun': return air ? pf('Dano_Aereo' + (1 + hn % 4), t, false) : pf('Dano_Chao' + (1 + hn % 2), t, false);
@@ -269,14 +272,14 @@ class Versus {
   }
 
   /* ---------------- Menú de selección ---------------- */
-  roster() { return CHARACTERS.filter((c) => !c.soon && Save.d.unlocked.includes(c.id) && c.forms && c.forms.length && SPRITE_DATA[c.forms[0].sheet]); }
+  roster() { return vsRoster(); }                                     // los 37 de Z Legends 3, todos desde el principio (versus/roster.js)
   open() {
     const g = this.g; if (this.active) return;
     VsBinds.load(); this.refreshHint();
     this.active = true; this.prevState = g.state; g.state = 'versus'; g.releaseMouse && g.releaseMouse();
     g.ui.el.menu.style.display = 'none'; g.ui.el.hud.style.display = 'none';
     this.el.classList.add('on'); const R = this.roster(), c = this.cfg;
-    if (!c.pick[0] || !R.some((x) => x.id === c.pick[0].id)) c.pick[0] = { id: (R.find((x) => x.id === Save.d.sel) || R[0]).id, f: 0 };
+    if (!c.pick[0] || !R.some((x) => x.id === c.pick[0].id)) c.pick[0] = { id: (R.find((x) => x.bid === Save.d.sel) || R[0]).id, f: 0 };
     if (!c.pick[1] || !R.some((x) => x.id === c.pick[1].id)) c.pick[1] = { id: (R[1] || R[0]).id, f: 0 };
     this.showSelect(); SFX.play('tp');
   }
@@ -293,16 +296,16 @@ class Versus {
     const p2 = c.mode === 'cpu' ? 'CPU' : trn ? 'Rival de práctica' : 'Jugador 2';
     // Ficha de un luchador: retrato, formas (se elige con cuál empieza), pasiva y la Ultimate de cada forma
     const panel = (i) => {
-      const ch = charById(c.pick[i].id), fi = c.pick[i].f, f = ch.forms[fi] || ch.forms[0], pas = vsPas(ch);
+      const ch = vsCharById(c.pick[i].id), fi = c.pick[i].f, f = ch.forms[fi] || ch.forms[0], pas = ch.zl ? null : vsPas(ch);
       return '<section class="fp p' + i + (c.side === i ? ' on' : '') + '" data-v="side" data-a="' + i + '" tabindex="0"><span class="who">' + (i ? p2 : 'Jugador 1') + '</span>' + (fi === 0 && EntryFx.has(ch.id) ? '<canvas class="art ent" width="' + ENTRY_W + '" height="' + ENTRY_H + '" data-entry="' + ch.id + '" data-k="vs' + i + '"></canvas>'   // forma base: animación de entrada (js/entryfx.js)
-        : '<canvas class="art" width="168" height="168" data-full="' + f.sheet + '"></canvas>') + '<h3>' + nice(ch.name) + '</h3>' +
-        '<h4>Empieza en</h4><div class="forms">' + ch.forms.map((g, n) => (SPRITE_DATA[g.sheet] ? '<button data-v="form" data-a="' + i + ':' + n + '"' + (fi === n ? ' class="on"' : '') + '>' + nice(g.name) + '</button>' : '')).join('') + '</div>' +
+        : '<canvas class="art" width="168" height="168" data-full="' + f.sheet + '"></canvas>') + '<h3>' + nice(ch.name) + '</h3>' + (ch.zl ? '<div class="zfm">' + nice(f.name) + '</div>' + (ch.forms.length > 1 ? '<h4>Se transforma en</h4><div class="forms">' + ch.forms.slice(1).map((g) => '<span>' + nice(g.name) + '</span>').join('') + '</div>' : '')
+          : '<h4>Empieza en</h4><div class="forms">' + ch.forms.map((g, n) => (SPRITE_DATA[g.sheet] ? '<button data-v="form" data-a="' + i + ':' + n + '"' + (fi === n ? ' class="on"' : '') + '>' + nice(g.name) + '</button>' : '')).join('') + '</div>') +
         (pas ? '<h4>Habilidad única</h4><div class="psv"><b>' + pas.name + '</b>' + pas.info + '</div>' : '') +
         '<h4 class="uh">Ultimate de cada forma</h4><ol class="ults">' + vsChain(ch, fi).map((d) => '<li><b>' + d.ult.name + '</b>' + nice(d.form) + ' <small>· ' + VS_ULT_INFO[d.ult.type][d.ult.v] + '</small></li>').join('') + '</ol></section>';
     };
     const tower = '<section class="fp tw"><span class="who">La Torre</span><h3 style="margin-top:14px">' + VS_TOWER.n + ' rivales</h3><div class="twi">Rivales al azar, cada uno más duro que el anterior. El último es un <b>jefe</b> que ya llega transformado. Tienes una continuación.<br><br>Ganas zeni y cristales en cada victoria, y <b>' + L.cry + ' cristales</b> al superarla' +
       (VsStats.d().tower[c.level] ? '' : ' (<b>el doble</b> la primera vez)') + '.</div></section>';
-    const grid = '<div class="grid">' + R.map((ch) => '<button data-v="char" data-a="' + ch.id + '" class="' + (c.pick[0].id === ch.id ? 'p0 ' : '') + (!lad && c.pick[1].id === ch.id ? 'p1' : '') + '" title="' + nice(ch.name) + '"><canvas width="74" height="74" data-pt="' + ch.forms[0].sheet + '"></canvas><em>' +
+    const grid = '<div class="grid">' + R.map((ch) => '<button data-v="char" data-a="' + ch.id + '" class="' + (c.pick[0].id === ch.id ? 'p0 ' : '') + (!lad && c.pick[1].id === ch.id ? 'p1' : '') + '" title="' + nice(ch.name) + (ch.zl ? ' · ' + nice(ch.forms[0].name) : '') + '"><canvas width="74" height="74" data-pt="' + ch.forms[0].sheet + '"></canvas><em>' +
       (c.pick[0].id === ch.id ? 'J1' : '') + (!lad && c.pick[1].id === ch.id ? (c.pick[0].id === ch.id ? '+' : '') + (c.mode === 'cpu' ? 'CPU' : trn ? 'Rival' : 'J2') : '') + '</em></button>').join('') + '</div>';
     const tutoCard = '<section class="fp tw"><span class="who">Tutorial</span><h3 style="margin-top:14px">' + VS_TUTO.length + ' lecciones</h3><div class="twi">Aprende paso a paso todo lo del Versus: moverte y volar, combos, ganchos, disparos cargados, <b>guardia perfecta</b>, <b>esquiva perfecta</b>, agarres, la Ultimate, cómo <b>desviar</b> una Ultimate rival y el <b>choque de Ultimates</b>.<br><br>Cada lección te dice qué hacer y con qué teclas, y se supera sola. Puedes saltar o repetir las que quieras.</div></section>';
     const opt = (t, h) => '<span>' + t + '</span>' + h;
@@ -371,12 +374,12 @@ class Versus {
     if (this.loading) return; this.loading = true;
     const c = this.cfg, tw = c.mode === 'ladder' ? this.tw : null, tuto = c.mode === 'tuto', train = c.mode === 'train' || tuto, AK = Object.keys(VS_ARENAS);
     const sto = c.mode === 'story', SC = sto ? (() => { const [si, ci] = this.storySel(); return VS_STORY[si].ch[ci]; })() : null;
-    let picks = sto ? [{ id: SC.p[0], f: SC.p[1] }, { id: SC.r[0], f: SC.r[1] }] : [c.pick[0], tw ? tw.foes[tw.i] : tuto ? { id: this.roster().some((x) => x.id === 'goku') ? 'goku' : c.pick[1].id, f: 0 } : c.pick[1]];   // tutorial: el rival es Goku (su Kamehameha se puede desviar)
+    let picks = sto ? [{ id: SC.p[0], f: SC.p[1] }, { id: SC.r[0], f: SC.r[1] }] : [c.pick[0], tw ? tw.foes[tw.i] : tuto ? { id: this.roster().some((x) => x.id === 'zl_goku') ? 'zl_goku' : c.pick[1].id, f: 0 } : c.pick[1]];   // tutorial: el rival es Goku (su Kamehameha se puede desviar)
     if (!train) picks = picks.map((p) => {                               // Gogeta y Vegetto entran fusionándose: empiezan en esa forma
-      const ch = charById(p.id); if (!ch || VS_FUSION_START.includes((ch.forms[p.f] || {}).sheet)) return p;
+      const ch = vsCharById(p.id); if (!ch || VS_FUSION_START.includes((ch.forms[p.f] || {}).sheet)) return p;
       const k = ch.forms.findIndex((f, i) => i > p.f && VS_FUSION_START.includes(f.sheet) && SPRITE_DATA[f.sheet]); return k > 0 ? { id: p.id, f: k } : p;
     });
-    const chains = picks.map((p) => vsChain(charById(p.id), p.f)), sheets = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))));
+    const chains = picks.map((p) => vsChain(vsCharById(p.id), p.f)), sheets = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))));
     const intros = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => FormIntros.has(d.id, d.ix) ? vsTexture(FormIntros.name(d.id, d.ix)) : null))));   // intro de cada forma (entrada y transformación)
     this.loading = false; if (!this.active || sheets.some((s) => !s[0])) return;
     chains.forEach((ch, i) => { const n = sheets[i].findIndex((s) => !s); if (n > 0) { ch.length = n; sheets[i].length = n; } });   // si una hoja no carga, la cadena acaba antes
@@ -620,6 +623,8 @@ class Versus {
       case 'final': if (!this.startDF(e)) this.startFinal(e); break;   // Dramatic Finish de Z Legends 3 si es uno de sus duelos; si no, el final destructivo
       case 'pas': this.onPas(e); break;
       case 'match': this.finish(e.w); break;
+      case 'spark': { const a = this.actors[e.i]; this.tag('¡SPARKING!'); this.flash = Math.max(this.flash, 0.3); this.lines = 1; cam.shake(0.7); this.burst(e.x, e.y, e.z, 0xffe066, 18, 26, 1.8); this.ring(e.x, e.y, e.z, 0xffe066, 2, 14, 0.3); SFX.play('stinger'); g_rumble(250, 0.7); if (a.zid && a.zid[a.fi]) ZL3.voice(a.zid[a.fi], 'tf', 'ult'); break; }
+      case 'sparkOn': this.sparks(e.x, e.y, e.z, 0xffe066, 14, 30, 0, 0.6, 0, 1.4); this.ring(e.x, e.y, e.z, 0xffffff, 1, 10, 0.2); SFX.play('ki'); break;
       case 'trStart': {                                                 // transformación: plano contrapicado que se cierra sobre el luchador
         this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); this.dim = 1; this.dimCol = e.col; this.trCol = e.col;
         const f = sim.f[e.i], a0 = cam.ang, s = e.i ? -1 : 1, D = e.dur || VS.TR_CINE, K = (e.sw || VS.TR_SWAP) / D;   // D: con intro de la forma nueva dura más
@@ -869,7 +874,7 @@ class Versus {
         if (tw.i >= N - 1) {
           const first = !S.tower[tw.level], bonus = VS_TOWER.levels[tw.level].cry * (first ? 2 : 1); S.tower[tw.level] = (S.tower[tw.level] || 0) + 1; Save.d.crystals += bonus; tw.cry += bonus;
           h2 = '¡TORRE SUPERADA!'; p = N + ' rivales derrotados · +' + tw.zeni + ' zeni · +' + tw.cry + ' cristales' + (first ? ' (primera vez: premio doble)' : ''); btn = [['reselect', 'Volver al Versus'], ['exit', 'Salir al menú']]; SFX.play('stinger');
-        } else { h2 = '¡VICTORIA!'; p = 'Rival ' + (tw.i + 1) + ' de ' + N + ' superado · +' + z + ' zeni · +' + cr + ' cristales<br>Siguiente: <b>' + nice(charById(tw.foes[tw.i + 1].id).name) + '</b>' + (tw.i + 1 === N - 1 ? ' · jefe final' : ''); btn = [['next', 'Siguiente combate'], ['reselect', 'Abandonar la torre']]; }
+        } else { h2 = '¡VICTORIA!'; p = 'Rival ' + (tw.i + 1) + ' de ' + N + ' superado · +' + z + ' zeni · +' + cr + ' cristales<br>Siguiente: <b>' + nice(vsCharById(tw.foes[tw.i + 1].id).name) + '</b>' + (tw.i + 1 === N - 1 ? ' · jefe final' : ''); btn = [['next', 'Siguiente combate'], ['reselect', 'Abandonar la torre']]; }
       } else { h2 = 'DERROTA'; p = 'Has caído ante ' + d.name + ' en el combate ' + (tw.i + 1) + ' de ' + N + '.'; btn = tw.cont > 0 ? [['retry', 'Reintentar (queda 1 continuación)'], ['reselect', 'Abandonar la torre']] : [['reselect', 'Volver al Versus'], ['exit', 'Salir al menú']]; }
       Save.write();
     }
@@ -1176,7 +1181,8 @@ class Versus {
       if (bm.mesh.visible && u && u.type === 'beam') { const al = Math.max(0, Math.min(u.len, (x - u.ox) * u.dx + (y + 1.6 - u.oy) * u.dy + (z - u.oz) * u.dz)); src(u.ox + u.dx * al, u.oy + u.dy * al, u.oz + u.dz * al, bm.u.uCol.value.getHex(), 1.8); }
       // Aura: al cargar, con el ki lleno y en la Ultimate
       const want = f.st === 'trans' ? 0.7 : f.st === 'charge' ? 1 : f.fi > 0 && f.st !== 'ko' && f.st !== 'ult' && f.ki < 100 && f.st !== 'dash' ? 0.3 : f.st === 'ult' ? (u && u.lock ? 0.3 : 0.95) : f.st === 'clash' ? 0.6 + 0.4 * ((sim.clash && sim.clash.burn[f.i]) || 0) : f.st === 'ko' ? 0 : f.ki >= 100 ? 0.5 : f.st === 'dash' ? 0.35 : 0;
-      a.pow += (Math.max(want, powMin) - a.pow) * Math.min(1, dt * 9); if (hide || itx) a.pow = 0;   // la intro ya trae su aura dibujada
+      a.pow += (Math.max(want, powMin, f.st === 'sparking' ? 1 : f.spark > 0 ? 0.55 : 0) - a.pow) * Math.min(1, dt * 9); if (hide || itx) a.pow = 0;   // la intro ya trae su aura dibujada
+      { const sc = f.spark > 0 || f.st === 'sparking' ? 0xffe066 : a.def.col; if (a.auc !== sc) { a.auc = sc; a.au.uCol.value.setHex(sc); } }   // Sparking: aura dorada
       if (a.pow > 0.02 && a.pow * 0.9 > rI) { rI = a.pow * 0.9; rc = a.def.col; rdx = 0; rdy = -1; }
       if (dim > 0.1 && rI < 0.35) { rI = 0.35 * dim; rc = this.dimCol; }
       const rl2 = Math.hypot(rdx, rdy) || 1; U.uRim.value.setHex(rc).multiplyScalar(Math.min(1.5, rI)); U.uRimDir.value.set(rdx / rl2, rdy / rl2);
@@ -1187,6 +1193,10 @@ class Versus {
       { const as = f.st === 'trans' ? 1 + 0.25 * (tq || 1) : f.fi > 0 ? 1.1 : 1; a.au.uSize.value.set(7.4 * as, 9.8 * as); }
       if (f.st === 'trans') light(x, y + 2, z, tq > 0 ? this.trCol : a.def.col, 0.7 + 0.9 * (tq || 1));
       U.uAlpha.value = f.inv > 0 && f.st !== 'ult' && f.st !== 'trans' && sim.phase === 'fight' && (sim.tick & 2) ? 0.55 : 1;
+      if (f.spark > 0 && !hide && f.st !== 'ko') {                        // Sparking activo: el efecto del original encima del luchador
+        const Fo = ZMoves.fx('sparking_ativo_effect_jogador:Default', T), To = Fo && ZMoves.tex('fx', Fo.pg, 'v');
+        if (To) { if (!a.spkS) a.spkS = this.zSprite(); a.spkS.setSheet(To); a.spkS.poseRect(Fo, false, 1, 1, 1); a.spkS.u.uRight.value.copy(S.u.uRight.value); a.spkS.mesh.position.set(x, y, z); a.spkS.mesh.visible = true; }
+      } else if (a.spkS) a.spkS.mesh.visible = false;
       a.aura.visible = a.pow > 0.02; a.au.uPow.value = a.pow; a.au.uT.value = T + i * 3.7; a.aura.position.set(x + ox - m[8] * -0.25, y + oy, z + oz - m[10] * -0.25);
       if (a.pow > 0.3) light(x, y + 1.6, z, a.def.col, 0.7 * a.pow);
       if (f.st === 'guard') fx.now(1, x + RX * dir * 1.0, y + 1.7, z + RZ * dir * 1.0, 4.2, 0x9adcff, 0.5 * (f.gm / 100) + 0.2);
@@ -1200,6 +1210,8 @@ class Versus {
         if (can !== h.can) { h.can = can; h.tr.classList.toggle('full', can === 1); h.tr.classList.toggle('max', can === 2);
           h.trl.innerHTML = can === 2 ? (f.chain.length > 1 ? 'FORMA MÁXIMA' : '') : can === 1 ? (i && this.p2cpu ? '¡LISTA!' : '¡TRANSFÓRMATE!<kbd>' + vsKeyName(VS_KEYS[i].TRANS) + '</kbd>') : '';
           if (can === 1) { SFX.play('ki'); fx.add(1, x, y + 1.6, z, 1, 0xffd75a, { s1: 9, life: 0.4, a: 0.9 }); } } }
+      { const sk = f.spark > 0 ? Math.ceil(f.spark) : 0;                 // Sparking: el rótulo de la barra cuenta lo que le queda
+        if (sk !== h.spk) { h.spk = sk; h.tr.classList.toggle('spk', sk > 0); if (sk) h.trl.innerHTML = 'SPARKING ' + sk; else { h.can = -1; } } }
       if (h.wins !== f.wins) { h.wins = f.wins; [...h.pips.children].forEach((b, n) => b.classList.toggle('w', n < f.wins)); }
       const c = this.ui.cmb[i]; if (c.t > 0 && (c.t -= rawDt) <= 0) c.classList.remove('on');
     }
