@@ -9,20 +9,20 @@
    La simulación (sim.js) solo ve órdenes: no sabe quién las genera. Por
    eso el mismo luchador sirve para jugador, bot y online sin tocar nada.
    ===================================================================== */
-const VB = { ATK: 1, HEAVY: 2, KI: 4, GUARD: 8, DASH: 16, TP: 32, CHARGE: 64, ULT: 128, UP: 256, DOWN: 512, TRANS: 1024, SPEC: 2048, CTR: 4096, DR: 8192 };
+const VB = { ATK: 1, HEAVY: 2, KI: 4, GUARD: 8, DASH: 16, TP: 32, CHARGE: 64, ULT: 128, UP: 256, DOWN: 512, TRANS: 1024, SPEC: 2048, CTR: 4096, DR: 8192, SWAP: 16384 };
 const VS_Q = (v) => Math.round(Math.max(-1, Math.min(1, v)) * 4) / 4;      // ejes en pasos de 1/4: una orden cabe en 2 bytes
 
 /* Teclas por defecto. Jugador 1: mano izquierda mueve, mano derecha pega. Jugador 2: flechas + teclado numérico */
 const VS_KEYS_DEF = [
-  { l: 'KeyA', r: 'KeyD', f: 'KeyW', k: 'KeyS', UP: 'Space', DOWN: 'ShiftLeft', ATK: 'KeyJ', HEAVY: 'KeyK', KI: 'KeyL', GUARD: 'KeyU', DASH: 'KeyI', TP: 'KeyO', CHARGE: 'KeyH', ULT: 'KeyY', TRANS: 'KeyT', SPEC: 'KeyN', CTR: 'KeyM', DR: 'KeyB' },
+  { l: 'KeyA', r: 'KeyD', f: 'KeyW', k: 'KeyS', UP: 'Space', DOWN: 'ShiftLeft', ATK: 'KeyJ', HEAVY: 'KeyK', KI: 'KeyL', GUARD: 'KeyU', DASH: 'KeyI', TP: 'KeyO', CHARGE: 'KeyH', ULT: 'KeyY', TRANS: 'KeyT', SPEC: 'KeyN', CTR: 'KeyM', DR: 'KeyB', SWAP: 'KeyG' },
   { l: 'ArrowLeft', r: 'ArrowRight', f: 'ArrowUp', k: 'ArrowDown', UP: 'ShiftRight', DOWN: 'ControlRight', ATK: 'Numpad1', HEAVY: 'Numpad2', KI: 'Numpad3', GUARD: 'Numpad4', DASH: 'Numpad5', TP: 'Numpad6',
-    CHARGE: 'Numpad0', ULT: 'NumpadEnter', TRANS: 'NumpadAdd', SPEC: 'Numpad7', CTR: 'Numpad8', DR: 'Numpad9' }
+    CHARGE: 'Numpad0', ULT: 'NumpadEnter', TRANS: 'NumpadAdd', SPEC: 'Numpad7', CTR: 'Numpad8', DR: 'Numpad9', SWAP: 'NumpadDecimal' }
 ];
 /* Teclas en uso: las de por defecto más lo que el jugador haya cambiado (se guarda en Save.d.opt.vsKeys).
    Los objetos no se sustituyen nunca, solo se rellenan: así los VsKeyboard ya creados siguen valiendo. */
 const VS_KEYS = [Object.assign({}, VS_KEYS_DEF[0]), Object.assign({}, VS_KEYS_DEF[1])];
 const VS_ACTS = [['l', 'Izquierda'], ['r', 'Derecha'], ['f', 'Hacia el fondo'], ['k', 'Hacia la cámara'], ['UP', 'Subir'], ['DOWN', 'Bajar'], ['ATK', 'Golpe'], ['HEAVY', 'Golpe fuerte'], ['KI', 'Ki'],
-  ['GUARD', 'Guardia'], ['DASH', 'Dash'], ['TP', 'Teletransporte'], ['CHARGE', 'Cargar ki'], ['ULT', 'Ultimate'], ['TRANS', 'Transformarse'], ['SPEC', 'Especial'], ['CTR', 'Contraataque'], ['DR', 'Dragon Rush']];
+  ['GUARD', 'Guardia'], ['DASH', 'Dash'], ['TP', 'Teletransporte'], ['CHARGE', 'Cargar ki'], ['ULT', 'Ultimate'], ['TRANS', 'Transformarse'], ['SPEC', 'Especial'], ['CTR', 'Contraataque'], ['DR', 'Dragon Rush'], ['SWAP', 'Cambiar de luchador (equipos)']];
 const VS_KEY_NAMES = { ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓', NumpadEnter: 'NUM INTRO', NumpadAdd: 'NUM +', NumpadSubtract: 'NUM -', NumpadMultiply: 'NUM *', NumpadDivide: 'NUM /', NumpadDecimal: 'NUM .' };
 const vsKeyName = (c) => VS_KEY_NAMES[c] || keyName(c);
 const VsBinds = {
@@ -45,8 +45,8 @@ const VsBinds = {
   changed() { const st = this.store(); return Object.keys(st[0] || {}).length + Object.keys(st[1] || {}).length > 0; }
 };
 /* Mando estándar: X golpe · Y fuerte · B ki · A dash · LB guardia · RB teletransporte · LT cargar · RT Ultimate · cruceta ↑↓ subir/bajar, → especial, ← contraataque · pulsar un stick transformarse */
-const VS_PAD = { ATK: 2, HEAVY: 3, KI: 1, DASH: 0, GUARD: 4, TP: 5, CHARGE: 6, ULT: 7, UP: 12, DOWN: 13, TRANS: 11, SPEC: 15, CTR: 14, DR: 10 };
-const VS_BTNS = ['ATK', 'HEAVY', 'KI', 'GUARD', 'DASH', 'TP', 'CHARGE', 'ULT', 'UP', 'DOWN', 'TRANS', 'SPEC', 'CTR', 'DR'];
+const VS_PAD = { ATK: 2, HEAVY: 3, KI: 1, DASH: 0, GUARD: 4, TP: 5, CHARGE: 6, ULT: 7, UP: 12, DOWN: 13, TRANS: 11, SPEC: 15, CTR: 14, DR: 10, SWAP: 8 };
+const VS_BTNS = ['ATK', 'HEAVY', 'KI', 'GUARD', 'DASH', 'TP', 'CHARGE', 'ULT', 'UP', 'DOWN', 'TRANS', 'SPEC', 'CTR', 'DR', 'SWAP'];
 
 /** Teclado (lee el estado global `keys` de core.js) */
 /* Toques de tecla: se apunta cuándo se pulsó cada una. Así una pulsación rápida (bajar y soltar entre dos fotogramas,
@@ -181,6 +181,9 @@ class VsAI {
         } else if (rnd() < 0.8 + L.combo * 0.2) c.b |= VB.ATK; else this.cool = 0.4;
       }
       return c;
+    }
+    if (me.team && me.team.length > 1 && me.swCd <= 0 && (me.st === 'idle' || me.st === 'move') && me.hp < me.hpMax * 0.3) {   // equipos: con poca vida, cambia por un compañero más entero
+      const k = me.nextAlive(); if (k >= 0 && me.team[k].hp / me.team[k].hpMax > me.hp / me.hpMax + 0.25 && rnd() < dt * 2) { c.b |= VB.SWAP; return c; }
     }
     if (this.plan === 'charge') {
       if (me.st === 'charge' && !me.spkUsed && me.t > 0.25 && (me.hp < me.hpMax * 0.65 || (me.ki >= 60 && rnd() < L.aggro * 0.5))) { c.b |= VB.CHARGE; c.mx = -toward; return c; }   // Sparking (Z Legends 3): cargando, hacia atrás

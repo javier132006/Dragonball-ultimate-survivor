@@ -42,6 +42,8 @@ function vsZIntro(sheet) {
   const A = a / k, P = pm / kp;
   return { z, A, k, P, kp, at: (T.C && T.C.at) || 0, len: Math.max(VS_INTRO_SLOT, A + P + 0.5) };
 }
+/** Qué hace cada tipo de Ultimate de Z Legends 3 (assets/zl3/m/list.js) */
+const VS_ZULT_INFO = { beam: 'Rayo de energía', rush: 'Ataque cuerpo a cuerpo', proj: 'Esfera de energía', area: 'Explosión a su alrededor', warp: 'Aparece junto al rival' };
 /** Formas que se presentan fusionándose (Gogeta, Vegetto): si el combate empieza antes de ellas, empieza en ellas */
 const VS_FUSION_START = ['z_gogetablue', 'z_gogetassj4', 'z_vegettoblue'];
 /** Cadena de formas de un combate: de la forma inicial elegida a la última que tenga sprites */
@@ -62,6 +64,8 @@ class VsActor {
     this.pow = 0; this.t = 0; this.roll = 0; this.sq = 1; this.px = 0; this.py = 0; this.pz = 0; this.flip = false; this.gt = 0;
   }
   /** Cambia a otra forma de la cadena: hoja de sprites, tinte y color de la energía */
+  /** Equipos: pasa a dibujar al miembro k (su cadena de formas, hojas, intros y paquetes de Z Legends 3) en la forma fi */
+  setMember(k, fi) { const M = this.team && this.team[k]; if (!M) return; this.ti = k; this.chain = M.chain; this.sheets = M.sheets; this.intros = M.intros; this.zid = M.zid; this.zso = null; this.setForm(fi || 0); }
   setForm(fi) { this.fi = fi; this.def = this.chain[fi]; this.spr.setSheet(this.sheets[fi]); this.spr.u.uTint.value.setHex(this.def.tint); this.au.uCol.value.setHex(this.def.col); }
   frame(f, sim) {
     const A = this.def.anim, t = this.t, seq = (s, fps) => (Array.isArray(s) ? s[Math.floor(t * fps) % s.length] : s), last = (s) => (Array.isArray(s) ? s[s.length - 1] : s), first = (s) => (Array.isArray(s) ? s[0] : s);
@@ -107,7 +111,7 @@ class Versus {
     const st = document.createElement('style'); st.textContent = VS_CSS + VS_TUTO_CSS + VS_STORY_CSS; document.head.appendChild(st);
     const el = this.el = document.createElement('div'); el.id = 'vs';
     const side = (c) => '<div class="side ' + c + '"><canvas class="pt" width="74" height="74"></canvas><div class="inf"><div class="nm"><span></span><small></small></div><div class="hp"><i class="g"></i><i class="v"></i></div>' +
-      '<div class="row"><b class="kj">気</b><div class="ki"><i></i></div><div class="gd"><i></i></div><div class="pips"></div></div><div class="row"><div class="tr"><i></i></div><span class="trl"></span></div></div></div>';
+      '<div class="row"><b class="kj">気</b><div class="ki"><i></i></div><div class="gd"><i></i></div><div class="pips"></div></div><div class="row"><div class="tr"><i></i></div><span class="trl"></span></div><div class="mates"></div></div></div>';
     el.innerHTML = '<div class="bars"><i></i><i></i></div><div class="top">' + side('l') + '<div class="clock"><small>RONDA 1</small><span>99</span></div>' + side('r') + '</div>' +
       '<div class="cmb l"><b></b><small></small></div><div class="cmb r"><b></b><small></small></div><div class="big"></div><div class="tag"></div><div class="vq"><b></b><span></span></div><div class="ult"><b></b></div>' +
       '<div class="clh"><div class="cht">¡CHOQUE DE ULTIMATES!</div><div class="chb"><i class="a"></i><i class="b"></i><b></b></div><div class="chn l"><span></span><em></em></div><div class="chn r"><span></span><em></em></div><div class="chk"></div></div>' +
@@ -120,7 +124,7 @@ class Versus {
     if (typeof IS_TOUCH !== 'undefined' && IS_TOUCH) { this.touch = new VsTouchPad(el, () => this.cmd('pause')); el.classList.add('touch'); }   // móvil y tableta: mandos en pantalla
     const q = (s) => el.querySelector(s), qa = (s) => [...el.querySelectorAll(s)];
     this.ui = { sides: qa('.side').map((s) => ({ pt: s.querySelector('.pt'), nm: s.querySelector('.nm span'), fm: s.querySelector('.nm small'), hp: s.querySelector('.hp'), g: s.querySelector('.hp .g'), v: s.querySelector('.hp .v'),
-      ki: s.querySelector('.ki'), kiI: s.querySelector('.ki i'), gd: s.querySelector('.gd i'), pips: s.querySelector('.pips'), tr: s.querySelector('.tr'), trI: s.querySelector('.tr i'), trl: s.querySelector('.trl'), ghost: 1 })), cmb: qa('.cmb'), big: q('.big'), tag: q('.tag'), ult: q('.ult b'), ultBox: q('.ult'), clh: q('.clh'), chb: q('.chb'), chm: q('.chb b'), cha: q('.chb .a'), chbb: q('.chb .b'), chn: qa('.chn'), chk: q('.chk'), clw: q('.clw'),
+      ki: s.querySelector('.ki'), kiI: s.querySelector('.ki i'), gd: s.querySelector('.gd i'), pips: s.querySelector('.pips'), tr: s.querySelector('.tr'), trI: s.querySelector('.tr i'), trl: s.querySelector('.trl'), mates: s.querySelector('.mates'), ghost: 1 })), cmb: qa('.cmb'), big: q('.big'), tag: q('.tag'), ult: q('.ult b'), ultBox: q('.ult'), clh: q('.clh'), chb: q('.chb'), chm: q('.chb b'), cha: q('.chb .a'), chbb: q('.chb .b'), chn: qa('.chn'), chk: q('.chk'), clw: q('.clw'),
       vq: q('.vq'), clock: q('.clock span'), rnd: q('.clock small'), pause: q('.pause'), end: q('.end'), sel: q('.sel'), trn: q('.trn'), tut: q('.tut'), sty: q('.sty') };
     el.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) { e.stopPropagation(); this.cmd(b.dataset.v, b.dataset.a); } });
     window.addEventListener('keydown', (e) => {
@@ -171,6 +175,11 @@ class Versus {
       case 'grab': return fit('Attack_Medium', t, 0.5);
       case 'grabd': case 'held': return pf(air ? 'Dano_Aereo1' : 'Dano_Chao1', t, false);
       case 'guard': return pf(air ? 'Defesa_Ar' : 'Defesa_Chao', t, false);
+      case 'tagout': return pf('Troca_De_Personagem', t, false) || pf('Teletransporte_Chao', t, false);   // equipos: se va (como en el original)
+      case 'tagin': {                                                     // entra el relevo: Change_Pt1 > Pt2 > Pt3
+        let q = t; for (const n of ['Change_Pt1', 'Change_Pt2', 'Change_Pt3']) { if (!has(n)) continue; const d = dur(n); if (q < d || n === 'Change_Pt3') return pf(n, q, false); q -= d; }
+        return pf('Parado', t, true);
+      }
       case 'sparking': if (has('Sparking')) ZSnd.seq(a.zso || (a.zso = {}), zid, [['Sparking', dur('Sparking'), 0]], t); return pf('Sparking', t, false) || pf('CarregandoKi_Stage3', t, true);   // Sparking de Z Legends 3 (con sus sonidos)
       case 'charge': { const d1 = has('CarregandoKi_Stage1') ? dur('CarregandoKi_Stage1') : 0; return t < d1 ? pf('CarregandoKi_Stage1', t, false) : pf(f.ki >= 100 && has('CarregandoKi_Stage3') ? 'CarregandoKi_Stage3' : 'CarregandoKi_Stage2', t - d1, true); }
       case 'dash': { const d0 = has('Dash_Start') ? dur('Dash_Start') : 0; return t < d0 ? pf('Dash_Start', t, false) : pf('Dash', t - d0, true); }
@@ -272,15 +281,24 @@ class Versus {
   }
 
   /* ---------------- Menú de selección ---------------- */
-  roster() { return vsRoster(); }                                     // los 37 de Z Legends 3, todos desde el principio (versus/roster.js)
+  roster() { return vsRoster(); }
+  /** Equipos: solo contra la CPU, a dos jugadores y en el entrenamiento */
+  teamOk() { return ['cpu', 'local', 'train'].includes(this.cfg.mode); }
+  teamSize() { return this.teamOk() ? this.cfg.team || 1 : 1; }
+  /** Rellena los huecos del equipo que falten con luchadores al azar (sin repetir) */
+  fillMates() {
+    const c = this.cfg, R = this.roster(); if (!c.mates) c.mates = [[], []];
+    for (let i = 0; i < 2; i++) { const used = new Set([c.pick[i].id].concat(c.mates[i])); while (c.mates[i].length < 2) { const left = R.filter((x) => !used.has(x.id)), m = left[(Math.random() * left.length) | 0] || R[0]; c.mates[i].push(m.id); used.add(m.id); } }
+  }                                     // los 37 de Z Legends 3, todos desde el principio (versus/roster.js)
   open() {
     const g = this.g; if (this.active) return;
     VsBinds.load(); this.refreshHint();
     this.active = true; this.prevState = g.state; g.state = 'versus'; g.releaseMouse && g.releaseMouse();
     g.ui.el.menu.style.display = 'none'; g.ui.el.hud.style.display = 'none';
-    this.el.classList.add('on'); const R = this.roster(), c = this.cfg;
+    this.el.classList.add('on'); const R = this.roster(), c = this.cfg; if (!c.team) c.team = 1;
     if (!c.pick[0] || !R.some((x) => x.id === c.pick[0].id)) c.pick[0] = { id: (R.find((x) => x.bid === Save.d.sel) || R[0]).id, f: 0 };
     if (!c.pick[1] || !R.some((x) => x.id === c.pick[1].id)) c.pick[1] = { id: (R[1] || R[0]).id, f: 0 };
+    if (c.mates) c.mates = c.mates.map((m) => m.filter((id) => R.some((x) => x.id === id))); this.fillMates();
     this.showSelect(); SFX.play('tp');
   }
   showSelect() {
@@ -296,17 +314,20 @@ class Versus {
     const p2 = c.mode === 'cpu' ? 'CPU' : trn ? 'Rival de práctica' : 'Jugador 2';
     // Ficha de un luchador: retrato, formas (se elige con cuál empieza), pasiva y la Ultimate de cada forma
     const panel = (i) => {
-      const ch = vsCharById(c.pick[i].id), fi = c.pick[i].f, f = ch.forms[fi] || ch.forms[0], pas = ch.zl ? null : vsPas(ch);
-      return '<section class="fp p' + i + (c.side === i ? ' on' : '') + '" data-v="side" data-a="' + i + '" tabindex="0"><span class="who">' + (i ? p2 : 'Jugador 1') + '</span>' + (fi === 0 && EntryFx.has(ch.id) ? '<canvas class="art ent" width="' + ENTRY_W + '" height="' + ENTRY_H + '" data-entry="' + ch.id + '" data-k="vs' + i + '"></canvas>'   // forma base: animación de entrada (js/entryfx.js)
+      const ts = this.teamSize(), sl = c.side === i ? c.slot || 0 : 0;
+      const ch = sl ? vsCharById(c.mates[i][sl - 1]) : vsCharById(c.pick[i].id), fi = sl ? 0 : c.pick[i].f, f = ch.forms[fi] || ch.forms[0], pas = ch.zl ? null : vsPas(ch);
+      const tm = ts > 1 ? '<div class="tms">' + [c.pick[i].id].concat(c.mates[i].slice(0, ts - 1)).map((id, k) => { const m = vsCharById(id); return '<button data-v="slot" data-a="' + i + ':' + k + '"' + (c.side === i && (c.slot || 0) === k ? ' class="on"' : '') + '><canvas width="40" height="40" data-pt="' + m.forms[0].sheet + '"></canvas><span>' + (k + 1) + '</span></button>'; }).join('') + '</div>' : '';
+      return '<section class="fp p' + i + (c.side === i ? ' on' : '') + '" data-v="side" data-a="' + i + '" tabindex="0"><span class="who">' + (i ? p2 : 'Jugador 1') + '</span>' + tm + (fi === 0 && EntryFx.has(ch.id) ? '<canvas class="art ent" width="' + ENTRY_W + '" height="' + ENTRY_H + '" data-entry="' + ch.id + '" data-k="vs' + i + '"></canvas>'   // forma base: animación de entrada (js/entryfx.js)
         : '<canvas class="art" width="168" height="168" data-full="' + f.sheet + '"></canvas>') + '<h3>' + nice(ch.name) + '</h3>' + (ch.zl ? '<div class="zfm">' + nice(f.name) + '</div>' + (ch.forms.length > 1 ? '<h4>Se transforma en</h4><div class="forms">' + ch.forms.slice(1).map((g) => '<span>' + nice(g.name) + '</span>').join('') + '</div>' : '')
           : '<h4>Empieza en</h4><div class="forms">' + ch.forms.map((g, n) => (SPRITE_DATA[g.sheet] ? '<button data-v="form" data-a="' + i + ':' + n + '"' + (fi === n ? ' class="on"' : '') + '>' + nice(g.name) + '</button>' : '')).join('') + '</div>') +
         (pas ? '<h4>Habilidad única</h4><div class="psv"><b>' + pas.name + '</b>' + pas.info + '</div>' : '') +
-        '<h4 class="uh">Ultimate de cada forma</h4><ol class="ults">' + vsChain(ch, fi).map((d) => '<li><b>' + d.ult.name + '</b>' + nice(d.form) + ' <small>· ' + VS_ULT_INFO[d.ult.type][d.ult.v] + '</small></li>').join('') + '</ol></section>';
+        '<h4 class="uh">Ultimate de cada forma</h4><ol class="ults">' + vsChain(ch, fi).map((d) => { const Z = vsZUlt(d); return '<li><b>' + (Z ? nice(Z.n === 'ULTIMATE' ? 'Ultimate' : Z.n) : d.ult.name) + '</b>' + nice(d.form) + ' <small>· ' + (Z ? VS_ZULT_INFO[Z.k] || 'Técnica definitiva' : VS_ULT_INFO[d.ult.type][d.ult.v]) + '</small></li>'; }).join('') + '</ol></section>';
     };
     const tower = '<section class="fp tw"><span class="who">La Torre</span><h3 style="margin-top:14px">' + VS_TOWER.n + ' rivales</h3><div class="twi">Rivales al azar, cada uno más duro que el anterior. El último es un <b>jefe</b> que ya llega transformado. Tienes una continuación.<br><br>Ganas zeni y cristales en cada victoria, y <b>' + L.cry + ' cristales</b> al superarla' +
       (VsStats.d().tower[c.level] ? '' : ' (<b>el doble</b> la primera vez)') + '.</div></section>';
-    const grid = '<div class="grid">' + R.map((ch) => '<button data-v="char" data-a="' + ch.id + '" class="' + (c.pick[0].id === ch.id ? 'p0 ' : '') + (!lad && c.pick[1].id === ch.id ? 'p1' : '') + '" title="' + nice(ch.name) + (ch.zl ? ' · ' + nice(ch.forms[0].name) : '') + '"><canvas width="74" height="74" data-pt="' + ch.forms[0].sheet + '"></canvas><em>' +
-      (c.pick[0].id === ch.id ? 'J1' : '') + (!lad && c.pick[1].id === ch.id ? (c.pick[0].id === ch.id ? '+' : '') + (c.mode === 'cpu' ? 'CPU' : trn ? 'Rival' : 'J2') : '') + '</em></button>').join('') + '</div>';
+    const inT = (i, id) => c.pick[i].id === id || (this.teamSize() > 1 && c.mates[i].slice(0, this.teamSize() - 1).includes(id));
+    const grid = '<div class="grid">' + R.map((ch) => '<button data-v="char" data-a="' + ch.id + '" class="' + (inT(0, ch.id) ? 'p0 ' : '') + (!lad && inT(1, ch.id) ? 'p1' : '') + '" title="' + nice(ch.name) + (ch.zl ? ' · ' + nice(ch.forms[0].name) : '') + '"><canvas width="74" height="74" data-pt="' + ch.forms[0].sheet + '"></canvas><em>' +
+      (inT(0, ch.id) ? 'J1' : '') + (!lad && inT(1, ch.id) ? (inT(0, ch.id) ? '+' : '') + (c.mode === 'cpu' ? 'CPU' : trn ? 'Rival' : 'J2') : '') + '</em></button>').join('') + '</div>';
     const tutoCard = '<section class="fp tw"><span class="who">Tutorial</span><h3 style="margin-top:14px">' + VS_TUTO.length + ' lecciones</h3><div class="twi">Aprende paso a paso todo lo del Versus: moverte y volar, combos, ganchos, disparos cargados, <b>guardia perfecta</b>, <b>esquiva perfecta</b>, agarres, la Ultimate, cómo <b>desviar</b> una Ultimate rival y el <b>choque de Ultimates</b>.<br><br>Cada lección te dice qué hacer y con qué teclas, y se supera sola. Puedes saltar o repetir las que quieras.</div></section>';
     const opt = (t, h) => '<span>' + t + '</span>' + h;
     this.ui.sel.innerHTML = '<header><button class="back" data-v="exit">◀ Salir</button><h1>¡Modo Versus!</h1><nav class="vseg modes">' + [['story', 'Historia'], ['cpu', 'Contra la CPU'], ['local', '2 jugadores'], ['ladder', 'Torre'], ['train', 'Entrenamiento'], ['tuto', 'Tutorial']].map(([v, t]) => '<button data-v="set" data-a="mode:' + v + '"' + (c.mode === v ? ' class="on"' : '') + '>' + t + '</button>').join('') + '</nav></header>' +
@@ -314,9 +335,9 @@ class Versus {
       '<div class="mid"><div class="tabs">' + [['grid', sto ? 'Capítulos' : 'Luchadores'], ['keys', 'Controles'], ['stats', 'Historial']].map(([v, t]) => '<button data-v="tab" data-a="' + v + '"' + (tab === v ? ' class="on"' : '') + '>' + t + '</button>').join('') +
         (tab === 'grid' && !sto ? '<span>Eliges para ' + (c.side ? (c.mode === 'cpu' ? 'la CPU' : trn ? 'el rival de práctica' : 'el jugador 2') : 'el jugador 1') + '</span>' : '') + '</div>' +
         '<div class="pane">' + (tab === 'keys' ? this.keysPane() : tab === 'stats' ? VsStats.html(c.pick[0].id) : grid) + '</div>' +
-        '<div class="opts">' + (sto ? '' : c.mode === 'cpu' || lad ? opt('Dificultad', seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']])) : '') +
+        '<div class="opts">' + (this.teamOk() ? opt('Combate', seg('team', [[1, '1 contra 1'], [2, '2 contra 2'], [3, '3 contra 3']])) : '') + (sto ? '' : c.mode === 'cpu' || lad ? opt('Dificultad', seg('level', [['easy', 'Fácil'], ['normal', 'Normal'], ['hard', 'Difícil']])) : '') +
           (trn ? opt('El rival', seg('dummy', Object.keys(VS_DUMMY).map((k) => [k, VS_DUMMY[k]]))) + opt('Ayudas', '<div class="vseg">' + seg('tki', [['1', 'Ki infinito'], ['0', 'Ki normal']]).slice(18, -6) + seg('ttm', [['1', 'Barra de transformación llena'], ['0', 'Barra normal']]).slice(18, -6) + '</div>') : '') +
-          (lad || tut || sto ? '' : opt('Arena', seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', 'Al azar']])))) + (trn || tut || sto ? '' : opt('Rondas para ganar', seg('rounds', [[1, '1'], [2, '2'], [3, '3']]))) + '</div>' +
+          (lad || tut || sto ? '' : opt('Arena', seg('arena', Object.keys(VS_ARENAS).map((k) => [k, VS_ARENAS[k].name]).concat([['azar', 'Al azar']])))) + (trn || tut || sto || this.teamSize() > 1 ? '' : opt('Rondas para ganar', seg('rounds', [[1, '1'], [2, '2'], [3, '3']]))) + '</div>' +
         '<button class="fight" data-v="fight">' + (lad ? '¡Subir a la Torre!' : trn ? '¡A entrenar!' : tut ? '¡Empezar el tutorial!' : sto ? '¡Jugar capítulo!' : '¡A luchar!') + '</button></div>' +
       (lad ? tower : tut ? tutoCard : panel(1));
     for (const cv of this.ui.sel.querySelectorAll('canvas[data-pt]')) this.portrait(cv, cv.dataset.pt);
@@ -332,9 +353,11 @@ class Versus {
   }
   cmd(v, a) {
     const c = this.cfg;
-    if (v === 'set') { const [k, val] = a.split(':'); c[k] = k === 'rounds' ? +val : val; if (c.mode === 'ladder' || c.mode === 'tuto' || c.mode === 'story') c.side = 0; if (k === 'mode' && val === 'story') c.tab = 'grid'; this.renderSelect(); }
+    if (v === 'set') { const [k, val] = a.split(':'); c[k] = k === 'rounds' || k === 'team' ? +val : val; if (k === 'team') { c.slot = 0; this.fillMates(); } if (c.mode === 'ladder' || c.mode === 'tuto' || c.mode === 'story') c.side = 0; if (k === 'mode' && val === 'story') c.tab = 'grid'; this.renderSelect(); }
     else if (v === 'side') { c.side = +a; this.renderSelect(); }
-    else if (v === 'char') { c.pick[c.side] = { id: a, f: 0 }; SFX.play('ki'); const pane = this.ui.sel.querySelector('.pane'), top = pane ? pane.scrollTop : 0; this.renderSelect(); const p2 = this.ui.sel.querySelector('.pane'); if (p2) p2.scrollTop = top; }   // sin perder el punto de la lista
+    else if (v === 'slot') { const [i, k] = a.split(':'); c.side = +i; c.slot = +k; SFX.play('ki'); this.renderSelect(); }
+    else if (v === 'char') { if (this.teamSize() > 1 && c.slot > 0) c.mates[c.side][c.slot - 1] = a; else c.pick[c.side] = { id: a, f: 0 };
+      if (this.teamSize() > 1) c.slot = Math.min(this.teamSize() - 1, (c.slot || 0) + 1);   /* pasa al siguiente hueco del equipo */ SFX.play('ki'); const pane = this.ui.sel.querySelector('.pane'), top = pane ? pane.scrollTop : 0; this.renderSelect(); const p2 = this.ui.sel.querySelector('.pane'); if (p2) p2.scrollTop = top; }   // sin perder el punto de la lista
     else if (v === 'form') { const [i, n] = a.split(':'); c.side = +i; c.pick[c.side].f = +n; this.renderSelect(); }
     else if (v === 'tab') { c.tab = a; this.renderSelect(); }
     else if (v === 'bind') this.startBind(+a[0], a.slice(2));
@@ -379,8 +402,12 @@ class Versus {
       const ch = vsCharById(p.id); if (!ch || VS_FUSION_START.includes((ch.forms[p.f] || {}).sheet)) return p;
       const k = ch.forms.findIndex((f, i) => i > p.f && VS_FUSION_START.includes(f.sheet) && SPRITE_DATA[f.sheet]); return k > 0 ? { id: p.id, f: k } : p;
     });
-    const chains = picks.map((p) => vsChain(vsCharById(p.id), p.f)), sheets = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))));
-    const intros = await Promise.all(chains.map((ch) => Promise.all(ch.map((d) => FormIntros.has(d.id, d.ix) ? vsTexture(FormIntros.name(d.id, d.ix)) : null))));   // intro de cada forma (entrada y transformación)
+    // Equipos (como en Z Legends 3): 2 o 3 por bando. Cada miembro con su cadena de formas, sus hojas y sus intros
+    const tsz = !sto && !tw && !tuto && c.team > 1 ? c.team : 1;
+    const teams = picks.map((p, i) => [vsChain(vsCharById(p.id), p.f)].concat(tsz > 1 ? ((c.mates && c.mates[i]) || []).slice(0, tsz - 1).filter((id) => vsCharById(id)).map((id) => vsChain(vsCharById(id), 0)) : []));
+    const tSheets = await Promise.all(teams.map((T) => Promise.all(T.map((ch) => Promise.all(ch.map((d) => vsTexture(d.sheet)))))));
+    const tIntros = await Promise.all(teams.map((T) => Promise.all(T.map((ch) => Promise.all(ch.map((d) => FormIntros.has(d.id, d.ix) ? vsTexture(FormIntros.name(d.id, d.ix)) : null))))));   // intro de cada forma (entrada y transformación)
+    const chains = teams.map((T) => T[0]), sheets = tSheets.map((t) => t[0]), intros = tIntros.map((t) => t[0]);
     this.loading = false; if (!this.active || sheets.some((s) => !s[0])) return;
     chains.forEach((ch, i) => { const n = sheets[i].findIndex((s) => !s); if (n > 0) { ch.length = n; sheets[i].length = n; } });   // si una hoja no carga, la cadena acaba antes
     if (sto && (SC.hp || SC.pow)) chains[1] = chains[1].map((d) => Object.assign({}, d, { hp: d.hp * (SC.hp || 1), pow: d.pow * (SC.pow || 1) }));   // historia: rival reforzado (también tras transformarse)
@@ -396,16 +423,19 @@ class Versus {
     this.arena = new VsArena(scene, sto && VS_ARENAS[SC.ar] ? SC.ar : tw || c.arena === 'azar' ? AK[(Math.random() * AK.length) | 0] : c.arena, low); this.cam = new VsCamera(); this.post = low ? null : new VsPost(r);
     this.fxA = new VsParticles(scene, 700, false, 3); this.fx = new VsParticles(scene, 1100, true, 9); this.beam = new VsBeam(scene); this.beam2 = new VsBeam(scene);
     this.actors = chains.map((ch, i) => new VsActor(this, ch, sheets[i]));
-    this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); });
+    this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); a.ti = 0;
+      a.team = teams[i].map((ch, k) => ({ chain: ch, sheets: tSheets[i][k], intros: tIntros[i][k].slice(0, ch.length), zid: ch.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)) })); });
     {                                                                    // técnicas, entradas y victorias de Z Legends 3: se esperan (4 s como mucho) para que la entrada salga bien
       const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => { if (c) { L.push(ZMoves.load(c)); ZSnd.load(c); } }); a.chain.forEach((d) => { const X = window.ZMOVE_X && ZMOVE_X[d.id + '/' + d.form]; if (X) { L.push(ZMoves.load(X[0])); ZSnd.load(X[0]); } }); }); L.push(ZMoves.load('fx'));
       { const z0 = this.actors[0].zid, z1 = this.actors[1].zid; if (z0.some((a) => z1.some((b) => a && b && ZDFL.pair(a, b)))) ZDFL.load().then(() => { for (const n in window.ZDF || {}) if (z0.includes(ZDF[n].w) && z1.includes(ZDF[n].l) || z1.includes(ZDF[n].w) && z0.includes(ZDF[n].l)) ZDFL.sounds(n); }); }   // Dramatic Finish posible: su guion y sus voces
+      this.actors.forEach((a) => { a.team[0].zid = a.zid; for (const M of a.team.slice(1)) for (const cz of M.zid) if (cz) { L.push(ZMoves.load(cz)); ZSnd.load(cz); } });   // los compañeros, también
       await Promise.race([Promise.all(L), new Promise((r) => setTimeout(r, 4000))]);
     }
-    chains.forEach((ch) => ch.forEach((d) => ImpactArt.load(d.id, d.ix)));          // impact frames (transformación y Ultimate)
+    teams.forEach((T) => T.forEach((ch) => ch.forEach((d) => ImpactArt.load(d.id, d.ix))));          // impact frames (transformación y Ultimate)
     this.ghosts = []; for (let i = 0; i < 14; i++) { const s = new VsSprite(scene, false); s.mesh.visible = false; s.life = 0; s.mesh.renderOrder = 2; this.ghosts.push(s); }
     this.iS = chains.map((ch) => { const z = vsZIntro(ch[0].sheet); return z ? z.len : VS_INTRO_SLOT; }); this.iEnd = this.iS[0] + this.iS[1];   // segundos de entrada de cada uno
-    this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train || sto ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : this.iEnd + 2.3, time: sto && SC.goal === 'survive' ? SC.sec : undefined, survive: sto && SC.goal === 'survive' });
+    this.el.classList.toggle('team', tsz > 1);
+    this.sim = new VsSim(tsz > 1 ? teams[0] : chains[0], tsz > 1 ? teams[1] : chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train || sto || tsz > 1 ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : this.iEnd + 2.3, time: sto && SC.goal === 'survive' ? SC.sec : undefined, survive: sto && SC.goal === 'survive' });
     this.intro = train ? null : { s: [{}, {}], q: -1 }; this.fin = null; if (this.dfx) { this.dfx.finish(); this.dfx = null; } this.vic = null; this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win'); this.ids = picks.map((p) => p.id);
     if (this.intro) { this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); }
     const p1 = new VsMulti([new VsKeyboard(VS_KEYS[0]), new VsGamepad(0)].concat(this.touch ? [this.touch] : []));
@@ -616,6 +646,9 @@ class Versus {
         this.burst(e.x, e.y, e.z, 0xffffff, 6, 20, 1.6); this.ring(e.x, e.y, e.z, 0xffffff, 2, 13, 0.2); this.sparks(e.x, e.y, e.z, 0xffffff, 12, 30, -e.x / VS.R, 0.2, -e.z / VS.R, 1.3); this.shards(e.x, Math.max(0.4, e.y - 1), e.z, 8, 14); cam.shake(0.8, 1); SFX.play('boom'); break;
       case 'dmg': { if (e.i === 1) { const r = this.run; r.maxCombo = Math.max(r.maxCombo, e.cmb); r.maxDmg = Math.max(r.maxDmg, e.tot); if (this.trn) { const t = this.trn; t.cmb = e.cmb; t.dmg = e.tot; t.max = Math.max(t.max, e.tot); this.renderTrn(true); } }
         const c = this.ui.cmb[1 - e.i]; if (e.cmb >= 2) { c.firstChild.textContent = e.cmb + ' GOLPES'; c.lastChild.textContent = Math.round(e.tot) + ' DE DAÑO'; c.classList.add('on'); c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); c.t = 1.4; } break; }
+      case 'memberKo': { const a = this.actors[e.i]; this.say('¡' + nice(a.def.name).toUpperCase() + ' CAE!', 1.6); this.slow = 0.9; this.flash = 0.22; cam.shake(1); this.boomLite(e); SFX.play('bigboom'); g_rumble(300, 0.8); break; }   // equipos: cae uno, entra el siguiente
+      case 'tagOut': this.burst(e.x, e.y, e.z, 0xffffff, 8, 18, 1.2); SFX.play('tp'); break;
+      case 'tagIn': { const a = this.actors[e.i]; this.burst(e.x, e.y, e.z, e.col, 12, 22, 1.5); this.ring(e.x, e.y, e.z, e.col, 1, 10, 0.25); if (e.ko) this.tag('¡ENTRA ' + nice(a.team[this.sim.f[e.i].ti].chain[0].name).toUpperCase() + '!'); SFX.play(e.ko ? 'stinger' : 'tp'); const z = a.team[this.sim.f[e.i].ti].zid[0]; if (z) ZL3.voice(z, 'intro'); break; }
       case 'ko': this.say('K.O.', 2.4); this.slow = 1.5; this.flash = 0.28; cam.shake(1.2); this.boomLite(e); SFX.play('bigboom'); g_rumble(400, 1);
         { const l = sim.f[1 - e.w]; cam.play(1.4, (k, P, L) => { const dx = P.x - l.x, dy = P.y - l.y - 1.6, dz = P.z - l.z, d = Math.hypot(dx, dy, dz) || 1, r = Math.max(10, d * 0.62);   // se acerca al derrotado sin atravesarlo
           L.set(l.x, l.y + 1.6, l.z); P.set(l.x + dx / d * r, l.y + 2.4 + dy / d * r, l.z + dz / d * r); return 34; }); } break;
@@ -1139,7 +1172,9 @@ class Versus {
     }
     // --- Luchadores ---
     for (let i = 0; i < 2; i++) {
-      const f = sim.f[i], foe = sim.f[1 - i], a = this.actors[i], p = this.prev[i], S = a.spr, U = S.u;
+      const f = sim.f[i], foe = sim.f[1 - i], a = this.actors[i], p = this.prev[i];
+      if (a.team && a.ti !== f.ti) { a.setMember(f.ti, f.fi); const h = this.ui.sides[i]; h.nm.textContent = a.def.name; h.fm.textContent = nice(a.def.form) + (i ? this.sfx2 : ''); this.portrait(h.pt, a.def.sheet); h.can = null; h.mk = null; }   // equipos: ha cambiado de luchador
+      const S = a.spr, U = S.u;
       let x = p.x + (f.x - p.x) * k, y = p.y + (f.y - p.y) * k, z = p.z + (f.z - p.z) * k;
       const dq = this.dfx && this.dfx.pose(i); if (dq) { x = dq.x; y = dq.y; z = dq.z; }   // Dramatic Finish: donde lo pone su guion
       a.t += dt; a.px = x; a.py = y; a.pz = z;
@@ -1212,6 +1247,13 @@ class Versus {
           if (can === 1) { SFX.play('ki'); fx.add(1, x, y + 1.6, z, 1, 0xffd75a, { s1: 9, life: 0.4, a: 0.9 }); } } }
       { const sk = f.spark > 0 ? Math.ceil(f.spark) : 0;                 // Sparking: el rótulo de la barra cuenta lo que le queda
         if (sk !== h.spk) { h.spk = sk; h.tr.classList.toggle('spk', sk > 0); if (sk) h.trl.innerHTML = 'SPARKING ' + sk; else { h.can = -1; } } }
+      if (f.team.length > 1) {                                           // equipos: los compañeros, con su vida (gris si han caído) y la espera del cambio
+        const key = f.ti + '|' + f.team.length;
+        if (h.mk !== key) { h.mk = key; h.mates.innerHTML = f.team.map((M, k) => (k === f.ti ? '' : '<i data-k="' + k + '"><canvas width="44" height="44"></canvas><b><u></u></b></i>')).join('');
+          for (const el of h.mates.children) { const M = f.team[+el.dataset.k]; this.portrait(el.querySelector('canvas'), M.chain[M.fi].sheet); } }
+        for (const el of h.mates.children) { const M = f.team[+el.dataset.k]; el.querySelector('u').style.transform = 'scaleX(' + Math.max(0, M.hp / M.hpMax).toFixed(3) + ')'; el.classList.toggle('ko', M.hp <= 0); }
+        h.mates.classList.toggle('cd', f.swCd > 0 || f.nextAlive() < 0);
+      } else if (h.mk !== 'solo') { h.mk = 'solo'; h.mates.innerHTML = ''; }
       if (h.wins !== f.wins) { h.wins = f.wins; [...h.pips.children].forEach((b, n) => b.classList.toggle('w', n < f.wins)); }
       const c = this.ui.cmb[i]; if (c.t > 0 && (c.t -= rawDt) <= 0) c.classList.remove('on');
     }

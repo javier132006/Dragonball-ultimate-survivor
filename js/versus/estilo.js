@@ -45,6 +45,10 @@ const VS_CSS = `
 #vs .tr{position:relative;width:44%;height:10px;background:#2a1508;border:2px solid var(--ink);box-shadow:0 0 0 1.5px rgba(255,255,255,.8);overflow:hidden;transform:skewX(-18deg)}#vs .side.r .tr{transform:skewX(18deg)}
 #vs .tr i{position:absolute;inset:0;transform-origin:left;background:linear-gradient(90deg,#ff3b1a,#ff9a1a 55%,#fff2a0)}#vs .side.r .tr i{transform-origin:right}
 #vs .tr.full{box-shadow:0 0 0 1.5px #fff,0 0 16px 3px var(--gi);animation:vsp .35s steps(2) infinite}#vs .tr.max{opacity:.3}#vs .tr.spk{opacity:1;box-shadow:0 0 0 1.5px #fff,0 0 16px 3px #ffe066}
+#vs .mates{display:flex;gap:6px;margin-top:4px}#vs .mates:empty{display:none}#vs .side.r .mates{justify-content:flex-end}
+#vs .mates i{position:relative;width:34px;height:34px;border:2px solid #fff;border-radius:7px;background:rgba(17,18,28,.85);overflow:hidden;box-shadow:0 2px 0 rgba(0,0,0,.5)}
+#vs .mates canvas{width:100%;height:100%;image-rendering:pixelated}#vs .mates b{position:absolute;left:0;right:0;bottom:0;height:5px;background:#300}#vs .mates u{position:absolute;inset:0;background:#4ee06a;transform-origin:0 50%}
+#vs .mates i.ko{filter:grayscale(1) brightness(.5)}#vs .mates.cd i{opacity:.55}
 #vs .trl{font:400 19px/1 var(--mg);letter-spacing:.05em;color:var(--gold);-webkit-text-stroke:4px var(--ink);paint-order:stroke fill;white-space:nowrap}
 #vs .trl kbd{font:800 12px var(--body);-webkit-text-stroke:0;color:var(--ink);background:#fff;border-radius:4px;padding:1px 6px;margin:0 4px;box-shadow:0 2px 0 rgba(0,0,0,.5);vertical-align:2px}
 #vs .clock{flex:none;width:98px;display:flex;flex-direction:column-reverse;align-items:center;filter:drop-shadow(0 0 0 var(--gold)) drop-shadow(2px 0 0 var(--gold)) drop-shadow(-2px 0 0 var(--gold)) drop-shadow(0 2px 0 var(--gold)) drop-shadow(0 -2px 0 var(--gold)) drop-shadow(0 6px 0 rgba(0,0,0,.4))}
@@ -114,6 +118,9 @@ const VS_CSS = `
 #vs .fp h4,#vs .mid h4{margin:12px 0 6px;font:700 13px/1.2 var(--body);color:var(--t3)}
 #vs .forms{display:flex;gap:6px;flex-wrap:wrap}#vs .forms button{padding:3px 10px 2px;font-size:12.5px}
 #vs .forms span{padding:3px 10px 2px;font:800 12.5px/1.25 var(--body);color:#dfe4f6;background:rgba(17,18,28,.82);border:2px solid rgba(255,255,255,.18);border-radius:8px}
+#vs .tms{display:flex;gap:6px;margin:6px 0 2px}#vs .tms button{position:relative;width:46px;height:46px;padding:0;border:2px solid rgba(255,255,255,.35);border-radius:8px;background:rgba(17,18,28,.82);cursor:pointer}
+#vs .tms button.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--ink),0 0 12px var(--gold)}#vs .tms canvas{width:100%;height:100%;image-rendering:pixelated}
+#vs .tms span{position:absolute;left:-4px;top:-6px;min-width:16px;height:16px;font:800 11px/16px var(--body);color:var(--ink);background:#fff;border-radius:8px;text-align:center}
 #vs .zfm{margin:-2px 0 6px;font:800 13px/1.2 var(--body);color:var(--gold);letter-spacing:.02em}
 #vs .psv{padding:7px 10px 8px;font:600 12.5px/1.4 var(--body);color:#d6f7e2;background:rgba(109,255,156,.09);border-left:4px solid var(--scan)}
 #vs .psv b{display:block;font:400 17px/1.2 var(--mg);letter-spacing:.05em;color:var(--scan)}

@@ -92,7 +92,7 @@ class VsDummy {
    Derecha: nueve botones en rejilla y, a su lado, subir y bajar.
    Cada dedo se sigue por separado (Pointer Events), así que se puede
    mover, cubrirse y pegar a la vez. Produce la misma orden que el teclado. */
-const VS_TOUCH_BTNS = [['CHARGE', 'CARGA', 0, 2], ['TRANS', 'TRANS', 1, 2], ['ULT', 'ULT', 2, 2], ['TP', 'TELE', 0, 1], ['KI', 'KI', 1, 1], ['DASH', 'DASH', 2, 1], ['GUARD', 'GUARDIA', 0, 0], ['HEAVY', 'FUERTE', 1, 0], ['ATK', 'GOLPE', 2, 0], ['UP', '▲', -1, 1], ['DOWN', '▼', -1, 0], ['SPEC', 'ESP', 1, 3], ['CTR', 'CONTRA', 2, 3], ['DR', 'RUSH', 0, 3]];
+const VS_TOUCH_BTNS = [['CHARGE', 'CARGA', 0, 2], ['TRANS', 'TRANS', 1, 2], ['ULT', 'ULT', 2, 2], ['TP', 'TELE', 0, 1], ['KI', 'KI', 1, 1], ['DASH', 'DASH', 2, 1], ['GUARD', 'GUARDIA', 0, 0], ['HEAVY', 'FUERTE', 1, 0], ['ATK', 'GOLPE', 2, 0], ['UP', '▲', -1, 1], ['DOWN', '▼', -1, 0], ['SPEC', 'ESP', 1, 3], ['CTR', 'CONTRA', 2, 3], ['DR', 'RUSH', 0, 3], ['SWAP', 'CAMBIO', -1, 2]];
 const VS_TOUCH_CSS = `
 #vs .tc{position:absolute;inset:0;display:none;touch-action:none}#vs.touch .tc{display:block}#vs.touch .hint{display:none!important}#vs.cine .tc{opacity:.25}
 #vs .tcz{position:absolute;left:0;bottom:0;width:46%;height:74%;pointer-events:auto;touch-action:none}
@@ -100,6 +100,7 @@ const VS_TOUCH_CSS = `
 #vs .tcj i{position:absolute;left:50%;top:50%;width:11vh;height:11vh;margin:-5.5vh 0 0 -5.5vh;border-radius:50%;background:rgba(255,255,255,.75);box-shadow:0 3px 0 rgba(0,0,0,.35)}
 #vs .tcb{position:absolute;width:15vh;height:15vh;border-radius:50%;border:3px solid rgba(255,255,255,.7);background:rgba(20,24,44,.5);color:#fff;font:800 2.6vh var(--disp);letter-spacing:.03em;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;padding:0}
 #vs .tcb.on{background:rgba(255,255,255,.85);color:#141826;transform:scale(.93)}#vs .tcb.ATK{background:rgba(255,197,49,.5)}#vs .tcb.ATK.on{background:#ffc531}
+#vs .tcb.SWAP{display:none}#vs.team .tcb.SWAP{display:flex;font-size:2.2vh}
 #vs .tcb.rdy{border-color:#ffc531;box-shadow:0 0 0 3px rgba(255,197,49,.5),0 0 18px #ffc531;color:#ffe27a;animation:vsp .4s steps(2) infinite}#vs .tcb.UP,#vs .tcb.DOWN{font-size:4.5vh}
 #vs .tcp{position:absolute;left:50%;top:92px;width:46px;height:40px;margin-left:-23px;border-radius:10px;border:2px solid rgba(255,255,255,.6);background:rgba(20,24,44,.6);color:#fff;font-size:18px;pointer-events:auto;padding:0}
 `;

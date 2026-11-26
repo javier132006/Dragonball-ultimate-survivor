@@ -38,7 +38,9 @@ const VS = {
   DR: { cost: 33, lunge: 22, reach: 6 },
   // Sparking de Z Legends 3: CARGAR KI + hacia atrás, una vez por combate. Dura t s; pega dmg veces más (5→7, 7→9 en el original)
   // y la barra de transformación sube el doble. anim: lo que dura su animación (si su paquete no la trae)
-  SPARK: { t: 14, dmg: 1.35, anim: 1.1 },
+  SPARK: { t: 14, dmg: 1.35, anim: 1.1 },    // (con compañeros en pie dura 21 s, como en el original)
+  // Equipos: out = lo que tarda en irse el que cambia (Troca_De_Personagem) · cd = espera entre cambios · ko = segundos en el suelo antes del relevo
+  TAG: { out: 0.42, cd: 10, ko: 1.4, in: 1.0 },
   TM_ZL: 2.5,                             // Z Legends 3: la barra de transformación sube sola, 1 % cada 0,4 s
   ULT_CINE: 1.25,                         // segundos de presentación de la Ultimate (el mundo se para)
   TR_CINE: 2.7, TR_SWAP: 1.75,            // transformación: duración total y momento del estallido (cambio de forma)
@@ -52,7 +54,10 @@ const VS = {
 class VsFighter {
   /** chain: fichas de sus formas, de la inicial a la última. La forma y la barra de transformación duran todo el combate */
   constructor(i, chain) {
-    this.chain = Array.isArray(chain) ? chain : [chain]; this.fi = 0; this.tm = 0; const def = this.chain[0];
+    // Equipo (como en Z Legends 3, hasta 3): cada miembro con su cadena de formas, su forma, su barra y su vida. El ki y el Sparking son del equipo
+    const T = Array.isArray(chain) && Array.isArray(chain[0]) ? chain : [Array.isArray(chain) ? chain : [chain]];
+    this.team = T.map((ch) => ({ chain: ch, fi: 0, tm: 0, hp: ch[0].hp, hpMax: ch[0].hp })); this.ti = 0; this.swCd = 0;
+    this.chain = this.team[0].chain; this.fi = 0; this.tm = 0; const def = this.chain[0];
     this.spark = 0; this.spkUsed = 0;                         // Sparking: segundos que le quedan · ya gastado en este combate
     this.i = i; this.def = def; this.hpMax = def.hp; this.pow = def.pow; this.spd = def.spd; this.wins = 0;
     this.pas = def.pas ? def.pas.type : ''; this.zk = 0;      // pasiva del guerrero (versus/extras.js) · zk: veces que el Zenkai le ha subido la fuerza
@@ -62,6 +67,7 @@ class VsFighter {
   }
   reset(x) {
     this.x = x; this.y = 0; this.z = 0; this.vx = this.vy = this.vz = 0;
+    if (this.team && this.team.length > 1) { if (this.ti) this.loadMember(0); for (const M of this.team) M.hp = M.hpMax; this.swCd = 0; }   // ronda nueva: el equipo entero, como al empezar
     this.spark = 0; this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.pend = 0; this.q = 0; this.qt = 0; this.stun = 0;
     this.c = 0; this.n = 0; this.ok = false; this.buf = ''; this.jug = 0; this.spk = 0; this.ctr = 0; this.bo = 0; this.gt = 0; this.ft = 0; this.chg = 0; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.pu = 0; this.lh = 9; this.dx = 1; this.dz = 0; this.flash = 0;
     // Pasivas que se renuevan cada ronda: vis (visión), el (élite), cp (copia), wk (debilitado), slow (congelado), tpb (golpe tras teletransporte)
@@ -70,12 +76,22 @@ class VsFighter {
     this.set('idle');
   }
   set(st) { this.st = st; this.t = 0; this.done = false; }
+  /** Siguiente compañero en pie (-1 si no queda ninguno) */
+  nextAlive() { const n = this.team.length; for (let k = 1; k < n; k++) { const j = (this.ti + k) % n; if (this.team[j].hp > 0) return j; } return -1; }
+  /** Pasa a controlar al miembro k: se guarda cómo queda el que sale (forma, barra, vida) */
+  loadMember(k) {
+    const M = this.team[this.ti]; M.fi = this.fi; M.tm = this.tm; M.hp = this.hp; M.hpMax = this.hpMax;
+    const N = this.team[k]; this.ti = k; this.chain = N.chain; this.fi = N.fi; this.tm = N.tm; this.def = N.chain[N.fi];
+    this.hpMax = N.hpMax; this.hp = N.hp; this.pow = this.def.pow; this.spd = this.def.spd; this.sp = null; this.zh = 0; this.zc = 0; this.sb = 0;
+  }
   get canTrans() { return this.tm >= 100 && this.fi < this.chain.length - 1; }
   /** Llena la barra de transformación (cada forma cuesta un poco más que la anterior) */
   gain(v) { if (this.fi < this.chain.length - 1 && !this.def.zl) this.tm = Math.min(100, this.tm + v / (1 + 0.3 * this.fi)); }   // los de Z Legends 3 la llenan con el tiempo (stepFighter)
   get busy() { return this.st !== 'idle' && this.st !== 'move'; }
 }
 
+/** Vida de todo el equipo (para decidir quién gana si se acaba el tiempo) */
+function vsTeamHp(f) { return f.team.reduce((s, M, k) => s + (k === f.ti ? f.hp : M.hp) / M.hpMax, 0); }
 /** Tabla de Z Legends 3 de una forma (window.ZMOVE_T), o null */
 function vsZTab(def) { const z = def && /^z_/.test(def.sheet || '') ? def.sheet.slice(2) : null, T = typeof window !== 'undefined' && window.ZMOVE_T; return (T && z && T[z]) || null; }
 const VS_ZCUT_MAX = 2.8;                    // segundos como mucho de paneles de cinemática al lanzar una Ultimate de Z Legends 3
@@ -99,7 +115,7 @@ class VsSim {
   emit(t, o) { o = o || {}; o.t = t; this.ev.push(o); }
   newRound() {
     this.round++; this.f[0].reset(7); this.f[1].reset(-7);                // con la cámara en -z, la derecha de la pantalla es -x: el jugador 1 empieza a la izquierda
-     this.shots.length = 0; this.blasts = []; this.ult = null; this.tr = null; this.clash = null; this.freeze = 0;
+     this.shots.length = 0; this.blasts = []; this.ult = null; this.tr = null; this.clash = null; this.freeze = 0; this.tag = null;
     this.time = this.roundTime; this.phase = 'intro'; this.pt = 0; this.cx = 0; this.cz = -1; this.df = 0;
     this.introT = this.round === 1 && this.o.intro ? this.o.intro : 2.3;   // la primera ronda puede llevar las entradas de los luchadores
     this.emit('round', { n: this.round });
@@ -122,11 +138,12 @@ class VsSim {
     this.pt += VS_DT;
     if (this.phase === 'intro' && this.pt > this.introT) { this.phase = 'fight'; this.pt = 0; this.emit('fight'); }
     else if (this.phase === 'ko' && this.pt > (this.dfT || (this.df ? 4.7 : 3.0))) { this.dfT = 0; this.endRound(); }   // el final destructivo dura más
-    else if (this.phase === 'fight' && !this.ult && !this.o.noTime) {
+    else if (this.phase === 'fight' && !this.ult && !this.o.noTime && !this.tag) {
       this.time -= VS_DT;
-      if (this.time <= 0) { this.time = 0; const w = this.o.survive ? (a.hp > 0 ? 0 : 1) : a.hp / a.hpMax >= b.hp / b.hpMax ? 0 : 1; /* historia «resiste»: si sigues en pie, ganas */ this.phase = 'ko'; this.pt = 0; this.ko = w; this.emit('timeup', { w }); }
+      if (this.time <= 0) { this.time = 0; const w = this.o.survive ? (a.hp > 0 ? 0 : 1) : vsTeamHp(a) >= vsTeamHp(b) ? 0 : 1; /* historia «resiste»: si sigues en pie, ganas */ this.phase = 'ko'; this.pt = 0; this.ko = w; this.emit('timeup', { w }); }
     }
     if (this.ult && this.ult.ph === 0) { if (this.ult.cw && this.tryClash(cmd)) return; this.stepUlt(); return; }   // presentación de la Ultimate: el mundo está parado (el rival aún puede responder)
+    if (this.tag) { this.stepTag(); if (this.tag) { cmd[0] = cmd[1] = null; } }   // relevo tras caer un miembro del equipo: nadie se mueve hasta que entra el siguiente
     for (let i = 0; i < 2; i++) this.stepFighter(this.f[i], this.f[1 - i], cmd[i] || { mx: 0, mz: 0, b: 0 });
     if (this.ult) this.stepUlt();
     this.stepShots();
@@ -152,7 +169,7 @@ class VsSim {
     // Cola de golpes: cada pulsación de golpe cuenta aunque llegue un instante antes de poder pegar (saliendo de un dash, de un golpe recibido, del hitstop...)
     if (press & AQ) { f.q = press & AQ; f.qt = 0.25; } else if (f.qt > 0 && (f.qt -= dt) <= 0) f.q = 0;
     const fresh = press; press |= f.q;
-    if (f.ctr > 0) f.ctr -= dt;
+    if (f.ctr > 0) f.ctr -= dt; if (f.swCd > 0 && this.phase === 'fight') f.swCd -= dt;
     const ctl = this.phase === 'fight' && !(this.ult && (this.ult.who === f.i || this.ult.lock));
     f.t += dt; f.inv = Math.max(0, f.inv - dt); f.flash = Math.max(0, f.flash - dt);
     const pas = f.pas, tpk = pas === 'tp' ? 0.5 : 1, RE = VS.REACH + (pas === 'espada' ? 0.5 : 0);
@@ -180,6 +197,7 @@ class VsSim {
         f.vx += ((ctl ? wx * sp : 0) - f.vx) * k; f.vz += ((ctl ? wz * sp : 0) - f.vz) * k; f.vy += ((ctl ? my * VS.FLY : 0) - f.vy) * k;
         if (ctl) {
           if ((press & VB.TRANS) && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
+          if ((press & VB.SWAP) && f.team.length > 1 && f.swCd <= 0 && f.nextAlive() >= 0 && !this.ult && foe.st !== 'ko') { f.swTo = f.nextAlive(); f.vx = f.vy = f.vz = 0; f.inv = 99; f.set('tagout'); this.emit('tagOut', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z }); break; }   // cambio de luchador (Troca de personagem)
           if ((press & VB.ULT) && f.ki >= 100 && foe.st !== 'ko' && !this.ult && !this.clash) { this.startUlt(f, foe); break; }   // con otra Ultimate en marcha no se puede lanzar la tuya (solo responder a tiempo: choque)
           if ((press & VB.SPEC) && foe.st !== 'ko' && this.startSpec(f, foe, held, cmd)) break;
           if ((press & VB.DR) && foe.st !== 'ko' && this.startDR(f, foe)) break;
@@ -205,7 +223,13 @@ class VsSim {
         if (pas === 'fruto') f.hp = Math.min(f.hpMax, f.hp + f.hpMax * 0.025 * dt);     // Fruto del árbol sagrado: cargar ki también cura
         if ((press & VB.TRANS) && ctl && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
         if (!(held & VB.CHARGE) || !ctl) f.set('idle'); break;
-      case 'sparking': brake(14); if (f.t >= f.spkT) { f.spark = VS.SPARK.t; f.inv = 0; f.set('idle'); this.emit('sparkOn', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col }); } break;
+      case 'tagout':                                                     // se va (Troca_De_Personagem) y entra el compañero con un dash hacia el rival
+        brake(10); if (f.t >= VS.TAG.out) {
+          f.loadMember(f.swTo); f.swCd = VS.TAG.cd; f.inv = 0.4; f.set('dash'); f.dx = nx; f.dz = nz; f.dy = 0;
+          this.emit('tagIn', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col });
+        } break;
+      case 'tagin': brake(10); if (f.t >= f.tinT) { f.inv = 0.3; f.set('idle'); } break;   // entrando tras caer el compañero (Change_Pt1..3)
+      case 'sparking': brake(14); if (f.t >= f.spkT) { f.spark = VS.SPARK.t * (f.nextAlive() >= 0 ? 1.5 : 1); f.inv = 0; f.set('idle'); this.emit('sparkOn', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col }); } break;
       case 'dash':
         f.vx = f.dx * VS.DASH; f.vz = f.dz * VS.DASH; f.vy = f.dy * VS.DASH;
         if (f.t >= VS.DASH_T) { f.vx *= 0.3; f.vy *= 0.3; f.vz *= 0.3; f.set('idle'); }
@@ -517,6 +541,11 @@ class VsSim {
     if (dp === 'senzu' && !def.pu && def.hp > 0 && def.hp < def.hpMax * 0.25) { def.pu = 1; def.hp += def.hpMax * 0.22; this.emit('pas', { i: def.i, k: 'senzu', x: def.x, y: def.y + 1.6, z: def.z }); }   // una judía por ronda
     att.ki = Math.min(100, att.ki + dmg * 0.07 * (ap === 'fusion' ? 1.4 : 1)); def.ki = Math.min(100, def.ki + dmg * 0.035 * (dp === 'fusion' ? 1.4 : 1)); att.gain(dmg * VS.TR_DEAL * (ap === 'salvaje' ? 1.35 : 1)); def.gain(dmg * VS.TR_TAKE * (dp === 'ira' ? 1.5 : 1));
     att.cmb++; att.cmbT = 1.3; att.cmbDmg += dmg; this.emit('dmg', { i: def.i, dmg, cmb: att.cmb, tot: att.cmbDmg });
+    if (def.hp <= 0 && def.st !== 'ko' && def.nextAlive() >= 0) {        // equipos: cae uno, pero le quedan compañeros
+      def.team[def.ti].hp = 0; def.set('ko'); this.tag = { who: def.i, t: 0, to: def.nextAlive() }; this.freeze = 16; this.shots.length = 0; this.ult = null; this.clash = null;
+      this.emit('memberKo', { w: att.i, i: def.i, x: def.x, y: def.y + 1.5, z: def.z });
+      return true;
+    }
     if (def.hp <= 0 && def.st !== 'ko') {
       def.set('ko'); this.phase = 'ko'; this.pt = 0; this.ko = att.i; this.freeze = 16; this.shots.length = 0;
       this.emit('ko', { w: att.i, x: def.x, y: def.y + 1.5, z: def.z });
@@ -648,6 +677,20 @@ class VsSim {
      Con la barra llena el luchador sube a su siguiente forma. Mientras dura (TR_CINE) el mundo está parado y él es
      intocable; en TR_SWAP cambia de forma y la onda expansiva aparta al rival. Cada forma pega más, corre más y
      cambia su Ultimate por la versión superior de su familia. */
+  /** Relevo tras caer un miembro: cuando ha caído, entra el siguiente (Change_Pt1..3 del original) a distancia del rival */
+  stepTag() {
+    const g = this.tag, f = this.f[g.who], foe = this.f[1 - g.who]; g.t += VS_DT;
+    if (!g.in && g.t >= VS.TAG.ko) {
+      g.in = 1; f.loadMember(g.to); const dx = f.x - foe.x, dz = f.z - foe.z, h = Math.hypot(dx, dz) || 1;
+      let x = foe.x + dx / h * 11, z = foe.z + dz / h * 11; const r = Math.hypot(x, z); if (r > VS.R - 2) { x *= (VS.R - 2) / r; z *= (VS.R - 2) / r; }
+      f.x = x; f.z = z; f.y = 0; f.vx = f.vy = f.vz = 0; f.inv = 99; f.set('tagin');
+      const zid = /^z_/.test(f.def.sheet || '') ? f.def.sheet.slice(2) : null, D = zid && typeof ZMoves !== 'undefined' && ZMoves.D[zid];
+      f.tinT = D && D.a.Change_Pt1 ? ['Change_Pt1', 'Change_Pt2', 'Change_Pt3'].reduce((s, n) => s + (D.a[n] ? D.a[n].f.reduce((q, k) => q + (k[7] || 1), 0) / (D.a[n].fps || 12) : 0), 0) + 0.25 : VS.TAG.in;
+      if (foe.st === 'ko' || foe.st === 'launched' || foe.st === 'down') { foe.set('idle'); } foe.vx = foe.vy = foe.vz = 0;
+      this.emit('tagIn', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col, ko: 1 });
+    }
+    if (g.in && f.st !== 'tagin') this.tag = null;
+  }
   /** Sparking (Z Legends 3): su animación y, al acabar, 14 s de golpes más fuertes. Mientras se activa no le pueden tocar */
   startSpark(f) {
     f.spkUsed = 1; f.vx = f.vy = f.vz = 0; f.inv = 99; f.set('sparking');
