@@ -33,6 +33,8 @@ FIGHTERS = ['gokubase', 'gokussj', 'gokublue', 'gokuui', 'vegetasagasaiyan', 've
 # (se guardan con el id que usa el juego: el segundo campo de make_zl3.FIGHTERS)
 # Animaciones que se guardan: las técnicas en el suelo (las variantes en el aire, agachado o hacia arriba/abajo no se usan en 3D)
 KEEP = re.compile(r'^(Special|Ultimate|Ultimatel|UltimateAttack|UltimateSsj|Transformation|Sparking|Intro|DramaticIntro|Vitoria|Pose_De_Vitoria)')
+# Movimientos básicos (golpes, golpes recibidos, lanzado, guardia, carga de ki, dash, teletransporte, quieto, andar): el Versus los usa
+BASIC = re.compile(r'^(Attack_|Dano_|SendoLancado_|Caido|Parado$|MovimentoPara|Pulando$|Agachado$|CarregandoKi_|Defesa_|Teletransporte|Dash)')
 SKIP = re.compile(r'(_Ar(_|$)|Aereo|Agachado|agachado|_Cima|_Baixo|_Ar_|_leve$|_Leve)')
 # Efectos sueltos compartidos: tipo de objeto -> animaciones (None = todas)
 FX = {'esferadekigigante_sprite': None, 'genkidamaefeito_sprite': None, 'explosion_specialball_effect': None,
@@ -383,7 +385,7 @@ def main():
         cid = ours.get(src, src)
         if only and cid not in only and src not in only: continue
         A = Z.anims_of(Z.best_type(src)[1])
-        names = [n for n in A if KEEP.match(n) and not SKIP.search(n)]
+        names = [n for n in A if (KEEP.match(n) and not SKIP.search(n)) or BASIC.match(n)]
         TM[cid] = timing(cid, A)
         cp = cut_panels(cid, src)
         if cp: TM[cid]['C'] = cp
@@ -401,7 +403,7 @@ def main():
                     nm = fxname(key, n); A2[nm] = a; names.append(nm)
         s = write('fx', A2, names); total += s
         print('%-18s %3d animaciones · %5d KB' % ('fx', len(names), s // 1024))
-    have = sorted(f[:-3] for f in os.listdir(OUT) if f.endswith('.js') and f not in ('fx.js', 'list.js'))
+    have = sorted(f[:-3] for f in os.listdir(OUT) if f.endswith('.js') and f not in ('fx.js', 'list.js', 'snd.js') and not f.startswith('ch_'))
     json.dump(TM, open(TMP, 'w'), ensure_ascii=False)
     X = {}
     for key, (pk, base) in TRANSFORMS.items():                       # transformaciones: [paquete, partes]

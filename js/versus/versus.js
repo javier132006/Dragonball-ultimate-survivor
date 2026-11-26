@@ -137,6 +137,49 @@ class Versus {
      Ultimate: en la presentación (mundo parado) la parte de carga, encajada en VS.ULT_CINE; al soltarla, el resto a su
      velocidad. Ki cargado: la carga de su técnica de energía, que se queda en el último fotograma. Solo se dibuja:
      la simulación no cambia (el online sigue igual en los dos lados). */
+  /** Movimientos básicos con las animaciones de Z Legends 3 del luchador: quieto, andar, golpes (encajados en lo que dura
+   *  cada golpe en la simulación), guardia, carga de ki, dash, golpeado, lanzado, en el suelo… Si un especial del original
+   *  le ha puesto una pose concreta (Dano_Aereo3, SendoLancado_CIMA…), esa. null: no la tiene (se usa su hoja de siempre) */
+  zBasic(a, f, zid, i) {
+    const D = ZMoves.D[zid]; if (!D || !D.a.Parado) return null;
+    const has = (n) => !!D.a[n];
+    const dur = (n) => { const A = D.a[n]; let t = 0; for (const g of A.f) t += g[7] || 1; return t / (A.fps || 12); };
+    const pf = (n, t, loop) => (has(n) ? ZMoves.partFrame(zid, n, Math.max(0, t), loop) : null);
+    const fit = (n, t, T) => (has(n) ? ZMoves.partFrame(zid, n, Math.min(Math.max(0, t) / T, 0.999) * dur(n), false) : null);   // la animación entera en T segundos
+    const sim = this.sim, foe = sim.f[1 - i], st = f.st, t = f.t, air = f.y > 0.6;
+    const zs = foe.sp && foe.sp.z;
+    if (zs && f.zc && zs.tva && has(zs.tva) && /^(hurt|launched|down|stun|guard)$/.test(st)) return pf(zs.tva, t, /^Caido|^Defesa|^SendoLancado/.test(zs.tva));
+    const hn = a.hn || 0;
+    switch (st) {
+      case 'idle': return pf('Parado', t, true);
+      case 'move': {
+        const fw = f.vx * (foe.x - f.x) + f.vz * (foe.z - f.z) >= -0.5;
+        return pf(fw ? 'MovimentoParaFrente' : 'MovimentoParaTras', t, true) || pf('Parado', t, true);
+      }
+      case 'atk': {
+        const n = air ? (f.c >= 3 ? 'Attack_Medium_Aereo' : 'Attack_Light_Aereo') : ['Attack_Light_1', 'Attack_Light_2', 'Attack_Light_3', 'Attack_Medium'][f.c] || 'Attack_Medium';
+        return fit(n, t, f.c >= VS.LIGHT.length - 1 ? 0.42 : 0.33);
+      }
+      case 'flurry': {
+        const F = VS.FLURRY, T = F.n * F.every + 0.1;
+        if (t < T) return fit(['Attack_Light_1', 'Attack_Light_2'][Math.floor(t / 0.13) % 2], t % 0.13, 0.13);
+        return fit(air ? 'Attack_Heavy_Aereo' : 'Attack_Heavy', t - T, 0.32);
+      }
+      case 'heavy': return fit(air ? (foe.y < f.y - 0.5 && has('Attack_Heavy_Aereo_Baixo') ? 'Attack_Heavy_Aereo_Baixo' : 'Attack_Heavy_Aereo') : 'Attack_Heavy', t, 0.62);
+      case 'grab': return fit('Attack_Medium', t, 0.5);
+      case 'grabd': case 'held': return pf(air ? 'Dano_Aereo1' : 'Dano_Chao1', t, false);
+      case 'guard': return pf(air ? 'Defesa_Ar' : 'Defesa_Chao', t, false);
+      case 'charge': { const d1 = has('CarregandoKi_Stage1') ? dur('CarregandoKi_Stage1') : 0; return t < d1 ? pf('CarregandoKi_Stage1', t, false) : pf(f.ki >= 100 && has('CarregandoKi_Stage3') ? 'CarregandoKi_Stage3' : 'CarregandoKi_Stage2', t - d1, true); }
+      case 'dash': { const d0 = has('Dash_Start') ? dur('Dash_Start') : 0; return t < d0 ? pf('Dash_Start', t, false) : pf('Dash', t - d0, true); }
+      case 'hurt': case 'stun': return air ? pf('Dano_Aereo' + (1 + hn % 4), t, false) : pf('Dano_Chao' + (1 + hn % 2), t, false);
+      case 'launched':
+        if (a.wallT && performance.now() - a.wallT < 450 && has('SendoLancado_BATENDO_NA_PAREDE')) return pf('SendoLancado_BATENDO_NA_PAREDE', (performance.now() - a.wallT) / 1000, false);
+        return pf(f.vy > 2 ? 'SendoLancado_CIMA' : 'SendoLancado_LADO', t, true);
+      case 'down': return pf(has('CaidoAposPulo') && t < dur('CaidoAposPulo') ? 'CaidoAposPulo' : 'Caido', t, false);
+      case 'ko': return f.y > 0.3 ? pf('SendoLancado_LADO', t, true) : pf('Caido', t, false);
+    }
+    return null;
+  }
   zPose(a, f, u, S, x, y, z, sx, sy, zi) {
     let zid = a.zid && a.zid[a.fi]; if (a.orb) a.orb.mesh.visible = false;
     const tr = this.sim && this.sim.tr, i = a === this.actors[0] ? 0 : 1;
@@ -168,6 +211,7 @@ class Versus {
       const Z = a.zp || (a.zp = {}); if (Z[zid] === undefined) Z[zid] = ZMoves.beamPlan(zid);
       const P = Z[zid]; if (P) F = ZMoves.at(P, Math.min(f.t * 1.3, Math.max(0, P.relT - 0.01)));
     }
+    if (!F && !(this.fin && this.fin.l === i)) F = this.zBasic(a, f, zid, i);   // movimientos básicos con sus animaciones de Z Legends 3
     if (!F) return false;
     const T = ZMoves.tex(zid, F.pg, 'v'); if (!T) return false;
     if (S.s !== T) S.setSheet(T);
@@ -539,6 +583,7 @@ class Versus {
       case 'sheath': this.tag('...'); this.slow = 0.35; SFX.play('tp'); break;
       case 'stormShot': fx.add(2, e.x, e.y, e.z, 1.5, this.actors[e.i].def.col, { vy: 60, life: 0.22, stretch: 6 }); fx.add(3, e.x, e.y, e.z, 1.6, 0xffffff, { s1: 2.6, life: 0.1, a: 0.8 }); SFX.play('ki'); break;
       case 'hit': {
+        { const A = this.actors && this.actors[e.i]; if (A) A.hn = (A.hn || 0) + 1; }   // golpes recibidos (para alternar sus animaciones de golpeado)
         const k = e.heavy ? 1.7 : e.rush ? 0.55 : 1;
         fx.add(3, e.x, e.y, e.z, 1.7 * k, 0xffffff, { s1: 3.4 * k, life: 0.12, rot: Math.random() * 3, a: 0.9 }); if (!e.rush) fx.add(0, e.x, e.y, e.z, 1.5 * k, e.col, { s1: 2.6 * k, life: 0.14, a: 0.4 });
         this.ring(e.x, e.y, e.z, 0xffffff, 0.6, 3.6 * k, 0.1); if (e.heavy) this.ring(e.x, e.y, e.z, e.col, 1, 8, 0.2);          // anillo de impacto: crece y se corta en seco
@@ -559,7 +604,8 @@ class Versus {
       case 'appear': fx.add(3, e.x, e.y + 1.6, e.z, 3, 0xffffff, { s1: 7, life: 0.16 }); fx.add(1, e.x, e.y + 1.6, e.z, 6, 0xffffff, { s1: 1, life: 0.16 }); break;
       case 'pursue': this.blur = 0.8; fx.add(1, e.x, e.y + 1.6, e.z, 7, this.actors[e.i].def.col, { s1: 1, life: 0.2 }); this.tag('¡PERSECUCIÓN!'); SFX.play('dash'); break;
       case 'land': this.dust(e.x, e.z, e.hard ? 12 : 8, e.hard ? 11 : 6); if (e.hard) { this.fxA.add(1, e.x, 0.07, e.z, 2, 0x4a4038, { s1: 11, life: 0.5, flat: true, a: 0.7 }); this.ring(e.x, 0.1, e.z, 0xffffff, 2, 12, 0.16, true); this.shards(e.x, 0.3, e.z, 7, 11); cam.shake(0.62, 2); SFX.play('boom'); } break;
-      case 'wall': this.burst(e.x, e.y, e.z, 0xffffff, 6, 20, 1.6); this.ring(e.x, e.y, e.z, 0xffffff, 2, 13, 0.2); this.sparks(e.x, e.y, e.z, 0xffffff, 12, 30, -e.x / VS.R, 0.2, -e.z / VS.R, 1.3); this.shards(e.x, Math.max(0.4, e.y - 1), e.z, 8, 14); cam.shake(0.8, 1); SFX.play('boom'); break;
+      case 'wall': if (this.sim) this.sim.f.forEach((g, j) => { if (g.st === 'launched' && Math.hypot(g.x - e.x, g.z - e.z) < 3 && this.actors[j]) this.actors[j].wallT = performance.now(); });
+        this.burst(e.x, e.y, e.z, 0xffffff, 6, 20, 1.6); this.ring(e.x, e.y, e.z, 0xffffff, 2, 13, 0.2); this.sparks(e.x, e.y, e.z, 0xffffff, 12, 30, -e.x / VS.R, 0.2, -e.z / VS.R, 1.3); this.shards(e.x, Math.max(0.4, e.y - 1), e.z, 8, 14); cam.shake(0.8, 1); SFX.play('boom'); break;
       case 'dmg': { if (e.i === 1) { const r = this.run; r.maxCombo = Math.max(r.maxCombo, e.cmb); r.maxDmg = Math.max(r.maxDmg, e.tot); if (this.trn) { const t = this.trn; t.cmb = e.cmb; t.dmg = e.tot; t.max = Math.max(t.max, e.tot); this.renderTrn(true); } }
         const c = this.ui.cmb[1 - e.i]; if (e.cmb >= 2) { c.firstChild.textContent = e.cmb + ' GOLPES'; c.lastChild.textContent = Math.round(e.tot) + ' DE DAÑO'; c.classList.add('on'); c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); c.t = 1.4; } break; }
       case 'ko': this.say('K.O.', 2.4); this.slow = 1.5; this.flash = 0.28; cam.shake(1.2); this.boomLite(e); SFX.play('bigboom'); g_rumble(400, 1);
