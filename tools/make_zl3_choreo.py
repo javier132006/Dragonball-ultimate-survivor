@@ -154,10 +154,16 @@ def main():
 
     # 1) bloques raíz «la técnica está en la parte X» (o «al acabar la parte X»), de cualquier nivel
     roots = []                                                         # (cid, parte, fin, tipo de sprite, bloque, lado, condiciones de los padres)
+    DR = []                                                            # Dragon Rush: lo programa la familia de sprites (igual para todos)
     def walk(ev, anc=()):
         if not isinstance(ev, list): return
         if len(ev) >= 7 and ev[0] == 0 and isinstance(ev[5], list):
             for cd in ev[5]:
+                if isinstance(cd, list) and cd[0] == 435 and not cd[5] and fname(cd[1]) in ('IsAnimPlaying', 'OnAnimFinished'):
+                    prm = cd[9] if len(cd) > 9 and cd[9] else []
+                    n = prm[0][1][1] if prm and isinstance(prm[0][1], list) and prm[0][1] and prm[0][1][0] == 2 else None
+                    if n and n.startswith('Dragon_Rush'):
+                        DR.append((n, fname(cd[1]) == 'OnAnimFinished', ev, anc)); return
                 if not isinstance(cd, list) or cd[0] not in TY or cd[5]: continue
                 f = fname(cd[1])
                 if f not in ('IsAnimPlaying', 'OnAnimFinished'): continue
@@ -203,12 +209,27 @@ def main():
         for f in a['f']: fs.append(round(t, 4)); t += (f['d'] or 1) / sp
         ip = []
         for f in a['f']:
-            pts = f['pts'] or []
-            ip.append([round((pts[0][1] - f['hx']) * f['w'], 1), round((pts[0][2] - f['hy']) * f['h'], 1)] if pts and len(pts[0]) >= 3 else None)
+            pts = [q for q in (f['pts'] or []) if isinstance(q, list) and len(q) >= 3]
+            ip.append([[round((q[1] - f['hx']) * f['w'], 1), round((q[2] - f['hy']) * f['h'], 1)] for q in pts] or None)
         e = {'f': fs, 'sp': sp, 'd': round(t, 4), 'ip': ip}
         if ev: e['ev'] = ev
         if fin: e['fin'] = fin
         out[cid][n] = e
+    for cid, A in TYc.items():
+        for n in ('Dragon_Rush_Pt1', 'Dragon_Rush_Pt2', 'Dragon_Rush_Pt3', 'Dragon_Rush_Pt4'):
+            a = A.get(n)
+            if not a: continue
+            sp = a['speed'] or 12; t = 0; fs = []
+            for f in a['f']: fs.append(round(t, 4)); t += (f['d'] or 1) / sp
+            ip = [[[round((q[1] - f['hx']) * f['w'], 1), round((q[2] - f['hy']) * f['h'], 1)] for q in (f['pts'] or []) if isinstance(q, list) and len(q) >= 3] or None for f in a['f']]
+            out[cid][n] = {'f': fs, 'sp': sp, 'd': round(t, 4), 'ip': ip}
+    DRT, seenD = {}, set()
+    w0 = who_map(0, None)
+    for n, fin, ev, anc in DR:
+        t = ntree(ev, w0, anc)
+        k = json.dumps(t)
+        if not t or k in seenD: continue
+        seenD.add(k); DRT.setdefault(n, {'ev': [], 'fin': []})['fin' if fin else 'ev'].append(t)
     if '--dump' in sys.argv:
         k = sys.argv[sys.argv.index('--dump') + 1:]
         e = out.get(k[0], {}).get(k[1]) if len(k) > 1 else None
@@ -248,7 +269,8 @@ def main():
             return
         for e in ev: walkg(e)
     for sh in P[6]: walkg(sh)
-    open(os.path.join(OUT, 'ch_list.js'), 'w').write('window.ZMOVE_CHL = %s;\nwindow.ZMOVE_CHG = %s;\n' % (json.dumps(sorted(out)), json.dumps(G, separators=(',', ':'))))
+    open(os.path.join(OUT, 'ch_list.js'), 'w').write('window.ZMOVE_CHL = %s;\nwindow.ZMOVE_CHG = %s;\nwindow.ZMOVE_DR = %s;\n' % (json.dumps(sorted(out)), json.dumps(G, separators=(',', ':')), json.dumps(DRT, separators=(',', ':'))))
+    print('dragon rush', {k: (len(v['ev']), len(v['fin'])) for k, v in DRT.items()})
     print('tipos de lanzamiento', len(G))
     print('lógica de', sum(len(v) for v in out.values()), 'partes ·', len(out), 'luchadores ·', tot // 1024, 'KB')
 

@@ -34,7 +34,7 @@ FIGHTERS = ['gokubase', 'gokussj', 'gokublue', 'gokuui', 'vegetasagasaiyan', 've
 # Animaciones que se guardan: las técnicas en el suelo (las variantes en el aire, agachado o hacia arriba/abajo no se usan en 3D)
 KEEP = re.compile(r'^(Special|Ultimate|Ultimatel|UltimateAttack|UltimateSsj|Transformation|Sparking|Intro|DramaticIntro|Vitoria|Pose_De_Vitoria)')
 # Movimientos básicos (golpes, golpes recibidos, lanzado, guardia, carga de ki, dash, teletransporte, quieto, andar): el Versus los usa
-BASIC = re.compile(r'^(Attack_|Dano_|SendoLancado_|Caido|Parado$|MovimentoPara|Pulando$|Agachado$|CarregandoKi_|Defesa_|Teletransporte|Dash)')
+BASIC = re.compile(r'^(Dragon_Rush|DramaticFinish|Dramatic_Intro|DramaticIntro|Attack_|Dano_|SendoLancado_|Caido|Parado$|MovimentoPara|Pulando$|Agachado$|CarregandoKi_|Defesa_|Teletransporte|Dash)')
 SKIP = re.compile(r'(_Ar(_|$)|Aereo|Agachado|agachado|_Cima|_Baixo|_Ar_|_leve$|_Leve)')
 # Efectos sueltos compartidos: tipo de objeto -> animaciones (None = todas)
 FX = {'esferadekigigante_sprite': None, 'genkidamaefeito_sprite': None, 'explosion_specialball_effect': None,

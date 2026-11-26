@@ -211,6 +211,7 @@ class Versus {
       const Z = a.zp || (a.zp = {}); if (Z[zid] === undefined) Z[zid] = ZMoves.beamPlan(zid);
       const P = Z[zid]; if (P) F = ZMoves.at(P, Math.min(f.t * 1.3, Math.max(0, P.relT - 0.01)));
     }
+    if (this.dfx) { const D = this.dfx; F = D.frame(i); if (F) { zid = i === D.wi ? D.zw : D.zl; a.flip = D.pose(i).flip; } }   // Dramatic Finish: su animación del original
     if (!F && !(this.fin && this.fin.l === i)) F = this.zBasic(a, f, zid, i);   // movimientos básicos con sus animaciones de Z Legends 3
     if (!F) return false;
     const T = ZMoves.tex(zid, F.pg, 'v'); if (!T) return false;
@@ -392,13 +393,14 @@ class Versus {
     this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); });
     {                                                                    // técnicas, entradas y victorias de Z Legends 3: se esperan (4 s como mucho) para que la entrada salga bien
       const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => { if (c) { L.push(ZMoves.load(c)); ZSnd.load(c); } }); a.chain.forEach((d) => { const X = window.ZMOVE_X && ZMOVE_X[d.id + '/' + d.form]; if (X) { L.push(ZMoves.load(X[0])); ZSnd.load(X[0]); } }); }); L.push(ZMoves.load('fx'));
+      { const z0 = this.actors[0].zid, z1 = this.actors[1].zid; if (z0.some((a) => z1.some((b) => a && b && ZDFL.pair(a, b)))) ZDFL.load().then(() => { for (const n in window.ZDF || {}) if (z0.includes(ZDF[n].w) && z1.includes(ZDF[n].l) || z1.includes(ZDF[n].w) && z0.includes(ZDF[n].l)) ZDFL.sounds(n); }); }   // Dramatic Finish posible: su guion y sus voces
       await Promise.race([Promise.all(L), new Promise((r) => setTimeout(r, 4000))]);
     }
     chains.forEach((ch) => ch.forEach((d) => ImpactArt.load(d.id, d.ix)));          // impact frames (transformación y Ultimate)
     this.ghosts = []; for (let i = 0; i < 14; i++) { const s = new VsSprite(scene, false); s.mesh.visible = false; s.life = 0; s.mesh.renderOrder = 2; this.ghosts.push(s); }
     this.iS = chains.map((ch) => { const z = vsZIntro(ch[0].sheet); return z ? z.len : VS_INTRO_SLOT; }); this.iEnd = this.iS[0] + this.iS[1];   // segundos de entrada de cada uno
     this.sim = new VsSim(chains[0], chains[1], { seed: (Math.random() * 1e9) | 0, rounds: train || sto ? 1 : c.rounds, noKO: train, noTime: train, intro: train ? 0 : this.iEnd + 2.3, time: sto && SC.goal === 'survive' ? SC.sec : undefined, survive: sto && SC.goal === 'survive' });
-    this.intro = train ? null : { s: [{}, {}], q: -1 }; this.fin = null; this.vic = null; this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win'); this.ids = picks.map((p) => p.id);
+    this.intro = train ? null : { s: [{}, {}], q: -1 }; this.fin = null; if (this.dfx) { this.dfx.finish(); this.dfx = null; } this.vic = null; this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win'); this.ids = picks.map((p) => p.id);
     if (this.intro) { this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); }
     const p1 = new VsMulti([new VsKeyboard(VS_KEYS[0]), new VsGamepad(0)].concat(this.touch ? [this.touch] : []));
     this.inputs = [p1, sto ? new VsAI(vsAiMix(SC.lvl)) : tw ? VS_TOWER.ai(tw) : tuto ? new VsTutorDummy() : train ? new VsDummy(c.dummy) : c.mode === 'cpu' ? new VsAI(c.level) : new VsMulti([new VsKeyboard(VS_KEYS[1]), new VsGamepad(1)])];
@@ -612,7 +614,7 @@ class Versus {
         { const l = sim.f[1 - e.w]; cam.play(1.4, (k, P, L) => { const dx = P.x - l.x, dy = P.y - l.y - 1.6, dz = P.z - l.z, d = Math.hypot(dx, dy, dz) || 1, r = Math.max(10, d * 0.62);   // se acerca al derrotado sin atravesarlo
           L.set(l.x, l.y + 1.6, l.z); P.set(l.x + dx / d * r, l.y + 2.4 + dy / d * r, l.z + dz / d * r); return 34; }); } break;
       case 'timeup': this.say('¡TIEMPO!', 2); break;
-      case 'final': this.startFinal(e); break;
+      case 'final': if (!this.startDF(e)) this.startFinal(e); break;   // Dramatic Finish de Z Legends 3 si es uno de sus duelos; si no, el final destructivo
       case 'pas': this.onPas(e); break;
       case 'match': this.finish(e.w); break;
       case 'trStart': {                                                 // transformación: plano contrapicado que se cierra sobre el luchador
@@ -680,6 +682,7 @@ class Versus {
       case 'sBuff': this.burst(e.x, e.y, e.z, e.col, 22, 22, 1.3); fx.add(1, e.x, e.y, e.z, 2, e.col, { s1: 16, life: 0.5, a: 0.6 }); this.flash = Math.max(this.flash, 0.2); SFX.play('stinger'); this.tag('¡POTENCIADO!'); break;
       case 'ctrw': SFX.play('tp'); break;
       case 'ctrMiss': break;
+      case 'clashDR': this.lines = 1; this.tag('¡CHOQUE!'); fx.add(3, e.x, e.y, e.z, 2.4, 0xffffff, { s1: 10, life: 0.25 }); this.burst(e.x, e.y, e.z, 0xffffff, 22, 26, 1.4); this.flash = Math.max(this.flash, 0.3); cam.shake(1); SFX.play('stinger'); break;   // los dos Dragon Rush chocan
       case 'ctr': this.lines = 1; this.tag('¡' + e.name + '!'); fx.add(3, e.x, e.y, e.z, 2, 0xffffff, { s1: 9, life: 0.2 }); this.burst(e.x, e.y, e.z, e.col, 18, 22, 1.3); this.flash = Math.max(this.flash, 0.35); cam.shake(0.8); SFX.play('stinger'); break;   // contraataque
       case 'ultGo': if (e.type !== 'zl3') { const ua = this.actors[e.i]; ImpactFlash.play(ua.def.id, ua.def.ix, e.col, 'WBW', ua.flip); } this.el.classList.remove('cine'); cam.shake(0.9); this.blur = 1; this.flash = 0.3; this.lines = 1; SFX.play(e.type === 'beam' ? 'bigbeam' : e.type === 'rush' || e.type === 'slash' || e.type === 'grab' || e.type === 'clone' ? 'dash' : 'pulse'); break;
       case 'beamHit': this.burst(e.x, e.y, e.z, e.col, 7, 22, 1.5); fx.add(0, e.x, e.y, e.z, 3, e.col, { s1: 5, life: 0.14, a: 0.5 }); cam.shake(0.42); SFX.play('hit'); break;
@@ -780,6 +783,17 @@ class Versus {
       once('a', 0.7, () => { fx.add(1, x, 1.7, z, 2, col, { s1: 20, life: 0.45 }); fx.add(1, x, 0.1, z, 2, 0xffffff, { s1: 24, life: 0.5, flat: true, a: 0.8 }); this.burst(x, 1.7, z, col, 26, 24, 1.6); this.dust(x, z, 16, 12); this.cam.shake(0.8); a.pop = 0.8; this.flash = Math.max(this.flash, 0.14); SFX.play('bigboom'); });
     }
     return o;
+  }
+  /** DRAMATIC FINISH: si ganador y perdedor son uno de los duelos de Z Legends 3 que lo tienen, su escena (js/versus/zdf.js) */
+  startDF(e) {
+    if (!window.ZDF || this.dfx) return false;
+    const wa = this.actors[e.w], la = this.actors[1 - e.w], n = ZDFL.scene(wa.zid[wa.fi], la.zid[la.fi]);
+    if (!n || !ZMoves.ready(wa.zid[wa.fi]) || !ZMoves.ready(la.zid[la.fi])) return false;
+    const A = ZMoves.D[wa.zid[wa.fi]].a; if (!Object.keys(A).some((k) => /^Dramatic/.test(k))) return false;
+    this.sim.dfT = 600; this.ui.big.classList.remove('go'); this.el.classList.add('cine'); this.ui.ultBox.classList.add('off');
+    this.dfx = new VsDramatic(this, n, e.w);
+    const out = () => { if (this.dfx) return setTimeout(out, 200); this.el.classList.remove('cine'); this.ui.ultBox.classList.remove('off'); }; setTimeout(out, 500);
+    return true;
   }
   /** FINAL DESTRUCTIVO: el K.O. que cierra el combate, con un golpe fuerte o una Ultimate, manda al perdedor contra una montaña */
   startFinal(e) {
@@ -1049,6 +1063,7 @@ class Versus {
     const sim = this.sim, cam = this.cam, fx = this.fx, k = this.acc / VS_DT, T = this.time, R2 = Math.random;
     this.lines = Math.max(0, this.lines - rawDt * 2.8);
     this.blur = Math.max(0, this.blur - rawDt * 2.6); this.chroma = Math.max(0, this.chroma - rawDt * 0.07); this.flash = Math.max(0, this.flash - rawDt * (this.flash > 0.45 ? 6 : 2.2));   // los fundidos a blanco se abren rápido
+    if (this.dfx) { this.dfx.update(rawDt); if (this.dfx.done) this.dfx = null; }
     if (this.intro) this.stepIntro(); if (this.fin) this.stepFinal(rawDt); if (this.vic) this.vic.t += rawDt;
     this.zFxStep(rawDt);
     if (!this.zcOn) this.zCutHide(); this.zcOn = false;
@@ -1117,7 +1132,9 @@ class Versus {
     // --- Luchadores ---
     for (let i = 0; i < 2; i++) {
       const f = sim.f[i], foe = sim.f[1 - i], a = this.actors[i], p = this.prev[i], S = a.spr, U = S.u;
-      const x = p.x + (f.x - p.x) * k, y = p.y + (f.y - p.y) * k, z = p.z + (f.z - p.z) * k; a.t += dt; a.px = x; a.py = y; a.pz = z;
+      let x = p.x + (f.x - p.x) * k, y = p.y + (f.y - p.y) * k, z = p.z + (f.z - p.z) * k;
+      const dq = this.dfx && this.dfx.pose(i); if (dq) { x = dq.x; y = dq.y; z = dq.z; }   // Dramatic Finish: donde lo pone su guion
+      a.t += dt; a.px = x; a.py = y; a.pz = z;
       // Mira al rival (en pantalla); en el dash mira hacia donde va
       let sxd = (foe.x - f.x) * RX + (foe.z - f.z) * RZ; if (f.st === 'dash') { const d = f.dx * RX + f.dz * RZ; if (Math.abs(d) > 0.35) sxd = d; }
       if (Math.abs(sxd) > 0.05) a.flip = sxd < 0;

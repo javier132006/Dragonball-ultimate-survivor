@@ -25,6 +25,7 @@ const ZC_CMP = (a, op, b) => op === 0 ? a === b : op === 1 ? a !== b : op === 2 
 function zcInfo(cid, S) {
   const CH = typeof window !== 'undefined' && window.ZMOVE_CH && ZMOVE_CH[cid]; if (!CH || !S) return null;
   if (S._zc !== undefined) return S._zc;
+  if (S.k === 'dr') return (S._zc = { melee: true, proj: false, guard: false });
   const parts = [].concat(S.P || [], S.H || [], S.E || []).map((q) => q[0]).filter((n) => CH[n]);
   if (!parts.length) return (S._zc = null);
   const trees = []; for (const n of parts) trees.push(...(CH[n].ev || []), ...(CH[n].fin || []));
@@ -54,9 +55,9 @@ Object.assign(VsSim.prototype, {
   },
   /** Punto de imagen ip del fotograma actual del atacante, en píxeles del escenario */
   zcIP(z, f, ip) {
-    const e = z.CH[z.part], q = e && e.ip && e.ip[Math.max(0, z.fi)];
+    const e = z.CH[z.part], L = e && e.ip && e.ip[Math.max(0, z.fi)], q = L && ip ? L[Math.min(L.length, ip) - 1] : null;   // el punto ip (1 = el primero; 0 = el origen)
     const X = this.zcX(z, f), Y = this.zcY(z, f);
-    return ip && q ? [X + q[0] * ZC.SPR, Y + q[1] * ZC.SPR] : [X, Y];
+    return q ? [X + q[0] * ZC.SPR, Y + q[1] * ZC.SPR] : [X, Y];
   },
   /* ---------- variables ---------- */
   zcVar(z, w, i, f, foe) {
@@ -285,7 +286,9 @@ Object.assign(VsSim.prototype, {
       if (f.y > 0.02 || z.av[1] < 0) z.av[1] += 1500 * VS_DT; if (f.y <= 0.02 && z.av[1] > 0) z.av[1] = 0;
     }
     for (let i = 0; i < z.wait.length; i++) { const w = z.wait[i]; if (z.tt >= w.t) { z.wait.splice(i--, 1); this.zcActs(w.acts, z, f, foe); } }   // lo que esperaba un «Wait»
+    const G = !e || e.ev ? null : window.ZMOVE_DR && ZMOVE_DR[part];   // el Dragon Rush es igual para todos (cambian sus fotogramas)
     if (e && e.ev) for (const t of e.ev) this.zcRun(t, z, f, foe, {});
+    else if (G) for (const t of G.ev) this.zcRun(t, z, f, foe, {});
     this.zcLaunchRun(z, f, foe);
     if (z.hold && foe.st !== 'ko') { foe.zh = 0.2; foe.vx = foe.vy = foe.vz = 0; foe.stun = Math.max(foe.stun, 0.5); }
     // Animación parada (SetAnimSpeed 0) esperando a que su poder aparte (el rayo, la esfera) termine: aquí no existe, sigue sola
@@ -303,15 +306,15 @@ Object.assign(VsSim.prototype, {
     if (z.go) return this.zcGo(f, foe, p, z.go);
     const P = p.seq[p.si];
     if (P && p.pt >= P[1]) {                                           // acaba la parte: sus eventos «al acabar»
-      const e = z.CH[P[0]];
-      if (e && e.fin) { z.go = null; for (const t of e.fin) this.zcRun(t, z, f, foe, { fin: P[0] }); if (z.go) return this.zcGo(f, foe, p, z.go); }
+      const e = z.CH[P[0]], fin = (e && e.fin) || (window.ZMOVE_DR && ZMOVE_DR[P[0]] && ZMOVE_DR[P[0]].fin);
+      if (fin) { z.go = null; for (const t of fin) this.zcRun(t, z, f, foe, { fin: P[0] }); if (z.go) return this.zcGo(f, foe, p, z.go); }
       if (z.info.guard && !z.trig && p.si === 0) { this.endSpec(f, foe); return true; }   // la postura terminó sin que le pegaran
     }
     return false;
   },
   zcGo(f, foe, p, name) {
     const z = p.z, S = p.S; z.go = null;
-    if (!/^(Special|Ultimate|Transformation|Attack)/.test(name)) { this.endSpec(f, foe); return true; }   // vuelve a Parado / Pulando: se acabó
+    if (!/^(Special|Ultimate|Transformation|Attack|Dragon)/.test(name)) { this.endSpec(f, foe); return true; }   // vuelve a Parado / Pulando: se acabó
     for (const seq of [p.seq, S.P, S.H, S.E]) {
       const i = seq ? seq.findIndex((q) => q[0] === name) : -1;
       if (i >= 0) {
@@ -345,5 +348,6 @@ Object.assign(VsSim.prototype, {
     foe.zh = 0; foe.zc = 0;
     if (foe.st === 'ko') return;
     if (z.hold || z.frz) { if (foe.y > 0.4) { foe.set('launched'); foe.stun = 0.5; foe.vy = 0; } else { foe.set('hurt'); foe.stun = 0.35; } }
+    else if (foe.y > 0.4 && /^(hurt|stun|down)$/.test(foe.st)) { foe.set('launched'); foe.stun = 0.5; }   // suelto en el aire: cae
   }
 });

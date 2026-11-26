@@ -34,6 +34,8 @@ const VS = {
   SPEC: { cost: 35, buff: 30, beam: 105, rush: 40, rushEnd: 70, shot: 95, buffT: 8, buffK: 1.2 },
   // Contraataque (botón CONTRA): ventana win s esperando un golpe cuerpo a cuerpo; si no llega, queda vendido miss s
   CTR: { cost: 15, win: 0.4, miss: 0.38, dmg: 95 },
+  // Dragon Rush (botón RUSH): la embestida de Z Legends 3 con su lógica original; de cerca, rompe la guardia. lunge: velocidad del acercamiento
+  DR: { cost: 33, lunge: 22, reach: 6 },
   ULT_CINE: 1.25,                         // segundos de presentación de la Ultimate (el mundo se para)
   TR_CINE: 2.7, TR_SWAP: 1.75,            // transformación: duración total y momento del estallido (cambio de forma)
   TR_DEAL: 0.11, TR_TAKE: 0.16,           // barra de transformación ganada por punto de daño hecho / recibido
@@ -114,7 +116,7 @@ class VsSim {
     if (this.clash) { this.stepClash(cmd); return; }                    // choque de Ultimates: el reloj y el resto esperan
     this.pt += VS_DT;
     if (this.phase === 'intro' && this.pt > this.introT) { this.phase = 'fight'; this.pt = 0; this.emit('fight'); }
-    else if (this.phase === 'ko' && this.pt > (this.df ? 4.7 : 3.0)) this.endRound();   // el final destructivo dura más
+    else if (this.phase === 'ko' && this.pt > (this.dfT || (this.df ? 4.7 : 3.0))) { this.dfT = 0; this.endRound(); }   // el final destructivo dura más
     else if (this.phase === 'fight' && !this.ult && !this.o.noTime) {
       this.time -= VS_DT;
       if (this.time <= 0) { this.time = 0; const w = this.o.survive ? (a.hp > 0 ? 0 : 1) : a.hp / a.hpMax >= b.hp / b.hpMax ? 0 : 1; /* historia «resiste»: si sigues en pie, ganas */ this.phase = 'ko'; this.pt = 0; this.ko = w; this.emit('timeup', { w }); }
@@ -173,6 +175,7 @@ class VsSim {
           if ((press & VB.TRANS) && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
           if ((press & VB.ULT) && f.ki >= 100 && foe.st !== 'ko' && !this.ult && !this.clash) { this.startUlt(f, foe); break; }   // con otra Ultimate en marcha no se puede lanzar la tuya (solo responder a tiempo: choque)
           if ((press & VB.SPEC) && foe.st !== 'ko' && this.startSpec(f, foe, held, cmd)) break;
+          if ((press & VB.DR) && foe.st !== 'ko' && this.startDR(f, foe)) break;
           if ((press & VB.CTR) && f.ki >= VS.CTR.cost) { f.ki -= VS.CTR.cost; f.vx = f.vy = f.vz = 0; f.set('ctrw'); this.emit('ctrw', { i: f.i }); break; }
           if ((press & VB.TP) && f.ki >= VS.COST_TP * tpk) { this.vanish(f, foe, VS.COST_TP * tpk); break; }
           if ((press & VB.DASH) && (pas === 'lobo' || f.ki >= VS.COST_DASH)) { this.dash(f, foe, wx, wz, my, nx, nz, ty / td); break; }
@@ -353,9 +356,44 @@ class VsSim {
     this.emit('spec', { i: f.i, name: S.n, col: f.def.col, k: S.k });
     return true;
   }
+  /** Dragon Rush: sus cuatro partes de Z Legends 3 (embestida, ráfaga de puñetazos, lanzamiento y persecución), con los eventos
+   *  del original (ZMOVE_DR). Si los dos lo hacen a la vez y chocan: duelo de puñetazos y salen despedidos hacia arriba */
+  startDR(f, foe) {
+    if (f.ki < VS.DR.cost) return false;
+    const cid = /^z_/.test(f.def.sheet || '') ? f.def.sheet.slice(2) : null, CH = cid && typeof window !== 'undefined' && window.ZMOVE_CH && ZMOVE_CH[cid];
+    const part = (n) => (CH && CH[n] ? [n, CH[n].d, 0] : null), P1 = part('Dragon_Rush_Pt1');
+    f.ki -= VS.DR.cost; f.vx = f.vy = f.vz = 0;
+    if (!P1 || !window.ZMOVE_DR) { const dx = foe.x - f.x, dz = foe.z - f.z, h = Math.hypot(dx, dz) || 1; f.dx = dx / h; f.dz = dz / h; f.dy = 0; f.buf = 'heavy'; f.set('dash'); this.emit('dash', { i: f.i }); return true; }   // sin animaciones del original: dash y golpe fuerte
+    const S = { n: 'DRAGON RUSH', k: 'dr', P: [P1], H: ['Dragon_Rush_Pt2', 'Dragon_Rush_Pt3', 'Dragon_Rush_Pt4'].map(part).filter(Boolean), E: [], rel: [0, 0], R: 0 };
+    const dx = foe.x - f.x, dy = foe.y - f.y, dz = foe.z - f.z, d = Math.hypot(dx, dy, dz) || 1;
+    f.set('spec'); f.sp = { S, seq: S.P, si: 0, pt: 0, tt: 0, res: 0, dx: dx / d, dy: dy / d, dz: dz / d };
+    this.zcStart(f, foe, f.sp);
+    this.emit('spec', { i: f.i, name: S.n, col: f.def.col, k: 'dr' });
+    return true;
+  }
+  /** Los dos en la embestida del Dragon Rush y se tocan: duelo de puñetazos (su parte 2 a la vez) y salen despedidos */
+  drClash(f, foe) {
+    const a = f.sp, b = foe.sp;
+    for (const [x, p] of [[f, a], [foe, b]]) { const i = p.S.H.findIndex((q) => q[0] === 'Dragon_Rush_Pt2'); if (i < 0) return; p.seq = p.S.H; p.si = i; p.pt = 0; p.clash = 1; if (p.z) { p.z.g.DISPUTA_DE_SOCOS = 1; p.z.rate = 1; } }
+    const dx = foe.x - f.x, dz = foe.z - f.z, h = Math.hypot(dx, dz) || 1, mx = (f.x + foe.x) / 2, mz = (f.z + foe.z) / 2, my = Math.max(f.y, foe.y);
+    f.x = mx - dx / h * 1.1; f.z = mz - dz / h * 1.1; foe.x = mx + dx / h * 1.1; foe.z = mz + dz / h * 1.1; f.y = foe.y = my;
+    this.emit('clashDR', { x: mx, y: my + 1.6, z: mz });
+  }
   stepSpec(f, foe) {
     const p = f.sp, dt = VS_DT; if (!p || this.phase !== 'fight') { f.set('idle'); return; }
     p.pt += dt * (p.z ? p.z.rate : 1); p.tt += dt;
+    if (p.S.k === 'dr') {
+      if (p.clash) {                                                     // duelo de puñetazos: chispas y, al acabar, los dos salen despedidos hacia arriba
+        if (p.tt % 0.2 < VS_DT) this.emit('zHit', { i: f.i, x: (f.x + foe.x) / 2, y: f.y + 1.6, z: (f.z + foe.z) / 2, col: f.def.col, sp: 1 });
+        if (p.pt >= p.seq[p.si][1]) { f.sp = null; f.set('launched'); f.stun = 0.45; f.vy = 14.5; f.y = Math.max(f.y, 0.05); const h = Math.hypot(foe.x - f.x, foe.z - f.z) || 1; f.vx = -(foe.x - f.x) / h * 4; f.vz = -(foe.z - f.z) / h * 4; }
+        return;
+      }
+      if (p.seq === p.S.P && foe.st === 'spec' && foe.sp && foe.sp.S.k === 'dr' && foe.sp.seq === foe.sp.S.P && Math.hypot(foe.x - f.x, foe.z - f.z) < VS.REACH + 0.6 && Math.abs(foe.y - f.y) < 2.4) { this.drClash(f, foe); return; }
+      if (p.seq === p.S.P) {                                             // la embestida: se acerca (en el original solo conecta de cerca)
+        const tx = foe.x - f.x, ty = foe.y - f.y, tz = foe.z - f.z, td = Math.hypot(tx, ty, tz) || 1;
+        if (td > 1.8 && td < VS.DR.reach) { const k = VS.DR.lunge * VS_DT / td; f.x += tx * k; f.y += ty * k; f.z += tz * k; }
+      }
+    }
     if (p.z) { if (this.zcTick(f, foe, p) || !f.sp) return; }           // la lógica del original manda (puede cambiar de parte o acabar)
     const S = p.S, P = p.seq[p.si], ZG = !(p.z && (p.z.info.melee || p.z.info.guard));   // ZG: golpe genérico de su tipo (si el original no pega él mismo)
     const tx = foe.x - f.x, ty = foe.y - f.y, tz = foe.z - f.z, th = Math.hypot(tx, tz) || 0.001, td = Math.hypot(th, ty) || 0.001, nx = tx / th, nz = tz / th;
