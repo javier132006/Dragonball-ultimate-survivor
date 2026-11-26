@@ -110,6 +110,79 @@ def cut_panels(cid, src):
     return out
 
 
+# Contraataque (botón CONTRA del Versus) de los que lo tienen en Z Legends 3
+COUNTERS = {'gokublue': 'Special_Ressurection_Counter', 'jiren': 'Special_CounterImpact', 'gogetassj4': 'Special_PunisherGuard',
+            'hit': 'Special_TimeRelease', 'vegetaego': 'Special_AbsorbDamage', 'moro': 'Special_Counter'}
+# Transformaciones animadas: (personaje, forma a la que llega) -> (paquete, técnica). La animación empieza en la forma de antes
+TRANSFORMS = {'goku/SUPER SAIYAN': ('goku', 'Transformation'), 'goku/SUPER SAIYAN BLUE': ('gokussj', 'Transformation_Blue'),
+              'vegeta/SUPER SAIYAN GOD': ('vegetassj', 'Special_SuperSaiyanGod'), 'vegeta/SUPER SAIYAN BLUE': ('vegetassj', 'Special_SuperSaiyanBlue_Transformation'),
+              'bardock/SUPER SAIYAN': ('bardock', 'Transformation')}
+SP_BUFF = re.compile(r'Kaioken$|RealizedPower|SaiyanSpirit|GrandCharge|Transcendence|AcceleratingBattleSpirit|ImGoingToEnjoyThis|AintNobody|ShiningSoul|'
+                     r'FinishSign|TogetherWeAre|YouMightNotSurvive|NoHardFeelings|IHaveNoUse|TooBad|DoNotInsist|Copy$')
+SP_SKIP = re.compile(r'Counter|Transformation|Kaioken_|_Parado|_Finish$|Bloqueado|Combo|AbsorbDamage|PunisherGuard|TimeRelease|Ressurection|Saibamen|'
+                     r'EveryoneLendMeYourEnergy|SpiritBomb|SuperSaiyanGod|SuperSaiyanBlue|x100BigBangKamehameha|FinalFlash|_Variation\d|_Variacao\d|_Leve$|_Heavy$|_Medium$|_Light$|_Duple$|_Hakai$|_Normal$|_Shot$|_Horizontal$|_Vertical$|EntradaAlternativa')
+
+SP_SHOT = re.compile(r'Cannon|Grenade|Beam|Blast|Wave|Kamehameha|Gun|Ball|Disc|Saucer|Shot|Ray|Laser|Javelin|Lancer|Storm|Shower|Masenko|Makanko|Bomb|Spear|Granade|Sphere|Hole|Claw|Slicer|Blades|Excalibur')
+
+
+def parts_of(A, base):
+    """Partes en orden de una técnica (las de suelo si las hay), su rama de acierto y la de fallo"""
+    for b in (base + '_Chao', base):
+        esc = re.escape(b)
+        main = [n for n in A if re.match(esc + r'(_Pt\d+(_\d+)?|_Final|_Start|_Charge|_Liberar)?$', n)]
+        if main:
+            return main, [n for n in A if re.match(esc + r'_Acertou', n)], [n for n in A if re.match(esc + r'_Errou', n)]
+    return [], [], []
+
+
+def nice_name(b):
+    nm = re.sub(r'^(UltimateAttack|Ultimate|Special)_?', '', b); nm = re.sub(r'_(Pt\d+|Final|Chao)$', '', nm)
+    nm = re.sub(r'([a-z0-9])([A-Z])', r'\1 \2', re.sub(r'([A-Z])([A-Z][a-z])', r'\1 \2', nm)).replace('_', ' ').strip().upper()
+    return {'': 'ATAQUE ESPECIAL', 'FRENTE': 'ATAQUE ESPECIAL', 'TRAS': 'ATAQUE ESPECIAL', 'AGACHADO': 'ATAQUE ESPECIAL', 'MAKANKOSAPO': 'MAKANKOSAPPO', 'X20 KAIOKEN KAMEHAMEHA': 'KAMEHAMEHA KAIOKEN X20',
+            'X3 KAIOKEN KAMEHAMEHA': 'KAMEHAMEHA KAIOKEN X3', '20X KAIOKEN KAMEHAMEHA': 'KAMEHAMEHA KAIOKEN X20', '3X KAIOKEN KAMEHAMEHA': 'KAMEHAMEHA KAIOKEN X3', 'TOGETHER WE ARETHE GINYU FORCE': 'FUERZAS ESPECIALES GINYU'}.get(nm, nm)
+
+
+def move(A, iw, main, H, E, kind=None):
+    """Técnica para la simulación: partes, ramas, tipo (beam rayo · rush embestida · buff potenciador) y el momento en que sale"""
+    mw = max(f['w'] for n in main for f in A[n]['f'])
+    rel = None
+    for pi, n in enumerate(main):
+        for k, f in enumerate(A[n]['f']):
+            if rel is None and f['w'] >= max(iw * 1.9, mw * 0.55): rel = [pi, round(sum((g['d'] or 1) for g in A[n]['f'][:k]) / (A[n]['speed'] or 12), 3)]
+    if not kind: kind = 'beam' if rel else 'shot' if SP_SHOT.search(main[0]) else 'rush'   # shot: lo que lanza es un objeto aparte (sale un proyectil)
+    if rel is None: rel = [0, min(0.25, adur(A[main[0]]))]
+    rel = [rel[0], min(rel[1], max(0, adur(A[main[rel[0]]]) - 0.03))]
+    reach = max(f['w'] - f['hx'] * f['w'] for n in main[rel[0]:] + H for f in A[n]['f'])
+    return {'P': [[n, adur(A[n]), 1 if A[n]['loop'] else 0] for n in main], 'H': [[n, adur(A[n]), 0] for n in H], 'E': [[n, adur(A[n]), 0] for n in E],
+            'k': kind, 'rel': rel, 'R': round(reach)}
+
+
+def specials(cid, A, iw):
+    """Hasta cuatro especiales: [sin dirección, moviéndose, arriba, abajo]"""
+    ult = ULTS.get(cid, [None])[0]
+    bases = []
+    for n in A:
+        if not n.startswith('Special') or re.search(r'Aereo|Agachado$|_Cima|_Baixo|_Ar(_|$)', n): continue
+        b = re.sub(r'(_Pt\d+(_\d+)?|_Final|_Acertou.*|_Errou.*|_Start|_Charge.*|_Liberar|_Changed|_Impact|_Chao)$', '', n)
+        b = re.sub(r'(_Pt\d+(_\d+)?|_Chao)$', '', b)
+        if b not in bases and not SP_SKIP.search(b) and not (isinstance(ult, str) and ult.startswith(b) and b != 'Special'): bases.append(b)
+    C = []
+    for b in bases:
+        main, H, E = parts_of(A, b)
+        if not main: continue
+        d = sum(adur(A[n]) for n in main)
+        if d < 0.25 or d > 5.5: continue
+        m = move(A, iw, main, H, E, 'buff' if SP_BUFF.search(b) else None)
+        m['n'] = nice_name(b); m['d'] = round(d, 2); C.append(m)
+    beams = sorted([m for m in C if m['k'] in ('beam', 'shot')], key=lambda m: -m['d'])
+    rush = sorted([m for m in C if m['k'] == 'rush'], key=lambda m: -m['d'])
+    buff = [m for m in C if m['k'] == 'buff']
+    out = [None] * 4
+    take = lambda L: L.pop(0) if L else None
+    out[0] = take(beams) or take(rush); out[1] = take(rush) or take(beams); out[3] = take(buff) or take(beams) or take(rush); out[2] = take(beams) or take(rush) or take(buff)
+    return [m for m in out] if any(out) else None
+
+
 def timing(cid, A):
     """Tabla fija (va en list.js, se carga siempre): la simulación del Versus la usa igual en los dos lados del online"""
     T = {}
@@ -148,6 +221,11 @@ def timing(cid, A):
         if fx and fx.get('n'): nm = fx['n']
         T['U'] = {'n': nm, 'P': PP, 'H': [[n, adur(A[n]), 0] for n in H], 'E': [[n, adur(A[n]), 0] for n in E],
                   'k': kind, 'rel': rel, 'lp': lp, 'R': round(reach), 'fx': fx}
+    S = specials(cid, A, iw)
+    if S: T['S'] = S
+    if cid in COUNTERS:
+        main, H, E = parts_of(A, COUNTERS[cid])
+        if main: T['K'] = move(A, iw, main, H, E, 'rush'); T['K']['n'] = nice_name(COUNTERS[cid])
     intro = [n for n in A if re.match(r'^Intro(_Pt\d+|_Final)?$', n)] or [n for n in A if re.match(r'^DramaticIntro(_Pt\d+)?$', n)]
     if intro: T['I'] = [[n, adur(A[n]), 1 if A[n]['loop'] else 0] for n in intro]
     vic = [n for n in A if re.match(r'^Vitoria(_Pt\d+|_Final)?$', n)]
@@ -267,9 +345,16 @@ def main():
         print('%-18s %3d animaciones · %5d KB' % ('fx', len(names), s // 1024))
     have = sorted(f[:-3] for f in os.listdir(OUT) if f.endswith('.js') and f not in ('fx.js', 'list.js'))
     json.dump(TM, open(TMP, 'w'), ensure_ascii=False)
+    X = {}
+    for key, (pk, base) in TRANSFORMS.items():                       # transformaciones: [paquete, partes]
+        src = next((f[0] for f in Z.FIGHTERS if f[1] == pk), pk)
+        A = Z.anims_of(Z.best_type(src)[1]); main, _, _ = parts_of(A, base)
+        if main: X[key] = [pk, [[n, adur(A[n]), 0] for n in main]]
     open(os.path.join(OUT, 'list.js'), 'w').write('// Generado por tools/make_zl3_moves.py: luchadores con técnicas animadas (js/zmoves.js)\nwindow.ZMOVE_LIST = %s;\n'
         '// Tiempos de la Ultimate (U), la intro (I) y la victoria (V) de cada uno: [parte, segundos, bucle]. La simulación del Versus usa estos números\n'
-        'window.ZMOVE_T = %s;\n' % (json.dumps(have), json.dumps(TM, separators=(',', ':'), ensure_ascii=False)))
+        'window.ZMOVE_T = %s;\n'
+        '// Transformaciones animadas del Versus: \'personaje/FORMA\' a la que llega -> [paquete, partes]\n'
+        'window.ZMOVE_X = %s;\n' % (json.dumps(have), json.dumps(TM, separators=(',', ':'), ensure_ascii=False), json.dumps(X, separators=(',', ':'), ensure_ascii=False)))
     print('total', total // 1024, 'KB en', os.path.relpath(OUT, ROOT))
 
 

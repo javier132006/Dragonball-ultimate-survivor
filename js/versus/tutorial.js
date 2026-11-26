@@ -92,7 +92,7 @@ class VsTutorial {
   /** Tecla del jugador 1 (y botón del mando) para una acción */
   key(a) {
     const vs = this.vs;
-    if (vs.touch) return '<kbd>' + ({ ATK: 'GOLPE', HEAVY: 'FUERTE', KI: 'KI', DASH: 'DASH', GUARD: 'GUARDIA', TP: 'TELE', CHARGE: 'CARGA', ULT: 'ULT', UP: '▲', DOWN: '▼', TRANS: 'TRANS', l: '◀', r: '▶', f: '▲', k: '▼' }[a] || a) + '</kbd>';
+    if (vs.touch) return '<kbd>' + ({ ATK: 'GOLPE', HEAVY: 'FUERTE', KI: 'KI', DASH: 'DASH', GUARD: 'GUARDIA', TP: 'TELE', CHARGE: 'CARGA', ULT: 'ULT', UP: '▲', DOWN: '▼', TRANS: 'TRANS', SPEC: 'ESP', CTR: 'CONTRA', l: '◀', r: '▶', f: '▲', k: '▼' }[a] || a) + '</kbd>';
     return '<kbd>' + vsKeyName(VS_KEYS[0][a]) + '</kbd>' + (VS_PAD_NAMES[a] ? '<small>' + VS_PAD_NAMES[a] + '</small>' : '');
   }
   /** Pasa a la lección k (o a la siguiente que aplique a este luchador) */

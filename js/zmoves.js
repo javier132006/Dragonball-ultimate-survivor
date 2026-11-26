@@ -91,6 +91,30 @@ const ZMoves = {
     }
     return P;
   },
+  /** Plan de la Ultimate tal como la hace el Versus (ZMOVE_T[cid].U: partes con sus segundos y la rama de acierto).
+   *  cmb = [t0, t1]: tramo del combo cuerpo a cuerpo, en el que el luchador persigue al objetivo */
+  tPlan(cid) {
+    const d = this.D[cid], U = window.ZMOVE_T && ZMOVE_T[cid] && ZMOVE_T[cid].U; if (!d || !U || !U.P) return null;
+    if (ZM_ULT[cid] && ZM_ULT[cid].orb) return this.ultPlan(cid);      // la esfera que crece necesita su plan propio
+    const seq = U.P.concat(U.H || []), F = []; let t = 0, relT = -1, c0 = -1, c1 = -1;
+    const cf = U.fx && U.fx.f;
+    seq.forEach((p, i) => {
+      const a = d.a[p[0]], t0 = t; if (!a || !a.f.length) return;
+      const fps = a.fps || 12; let k = 0;
+      while (t < t0 + p[1] - 1e-4) {
+        if (!p[2] && k >= a.f.length) { F[F.length - 1].t1 = t = t0 + p[1]; break; }   // sin bucle: se queda el último
+        const f = a.f[k % a.f.length], dt = Math.min((f[7] || 1) / fps, t0 + p[1] - t);
+        F.push({ pg: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6], px: f[8], py: f[9], t0: t, t1: t + dt, part: p[0] }); t += dt; k++;
+      }
+      if (U.rel && U.rel[0] === i) relT = t0 + U.rel[1];
+      if (cf && i === cf[0]) c0 = t0;
+      if (cf && i === cf[1]) c1 = t0;
+    });
+    if (!F.length) return null;
+    if (relT < 0) relT = t * 0.6;
+    const rel = Math.max(0, F.findIndex((f) => f.t1 > relT));
+    return { cid, F, dur: t, rel, relT, parts: seq.map((p) => p[0]), cmb: c0 >= 0 ? [c0, c1 > c0 ? c1 : t] : null, ang: U.fx && U.fx.ang };
+  },
   /** Plan que encaja con el NOMBRE de una Ultimate del juego («KAMEHAMEHA», «FINAL FLASH»…). Si ninguna técnica se llama así, su Ultimate */
   planFor(cid, name) {
     const d = this.D[cid]; if (!d) return null;

@@ -74,6 +74,8 @@ class VsActor {
       case 'grab': return f.done ? A.atk : A.dash;
       case 'grabd': return A.hurt;
       case 'charge': case 'trans': return chg;
+      case 'ctrw': return A.atk2;                                           // esperando el golpe para contraatacar
+      case 'spec': return f.sp && f.sp.S.k === 'rush' && !f.sp.res ? A.dash : f.sp && f.sp.S.k === 'buff' ? chg : A.atk2;   // especial (sin sprites de Z Legends 3)
       case 'hurt': case 'stun': case 'held': return A.hurt;
       case 'launched': return first(A.death);
       case 'down': return last(A.death);
@@ -136,11 +138,20 @@ class Versus {
      velocidad. Ki cargado: la carga de su técnica de energía, que se queda en el último fotograma. Solo se dibuja:
      la simulación no cambia (el online sigue igual en los dos lados). */
   zPose(a, f, u, S, x, y, z, sx, sy, zi) {
-    const zid = a.zid && a.zid[a.fi]; if (a.orb) a.orb.mesh.visible = false;
+    let zid = a.zid && a.zid[a.fi]; if (a.orb) a.orb.mesh.visible = false;
+    const tr = this.sim && this.sim.tr, i = a === this.actors[0] ? 0 : 1;
+    if (f.st === 'trans' && tr && tr.zx && !tr.sw && ZMoves.ready(tr.zx[0])) {   // transformación animada de Z Legends 3 (paquete propio: empieza en la forma de antes)
+      const F = ZMoves.seqFrame(tr.zx[0], tr.zx[1], tr.t, false), T = F && ZMoves.tex(tr.zx[0], F.pg, 'v'); if (!T) return false;
+      if (S.s !== T) S.setSheet(T); S.u.uTint.value.setHex(0xffffff); S.poseRect(F, a.flip, sx, sy); return true;
+    }
     if (!zid || !ZMoves.ready(zid)) return false;
-    const TM = window.ZMOVE_T && ZMOVE_T[zid], i = a === this.actors[0] ? 0 : 1;
+    const TM = window.ZMOVE_T && ZMOVE_T[zid];
     let F = null, orbU = -1;
-    if (zi !== undefined && TM && TM.I) {                                   // su entrada de Z Legends 3, con sus paneles de cinemática en medio
+    if (f.st === 'spec' && f.sp) {                                          // especial o contraataque: la parte y el instante que lleva la simulación
+      const q = f.sp.seq[f.sp.si]; if (q) F = ZMoves.partFrame(zid, q[0], f.sp.pt, !!q[2]);
+    } else if (f.st === 'ctrw' && TM && TM.K) {                             // esperando el golpe: primer fotograma de su contraataque
+      F = ZMoves.partFrame(zid, TM.K.P[0][0], 0, false);
+    } else if (zi !== undefined && TM && TM.I) {                                   // su entrada de Z Legends 3, con sus paneles de cinemática en medio
       const Q = vsZIntro(a.def.sheet), t0 = Q.at * Q.A; let ts = zi;
       if (Q.P && zi >= t0) { if (zi < t0 + Q.P) { ts = t0; this.zCut(zid, TM.C.I, (zi - t0) * Q.kp); } else ts = zi - Q.P; }
       F = ZMoves.seqFrame(zid, TM.I, ts * Q.k, false);
@@ -335,7 +346,7 @@ class Versus {
     this.actors = chains.map((ch, i) => new VsActor(this, ch, sheets[i]));
     this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); });
     {                                                                    // técnicas, entradas y victorias de Z Legends 3: se esperan (4 s como mucho) para que la entrada salga bien
-      const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => c && L.push(ZMoves.load(c))); }); L.push(ZMoves.load('fx'));
+      const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => c && L.push(ZMoves.load(c))); a.chain.forEach((d) => { const X = window.ZMOVE_X && ZMOVE_X[d.id + '/' + d.form]; if (X) L.push(ZMoves.load(X[0])); }); }); L.push(ZMoves.load('fx'));
       await Promise.race([Promise.all(L), new Promise((r) => setTimeout(r, 4000))]);
     }
     chains.forEach((ch) => ch.forEach((d) => ImpactArt.load(d.id, d.ix)));          // impact frames (transformación y Ultimate)
@@ -559,13 +570,13 @@ class Versus {
       case 'match': this.finish(e.w); break;
       case 'trStart': {                                                 // transformación: plano contrapicado que se cierra sobre el luchador
         this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); this.dim = 1; this.dimCol = e.col; this.trCol = e.col;
-        const f = sim.f[e.i], a0 = cam.ang, s = e.i ? -1 : 1, D = e.dur || VS.TR_CINE, K = VS.TR_SWAP / D;   // D: con intro de la forma nueva dura más
+        const f = sim.f[e.i], a0 = cam.ang, s = e.i ? -1 : 1, D = e.dur || VS.TR_CINE, K = (e.sw || VS.TR_SWAP) / D;   // D: con intro de la forma nueva dura más
         cam.play(D, (k, P, L) => {
           if (k < K) { const q = k / K, a = a0 + s * (0.95 - q * 1.5), r = 12 - 4.5 * q * q; L.set(f.x, f.y + 1.8 + q * 0.3, f.z); P.set(f.x + Math.cos(a) * r, f.y + 3.2 - q * 2.5, f.z + Math.sin(a) * r); return 40 - 11 * q; }
           const q = (k - K) / (1 - K), a = a0 - s * (0.55 + q * 0.25), r = 8 + 9 * Math.min(1, q * 3.2);                       // tras el estallido: salto atrás
           L.set(f.x, f.y + 2.3, f.z); P.set(f.x + Math.cos(a) * r, f.y + 1.1 + q * 1.4, f.z + Math.sin(a) * r); return 52 - 9 * q;
         });
-        this.flash = 0.3; SFX.play('charge'); if (SFX.scream) SFX.scream(VS.TR_SWAP + 0.3, 165); break;
+        this.flash = 0.3; SFX.play('charge'); if (SFX.scream) SFX.scream((e.sw || VS.TR_SWAP) + 0.3, 165); break;
       }
       case 'trSwap': {                                                  // estallido: nueva forma, onda expansiva y nombre
         if (e.i === 0) this.run.tr++; const a = this.actors[e.i], f = sim.f[e.i], h = this.ui.sides[e.i]; a.setForm(f.fi); a.pop = 1; const col = a.def.col, x = e.x, y = e.y + 1.7, z = e.z;
@@ -616,8 +627,13 @@ class Versus {
       }
       case 'zProj': this.zFx('proj', e); SFX.play('bigbeam'); break;          // Ultimates de Z Legends 3
       case 'zBoom': this.zFx('boom', e); cam.shake(1); this.flash = Math.max(this.flash, 0.25); SFX.play('bigboom'); break;
-      case 'zHit': { const ua = this.actors[e.i]; ImpactFlash.play(ua.def.id, ua.def.ix, e.col, 'WBW', ua.flip); cam.shake(1.1); this.flash = 0.3; this.blur = 1; this.lines = 1; SFX.play('bigboom'); break; }
+      case 'zHit': { if (e.sp) { cam.shake(0.7); this.flash = Math.max(this.flash, 0.2); this.lines = 0.7; SFX.play('bigboom'); break; } const ua = this.actors[e.i]; ImpactFlash.play(ua.def.id, ua.def.ix, e.col, 'WBW', ua.flip); cam.shake(1.1); this.flash = 0.3; this.blur = 1; this.lines = 1; SFX.play('bigboom'); break; }
       case 'zMiss': SFX.play('tp'); break;
+      case 'spec': { const sf = sim.f[e.i]; this.tag(e.name); SFX.play(e.k === 'buff' ? 'charge' : 'pulse'); fx.add(1, sf.x, sf.y + 1.6, sf.z, 2, e.col, { s1: 9, life: 0.3, a: 0.7 }); break; }   // especial de Z Legends 3
+      case 'sBuff': this.burst(e.x, e.y, e.z, e.col, 22, 22, 1.3); fx.add(1, e.x, e.y, e.z, 2, e.col, { s1: 16, life: 0.5, a: 0.6 }); this.flash = Math.max(this.flash, 0.2); SFX.play('stinger'); this.tag('¡POTENCIADO!'); break;
+      case 'ctrw': SFX.play('tp'); break;
+      case 'ctrMiss': break;
+      case 'ctr': this.lines = 1; this.tag('¡' + e.name + '!'); fx.add(3, e.x, e.y, e.z, 2, 0xffffff, { s1: 9, life: 0.2 }); this.burst(e.x, e.y, e.z, e.col, 18, 22, 1.3); this.flash = Math.max(this.flash, 0.35); cam.shake(0.8); SFX.play('stinger'); break;   // contraataque
       case 'ultGo': if (e.type !== 'zl3') { const ua = this.actors[e.i]; ImpactFlash.play(ua.def.id, ua.def.ix, e.col, 'WBW', ua.flip); } this.el.classList.remove('cine'); cam.shake(0.9); this.blur = 1; this.flash = 0.3; this.lines = 1; SFX.play(e.type === 'beam' ? 'bigbeam' : e.type === 'rush' || e.type === 'slash' || e.type === 'grab' || e.type === 'clone' ? 'dash' : 'pulse'); break;
       case 'beamHit': this.burst(e.x, e.y, e.z, e.col, 7, 22, 1.5); fx.add(0, e.x, e.y, e.z, 3, e.col, { s1: 5, life: 0.14, a: 0.5 }); cam.shake(0.42); SFX.play('hit'); break;
       case 'rushLock': { const f = sim.f[1 - e.i], a0 = cam.ang; cam.play(1.5, (k, P, L) => { const a = a0 + k * 2.6; L.set(f.x, f.y + 1.6, f.z); P.set(f.x + Math.cos(a) * 9, f.y + 2.2 + Math.sin(k * 3.1) * 1.4, f.z + Math.sin(a) * 9); return 34; }); break; }
@@ -938,7 +954,7 @@ class Versus {
     if (tr) {                                                           // transformación en marcha
       const f = sim.f[tr.who], col = this.trCol, x = f.x, y = f.y, z = f.z, R = Math.random;
       if (!tr.sw) {
-        const q = Math.min(1, tr.t / VS.TR_SWAP);
+        const q = Math.min(1, tr.t / tr.swapAt);
         for (let n = 0; n < 1 + ((q * 2) | 0); n++) {                     // la energía converge hacia el cuerpo
           const a = R() * 6.283, e = (R() - 0.3) * 1.6, r = 7 + R() * 5, ox = Math.cos(a) * Math.cos(e) * r, oy = Math.abs(Math.sin(e)) * r * 0.8, oz = Math.sin(a) * Math.cos(e) * r;
           fx.add(2, x + ox, y + 1.6 + oy, z + oz, 0.8, n & 1 ? 0xffffff : col, { vx: -ox / 0.3, vy: -oy / 0.3, vz: -oz / 0.3, life: 0.24, stretch: 4.5, a: 0.55 });
@@ -1066,19 +1082,20 @@ class Versus {
       else if (f.st === 'held' && u && u.type === 'grab') roll = u.v === 1 ? T * 22 : u.v === 0 && u.t > 0.55 ? Math.PI : dir * 0.3;     // agarrado: gira o cae de cabeza
       else if (f.st === 'hurt') roll = dir * 0.12; else if (f.st === 'charge') { sx = 1 + Math.sin(T * 40) * 0.015; }
       if (f.st === 'down' && f.t < 0.12) { sy = 0.8; sx = 1.15; }
-      const tq = f.st === 'trans' && sim.tr && !sim.tr.sw ? Math.min(1, sim.tr.t / VS.TR_SWAP) : 0;       // 0-1: cuánto lleva concentrando la transformación
+      const tq = f.st === 'trans' && sim.tr && !sim.tr.sw ? Math.min(1, sim.tr.t / sim.tr.swapAt) * (sim.tr.zx ? 0.35 : 1) : 0;       // 0-1: cuánto lleva concentrando la transformación
       if (tq > 0) sx = sy = 1 + tq * 0.035 * Math.sin(T * 70);
       if (a.pop > 0) { a.pop = Math.max(0, a.pop - rawDt * 2.6); sx *= 1 + a.pop * 0.22; sy *= 1 + a.pop * 0.22; }   // al cambiar de forma «revienta» un instante
       a.roll = roll; a.fr = a.frame(f, sim);
       let ox = 0, oy = 0, oz = 0, hide = false, powMin = 0, isp = -1, zi;
       if (this.intro) { const o = this.introPose(i, a, x, z, T); if (o) { zi = o.zi; ox = o.x; oy = o.y; oz = o.z; hide = o.hide; powMin = o.pow || 0; if (o.fr !== undefined) a.fr = o.fr; if (o.roll) roll = a.roll = o.roll * dir; if (o.sq) { sy *= 1 - o.sq; sx *= 1 + o.sq; } if (o.isp !== undefined) isp = o.isp; } }
-      if (f.st === 'trans' && sim.tr && sim.tr.sw && a.intros[a.fi]) isp = FormIntros.frame(sim.tr.t - VS.TR_SWAP);   // transformado: la forma nueva hace su intro
+      if (f.st === 'trans' && sim.tr && sim.tr.sw && !sim.tr.zx && a.intros[a.fi]) isp = FormIntros.frame(sim.tr.t - sim.tr.swapAt);   // transformado: la forma nueva hace su intro
       // Con intro: su hoja en vez de la normal (mismo tamaño de píxel: wh es el alto de la celda en Supervivencia, 52,3 px = 3,6 u)
       const itx = isp >= 0 ? a.intros[a.fi] : null;
       if (itx) { if (S.s !== itx) { S.setSheet(itx); S.u.uTint.value.setHex(0xffffff); } a.fr = isp; roll = a.roll = 0; const r = itx.d.wh / itx.d.h / (3.6 / 52.3); sx *= r; sy *= r; }   // sin el tinte de la forma: la intro ya trae sus colores
       else if (S.s !== a.sheets[a.fi]) { S.setSheet(a.sheets[a.fi]); S.u.uTint.value.setHex(a.def.tint); }
       if (this.fin && this.fin.l === i) { const F = this.fin; ox = F.px - x; oy = F.py - y; oz = F.pz - z; hide = F.gone; roll = a.roll = -dir * F.t * 16; a.fr = Array.isArray(a.def.anim.death) ? a.def.anim.death[0] : a.def.anim.death; }
       if (this.vic && this.vic.w === i) powMin = 0.28;
+      if (f.sb > 0 && f.st !== 'ko') powMin = Math.max(powMin, 0.55);     // potenciado por un especial (Kaioken...)
       a.px = x + ox; a.py = y + oy; a.pz = z + oz;
       S.pose(a.fr, a.flip, roll, sx, sy);
       if (!hide && this.zPose(a, f, u, S, x, y, z, sx, sy, zi)) { roll = a.roll = 0; a.pow = 0; }   // técnicas, entrada y victoria de Z Legends 3 (js/zmoves.js)

@@ -30,6 +30,10 @@ const VS = {
   KI_REGEN: 2.5, KI_CHARGE: 32, COST_DASH: 5, COST_TP: 20, COST_ESC: 30,
   PARRY: 0.13,                            // ventana de la guardia perfecta (contraataque)
   PARRY_ULT: 0.22,                        // guardia justo al llegar una Ultimate de energía (rayo, esfera, discos, ráfaga): la desvía
+  // Especial (botón ESPECIAL, técnicas de Z Legends 3): cost de ki (buff para los potenciadores), daño de cada tipo, potenciador (x pow durante buffT s)
+  SPEC: { cost: 35, buff: 30, beam: 105, rush: 40, rushEnd: 70, shot: 95, buffT: 8, buffK: 1.2 },
+  // Contraataque (botón CONTRA): ventana win s esperando un golpe cuerpo a cuerpo; si no llega, queda vendido miss s
+  CTR: { cost: 15, win: 0.4, miss: 0.38, dmg: 95 },
   ULT_CINE: 1.25,                         // segundos de presentación de la Ultimate (el mundo se para)
   TR_CINE: 2.7, TR_SWAP: 1.75,            // transformación: duración total y momento del estallido (cambio de forma)
   TR_DEAL: 0.11, TR_TAKE: 0.16,           // barra de transformación ganada por punto de daño hecho / recibido
@@ -54,7 +58,7 @@ class VsFighter {
     this.hp = this.hpMax; this.ki = 25; this.gm = 100; this.inv = 0; this.pb = 0; this.pend = 0; this.q = 0; this.qt = 0; this.stun = 0;
     this.c = 0; this.n = 0; this.ok = false; this.buf = ''; this.jug = 0; this.spk = 0; this.ctr = 0; this.bo = 0; this.gt = 0; this.ft = 0; this.chg = 0; this.cmb = 0; this.cmbT = 0; this.cmbDmg = 0; this.shots = 0; this.pu = 0; this.lh = 9; this.dx = 1; this.dz = 0; this.flash = 0;
     // Pasivas que se renuevan cada ronda: vis (visión), el (élite), cp (copia), wk (debilitado), slow (congelado), tpb (golpe tras teletransporte)
-    this.vis = 0; this.el = 0; this.cp = 0; this.wk = 0; this.slow = 0; this.tpb = 0;
+    this.vis = 0; this.el = 0; this.cp = 0; this.wk = 0; this.slow = 0; this.tpb = 0; this.sb = 0; this.sp = null;
     if (this.pas === 'potara') this.ki = 60;
     this.set('idle');
   }
@@ -65,6 +69,8 @@ class VsFighter {
   get busy() { return this.st !== 'idle' && this.st !== 'move'; }
 }
 
+/** Tabla de Z Legends 3 de una forma (window.ZMOVE_T), o null */
+function vsZTab(def) { const z = def && /^z_/.test(def.sheet || '') ? def.sheet.slice(2) : null, T = typeof window !== 'undefined' && window.ZMOVE_T; return (T && z && T[z]) || null; }
 const VS_ZCUT_MAX = 2.8;                    // segundos como mucho de paneles de cinemática al lanzar una Ultimate de Z Legends 3
 /** Ultimate de Z Legends 3 de una forma (tabla fija de assets/zl3/m/list.js), o null si su forma no sale de ese juego */
 function vsZUlt(def) {
@@ -143,7 +149,7 @@ class VsSim {
     const ctl = this.phase === 'fight' && !(this.ult && (this.ult.who === f.i || this.ult.lock));
     f.t += dt; f.inv = Math.max(0, f.inv - dt); f.flash = Math.max(0, f.flash - dt);
     const pas = f.pas, tpk = pas === 'tp' ? 0.5 : 1, RE = VS.REACH + (pas === 'espada' ? 0.5 : 0);
-    if (f.wk > 0) f.wk -= dt; if (f.slow > 0) f.slow -= dt;
+    if (f.wk > 0) f.wk -= dt; if (f.slow > 0) f.slow -= dt; if (f.sb > 0) f.sb -= dt;   // sb: potenciador de un especial (Kaioken...)
     const low = pas === 'esperanza' && f.hp < f.hpMax * 0.3;           // Última esperanza: con poca vida, más ki y disparos más baratos
     if (f.st !== 'ko' && this.phase === 'fight') {
       f.ki = Math.min(100, f.ki + VS.KI_REGEN * (pas === 'infinito' ? 3 : low ? 2 : 1) * dt); f.lh += dt;
@@ -165,6 +171,8 @@ class VsSim {
         if (ctl) {
           if ((press & VB.TRANS) && f.canTrans && !this.ult && foe.st !== 'ko') { this.startTrans(f); break; }
           if ((press & VB.ULT) && f.ki >= 100 && foe.st !== 'ko' && !this.ult && !this.clash) { this.startUlt(f, foe); break; }   // con otra Ultimate en marcha no se puede lanzar la tuya (solo responder a tiempo: choque)
+          if ((press & VB.SPEC) && foe.st !== 'ko' && this.startSpec(f, foe, held, cmd)) break;
+          if ((press & VB.CTR) && f.ki >= VS.CTR.cost) { f.ki -= VS.CTR.cost; f.vx = f.vy = f.vz = 0; f.set('ctrw'); this.emit('ctrw', { i: f.i }); break; }
           if ((press & VB.TP) && f.ki >= VS.COST_TP * tpk) { this.vanish(f, foe, VS.COST_TP * tpk); break; }
           if ((press & VB.DASH) && (pas === 'lobo' || f.ki >= VS.COST_DASH)) { this.dash(f, foe, wx, wz, my, nx, nz, ty / td); break; }
           if ((held & VB.GUARD) && (press & VB.ATK) && foe.st !== 'ko') { f.q = 0; f.set('grab'); this.emit('grabTry', { i: f.i }); break; }
@@ -298,6 +306,8 @@ class VsSim {
         break;
       case 'down': brake(10); if (f.t >= 0.65) { f.inv = 0.5; f.set('idle'); if (pas === 'zenkai' && f.zk < 5 && this.phase === 'fight') { f.zk++; this.emit('pas', { i: f.i, k: 'zenkai', x: f.x, y: f.y + 1.6, z: f.z }); } } break;   // Zenkai: cada vez que se levanta pega más
       case 'stun': brake(10); f.stun -= dt; if (f.stun <= 0) f.set('idle'); break;
+      case 'ctrw': brake(14); if (f.t >= VS.CTR.win) { f.set('stun'); f.stun = VS.CTR.miss; this.emit('ctrMiss', { i: f.i }); } break;   // nadie le ha pegado: queda vendido
+      case 'spec': this.stepSpec(f, foe); break;
       case 'ko': { const m = Math.max(0, 1 - 1.2 * dt); f.vx *= m; f.vz *= m; if (f.y > 0 || f.vy > 0) f.vy -= 22 * dt; else { if (f.vy < -4 && !f.done) { f.done = true; this.emit('land', { x: f.x, z: f.z, hard: true }); } f.vy = 0; f.vx *= 0.8; f.vz *= 0.8; } break; }
       case 'ult': case 'held': case 'trans':                                            // los mueve stepUlt() / stepTrans()
         if (f.st === 'ult' && (!this.ult || this.ult.who !== f.i)) { f.inv = 0; f.set('idle'); }      // red de seguridad: nunca se queda congelado sin una Ultimate que lo mueva
@@ -321,6 +331,89 @@ class VsSim {
     if (m < 0.2) { dx = nx; dz = nz; dy = ny * 0.6; } else { dx /= m; dy /= m; dz /= m; }
     const n = Math.hypot(dx, dy, dz) || 1; f.dx = dx / n; f.dy = dy / n; f.dz = dz / n; f.inv = f.pas === 'tiempo' ? 0.2 : 0.12; f.buf = '';
     f.set('dash'); this.emit('dash', { i: f.i, x: f.x, y: f.y, z: f.z });
+  }
+  /* ---------------- Especiales y contraataques de Z Legends 3 ----------------
+     Especial: sin dirección, moviéndose, con ARRIBA o con ABAJO (hasta cuatro por forma: window.ZMOVE_T[z].S).
+       beam: lo dibujado en el sprite; acierta si al soltarlo el rival está en su línea (dirección fijada al empezar)
+       shot: lanza un proyectil grande · rush: se lanza contra él; si lo toca lo aturde hasta el remate · buff: pega más un rato
+     Sin técnicas de Z Legends 3 en esa forma, el especial es un ki cargado al máximo. La animación manda: f.sp.seq / si / pt */
+  startSpec(f, foe, held, cmd) {
+    const slot = held & VB.UP ? 2 : held & VB.DOWN ? 3 : cmd.mx || cmd.mz ? 1 : 0, T = vsZTab(f.def), L = T && T.S, S = L && (L[slot] || L[0] || L.find(Boolean));
+    if (!S) {
+      if (f.ki < VS.CSHOT.cost + VS.CSHOT.costK) return false;
+      f.shots = 0; f.chg = 1; f.buf = ''; f.set('shot'); f.t = VS.CSHOT.max; this.emit('kiCharge', { i: f.i }); return true;
+    }
+    const cost = S.k === 'buff' ? VS.SPEC.buff : VS.SPEC.cost;
+    if (f.ki < cost || (S.k === 'buff' && f.sb > 0)) return false;
+    f.ki -= cost; f.vx = f.vy = f.vz = 0; f.set('spec');
+    const dx = foe.x - f.x, dy = foe.y - f.y, dz = foe.z - f.z, d = Math.hypot(dx, dy, dz) || 1;
+    f.sp = { S, seq: S.P, si: 0, pt: 0, tt: 0, res: 0, dx: dx / d, dy: dy / d, dz: dz / d };
+    this.emit('spec', { i: f.i, name: S.n, col: f.def.col, k: S.k });
+    return true;
+  }
+  stepSpec(f, foe) {
+    const p = f.sp, dt = VS_DT; if (!p || this.phase !== 'fight') { f.set('idle'); return; }
+    const S = p.S, P = p.seq[p.si]; p.pt += dt; p.tt += dt;
+    const tx = foe.x - f.x, ty = foe.y - f.y, tz = foe.z - f.z, th = Math.hypot(tx, tz) || 0.001, td = Math.hypot(th, ty) || 0.001, nx = tx / th, nz = tz / th;
+    const atRel = p.seq === S.P && (p.si > S.rel[0] || (p.si === S.rel[0] && p.pt >= S.rel[1]));
+    f.vx = f.vy = f.vz = 0;
+    if (S.k === 'rush' && p.seq === S.P && !p.res) {                     // embestida: vuela hacia él hasta tocarlo
+      if (td > 2.2) { const v = 40; f.vx = tx / td * v; f.vy = ty / td * v; f.vz = tz / td * v; }
+      if (td < VS.REACH + 0.4) {
+        const left = p.seq.slice(p.si).reduce((a, q) => a + q[1], 0) - p.pt;
+        const r = this.hit(f, foe, { dmg: VS.SPEC.rush, stun: Math.max(0.5, left + 0.25), kb: 1, gbreak: 45, heavy: true, fz: 6 }, nx, nz);
+        if (r === 1) { p.res = 1; this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, sp: 1 }); } else if (r) { p.res = 2; }
+      } else if (p.tt > 0.75) { p.res = 2; this.emit('zMiss', { i: f.i }); }
+      if (p.res === 2) { f.set('stun'); f.stun = 0.3; return; }
+    } else if (S.k === 'rush' && p.res === 1 && foe.st === 'hurt' && td > 2.4) {   // lo va siguiendo mientras le pega
+      const k = Math.min(1, dt * 10); f.x += (foe.x - nx * 2 - f.x) * k; f.z += (foe.z - nz * 2 - f.z) * k; f.y += (foe.y - f.y) * k;
+    }
+    if (atRel && !p.res) {
+      if (S.k === 'beam') {
+        const ax = foe.x - f.x, ay = foe.y - f.y, az = foe.z - f.z, along = ax * p.dx + ay * p.dy + az * p.dz;
+        const lat = Math.hypot(ax - p.dx * along, ay - p.dy * along, az - p.dz * along), reach = Math.max(6, S.R * 0.056 + 1.4);
+        if (along > 0 && along < reach && lat < 2.6 && foe.inv <= 0 && foe.st !== 'ko') {
+          p.res = 1; const r = this.hit(f, foe, { dmg: VS.SPEC.beam, stun: 0.9, kb: 26, up: 7, launch: true, heavy: true, gbreak: 60, fz: 6, shot: 1 }, nx, nz);
+          if (r === 1) this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, sp: 1 });
+        } else { p.res = 2; this.emit('zMiss', { i: f.i }); }
+      } else if (S.k === 'shot') {
+        p.res = 3; const C = VS.CSHOT, oy = 1.7, ay = (foe.y + 1.5) - (f.y + oy), ad = Math.hypot(th, ay) || 1, sp = C.spd;
+        const sh = { o: f.i, x: f.x + nx * 1.2, y: f.y + oy, z: f.z + nz * 1.2, vx: tx / ad * sp, vy: ay / ad * sp, vz: tz / ad * sp, life: 1.9, r: 3.2, t: 0, col: f.def.col, chg: 1, pw: 4,
+          hs: { dmg: VS.SPEC.shot, stun: 0.85, kb: 24, up: 6, launch: true, heavy: true, gbreak: 60, fz: 5, shot: 1 } };
+        this.shots.push(sh); this.emit('shot', { i: f.i, x: sh.x, y: sh.y, z: sh.z, chg: 2 });
+      } else if (S.k === 'ctr' && p.si >= p.seq.length - 1 && p.pt >= P[1] * 0.4) {            // contraataque: el golpe sale en su última parte
+        p.res = 1; if (td > 3.2) { f.x = foe.x - nx * 2.2; f.z = foe.z - nz * 2.2; f.y = foe.y; }
+        if (foe.st === 'stun') foe.set('idle');
+        this.hit(f, foe, { dmg: VS.CTR.dmg, stun: 1, kb: 30, up: 9, launch: true, heavy: true, raw: 1, gbreak: 100, fz: 8 }, nx, nz);
+        this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col });
+      }
+    }
+    // avanza la animación
+    if (P && p.pt >= Math.max(P[1], P[2] ? 0.5 : 0)) {
+      if (p.si < p.seq.length - 1) { p.si++; p.pt = 0; return; }
+      if (p.seq === S.P && p.res === 1 && S.H.length) { p.seq = S.H; p.si = 0; p.pt = 0; return; }
+      if (p.seq === S.P && p.res === 2 && S.E.length) { p.seq = S.E; p.si = 0; p.pt = 0; return; }
+      this.endSpec(f, foe, nx, nz);
+    }
+    if (p.tt > 7) this.endSpec(f, foe, nx, nz);                         // red de seguridad
+  }
+  endSpec(f, foe, nx, nz) {
+    const p = f.sp, S = p.S; f.sp = null;
+    if (S.k === 'rush' && p.res === 1 && foe.st === 'hurt' && Math.hypot(foe.x - f.x, foe.y - f.y, foe.z - f.z) < 5) {   // remate
+      foe.stun = 0; this.hit(f, foe, { dmg: VS.SPEC.rushEnd, stun: 0.9, kb: 28, up: 8, launch: true, heavy: true, gbreak: 60, fz: 7 }, nx, nz);
+    }
+    if (S.k === 'buff') { f.sb = VS.SPEC.buffT; this.emit('sBuff', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col }); }
+    f.set('idle');
+  }
+  /** Contraataque: con animación de Z Legends 3 la hace entera y pega al final; sin ella aparece a su espalda con un golpe fuerte */
+  ctrHit(f, foe) {
+    const T = vsZTab(f.def), K = T && T.K;
+    this.freeze = Math.max(this.freeze, 8); f.inv = 0.2;
+    this.emit('ctr', { i: f.i, x: f.x, y: f.y + 1.6, z: f.z, col: f.def.col, name: K ? K.n : 'CONTRAATAQUE' });
+    if (K) {
+      const dur = K.P.reduce((a, q) => a + q[1], 0); foe.set('stun'); foe.stun = dur + 0.5; foe.vx = foe.vy = foe.vz = 0; f.inv = dur + 0.2;
+      f.set('spec'); f.sp = { S: Object.assign({}, K, { k: 'ctr', rel: [0, 0] }), seq: K.P, si: 0, pt: 0, tt: 0, res: 0, dx: 0, dy: 0, dz: 0 };
+    } else { foe.set('stun'); foe.stun = 0.5; this.counter(f, foe); f.set('heavy'); f.bo = 1; }
   }
   /** Contraataque tras una esquiva perfecta: aparece a la espalda del rival y su golpe pega más */
   counter(f, foe) {
@@ -359,6 +452,7 @@ class VsSim {
     else if (ap === 'copia') dmg *= 1 + 0.01 * att.cp;                   // Células perfectas: aprende de lo que recibe
     else if (ap === 'furia' && att.ki >= 100) dmg *= 1.2;                // Berserker: con el ki lleno pega más
     if (att.wk > 0) dmg *= 0.8;                                         // debilitado por el Rayo caramelo
+    if (att.sb > 0) dmg *= VS.SPEC.buffK;                               // potenciado por un especial
     if (dp === 'blindaje') dmg *= 0.88;
     else if (dp === 'divino' && (this.ult || this.clash || this._shot)) dmg *= 0.82;   // Justicia divina: el ki le hace menos
     else if (dp === 'copia') def.cp = Math.min(15, def.cp + 1);
@@ -383,6 +477,7 @@ class VsSim {
   hit(att, def, s, nx, nz) {
     if (def.st === 'dash' && def.inv > 0 && !(def.ctr > 0)) { def.ctr = VS.DODGE; def.ki = Math.min(100, def.ki + 8); this.emit('dodge', { i: def.i, x: def.x, y: def.y + 1.6, z: def.z }); this.learn(def); }   // esquiva perfecta: tiene un contraataque
     if (def.inv > 0 || def.st === 'ko' || def.st === 'held' || def.st === 'grabd') return 0;
+    if (def.st === 'ctrw' && !s.shot && !s.raw && this.phase === 'fight') { this.ctrHit(def, att); return 3; }   // esperaba el golpe: contraataca
     const px = def.x - nx * 0.6, py = def.y + 1.6, pz = def.z - nz * 0.6;
     if (def.pas === 'armadura' && def.st === 'heavy' && def.t < 0.3 && !s.heavy && !s.raw) {     // Superarmadura: preparando el golpe fuerte, los golpes flojos no le cortan
       this.emit('pas', { i: def.i, k: 'armadura', x: px, y: py, z: pz }); this.freeze = Math.max(this.freeze, 3); this.damage(att, def, s.dmg * att.pow * 0.7); return 1;
@@ -495,13 +590,15 @@ class VsSim {
      cambia su Ultimate por la versión superior de su familia. */
   startTrans(f) {
     const nd = f.chain[f.fi + 1]; f.vx = f.vy = f.vz = 0; f.inv = 99; f.tm = 0; f.set('trans');
-    this.tr = { who: f.i, t: 0, sw: false, y1: Math.max(f.y, 1.3), end: VS.TR_CINE + (nd.trX || 0) };   // trX: la forma nueva tiene intro y la escena dura un poco más
-    this.emit('trStart', { i: f.i, col: nd.col, name: nd.form, dur: this.tr.end });
+    this.tr = { who: f.i, t: 0, sw: false, y1: Math.max(f.y, 1.3), end: VS.TR_CINE + (nd.trX || 0), swapAt: VS.TR_SWAP };   // trX: la forma nueva tiene intro y la escena dura un poco más
+    const X = typeof window !== 'undefined' && window.ZMOVE_X && ZMOVE_X[nd.id + '/' + nd.form];   // transformación animada de Z Legends 3: dura lo que ella y cambia de forma al acabar
+    if (X) { const d = X[1].reduce((a, q) => a + q[1], 0); Object.assign(this.tr, { zx: X, swapAt: d, end: d + 0.75 }); }
+    this.emit('trStart', { i: f.i, col: nd.col, name: nd.form, dur: this.tr.end, sw: this.tr.swapAt });
   }
   stepTrans() {
     const r = this.tr, f = this.f[r.who], foe = this.f[1 - r.who]; r.t += VS_DT; f.t += VS_DT;
     f.y += (r.y1 - f.y) * 0.04;                                         // se eleva un poco mientras concentra la energía
-    if (!r.sw && r.t >= VS.TR_SWAP) {
+    if (!r.sw && r.t >= r.swapAt) {
       r.sw = true; f.fi++; f.def = f.chain[f.fi]; f.pow = f.def.pow; f.spd = f.def.spd;
       f.hp = Math.min(f.hpMax, f.hp + f.hpMax * 0.1); f.ki = Math.max(f.ki, 50);
       this.emit('trSwap', { i: f.i, x: f.x, y: f.y, z: f.z });

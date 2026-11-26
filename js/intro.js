@@ -127,8 +127,30 @@ class FusionIntro {
     else if (k === 'W') { g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); rays('#000', 26, 0.012); }
     else if (k === 'C') { g.fillStyle = this.S.col; g.globalAlpha = 0.85; g.fillRect(0, 0, W, H); g.globalAlpha = 1; rays('#fff', 22, 0.015); }
   }
+  /** Panel de cinemática (160x90, pixel art) a pantalla completa, como en el Versus */
+  cut(cid, L, t) {
+    const im = ZMoves.cimg[cid]; if (!im) return;
+    let el = this.zc;
+    if (!el) {
+      el = this.zc = document.createElement('div');
+      el.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#000;z-index:60;pointer-events:none';
+      el.innerHTML = '<canvas width="160" height="90" style="width:min(100vw,177.8vh);height:auto;image-rendering:pixelated;image-rendering:crisp-edges"></canvas>';
+      document.body.appendChild(el); this.zcc = el.firstChild.getContext('2d'); this.zcc.imageSmoothingEnabled = false;
+    }
+    let k = 0, ms = t * 1000; while (k < L.length - 1 && ms >= L[k][4]) { ms -= L[k][4]; k++; }
+    const [x, y, w, h] = L[k], c = this.zcc, s = Math.max(1, Math.floor(Math.min(160 / w, 90 / h)));
+    if (this.zcK !== cid + k) { this.zcK = cid + k; c.fillStyle = '#000'; c.fillRect(0, 0, 160, 90); c.drawImage(im, x, y, w, h, ((160 - w * s) / 2) | 0, ((90 - h * s) / 2) | 0, w * s, h * s); }
+    el.style.display = 'flex';
+  }
+  cutHide() { if (this.zc) this.zc.style.display = 'none'; this.zcK = null; }
   update(dt) {
     if (!this.on) return true;
+    this.dt = dt;
+    if (this.pc) {                                                               // primero los paneles; el reloj de la animación espera
+      const c = this.pc; c.t += dt;
+      if (c.t < c.d) { this.cut(c.cid, c.L, c.t * c.k); return false; }
+      this.pc = null; this.cutHide();
+    }
     this.t += dt;
     if (this.t >= this.total) { this.end(); return true; }
     if (this.cv.width !== Math.round(window.innerWidth * Math.min(2, window.devicePixelRatio || 1))) this.resize();
@@ -376,9 +398,16 @@ class UltCine {
     this.zp = zp || null;
     if (zp) {
       if (!this.zs) { this.zs = new ZMoveSprite(g.scene, 3.5); this.zo = new ZMoveSprite(g.scene, 3.6); }
-      this.zk = Math.min(1.6, Math.max(1, zp.dur / 4.2));                        // las muy largas se aceleran un poco y empiezan más adelante (4,2 s como mucho)
-      this.zSkip = Math.max(0, Math.min(zp.relT - 0.4, zp.dur - 4.2 * this.zk)); this.zT = (zp.dur - this.zSkip) / this.zk; this.total = 0.15 + this.zT + T.strike + T.hold;
+      this.zk = Math.min(1.4, Math.max(1, zp.dur / 6.5));                        // las muy largas se aceleran un poco y empiezan más adelante (6,5 s como mucho)
+      this.zSkip = Math.max(0, Math.min(zp.relT - 0.4, zp.dur - 6.5 * this.zk)); this.zT = (zp.dur - this.zSkip) / this.zk; this.total = 0.15 + this.zT + T.strike + T.hold;
       g.player.zHide = true;
+      // Combo: el objetivo al que persigue (el jefe o el enemigo más cercano)
+      const p = g.player, b = g.bossAt && g.bossAt(), ni = b ? -1 : g.horde.nearest(p.x, p.z, 14);
+      this.tg = b && Math.hypot(b.x - p.x, b.z - p.z) < 18 ? { x: b.x, z: b.z } : ni >= 0 ? { x: g.horde.x[ni], z: g.horde.z[ni] } : null;
+      this.sx = p.x; this.sz = p.z; this.ck = -1;
+      // Paneles de cinemática de Z Legends 3 antes de la Ultimate (los mismos del Versus)
+      const TM = window.ZMOVE_T && ZMOVE_T[zp.cid], L = TM && TM.C && TM.C.U, ms = L ? L.reduce((a, q) => a + q[4], 0) / 1000 : 0;
+      this.pc = L && L.length && ZMoves.cimg[zp.cid] && ms > 0 ? { L, cid: zp.cid, t: 0, d: Math.min(ms, 2.6), k: ms / Math.min(ms, 2.6) } : null;
     }
     this.cam = g.camDistT; g.camDistT = zp ? (zp.orb ? 16 : 12.5) : this.R.orb.at === 'head' ? 15 : 10;      // con la esfera sobre la cabeza, la cámara se aleja un poco
     this.cv.style.display = 'block'; this.resize(); g.ui.showHud(false); cineToasts(false);
@@ -389,13 +418,28 @@ class UltCine {
     const g = this.g, p = g.player;
     this.on = false; this.cv.style.display = 'none';
     p.cineChg = false; g.camDistT = this.cam || 19; g.renderer.domElement.style.filter = ''; g.ui.showHud(true); cineToasts(true);
-    p.zHide = false; if (this.zs) { this.zs.hide(); this.zo.hide(); } this.zp = null;
+    p.zHide = false; if (this.zs) { this.zs.hide(); this.zo.hide(); } this.zp = null; this.pc = null; this.cutHide();
     if (this.done) this.done();
   }
   /** Animación de Z Legends 3: el personaje (sprite suelto) y, si la tiene, la esfera que crece sobre su cabeza */
   zUpdate(t) {
     const G = this.g, p = G.player, P = this.zp, tt = this.zSkip + Math.max(0, t - 0.15) * this.zk, f = ZMoves.at(P, tt), O = P.orb;
-    this.zs.show(P.cid, f, p.x, p.z, p.flip, 0, 1, 1);
+    let x = p.x, z = p.z, flip = p.flip;
+    if (P.cmb && this.tg) {                                                    // combo: va a por el objetivo, golpe a golpe, y vuelve para el remate
+      const T = this.tg, [a, b] = P.cmb, k = Math.min(1, (this.dt || 0.016) * 14);
+      let gx = p.x, gz = p.z;
+      if (tt >= a && tt < b) {
+        const n = Math.floor((tt - a) / 0.34);
+        if (n !== this.ck) {
+          this.ck = n; const an = n * 2.3 + 0.7; this.cx = T.x + Math.cos(an) * 1.7; this.cz = T.z + Math.sin(an) * 1.7;
+          G.fx.burst(G.fx.sparks, T.x, 1.4, T.z, 12, 8, 0.35, 0.3, 6, 0xffffff); G.fx.shock(T.x, T.z, 3, 0xffffff, 0.2); G.shake(0.3); SFX.play('boom');
+        }
+        gx = this.cx; gz = this.cz;
+      }
+      this.sx += (gx - this.sx) * k; this.sz += (gz - this.sz) * k; x = this.sx; z = this.sz;
+      if (tt >= a) flip = (T.x - x) * G.camCos + (T.z - z) * -G.camSin < 0;   // mirando al objetivo
+    }
+    this.zs.show(P.cid, f, x, z, flip, 0, 1, 1);
     if (O) {
       const pi = P.parts.indexOf(f.part), on = O.on, grow = pi <= on, Fo = ZMoves.fx(O.a, t);
       const e = P.F.filter((x) => P.parts.indexOf(x.part) === on), u = e.length ? Math.max(0, Math.min(1, (tt - (O.d || 0)) / (e[e.length - 1].t1 - (O.d || 0)))) : 1;
@@ -422,8 +466,30 @@ class UltCine {
     const a = FXA[name]; if (!a) return;
     V.now(a.s === 'fxbig' ? 2 : 0, fxf(name, k % a.f.length), x, y, z, size, 1, tint, rot || 0);
   }
+  /** Panel de cinemática (160x90, pixel art) a pantalla completa, como en el Versus */
+  cut(cid, L, t) {
+    const im = ZMoves.cimg[cid]; if (!im) return;
+    let el = this.zc;
+    if (!el) {
+      el = this.zc = document.createElement('div');
+      el.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#000;z-index:60;pointer-events:none';
+      el.innerHTML = '<canvas width="160" height="90" style="width:min(100vw,177.8vh);height:auto;image-rendering:pixelated;image-rendering:crisp-edges"></canvas>';
+      document.body.appendChild(el); this.zcc = el.firstChild.getContext('2d'); this.zcc.imageSmoothingEnabled = false;
+    }
+    let k = 0, ms = t * 1000; while (k < L.length - 1 && ms >= L[k][4]) { ms -= L[k][4]; k++; }
+    const [x, y, w, h] = L[k], c = this.zcc, s = Math.max(1, Math.floor(Math.min(160 / w, 90 / h)));
+    if (this.zcK !== cid + k) { this.zcK = cid + k; c.fillStyle = '#000'; c.fillRect(0, 0, 160, 90); c.drawImage(im, x, y, w, h, ((160 - w * s) / 2) | 0, ((90 - h * s) / 2) | 0, w * s, h * s); }
+    el.style.display = 'flex';
+  }
+  cutHide() { if (this.zc) this.zc.style.display = 'none'; this.zcK = null; }
   update(dt) {
     if (!this.on) return true;
+    this.dt = dt;
+    if (this.pc) {                                                               // primero los paneles; el reloj de la animación espera
+      const c = this.pc; c.t += dt;
+      if (c.t < c.d) { this.cut(c.cid, c.L, c.t * c.k); return false; }
+      this.pc = null; this.cutHide();
+    }
     this.t += dt;
     if (this.t >= this.total) { this.end(); return true; }
     const G = this.g, p = G.player, R = this.R, O = R.orb, T = ULT_CINE_T, t = this.t;

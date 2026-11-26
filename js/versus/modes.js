@@ -92,7 +92,7 @@ class VsDummy {
    Derecha: nueve botones en rejilla y, a su lado, subir y bajar.
    Cada dedo se sigue por separado (Pointer Events), así que se puede
    mover, cubrirse y pegar a la vez. Produce la misma orden que el teclado. */
-const VS_TOUCH_BTNS = [['CHARGE', 'CARGA', 0, 2], ['TRANS', 'TRANS', 1, 2], ['ULT', 'ULT', 2, 2], ['TP', 'TELE', 0, 1], ['KI', 'KI', 1, 1], ['DASH', 'DASH', 2, 1], ['GUARD', 'GUARDIA', 0, 0], ['HEAVY', 'FUERTE', 1, 0], ['ATK', 'GOLPE', 2, 0], ['UP', '▲', -1, 1], ['DOWN', '▼', -1, 0]];
+const VS_TOUCH_BTNS = [['CHARGE', 'CARGA', 0, 2], ['TRANS', 'TRANS', 1, 2], ['ULT', 'ULT', 2, 2], ['TP', 'TELE', 0, 1], ['KI', 'KI', 1, 1], ['DASH', 'DASH', 2, 1], ['GUARD', 'GUARDIA', 0, 0], ['HEAVY', 'FUERTE', 1, 0], ['ATK', 'GOLPE', 2, 0], ['UP', '▲', -1, 1], ['DOWN', '▼', -1, 0], ['SPEC', 'ESP', 1, 3], ['CTR', 'CONTRA', 2, 3]];
 const VS_TOUCH_CSS = `
 #vs .tc{position:absolute;inset:0;display:none;touch-action:none}#vs.touch .tc{display:block}#vs.touch .hint{display:none!important}#vs.cine .tc{opacity:.25}
 #vs .tcz{position:absolute;left:0;bottom:0;width:46%;height:74%;pointer-events:auto;touch-action:none}

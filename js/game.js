@@ -2287,7 +2287,7 @@ class Game {
     };
     // Animación propia de cada personaje (el mundo espera congelado) y después la Ultimate
     const go = () => {
-      const zf = !p.fusion && /^z_/.test(p.form.sheet) ? p.form.sheet.slice(2) : null, zp = zf && ZMoves.ready(zf) ? ZMoves.planFor(zf, U.name) : null;   // animación completa de Z Legends 3 (js/zmoves.js)
+      const zf = !p.fusion && /^z_/.test(p.form.sheet) ? p.form.sheet.slice(2) : null, zp = zf && ZMoves.ready(zf) ? ZMoves.tPlan(zf) || ZMoves.planFor(zf, U.name) : null;   // animación completa de Z Legends 3 (js/zmoves.js)
       if ((zp || this.ultCine.has(p.ultId)) && !Save.d.opt.noCine) {
         this.state = 'ultcine';
         this.ultCine.start(p.ultId, UN, () => { if (this.state !== 'ultcine') return; this.state = 'play'; this.clock.getDelta(); fire(); }, zp, '#' + new THREE.Color(U.col || p.form.ki).getHexString());
@@ -2297,7 +2297,9 @@ class Game {
     const face = (p.form && p.form.face) || p.ch.face;
     const zpn = !face && !Save.d.opt.noCine ? ZL3.panel(ZL3.fighterOf(p.fusion ? p.fusion.ch : p.ch, p.fusion ? 0 : p.formIdx)) : null;
     const zid = ZL3.fighterOf(p.fusion ? p.fusion.ch : p.ch, p.fusion ? 0 : p.formIdx), zvd = !face && !Save.d.opt.noCine ? ZL3.video(zid) : null;
-    if (zvd) {                                                // Z Legends 3: el vídeo de su Ultimate (se puede saltar)
+    const zf0 = !p.fusion && /^z_/.test(p.form.sheet) ? p.form.sheet.slice(2) : null, zT0 = zf0 && window.ZMOVE_T && ZMOVE_T[zf0];
+    if (zT0 && zT0.U && zT0.C && zT0.C.U && ZMoves.ready(zf0) && ZMoves.cimg[zf0] && !Save.d.opt.noCine) go();   // sus paneles van dentro de la animación (js/intro.js)
+    else if (zvd) {                                                // Z Legends 3: el vídeo de su Ultimate (se puede saltar)
       this.state = 'ultcine';
       const ms = this.ui.ultVideo(zvd, ZL3_ULTV[zid], UN, U.col || p.form.ki, () => { this.faceT = 0.001; });
       this.faceT = ms / 1000; this.faceGo = go;
