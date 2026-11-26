@@ -384,7 +384,10 @@ class Versus {
     const defs = chains.map((ch) => ch[0]);
     this.clearFight(); const g = this.g, r = g.renderer;
     // Estado del renderizador que tocamos: se guarda y se devuelve al salir
-    this.saved = { auto: r.shadowMap.autoUpdate, clear: r.getClearColor(new THREE.Color()).getHex() }; r.shadowMap.autoUpdate = true;
+    this.saved = { auto: r.shadowMap.autoUpdate, clear: r.getClearColor(new THREE.Color()).getHex(), pr: r.getPixelRatio() }; r.shadowMap.autoUpdate = true;
+    // Resolución propia: el versus solo dibuja dos luchadores, así que va a la del dispositivo (hasta 2,5×; en BAJA, 1,5×).
+    // Con la de Supervivencia (1,5× como mucho en móvil, y la calidad automática la baja hasta 0,6×) los sprites salían borrosos
+    { const dpr = window.devicePixelRatio || 1, pr = Math.max(1, Math.min(dpr, Save.d.opt.quality === 'low' ? 1.5 : 2.5)); r.setPixelRatio(pr); r.setSize(window.innerWidth, window.innerHeight, false); }
     const scene = this.scene = new THREE.Scene(), low = Save.d.opt.quality === 'low';
     // La Torre cambia de arena en cada combate
     this.arena = new VsArena(scene, sto && VS_ARENAS[SC.ar] ? SC.ar : tw || c.arena === 'azar' ? AK[(Math.random() * AK.length) | 0] : c.arena, low); this.cam = new VsCamera(); this.post = low ? null : new VsPost(r);
@@ -439,7 +442,7 @@ class Versus {
     if (this.zfx) for (const q of this.zfx) if (q.s) q.s.mesh.visible = false; this.zfx = [];
     if (!this.scene) return; const r = this.g.renderer;
     this.scene.traverse((o) => { if (o.geometry && o.geometry !== VS_QUAD) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.customDepthMaterial) o.customDepthMaterial.dispose(); });
-    if (this.post) this.post.dispose(); r.setRenderTarget(null); r.shadowMap.autoUpdate = this.saved.auto; this.g.shadowDirty = true;
+    if (this.post) this.post.dispose(); r.setRenderTarget(null); r.shadowMap.autoUpdate = this.saved.auto; if (this.saved.pr) { r.setPixelRatio(this.saved.pr); r.setSize(window.innerWidth, window.innerHeight, false); } this.g.shadowDirty = true;
     this.scene = this.arena = this.post = this.fx = this.fxA = this.beam = this.beam2 = this.actors = this.ghosts = null;
   }
 

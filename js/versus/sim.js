@@ -410,7 +410,7 @@ class VsSim {
     } else if (ZG && S.k === 'rush' && p.res === 1 && foe.st === 'hurt' && td > 2.4) {   // lo va siguiendo mientras le pega
       const k = Math.min(1, dt * 10); f.x += (foe.x - nx * 2 - f.x) * k; f.z += (foe.z - nz * 2 - f.z) * k; f.y += (foe.y - f.y) * k;
     }
-    if (ZG && atRel && !p.res) {
+    if (ZG && atRel && !p.res && !(p.z && p.z.kb)) {   // (si lanza bolas de ki que viajan, aciertan ellas)
       if (S.k === 'beam') {
         const ax = foe.x - f.x, ay = foe.y - f.y, az = foe.z - f.z, along = ax * p.dx + ay * p.dy + az * p.dz;
         const lat = Math.hypot(ax - p.dx * along, ay - p.dy * along, az - p.dz * along), reach = Math.max(6, S.R * 0.056 + 1.4);
@@ -600,6 +600,8 @@ class VsSim {
       }
       if (d < s.r + 0.6 && !(s.cd > 0)) {
         const h = Math.hypot(s.vx, s.vz) || 1;
+        if (s.zk && s.hs.ghost) { (s.zk.z.shotHit || (s.zk.z.shotHit = {}))[s.zk.k] = 1; this.emit('pop', { x: s.x, y: s.y, z: s.z, col: s.col }); this.shots.splice(k, 1); continue; }   // bola del original: el daño lo ponen sus eventos
+        if (s.zk) (s.zk.z.shotHit || (s.zk.z.shotHit = {}))[s.zk.k] = 1;
         if (this.hit(att, def, s.hs || Object.assign({ shot: 1 }, VS.SHOT), s.vx / h, s.vz / h)) {
           this.emit('pop', { x: s.x, y: s.y, z: s.z, col: s.col });
           if (s.pierce > 1) { s.pierce--; s.cd = 0.4; } else { this.shots.splice(k, 1); continue; }                // el disco gigante atraviesa y vuelve
