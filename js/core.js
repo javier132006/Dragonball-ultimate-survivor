@@ -20,7 +20,7 @@ const BLOCKED = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRig
 /* Teclas configurables. El resto del juego sigue leyendo las teclas de siempre (keys.KeyC, keys.Space…):
    aquí solo se traduce la tecla física que pulsa el jugador a la tecla por defecto de su acción. */
 const BIND_ACTS = [['up', 'Arriba', 'KeyW'], ['down', 'Abajo', 'KeyS'], ['left', 'Izquierda', 'KeyA'], ['right', 'Derecha', 'KeyD'],
-  ['dash', 'Dash', 'Space'], ['charge', 'Cargar ki', 'KeyC'], ['tp', 'Teletransporte', 'KeyF'], ['ult', 'Ultimate', 'KeyQ'],
+  ['dash', 'Dash', 'Space'], ['charge', 'Cargar ki', 'KeyC'], ['tp', 'Teletransporte', 'KeyF'], ['ult', 'Ultimate', 'KeyQ'], ['spec', 'Ataque especial', 'KeyR'],
   ['transform', 'Transformarse', 'KeyG'], ['base', 'Forma base', 'KeyH'], ['interact', 'Interactuar', 'KeyE'], ['map', 'Mapa', 'KeyM'], ['pause', 'Pausa', 'KeyP']];
 const KEY_NAMES = { Space: 'ESPACIO', ShiftLeft: 'MAYÚS', ShiftRight: 'MAYÚS DCHA', ControlLeft: 'CTRL', ControlRight: 'CTRL DCHA', AltLeft: 'ALT', AltRight: 'ALT GR',
   Backspace: 'RETROCESO', CapsLock: 'BLOQ MAYÚS', Comma: ',', Period: '.', Minus: '-', Slash: '/', Semicolon: 'Ñ', Quote: '´', BracketLeft: '`', BracketRight: '+', Backquote: 'º', IntlBackslash: '<', Backslash: 'Ç', Equal: '¡' };

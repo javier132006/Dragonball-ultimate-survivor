@@ -245,6 +245,7 @@ class Game {
       else if (s === 'play' && c === 'KeyE') this.interact();
       else if (s === 'play' && c === 'KeyG') this.transform();
       else if (s === 'play' && c === 'KeyQ') this.ultimate();
+      else if (s === 'play' && c === 'KeyR') this.special();
       else if (s === 'play' && c === 'KeyH') this.revertForm();
       else if (s === 'trade' && (c === 'KeyE' || c === 'Escape')) this.closeTrade();
       else if (s === 'gacha' && (c === 'KeyE' || c === 'Escape')) this.gacha.close();
@@ -1683,9 +1684,78 @@ class Game {
   /** Se puede usar G: hay alguna forma a la que cambiar y no estás recuperando el aliento */
   canTransform() { const p = this.player, o = p.formOptions(); return this.state === 'play' && !this.cine.on && p.tfCd <= 0 && o.length > 0 && p.ki >= p.tfCost(o[0]); }
   /** G / botón: si solo hay una forma, cinemática directa; si hay varias, eliges con cartas (con sus rasgos) */
+  /** Especial de Z Legends 3 [R]: quieto, su técnica de energía · moviéndote, su embestida · cargando ki [C], su potenciador.
+   *  Gasta un 25% del ki y tiene 4 s de espera. El personaje se queda quieto mientras lo hace (salvo la embestida, que va a por el enemigo) */
+  special() {
+    const p = this.player;
+    if (this.state !== 'play' || p.dying || this.zsp || this.ultT >= 0) return;
+    const cid = !p.fusion && /^z_/.test(p.form.sheet) ? p.form.sheet.slice(2) : null, TM = cid && window.ZMOVE_T && ZMOVE_T[cid];
+    const S = TM && TM.S ? TM.S : null;
+    if (!S || !S.some(Boolean) || !ZMoves.ready(cid)) { this.ui.toast('ESTA FORMA NO TIENE ATAQUES ESPECIALES', true); SFX.play('warn'); return; }
+    if (p.spCd > 0) { this.ui.toast('ESPECIAL EN ' + Math.ceil(p.spCd) + ' s', true); return; }
+    const mv = !!(keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight) || (stick.on && Math.hypot(stick.x, stick.z) > 0.3);
+    const m = (p.charging || keys.KeyC ? S[3] || S[2] : mv ? S[1] || S[2] : S[0] || S[2]) || S.find(Boolean);
+    const kc = Math.round(p.maxKi * 0.25 * p.kiUse);
+    if (p.ki < kc) { this.ui.toast('NECESITAS ' + kc + ' DE KI PARA EL ESPECIAL · CARGA CON [C]', true); SFX.play('warn'); return; }
+    p.ki -= kc; p.spCd = 4; p.iframes = Math.max(p.iframes, 0.4);
+    const tg = this.horde.nearest(p.x, p.z, m.k === 'rush' ? 16 : 30);
+    if (tg >= 0) p.flip = (this.horde.x[tg] - p.x) * this.camCos + (this.horde.z[tg] - p.z) * -this.camSin < 0;   // de cara al enemigo
+    const seq = m.P.concat(m.H || []), tot = seq.reduce((a, q) => a + q[1], 0), k = Math.max(1, tot / 2.6);   // los muy largos van algo más rápido
+    let relT = tot * 0.5;
+    if (m.rel) { relT = m.rel[1]; for (let i = 0; i < m.rel[0]; i++) relT += m.P[i][1]; }
+    this.zsp = { m, cid, seq, t: 0, dur: tot, k, relT, px: p.x, pz: p.z, tg, uid: tg >= 0 ? this.horde.uid[tg] : -1, tick: 0, hit: false, len: clamp((m.R || 200) * ZM_U, 6, 22) };
+    if (!this.zspS) this.zspS = new ZMoveSprite(this.scene, 3.45);
+    this.ui.toast('¡' + m.n + '!'); SFX.play(m.k === 'buff' ? 'charge' : 'dash');
+  }
+  /** Avanza el especial: dibuja su animación y aplica el golpe en el momento en que sale */
+  updateSpec(dt) {
+    const p = this.player; p.spCd = Math.max(0, (p.spCd || 0) - dt);
+    const Z = this.zsp; if (!Z) return;
+    if (p.dying) return this.endSpec();
+    Z.t += dt * Z.k; const t = Z.t, m = Z.m, H = this.horde;
+    const alive = Z.tg >= 0 && H.uid && H.uid[Z.tg] === Z.uid && H.hp[Z.tg] > 0;
+    if (m.k === 'rush' && alive && t < Z.relT + 0.15) {                     // embestida: vuela hacia el enemigo
+      const dx = H.x[Z.tg] - p.x, dz = H.z[Z.tg] - p.z, d = Math.hypot(dx, dz);
+      if (d > 1.6) { const st = Math.min(d - 1.6, 40 * dt); p.x += (dx / d) * st; p.z += (dz / d) * st; }
+      Z.px = p.x; Z.pz = p.z;
+      if (Math.random() < dt * 30) this.fx.burst(this.fx.trail, p.x, 0.9, p.z, 2, 4, 0.3, 0.4, 0, p.form.ki);
+    } else { p.x = Z.px; p.z = Z.pz; }
+    p.vx = p.vz = 0; p.zHide = true;
+    const F = ZMoves.seqFrame(Z.cid, Z.seq, t, false); if (F) this.zspS.show(Z.cid, F, p.x, p.z, p.flip, 0, 1, 1);
+    if (t >= Z.relT) {
+      const base = ((p.ultD && p.ultD.dmg) || 60) * p.damageMul(), col = p.form.ki || 0x8ad8ff;
+      DMG_SRC = 'otros';
+      if (m.k === 'beam') {                                                    // rayo: golpea a lo largo de la línea que dibuja el sprite
+        Z.tick -= dt;
+        if (Z.tick <= 0 && t < Z.relT + 1.1) {
+          Z.tick = 0.12; const a = this.weapons.facing(this, p);
+          H.damageLine(p.x, p.z, a.dx, a.dz, Z.len, 1.7, base * 0.06, this); this.world.damageArea(p.x + a.dx * Z.len * 0.5, p.z + a.dz * Z.len * 0.5, 2, base * 0.06);
+          this.shake(0.18);
+          if (!Z.hit) { Z.hit = true; this.fx.burst(this.fx.sparks, p.x + a.dx * Z.len, 1.2, p.z + a.dz * Z.len, 18, 9, 0.4, 0.35, 4, col); SFX.play('bigboom'); }
+        }
+      } else if (!Z.hit) {
+        Z.hit = true;
+        if (m.k === 'shot') {                                                  // proyectil: estalla sobre el enemigo más cercano (o delante)
+          const i = alive ? Z.tg : H.nearest(p.x, p.z, 24), a = this.weapons.facing(this, p);
+          const x = i >= 0 ? H.x[i] : p.x + a.dx * 8, z = i >= 0 ? H.z[i] : p.z + a.dz * 8;
+          this.explode(x, z, 4.5, base * 0.45, col);
+        } else if (m.k === 'rush') {                                           // embestida: golpe en área al llegar
+          H.damageRadius(p.x, p.z, 3.6, base * 0.45, 16, this); this.world.damageArea(p.x, p.z, 3.6, base * 0.45);
+          this.fx.burst(this.fx.sparks, p.x, 1.3, p.z, 22, 10, 0.4, 0.35, 4, 0xffffff); this.fx.shock(p.x, p.z, 5, col, 0.3);
+          this.shake(0.5); this.hitstop = Math.max(this.hitstop, 0.06); SFX.play('boom');
+        } else if (m.k === 'buff') {                                           // potenciador: +30% de daño y +20% de velocidad durante 8 s
+          p.buffT = Math.max(p.buffT, 8); p.buffDmg = Math.max(p.buffDmg, 0.3);
+          this.fx.ring(this.fx.aura, p.x, 0.4, p.z, 40, 14, 0.6, 0.4, col); this.ui.toast('+30% DE DAÑO · 8 s');
+        }
+      }
+    }
+    if (t >= Z.dur) this.endSpec();
+  }
+  endSpec() { const Z = this.zsp; if (!Z) return; this.zsp = null; if (this.zspS) this.zspS.hide(); this.player.zHide = false; }
   transform() {
     const p = this.player;
     if (this.state !== 'play' || this.cine.on) return;
+    this.endSpec();
     if (p.tfCd > 0) { this.ui.toast('RECUPERANDO EL ALIENTO · ' + Math.ceil(p.tfCd) + ' s', true); return; }
     const opts = p.formOptions();
     if (!opts.length) return;
@@ -2267,6 +2337,7 @@ class Game {
     if (!U || this.state !== 'play' || this.ultT >= 0 || p.ult < U.cost || p.dying) return;
     const kc = Math.round(p.maxKi * ULT_KI * p.kiUse);
     if (p.ki < kc) { this.ui.toast('NECESITAS ' + kc + ' DE KI PARA LA ULTIMATE · CARGA CON [C]', true); SFX.play('warn'); return; }
+    this.endSpec();
     p.ki -= kc; p.ult = 0; p.iframes = Math.max(p.iframes, 1.2);
     ZL3.voice(ZL3.fighterOf(p.fusion ? p.fusion.ch : p.ch, p.fusion ? 0 : p.formIdx), 'ult');   // grito de Z Legends 3
     // Ataque combinado: el aliado más cercano (a menos de COMBO_R) ataca contigo y la Ultimate hace +50% de daño
@@ -2720,6 +2791,7 @@ class Game {
     if (!TL.length || this.time - TL[TL.length - 1].t >= 15) TL.push({ t: this.time, d: this.run.damage, k: this.kills, h: this.player.hp / this.player.maxHp, l: this.player.level });
     this.updateTimeRoom(dt);
     p.update(dt, this);
+    this.updateSpec(dt);                                                  // especial de Z Legends 3 [R]
     this.weapons.update(dt, this);
     this.updateTimers(dt);
 

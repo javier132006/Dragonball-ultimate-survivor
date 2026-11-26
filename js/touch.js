@@ -44,6 +44,7 @@ class TouchControls {
     this.tap('tbLv', () => { if (game.state === 'play' && game.practice) game.practiceLevel(); });
     this.tap('tbMap', () => { if (game.state === 'play') { game.showMap = !game.showMap; game.ui.el.bigmap.style.display = game.showMap ? 'block' : 'none'; } });
     this.tap('tbUlt', () => { if (game.state === 'play') game.ultimate(); });       // Ultimate (Grieta de Black)
+    this.tap('tbSp', () => { if (game.state === 'play') game.special(); });          // ataque especial de Z Legends 3
   }
   hold(id, code) {
     const el = document.getElementById(id);
@@ -117,5 +118,7 @@ class TouchControls {
     const ub = document.getElementById('tbUlt'), U = game.player.ultD;
     ub.style.display = U ? 'flex' : 'none';
     ub.classList.toggle('ready', !!U && game.player.ult >= U.cost);
+    const sb = document.getElementById('tbSp'), sp = game.player, sc = !sp.fusion && /^z_/.test(sp.form.sheet) && window.ZMOVE_T && ZMOVE_T[sp.form.sheet.slice(2)];
+    sb.style.display = sc && sc.S ? 'flex' : 'none'; sb.classList.toggle('cd', sp.spCd > 0 || !!game.zsp);
   }
 }

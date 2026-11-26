@@ -132,6 +132,10 @@ class TransformScene {
     const f = p.ch.forms[idx];
     const base = list[idx] || { c1: hexCss(f.aura || 0xffe14a), c2: '#ffffff', quote: '¡¡HAAAA!!', frames: 'WIC', charge: 1.6, fx: ['bolts'], bolt: '#ffffff', shake: 0.8, kanji: '' };
     this.cfg = Object.assign({}, base, { charge: base.charge * TF_CHARGE });   // copia: la tabla no se toca
+    // Transformación animada de Z Legends 3 (la misma del Versus): la carga dura lo que la animación y la forma cambia al acabar
+    const X = !p.fusion && window.ZMOVE_X && typeof ZMoves !== 'undefined' ? ZMOVE_X[p.ch.id + '/' + f.name] : null;
+    this.zx = X && ZMoves.ready(X[0]) ? X : null;
+    if (this.zx) { this.cfg.charge = this.zx[1].reduce((a, q) => a + q[1], 0); if (!this.zs) this.zs = new ZMoveSprite(g.scene, 3.5); }
     this.to = idx; this.form = f; this.t = 0; this.swapped = false; this.on = true; this.lastImp = -1; this.ringT = 0;
     this.end = this.cfg.charge + this.cfg.frames.length * IMPACT_FRAME + BANNER_TIME;
     // Intro de la forma nueva (js/intro.js): tras los impactos sale de la silueta con su animación; la escena dura lo que dure
@@ -222,6 +226,10 @@ class TransformScene {
     const k = clamp(t / ch, 0, 1);                       // progreso de la carga (0..1)
 
     // ---- Carga: aura creciente, rocas, chispas, anillos y temblor ----
+    if (this.zx && t < ch) {                                           // el personaje hace su transformación de Z Legends 3
+      const F = ZMoves.seqFrame(this.zx[0], this.zx[1], t, false);
+      if (F) { p.zHide = true; this.zs.show(this.zx[0], F, p.x, p.z, p.flip, 0, 1, 1); }
+    }
     if (t < ch) {
       const col1 = parseInt(c.c1.slice(1), 16), col2 = parseInt(c.c2.slice(1), 16);
       const n = Math.round(dt * (60 + 260 * k));
@@ -286,6 +294,7 @@ class TransformScene {
   swap() {
     const g = this.g, p = g.player, col = parseInt(this.cfg.c1.slice(1), 16);
     this.swapped = true;
+    if (this.zs) this.zs.hide(); p.zHide = false;
     SFX.play('impact');
     const first = !p.formSeen[this.to];
     p.setForm(this.to); p.recompute(); g.applyForm();
@@ -358,6 +367,7 @@ class TransformScene {
     g.ui.el.hud.classList.remove('cine');
     g.camDistT = this.cam0.dist; g.camPitch = this.cam0.pitch;
     p.charging = false; p.iframes = 1.2; p.cineChg = false; p.introSpr = null;
+    if (this.zs) this.zs.hide(); p.zHide = false; this.zx = null;
     SFX.setDuck(1);
   }
 

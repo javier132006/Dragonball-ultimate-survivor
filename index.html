@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = '25890b7f';
+  window.V = '336f5685';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=25890b7f"></script>
+<script src="js/assetver.js?v=336f5685"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -897,6 +897,8 @@ html.touch #fsBtn{bottom:auto;top:50%;right:auto;left:max(6px,env(safe-area-inse
 #tbTp{right:calc(max(22px,env(safe-area-inset-right)) + 200px);bottom:96px;width:58px;height:58px;font-size:20px;background:radial-gradient(circle at 38% 32%,#e8c8ff,#7a3ad8)}
 #tbTp.cd{opacity:.45}
 #tbUlt{right:calc(max(22px,env(safe-area-inset-right)) + 254px);bottom:18px;width:62px;height:62px;font-size:20px;background:radial-gradient(circle at 38% 32%,#ffc8ec,#c8207a)}
+#tbSp{right:calc(max(22px,env(safe-area-inset-right)) + 268px);bottom:96px;width:58px;height:58px;font-size:20px;background:radial-gradient(circle at 38% 32%,#ffe0a8,#d86a1a)}
+#tbSp.cd{opacity:.45}
 #tbUlt.ready{animation:pulse 1s infinite;box-shadow:3px 3px 0 #000,0 0 22px #ff5ac0}
 #rotate{display:none;position:fixed;inset:0;z-index:40;background:var(--tone),radial-gradient(circle,#1e3fae,#0b1850);flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:20px}
 #rotate b{font-size:34px}
@@ -2018,6 +2020,7 @@ div.pnx{cursor:default}div.pnx:hover{background:var(--nv)}
   <div class="tbt" id="tbLv">NV+</div>
   <div class="tbt" id="tbTp">⇝<small>TELETR.</small></div>
   <div class="tbt" id="tbUlt" style="display:none">✦<small>ULTI</small></div>
+  <div class="tbt" id="tbSp" style="display:none">✸<small>ESPECIAL</small></div>
   <div class="tbt sm" id="tbBase">BASE</div>
 </div>
 <div id="rotate"><div class="phone"></div><b>GIRA EL MÓVIL</b><p>Este juego se juega en horizontal</p></div>

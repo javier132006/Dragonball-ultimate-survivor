@@ -61,7 +61,7 @@ const BossEpic = {
     document.body.appendChild(d);
     window.addEventListener('pointerdown', () => { if (this.c && this.c.ph === 1) this.taps++; });   // en el móvil: tocar la pantalla empuja
   },
-  reset() { this.init(); this.u = null; this.c = null; this.el.classList.remove('intro', 'ult', 'clash'); if (this.bm) for (const m of this.bm) m.mesh.visible = false; },
+  reset() { this.init(); this.u = null; this.c = null; this.sp = null; if (this.zs) this.zs.hide(); this.el.classList.remove('intro', 'ult', 'clash'); if (this.bm) for (const m of this.bm) m.mesh.visible = false; },
   look(B) { return BOSS_EPIC[B.id] || { kj: '強敵', q: '', u: { n: 'ATAQUE DEFINITIVO', t: 'ball', c: B.col || 0xff5050 } }; },
   key(a) { return typeof Binds !== 'undefined' ? Binds.label(a) : a; },
 
@@ -121,9 +121,10 @@ const BossEpic = {
     this.init();
     const b = game.boss, ph = game.phase, B = game.stage.boss, NP = B.pat.length;
     if (this.u) { this.stepUlt(game, dt, ctx); return true; }
-    if (ph < 1) return false;                                           // en la primera forma no lo usa
+    if (this.sp) { this.stepSpec(game, dt, ctx); return true; }
+    if (ph < 1) return this.trySpec(game, dt, ctx);                     // en la primera forma no lo usa (pero sí sus especiales)
     if (b.ultT === undefined) b.ultT = BE.FIRST;
-    if ((b.ultT -= dt) > 0 || b.gap > 0.3 || game.state !== 'play') return false;
+    if ((b.ultT -= dt) > 0 || b.gap > 0.3 || game.state !== 'play') return this.trySpec(game, dt, ctx);
     b.ultT = ph >= NP - 1 ? BE.EVERY_LAST : BE.EVERY;
     this.startUlt(game, ctx); return true;
   },
@@ -169,6 +170,51 @@ const BossEpic = {
     }
     if (typeof ZMoves !== 'undefined') this.zDraw(game, ctx);
     if (u.t >= u.T + 0.5) this.endUlt(game);
+  },
+  /* ---------- Especiales de Z Legends 3 ---------- */
+  /** Cada 9-12 s, si su forma es de Z Legends 3 y tiene especiales, lanza uno (rayo, proyectil, embestida u onda de poder) */
+  trySpec(game, dt, ctx) {
+    const b = game.boss, h = game.horde, z = /^z_/.test(h.bossName || '') ? h.bossName.slice(2) : null;
+    const T = z && window.ZMOVE_T && ZMOVE_T[z], S = T && T.S ? T.S.filter(Boolean) : null;
+    if (!S || !S.length || !ZMoves.ready(z) || game.state !== 'play' || ctx.i < 0) return false;
+    if (b.spT === undefined) b.spT = 6;
+    if ((b.spT -= dt) > 0 || b.gap > 0) return false;
+    b.spT = 9 + Math.random() * 3;
+    const p = game.player, d = Math.hypot(p.x - ctx.bx, p.z - ctx.bz);
+    const m = S.find((x) => x.k === 'rush') && d < 12 && Math.random() < 0.6 ? S.find((x) => x.k === 'rush') : S[(Math.random() * S.length) | 0];
+    const seq = m.P.concat(m.H || []), tot = seq.reduce((a, q) => a + q[1], 0), k = Math.max(1, tot / 2.4);
+    let relT = tot * 0.5; if (m.rel) { relT = m.rel[1]; for (let j = 0; j < m.rel[0]; j++) relT += m.P[j][1]; }
+    relT = Math.max(relT, 0.7 * k);                                      // tiempo para verlo venir
+    const side = (p.x - ctx.bx) * game.camCos + (p.z - ctx.bz) * -game.camSin < 0;   // mira hacia el jugador
+    this.sp = { m, z, seq, t: 0, k, relT, dur: tot, side, done: false };
+    h.flip[ctx.i] = side ? 1 : 0;
+    ENEMY_TYPES[T_BOSS].spd = 0; b.gap = tot / k + 0.6;
+    game.ui.toast('¡' + m.n + '!', true); SFX.play(m.k === 'buff' ? 'charge' : 'warn');
+    if (m.k === 'beam') {                                                // aviso del rayo: en horizontal en pantalla, como lo dibuja el sprite
+      const sc = ENEMY_TYPES[T_BOSS].scale * (1 + h.grow[ctx.i]), dx = (side ? -1 : 1) * game.camCos, dz = (side ? 1 : -1) * game.camSin;
+      game.shots.line(ctx.bx, ctx.bz, dx, dz, Math.max(12, Math.min(44, (m.R || 260) * ZM_U * sc)), 2.4, relT / k, ctx.dmg * 3.2, 0xff4a6a);
+    } else if (m.k === 'shot') game.shots.mark(p.x, p.z, 4.5, relT / k + 0.5, ctx.dmg * 3, { tint: 0xff8a3a, ring: 12 });
+    return true;
+  },
+  stepSpec(game, dt, ctx) {
+    const P = this.sp, h = game.horde, p = game.player; P.t += dt * P.k;
+    if (ctx.i < 0) return this.endSpec(game);
+    if (!P.done && P.t >= P.relT) {
+      P.done = true;
+      if (P.m.k === 'rush') { const a = Math.atan2(p.z - ctx.bz, p.x - ctx.bx); h.kx[ctx.i] = Math.cos(a) * 70; h.kz[ctx.i] = Math.sin(a) * 70; game.shake(0.5, 1); SFX.play('dash'); }
+      else if (P.m.k === 'shot') { game.shots.ball(ctx.bx, ctx.bz, p.x, p.z, 0.5, 4.5, 0, { tint: 0xff8a3a, size: 7 }); SFX.play('bigboom'); }
+      else if (P.m.k === 'buff') { game.shots.ring(ctx.bx, ctx.bz, 18, 13, ctx.dmg * 0.9, Math.random() * 6.28, { tint: 0xffd040, size: 2 }); game.fx.ring(game.fx.aura, ctx.bx, 0.4, ctx.bz, 40, 16, 0.6, 0.4, 0xffd040); game.shake(0.6); SFX.play('boom'); }
+      else { game.shake(0.8); SFX.play('bigbeam'); }
+    }
+    // Animación del especial, del tamaño del jefe
+    if (!this.zs) this.zs = new ZMoveSprite(game.scene, 3.3);
+    const F = ZMoves.seqFrame(P.z, P.seq, P.t, false), sc = ENEMY_TYPES[T_BOSS].scale * (1 + h.grow[ctx.i]);
+    if (F) { this.zs.show(P.z, F, h.x[ctx.i], h.z[ctx.i], P.side, 0, (h.bossPx || ZM_U) / ZM_U * sc, 1); h.bossHide = true; }
+    if (P.t >= P.dur) this.endSpec(game);
+  },
+  endSpec(game) {
+    this.sp = null; this.zHide(game);
+    if (game.horde.indexOfUid(game.bossUid) >= 0) ENEMY_TYPES[T_BOSS].spd = BOSS_HARD.spd + game.phase * 0.12;
   },
   endUlt(game) {
     if (typeof ZMoves !== 'undefined') this.zHide(game);

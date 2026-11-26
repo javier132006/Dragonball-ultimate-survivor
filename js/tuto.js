@@ -13,6 +13,7 @@ const TUTO = {
   ki: ['⚡', 'Te queda poco Ki', 'Mantén [C] para cargar Ki. El dash, la Transmisión Instantánea y la Ultimate lo gastan.'],
   vida: ['♥', 'Vida baja', 'El dash [ESPACIO] te hace invencible un instante. Busca semillas senzu o aléjate para recuperarte.'],
   ult: ['✷', '¡Ultimate lista!', 'Pulsa [Q] para lanzarla. Necesita la barra de Ultimate llena y algo de Ki.'],
+  spec: ['✸', 'Ataque especial', 'Pulsa [R]: quieto lanzas su técnica de energía, moviéndote embiste y cargando Ki [C] se potencia. Gasta Ki.'],
   tf: ['⚡', 'Puedes transformarte', 'Pulsa [G]. Cada forma tiene ventajas y desventajas; con [H] vuelves a la base.'],
   jefe: ['♛', 'Ha llegado un jefe', 'Al aparecer te avisa de qué tipo de daño resiste (físico o ki). Aprende sus ataques: avisan antes de golpear.'],
   capsula: ['⬮', 'Cápsulas', 'Dan objetos con mejoras. Las doradas son mejores; las malditas, arriesgadas.'],
@@ -70,6 +71,7 @@ class Tutor {
       if (p.hp < p.maxHp * 0.3) this.say('vida');
       if (p.ultD && p.ult >= p.ultD.cost) this.say('ult');
       if (p.formReady >= 0) this.say('tf');
+      if (!p.fusion && /^z_/.test(p.form.sheet) && window.ZMOVE_T && ZMOVE_T[p.form.sheet.slice(2)] && ZMOVE_T[p.form.sheet.slice(2)].S && p.ki >= p.maxKi * 0.3) this.say('spec');
       if (g.combo >= 10) this.say('combo');
       const h = g.horde;
       for (let i = 0; i < h.n; i++) { const ty = h.type[i]; if (TUTO_ENEMY.includes(ty)) this.say('e' + ty); }
