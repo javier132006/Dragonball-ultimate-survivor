@@ -283,6 +283,7 @@ def table(A, names):
             if p: e += [round(p[0][1] * f['w'], 1), round(p[0][2] * f['h'], 1)]
             fl.append(e)
         out[n] = {'fps': a['speed'] or 12, 'l': 1 if a['loop'] else 0, 'f': fl}
+        if not a['speed']: out[n]['p0'] = 1      # en el original arranca parada (velocidad 0) hasta un SetAnimSpeed
     return crops, out
 
 
@@ -390,6 +391,16 @@ def main():
         cp = cut_panels(cid, src)
         if cp: TM[cid]['C'] = cp
         if 'Pose_De_Vitoria' in A and 'Pose_De_Vitoria' not in names: names.append('Pose_De_Vitoria')
+        # Dramatic Finish de Gogeta contra Gogeta: el original tiene otra hoja de cada uno con su versión de la escena
+        # (la del que gana, «W:», con DramaticFinish_2_Pt4 de 5 fotogramas, y la del que pierde, «L:»). Va también en el paquete
+        bi = Z.best_type(src)[0]
+        for i, t, k in Z.TYPES:
+            if i == bi or not k or re.sub(r'_(jogador|inimigo)$', '', k) != src: continue
+            B = Z.anims_of(t)
+            if 'DramaticFinish_2_Pt4' not in B: continue
+            pre = 'W:' if len(B['DramaticFinish_2_Pt4']['f']) >= 5 else 'L:'
+            for n, a in B.items():
+                if n.startswith('DramaticFinish_2') and pre + n not in A: A = dict(A); A[pre + n] = a; names.append(pre + n)
         idle = A['Parado']['f'][0]
         s = write(cid, A, names, {'g': groups(names), 'iw': idle['w'], 'ih': idle['h']}); total += s
         print('%-18s %3d animaciones · %5d KB' % (cid, len(names), s // 1024))

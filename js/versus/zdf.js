@@ -23,7 +23,7 @@ const ZDFL = {
     return 0;
   },
   /** ¿Hay escena entre estos dos (en algún sentido)? Para descargarla al empezar el combate */
-  pair(a, b) { return [['goku', 'vegeta'], ['vegettoblue', 'zamasu'], ['gogetablue', 'janemba']].some(([w, l]) => (w === a && l === b) || (w === b && l === a)); },
+  pair(a, b) { return [['gogetassj4', 'gogetablue'], ['goku', 'vegeta'], ['vegettoblue', 'zamasu'], ['gogetablue', 'janemba']].some(([w, l]) => (w === a && l === b) || (w === b && l === a)); },
   buf: {},
   /** Audios de la escena, decodificados (por el bus de efectos) */
   sounds(n) {
@@ -38,9 +38,9 @@ const ZDFL = {
   }
 };
 
-// Escenas que se reproducen: 3 Goku-Vegeta, 4 Vegetto-Zamasu, 5 Gogeta Blue-Janemba. Las dos de Gogeta contra Gogeta (1, 2) usan
-// una segunda hoja de cada Gogeta (la del que recibe) que no está en sus paquetes: de momento, final destructivo
-const ZDF_OK = [3, 4, 5];
+// Escenas: 1 Gogeta SSJ4 gana a Gogeta Blue, 2 al revés, 3 Goku-Vegeta, 4 Vegetto-Zamasu, 5 Gogeta Blue-Janemba. En las de Gogeta
+// contra Gogeta cada uno usa la hoja de su papel (en el paquete: «W:…» la del que gana, «L:…» la del que pierde)
+const ZDF_OK = [1, 2, 3, 4, 5];
 const ZDF_CMP = (a, op, b) => op === 0 ? a == b : op === 1 ? a != b : op === 2 ? a < b : op === 3 ? a <= b : op === 4 ? a > b : a >= b;
 const ZDF_PX = 0.056 / 3.85;              // unidades de mundo por píxel del escenario original
 
@@ -60,7 +60,7 @@ class VsDramatic {
     this.v = { WS: {}, LS: {}, W: {}, L: {}, CUT: {} }; this.g = { INICIAR_DRAMATIC_FINISH: n, DRAMATIC_FINISH_JOGADORouINIMIGO: 1, SelecionarIdioma: 2, MODO_DE_JOGO: 1 };
     this.au = {}; this.ended = new Set(); this.src = [];
     this.cut = null; this.txt = ''; this.white = null; this.ko = 0;
-    this.tk = new Map(); this.ev = new Map(); this.ov = new Map(); this.wait = []; this.acc = 0;
+    this.tk = new Map(); this.ev = new Map(); this.ov = new Map(); this.wait = []; this.acc = 0; this.ob = {};
     this.ui();
     SFX.setDuck && SFX.setDuck(0.25);
     V.cam.play(600, (k, P, L) => this.camera(P, L));
@@ -96,15 +96,17 @@ class VsDramatic {
   }
   /** Fotograma de su animación del original */
   frame(i) {
-    const k = i === this.wi ? 'WS' : 'LS', s = this.s[k], zid = k === 'WS' ? this.zw : this.zl, A = ZMoves.D[zid] && ZMoves.D[zid].a[s.anim];
+    const k = i === this.wi ? 'WS' : 'LS', s = this.s[k], zid = k === 'WS' ? this.zw : this.zl, n = this.key(k), A = ZMoves.D[zid] && ZMoves.D[zid].a[n];
     if (!A) return null;
-    return ZMoves.partFrame(zid, s.anim, s.t, !!A.l);
+    return ZMoves.partFrame(zid, n, s.t, !!A.l);
   }
   /* ---------- animaciones ---------- */
-  anim(k, name) { const s = this.s[k]; if (s.anim === name) return; s.anim = name; s.t = 0; s.rate = 0; s.fin = ''; }
-  aLen(k) { const s = this.s[k], zid = k === 'WS' ? this.zw : this.zl, A = ZMoves.D[zid] && ZMoves.D[zid].a[s.anim]; if (!A) return [0, 12, 0, 1]; let n = 0; for (const f of A.f) n += f[7] || 1; return [n / (A.fps || 12), A.fps || 12, A.f.length, A.l]; }
+  /** Nombre en el paquete: la versión de su papel si la hay (W: / L:) */
+  key(k) { const s = this.s[k], zid = k === 'WS' ? this.zw : this.zl, A = ZMoves.D[zid] && ZMoves.D[zid].a, p = (k === 'WS' ? 'W:' : 'L:') + s.anim; return A && A[p] ? p : s.anim; }
+  anim(k, name) { const s = this.s[k]; if (s.anim === name) return; s.anim = name; s.t = 0; s.rate = 0; s.fin = ''; const zid = k === 'WS' ? this.zw : this.zl, A = ZMoves.D[zid] && ZMoves.D[zid].a[this.key(k)]; s.hold = !!(A && A.p0); }   // hold: parada hasta un SetAnimSpeed
+  aLen(k) { const zid = k === 'WS' ? this.zw : this.zl, A = ZMoves.D[zid] && ZMoves.D[zid].a[this.key(k)]; if (!A) return [0, 12, 0, 1]; let n = 0; for (const f of A.f) n += f[7] || 1; return [n / (A.fps || 12), A.fps || 12, A.f.length, A.l]; }
   aFrame(k) {
-    const s = this.s[k], zid = k === 'WS' ? this.zw : this.zl, A = ZMoves.D[zid] && ZMoves.D[zid].a[s.anim]; if (!A) return 0;
+    const s = this.s[k], zid = k === 'WS' ? this.zw : this.zl, A = ZMoves.D[zid] && ZMoves.D[zid].a[this.key(k)]; if (!A) return 0;
     const fps = A.fps || 12, [tot] = this.aLen(k); let t = A.l && tot > 0 ? s.t % tot : Math.min(s.t, tot - 1e-4);
     for (let i = 0; i < A.f.length; i++) { const d = (A.f[i][7] || 1) / fps; if (t < d) return i; t -= d; }
     return A.f.length - 1;
@@ -145,7 +147,7 @@ class VsDramatic {
     const [w, fn, beh, inv, P] = c, E = (i) => this.E(P[i]); let r;
     const sk = this.spr(w);
     switch (fn) {
-      case 'IsAnimPlaying': r = sk ? this.s[sk].anim === E(0) : w === 'CUT' ? !!this.cut && this.cut.anim === E(0) : false; break;
+      case 'IsAnimPlaying': r = sk ? this.s[sk].anim === E(0) : w === 'CUT' ? !!this.cut && this.cut.anim === E(0) : this.ob[w] === E(0); break;
       case 'OnAnimFinished': r = sk ? this.s[sk].fin === E(0) : w === 'CUT' ? !!this.cut && this.cut.fin === E(0) : false; break;
       case 'CompareFrame': r = ZDF_CMP(sk ? this.aFrame(sk) : w === 'CUT' && this.cut ? this.cFrame() : -1, E(0), E(1)); break;
       case 'OnFrameChanged': r = sk ? this.s[sk].fch : false; break;
@@ -176,7 +178,7 @@ class VsDramatic {
   act(a, rest) {
     const [w, fn, beh, P] = a, E = (i) => this.E(P[i]), o = this.obj(w), sk = this.spr(w);
     switch (fn) {
-      case 'Wait': this.wait.push({ t: this.t + E(0), acts: rest }); return 'wait';
+      case 'Wait': { const q = { t: this.t + E(0), acts: rest, cut: this.wcut !== undefined ? this.wcut : this.cut }; this.wait.push(q); return q; }   // recuerda qué cinemática era «la suya»
       case 'SetPos': if (o && (w === 'W' || w === 'L')) { o.X = E(0); o.Y = E(1); } else if (w === 'CAM') { this.cam.X = E(0); this.cam.Y = E(1); } else if (w === 'CUT' && this.cut) { this.cut.X = E(0); this.cut.Y = E(1); } break;
       case 'SetX': if (o && (w === 'W' || w === 'L')) o.X = E(0); else if (w === 'CAM') this.cam.X = E(0); break;
       case 'SetY': if (o && (w === 'W' || w === 'L')) o.Y = E(0); else if (w === 'CAM') this.cam.Y = E(0); break;
@@ -184,19 +186,21 @@ class VsDramatic {
       case 'SetPosToObject': { const b = this.obj(P[0] && P[0][1]); if (o && b) { o.X = b.X; o.Y = b.Y; } break; }
       case 'SetAnim':
         if (sk) this.anim(sk, E(0));
-        else if (w === 'CUT') { if (!this.cut) this.cut = { X: 544, Y: 292, layer: 'TEXTOS' }; if (this.cut.anim !== E(0)) { this.cut.anim = E(0); this.cut.t = 0; this.cut.fin = ''; this.cut.rate = 1; this.cut.out = 0; } }
+        else if (w !== 'CUT') this.ob[w] = E(0);                       // un fondo o un efecto: se apunta qué animación lleva
+        if (w === 'CUT') { if (!this.cut) this.cut = { X: 544, Y: 292, layer: 'TEXTOS' }; if (this.cut.anim !== E(0)) { this.cut.anim = E(0); this.cut.t = 0; this.cut.fin = ''; this.cut.rate = 1; this.cut.out = 0; } }
         break;
-      case 'SetAnimSpeed': if (sk) { const L = this.aLen(sk); this.s[sk].rate = E(0) / L[1]; } else if (w === 'CUT' && this.cut) { const M = this.D.cut[this.cut.anim]; this.cut.rate = M && M.sp ? E(0) / M.sp : 1; } break;
-      case 'SetAnimFrame': if (sk) { const zid = sk === 'WS' ? this.zw : this.zl, A = ZMoves.D[zid] && ZMoves.D[zid].a[this.s[sk].anim]; if (A) { let t = 0; for (let i = 0; i < Math.min(E(0), A.f.length); i++) t += (A.f[i][7] || 1) / (A.fps || 12); this.s[sk].t = t; } } break;
+      case 'SetAnimSpeed': if (sk) { const L = this.aLen(sk); this.s[sk].rate = E(0) / L[1]; if (E(0) > 0) this.s[sk].hold = false; } else if (w === 'CUT' && this.cut) { const M = this.D.cut[this.cut.anim]; this.cut.rate = M && M.sp ? E(0) / M.sp : 1; } break;
+      case 'SetAnimFrame': if (sk) { const zid = sk === 'WS' ? this.zw : this.zl, A = ZMoves.D[zid] && ZMoves.D[zid].a[this.key(sk)]; if (A) { let t = 0; for (let i = 0; i < Math.min(E(0), A.f.length); i++) t += (A.f[i][7] || 1) / (A.fps || 12); this.s[sk].t = t; } } break;
       case 'SetMirrored': if (sk) this.s[sk].mir = E(0) === 0; else if (w === 'CUT' && this.cut) this.cut.mir = E(0) === 0; break;   // en Construct 2: 0 = espejado, 1 = normal
       case 'SetSize': if (w === 'CUT' && this.cut) { this.cut.w = E(0); this.cut.h = E(1); } break;
       case 'MoveToLayer': if (w === 'CUT' && this.cut) this.cut.layer = E(0); break;
-      case 'Destroy': if (/efeitobranconatela/.test(w)) this.white = null; else if (w === 'CUT') this.cut = null; else if (w === 't299' || w === 'legendas_background') this.say(''); break;
+      case 'Destroy': if (/efeitobranconatela/.test(w)) this.white = null; else if (w === 'CUT') { if (this.wcut === undefined || this.wcut === this.cut) this.cut = null; }   // un Destroy aplazado solo borra la cinemática que había al esperar else if (w === 't299' || w === 'legendas_background') this.say(''); break;
       case 'SetInstanceVar': (this.v[w] || (this.v[w] = {}))[E(0)] = E(1); break;
       case 'AddInstanceVar': { const V = this.v[w] || (this.v[w] = {}); V[E(0)] = (V[E(0)] || 0) + E(1); break; }
       case 'SubInstanceVar': { const V = this.v[w] || (this.v[w] = {}); V[E(0)] = (V[E(0)] || 0) - E(1); break; }
       case 'SetBoolInstanceVar': (this.v[w] || (this.v[w] = {}))[E(0)] = E(1) ? 1 : 0; break;
       case 'SetVar': if (P[0] && P[0][0] === 'g') this.g[P[0][1]] = E(1); break;
+      case 'CallFunction': if (/DESPAUSAR/.test(E(0))) { this.s.WS.hold = false; this.s.LS.hold = false; } break;   // «despausar» vuelve a mover a los luchadores
       case 'SetLayerScale': if (/Personagens/.test(E(0))) this.zoom = Math.max(0.3, E(1)); break;
       case 'Shake': this.V.cam.shake(Math.min(1.2, E(0) / 7), 0); break;
       case 'SetText': this.say(E(0)); break;
@@ -217,14 +221,15 @@ class VsDramatic {
     }
     return null;
   }
-  acts(L) { for (let i = 0; i < L.length; i++) if (this.act(L[i], L.slice(i + 1)) === 'wait') return; }
+  acts(L) { for (let i = 0; i < L.length; i++) { const q = this.act(L[i], L.slice(i + 1)); if (q) return q; } return null; }   // devuelve la espera, si la hay
+  subs(S) { const sub = { prev: true }; for (const s of S) sub.prev = this.run(s, sub); }
   run(t, ctx) {
     let ok;
     if (t.or) { ok = false; for (const c of t.c) if (this.cond(c, t, ctx)) ok = true; }
     else { ok = true; for (const c of t.c) if (!this.cond(c, t, ctx)) { ok = false; break; } }
     if (!ok) return false;
-    if (t.a) this.acts(t.a);
-    if (t.s) { const sub = { prev: true }; for (const s of t.s) sub.prev = this.run(s, sub); }
+    const q = t.a ? this.acts(t.a) : null;
+    if (t.s) { if (q) q.subs = t.s; else this.subs(t.s); }                // como en Construct 2: tras un Wait, los sub-eventos también esperan
     return true;
   }
   /* ---------- sonido, subtítulos, K.O. ---------- */
@@ -248,23 +253,23 @@ class VsDramatic {
     this.dt = dt; this.t += dt; this.tick++;
     for (const k of ['WS', 'LS']) {                                     // animaciones: avanzan y avisan al acabar
       const s = this.s[k], L = this.aLen(k), f0 = this.aFrame(k);
-      s.t += dt * (s.rate ? s.rate : 1); s.fin = '';
+      s.t += dt * (s.hold ? 0 : s.rate ? s.rate : 1); s.fin = '';
       if (!L[3] && s.t >= L[0] && !s.out) { s.fin = s.anim; s.out = s.anim; } else if (s.out && s.out !== s.anim) s.out = '';
       s.fch = this.aFrame(k) !== f0;
     }
     if (this.cut) { const c = this.cut, M = this.D.cut[c.anim]; c.t += dt; c.fin = ''; if (M && !M.loop) { const tot = M.f.reduce((a, f) => a + f[4], 0) / 1000 / (c.rate || 1); if (c.t >= tot && !c.out) { c.fin = c.anim; c.out = 1; } } }
     this.ended.clear();
     for (const tag in this.au) { const q = this.au[tag]; if (!q[3] && this.t >= q[0] + q[1]) { q[3] = 1; this.ended.add(tag); } }
-    for (let i = 0; i < this.wait.length; i++) { const w = this.wait[i]; if (this.t >= w.t) { this.wait.splice(i--, 1); this.acts(w.acts); } }
+    for (let i = 0; i < this.wait.length; i++) { const w = this.wait[i]; if (this.t >= w.t) { this.wait.splice(i--, 1); this.wcut = w.cut; const q = this.acts(w.acts); if (w.subs) { if (q) q.subs = w.subs; else this.subs(w.subs); } this.wcut = undefined; } }
     for (const t of this.D.ev) this.run(t, {});
     // Fogonazo blanco (Fade del original: entra, espera y sale; sin salida se queda en blanco)
     const W = this.white; let wa = 0;
     if (W && W.on) { const t = this.t - W.t0; wa = t < W.fin ? t / Math.max(0.01, W.fin) : t < W.fin + W.wt || !W.fout ? 1 : Math.max(0, 1 - (t - W.fin - W.wt) / W.fout); }
     this.wEl.style.opacity = wa;
-    const sig = [this.s.WS.anim, this.s.LS.anim, this.cut && this.cut.anim, this.txt, Object.keys(this.au).length].join('|');
+    const sig = [this.s.WS.anim, this.s.LS.anim, this.cut && this.cut.anim, this.cut && !this.cut.out && this.D.cut[this.cut.anim] && !this.D.cut[this.cut.anim].loop && this.cFrame(), this.txt, Object.keys(this.au).length].join('|');   // la cinemática corriendo también cuenta
     if (sig !== this.sig) { this.sig = sig; this.still = 0; } else if ((this.still += dt) > 8 && !this.ko) { this.white = { t0: this.t, fin: 0.6, wt: 0.4, fout: 0.6, on: 1 }; this.koShow(); }   // atascada: se cierra con el K.O.
-    // Fin: tras el K.O., cuando el ganador ha dicho su última frase (o como mucho 10 s después)
-    if (this.ko && ((this.t > this.ko + 3 && Object.values(this.au).every((q) => q[3] || this.t >= q[0] + q[1])) || this.t > this.ko + 10)) this.finish();
+    // Fin: tras el K.O., cuando el ganador ha dicho su última frase y la escena se ha quedado quieta (como mucho 25 s después)
+    if (this.ko && ((this.t > this.ko + 3 && this.still > 1.2 && !this.wait.length && Object.values(this.au).every((q) => q[3] || this.t >= q[0] + q[1])) || this.t > this.ko + 25)) this.finish();   // y sin esperas pendientes (las Gogeta siguen tras el K.O.)
     if (this.t > 70) this.finish();
   }
   draw() {

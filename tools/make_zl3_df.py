@@ -41,6 +41,7 @@ def main():
     ours = {f[0]: f[1] for f in Z.FIGHTERS}
     KEY = {i: k for i, t, k in Z.TYPES if k}
     def types_of(src): return {i for i, t, k in Z.TYPES if k and re.sub(r'_(jogador|inimigo)$', '', k) == src}
+    GOG_B, GOG_A = {40, 44}, {25, 32}   # Gogetas: la variante B solo gana, la A solo pierde
     CUTT = Z.best_type('cutscenes_sprite', None)
     CUT = Z.anims_of(CUTT[1]); cut_id = CUTT[0]
     snd_all = set()
@@ -55,6 +56,7 @@ def main():
             if i == -1: return 'Sys'
             if i == 420: return 'Fn'
             if i == 422: return 'AU'
+            if i in GOG_B and i in LT or i in GOG_A and i in WT: return 'off%d' % i   # esa variante de Gogeta no está en esta escena
             if i in WT: return 'WS'
             if i in LT: return 'LS'
             k = KEY.get(i, '')
