@@ -10,11 +10,11 @@
 <!-- Versión del juego (tools/version.py la cambia sola cuando cambia algún archivo): va en la dirección de cada
      script para que el navegador descargue lo nuevo tras una actualización sin tener que forzar la recarga -->
 <script>
-  window.V = 'ce7d0634';
+  window.V = '3cb56c16';
   /** Dirección de un archivo propio con su huella (js/assetver.js); el resto (CDN, blob:) tal cual */
   window.av = (p) => /^(https?:|blob:|data:)/.test(p) ? p : p + '?v=' + ((window.AV && window.AV[p]) || window.V);
 </script>
-<script src="js/assetver.js?v=ce7d0634"></script>
+<script src="js/assetver.js?v=3cb56c16"></script>
 <link rel="preload" href="assets/load/atlas.webp?v=8ca16f09" as="image"><!-- fondo animado de la pantalla de carga: lo primero que se descarga -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1728,7 +1728,7 @@ html.hc .card p{color:#fff;font-size:15px}
 .wnot button small{font-size:calc(var(--u)*.82);font-weight:700;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ---------- Tarjetas de los lugares: un solo diseño; cambia el color y la ilustración ---------- */
-.wpin{--sk:0deg;z-index:2;display:flex;align-items:stretch;gap:0;padding:0;width:calc(var(--u)*17.6);min-height:calc(var(--u)*4.7);white-space:normal;overflow:visible;
+.wpin{--sk:0deg;z-index:2;display:flex;align-items:stretch;gap:0;padding:0;width:max-content;min-width:calc(var(--u)*15);max-width:calc(var(--u)*23);min-height:calc(var(--u)*4.7);white-space:normal;overflow:visible;
   background:linear-gradient(180deg,rgba(16,24,66,.95),rgba(6,10,34,.95));border:3px solid var(--ink);border-radius:calc(var(--u)*.85);
   box-shadow:inset 0 3px 0 var(--pc),5px 6px 0 rgba(0,0,0,.42);transition:transform .16s cubic-bezier(.2,1.2,.4,1),box-shadow .16s}
 .wpin:hover,.wpin:focus-visible{transform:translate(-50%,calc(var(--u)*-.4));box-shadow:inset 0 3px 0 var(--pc),5px 9px 0 rgba(0,0,0,.42),0 0 0 2px var(--pc),0 0 calc(var(--u)*1.8) color-mix(in srgb,var(--pc) 75%,transparent)}
@@ -1740,10 +1740,10 @@ html.hc .card p{color:#fff;font-size:15px}
   background:radial-gradient(circle at 38% 32%,#fff,var(--pc) 75%)}
 .wpin.here{box-shadow:inset 0 3px 0 var(--pc),5px 6px 0 rgba(0,0,0,.42),0 0 0 2px #ffd84a}
 .wpin.here .wk{background:radial-gradient(circle at 38% 32%,#fff,#ffd84a 75%);box-shadow:0 0 calc(var(--u)*.6) #ffd84a}
-.wpin .wtx{flex:1;min-width:0;justify-content:center;gap:calc(var(--u)*.08);padding:calc(var(--u)*.45) calc(var(--u)*.8) calc(var(--u)*.5) calc(var(--u)*.75);line-height:1.08}
+.wpin .wtx{flex:1;min-width:0;justify-content:center;gap:calc(var(--u)*.08);padding:calc(var(--u)*.45) calc(var(--u)*1.3) calc(var(--u)*.5) calc(var(--u)*.75);line-height:1.08}
 .wpin b{font-size:calc(var(--u)*1.38);white-space:nowrap}
 .wpin em{font-size:calc(var(--u)*.8);letter-spacing:.01em;text-transform:none;color:var(--pc);white-space:nowrap}
-.wpin small{font-size:calc(var(--u)*.74);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wpin small{font-size:calc(var(--u)*.74);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(var(--u)*16)}
 .wpin small u{text-decoration:none;font-weight:800;color:#6ff0a0}
 .wpin .badge{top:calc(var(--u)*-.7);right:calc(var(--u)*-.7);min-width:calc(var(--u)*1.75);height:calc(var(--u)*1.75);font-size:calc(var(--u)*1.05);animation:wbadge 1.8s ease-in-out infinite}
 @keyframes wbadge{50%{transform:scale(1.14)}}
@@ -1796,11 +1796,11 @@ html.hc .card p{color:#fff;font-size:15px}
 @media (max-height:520px){
   #menu.ishome{--u:clamp(8.2px,1.28vw,11px)}
   #menu.ishome .mtop{padding:5px 10px 14px}
-  .wnav .wib span,.wacc span{display:none}.wacc{padding:0;width:calc(var(--u)*2.7)}
+  .wnav .wib span,.wacc>span:not(.pfa){display:none}.wacc{padding:0;width:calc(var(--u)*2.7)}
   .wlogo b{font-size:calc(var(--u)*2.4);-webkit-text-stroke:1.5px var(--ink)}.wlogo span{font-size:calc(var(--u)*.85);padding:0 6px}
-  .wpin{width:calc(var(--u)*14.5);min-height:calc(var(--u)*3.9);border-width:2px;padding:0;gap:0}.wpin .wth{width:calc(var(--u)*4.4);border-right-width:2px}
+  .wpin{width:max-content;min-width:0;min-height:calc(var(--u)*3.3);border-width:2px;padding:0;gap:0}.wpin .wth{width:calc(var(--u)*3.4);border-right-width:2px}
   .wpin .wk{width:calc(var(--u)*1.75);height:calc(var(--u)*1.75);font-size:calc(var(--u)*1.02)}
-  .wpin b{font-size:calc(var(--u)*1.35)}.wpin em{font-size:calc(var(--u)*.86)}.wpin small{display:none}
+  .wpin b{font-size:calc(var(--u)*1.2)}.wpin em{font-size:calc(var(--u)*.8)}.wpin small{display:none}.wpin .wtx{padding:calc(var(--u)*.3) calc(var(--u)*1) calc(var(--u)*.35) calc(var(--u)*.55)}
   .wpin .badge{min-width:calc(var(--u)*1.75);height:calc(var(--u)*1.75);font-size:calc(var(--u)*1.05);top:calc(var(--u)*-.7);right:calc(var(--u)*-.7)}
   .wbot{padding:10px 10px 7px;gap:8px}
   .wme{padding:3px 6px 3px 3px;border-width:2px}.wpt{width:calc(var(--u)*4.2);height:calc(var(--u)*4.2);border-width:2px}

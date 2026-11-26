@@ -29,6 +29,11 @@ class WorldMap {
     this.root = root; this.cv = root.querySelector('.wmc'); this.ctx = this.cv.getContext('2d');
     this.layout();
     window.addEventListener('resize', this.onResize);
+    // Pasar el ratón (o el foco del teclado) por una tarjeta ilumina su lugar y la ruta hasta él
+    this.hover = null; this.hv = 0;
+    const hov = (e) => { const el = e.target.closest && e.target.closest('.wpin'); this.hover = el ? el.dataset.place : null; };
+    root.addEventListener('pointerover', hov); root.addEventListener('focusin', hov);
+    root.addEventListener('pointerleave', () => { this.hover = null; }); root.addEventListener('focusout', () => { this.hover = null; });
     let last = performance.now();
     const loop = (now) => {
       if (!this.root || !this.root.isConnected) { this.unmount(); return; }
@@ -45,9 +50,9 @@ class WorldMap {
   }
   /** Zona útil (sin la barra de arriba ni la de abajo) y posición en píxeles de cada lugar */
   layout() {
-    const W = this.root.clientWidth || innerWidth, H = this.root.clientHeight || innerHeight, small = H < 520;
+    const W = this.root.clientWidth || innerWidth, H = this.root.clientHeight || innerHeight, small = H < 520; this.small = small;
     this.W = W; this.H = H; this.dpr = Math.min(2, window.devicePixelRatio || 1) * (small ? 1 : 1);
-    this.top = small ? 50 : Math.round(H * 0.085); this.bot = small ? 100 : Math.round(H * 0.15);   // hueco de la barra de arriba y de la de abajo
+    this.top = small ? 50 : Math.round(H * 0.085); this.bot = small ? 74 : Math.round(H * 0.15);   // hueco de la barra de arriba y de la de abajo
     this.k = Math.min(W / 1500, H / 820);                              // escala de los dibujos
     const uh = H - this.top - this.bot;
     this.pos = {};
@@ -57,8 +62,36 @@ class WorldMap {
     this.cv.style.width = W + 'px'; this.cv.style.height = H + 'px';
     this.drawStatic();
     // Carteles de los lugares y el guerrero
-    for (const el of this.root.querySelectorAll('[data-place]')) { const P = this.pos[el.dataset.place]; el.style.left = P.x + 'px'; el.style.top = Math.round(P.y + placeById(el.dataset.place).oy * this.k) + 'px'; }
+    for (const el of this.root.querySelectorAll('.wm > [data-place]')) { const P = this.pos[el.dataset.place]; el.style.left = P.x + 'px'; el.style.top = Math.round(P.y + placeById(el.dataset.place).oy * this.k) + 'px'; }
+    this.relax();
     this.placeAvatar(this.at());
+  }
+  /**
+   * Separa las tarjetas que se pisan (pasa en pantallas bajas o estrechas) y las mete dentro de la pantalla.
+   * Guarda dónde acaba cada una (this.pin) para dibujar el hilo que la une con su lugar.
+   */
+  relax() {
+    const els = [...this.root.querySelectorAll('.wm > .wpin')], m = 6, W = this.W, H = this.H;
+    const R = els.map((el) => { const w = el.offsetWidth, h = el.offsetHeight; return { el, w, h, x: parseFloat(el.style.left) - w / 2, y: parseFloat(el.style.top) }; });
+    const minY = this.top * 0.9, maxY = (r) => H - this.bot - r.h - 4;
+    // Obstáculo fijo: tu guerrero (las tarjetas no lo tapan)
+    const A = this.pos[this.at()], aw = (this.small ? 50 : 76) * 1.1, ob = { x: A.x - aw / 2, y: A.y - aw, w: aw, h: aw, fix: 1 };
+    for (let it = 0; it < 40; it++) {
+      let moved = false;
+      for (const r of R) { const x = Math.max(m, Math.min(W - r.w - m, r.x)), y = Math.max(minY, Math.min(maxY(r), r.y)); if (x !== r.x || y !== r.y) { r.x = x; r.y = y; moved = true; } }
+      const L = R.concat([ob]);
+      for (let i = 0; i < R.length; i++) for (let j = i + 1; j < L.length; j++) {
+        const a = L[i], b = L[j], ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) + m, oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) + m;
+        if (ox <= 0 || oy <= 0) continue;
+        moved = true;
+        if (b.fix) { if (a.y + a.h / 2 < b.y + b.h / 2) a.y -= oy; else a.y += oy; continue; }        // contra el guerrero se mueve solo la tarjeta
+        if (oy <= ox) { const [u, d] = a.y <= b.y ? [a, b] : [b, a]; u.y -= oy / 2; d.y += oy / 2; }    // lo más corto: separarlas en vertical
+        else { const [l, r] = a.x <= b.x ? [a, b] : [b, a]; l.x -= ox / 2; r.x += ox / 2; }
+      }
+      if (!moved) break;
+    }
+    this.pin = {};
+    for (const r of R) { r.el.style.left = Math.round(r.x + r.w / 2) + 'px'; r.el.style.top = Math.round(r.y) + 'px'; this.pin[r.el.dataset.place] = { x: r.x + r.w / 2, y: r.y, h: r.h }; }
   }
   /** Lugar donde está el guerrero. Si el guardado trae uno que ya no existe (p. ej. un modo retirado), vuelve a la Montaña Paoz */
   at() { return this.pos[Save.d.mapAt] ? Save.d.mapAt : 'paoz'; }
@@ -115,6 +148,16 @@ class WorldMap {
     sea.addColorStop(0, '#5fc3f0'); sea.addColorStop(0.25, '#2a9be0'); sea.addColorStop(1, '#0b5aa8');
     c.fillStyle = sea; c.fillRect(0, hz, W, H - hz);
     c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(0, hz, W, 3);
+    // Franjas de luz en el agua, más juntas cerca del horizonte (perspectiva)
+    for (let i = 0; i < 14; i++) { const f = i / 14, y = hz + (H - hz) * f * f; c.fillStyle = 'rgba(255,255,255,' + (0.07 * (1 - f)) + ')'; c.fillRect(0, y, W, 1 + f * 3); }
+    // Bruma en el horizonte
+    const hb = c.createLinearGradient(0, hz - 30 * k - 10, 0, hz + 40 * k + 10); hb.addColorStop(0, 'rgba(230,248,255,0)'); hb.addColorStop(0.5, 'rgba(230,248,255,.45)'); hb.addColorStop(1, 'rgba(230,248,255,0)');
+    c.fillStyle = hb; c.fillRect(0, hz - 30 * k - 10, W, 70 * k + 20);
+    // Sombras en el mar de lo que flota (Templo de Kami, altar y planeta del Kaio)
+    for (const [id, dy, rx] of [['lookout', 150, 130], ['altar', 120, 80], ['kaio', 140, 60]]) {
+      const q = this.pos[id], sy = Math.max(hz + 12, q.y + dy * k), sh = c.createRadialGradient(q.x, sy, 0, q.x, sy, rx * k + 10);
+      sh.addColorStop(0, 'rgba(0,30,80,.28)'); sh.addColorStop(1, 'rgba(0,30,80,0)'); c.fillStyle = sh; c.beginPath(); c.ellipse(q.x, sy, rx * k + 10, (rx * k + 10) * 0.22, 0, 0, Math.PI * 2); c.fill();
+    }
     const P = this.pos;
     // Islas y lugares (de atrás adelante)
     this.drawKaio(c, P.kaio.x, P.kaio.y, k);
@@ -146,6 +189,7 @@ class WorldMap {
       }
       c.closePath();
     };
+    c.fillStyle = 'rgba(0,40,100,.25)'; blob(rx * 1.3, ry * 1.4, 16); c.fill();         // sombra de la isla en el agua
     c.fillStyle = 'rgba(160,240,255,.45)'; blob(rx * 1.18, ry * 1.25, 4); c.fill();      // agua poco profunda
     c.fillStyle = '#5a4630'; blob(rx * 0.98, ry, 10); c.fill();                          // acantilado
     c.fillStyle = '#f2dc9a'; blob(rx, ry, 0); c.fill();                                   // arena
@@ -211,8 +255,6 @@ class WorldMap {
     c.fillStyle = '#e83a2a'; c.beginPath(); c.moveTo(x - w * 0.62, y - h); c.lineTo(x, y - h - 30 * k); c.lineTo(x + w * 0.62, y - h); c.closePath(); c.fill(); c.stroke();
     c.fillStyle = '#5a3a20'; c.fillRect(x - 8 * k, y - 20 * k, 16 * k, 20 * k);
     c.fillStyle = '#9fd4ff'; c.fillRect(x - w * 0.38, y - h * 0.7, 12 * k, 10 * k); c.fillRect(x + w * 0.2, y - h * 0.7, 12 * k, 10 * k);
-    c.fillStyle = '#fff'; c.font = '800 ' + Math.round(9 * k + 4) + 'px "Baloo 2",sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText('KAME HOUSE', x, y - h - 9 * k);
   }
   /** Torneo de Artes Marciales: tatami de piedra y pagodas */
   drawTenka(c, x, y, k) {
@@ -296,6 +338,7 @@ class WorldMap {
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.drawImage(this.bg, 0, 0);
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.rays(c, t, hz);
     // Shenron cruza el cielo de vez en cuando (por detrás de las nubes)
     this.flyer.update(c, dt, { x0: 0, x1: W, y: this.top * 0.6, h: Math.max(60, hz - this.top) });
     // Nubes que se mueven despacio
@@ -311,10 +354,98 @@ class WorldMap {
       c.globalAlpha = a; c.beginPath(); c.moveTo(x - s, y); c.quadraticCurveTo(x - s * 0.5, y - s * 0.35, x, y); c.quadraticCurveTo(x + s * 0.5, y - s * 0.35, x + s, y); c.stroke();
     }
     c.globalAlpha = 1;
-    // Destellos del sol sobre el mar
-    for (let i = 0; i < 6; i++) {
-      const x = W * 0.2 + Math.sin(i * 2.1) * 60 * k, y = hz + 14 + i * 16 * k, a = Math.max(0, Math.sin(t * 3 + i * 1.3));
-      c.fillStyle = 'rgba(255,255,230,' + a * 0.7 + ')'; c.fillRect(x - 12 * k, y, 24 * k, 2);
+    // Reflejo del sol: un camino de destellos que baja por el mar
+    const sx = W * 0.36;
+    for (let i = 0; i < 26; i++) {
+      const f = i / 26, y = hz + 6 + f * f * (H - hz) * 0.8, a = Math.max(0, Math.sin(t * 2.6 + i * 2.3)) * (1 - f) * 0.75, w = (10 + f * 40) * k + 4;
+      c.fillStyle = 'rgba(255,252,220,' + a + ')'; c.fillRect(sx - w / 2 + Math.sin(i * 1.7 + t) * 16 * k * (1 + f * 3), y, w, 1.5 + f * 2);
+    }
+    this.birds(c, t, hz);
+    this.nimbus(c, dt, hz);
+    this.routes(c, t, dt);
+    this.sparkles(c, t);
+  }
+  /** Rayos de sol que giran muy despacio (solo en el cielo) */
+  rays(c, t, hz) {
+    const sx = this.W * 0.36, sy = hz * 0.3, L = Math.max(this.W, hz) * 0.9;
+    c.save(); c.beginPath(); c.rect(0, 0, this.W, hz); c.clip();
+    c.globalCompositeOperation = 'lighter';
+    const g = c.createRadialGradient(sx, sy, 0, sx, sy, L); g.addColorStop(0, 'rgba(255,250,215,' + (this.small ? 0.12 : 0.2) + ')'); g.addColorStop(1, 'rgba(255,250,215,0)'); c.fillStyle = g;
+    for (let i = 0; i < 12; i++) {
+      const a = t * 0.03 + i * (Math.PI * 2 / 12), w = 0.07 + 0.04 * Math.sin(i * 3.1 + t * 0.4);
+      c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx + Math.cos(a - w) * L, sy + Math.sin(a - w) * L); c.lineTo(sx + Math.cos(a + w) * L, sy + Math.sin(a + w) * L); c.closePath(); c.fill();
+    }
+    c.restore();
+  }
+  /** Gaviotas: uves que planean y aletean */
+  birds(c, t, hz) {
+    const k = this.k, W = this.W;
+    c.strokeStyle = 'rgba(30,50,90,.7)'; c.lineWidth = 1.6 + k; c.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const sp = 26 + i * 7, s = (7 + (i % 2) * 3) * (0.6 + k * 0.6), x = ((i * 523 + t * sp) % (W + 200)) - 100, y = this.top + 20 + ((i * 89) % Math.max(30, hz - this.top - 20)) + Math.sin(t * 0.8 + i) * 10;
+      const f = Math.sin(t * 7 + i * 2) * 0.5;
+      c.beginPath(); c.moveTo(x - s, y - s * (0.2 + f)); c.quadraticCurveTo(x - s * 0.4, y - s * 0.5, x, y); c.quadraticCurveTo(x + s * 0.4, y - s * 0.5, x + s, y - s * (0.2 + f)); c.stroke();
+    }
+  }
+  /** La Nube Kinton cruza el mapa de vez en cuando, dejando una estela dorada */
+  nimbus(c, dt, hz) {
+    const N = this.nb || (this.nb = { t: -6, trail: [] }), W = this.W, k = this.k;
+    N.t += dt;
+    const D = 7;                                                  // segundos que tarda en cruzar
+    if (N.t > 22) { N.t = 0; N.dir = Math.random() < 0.5 ? 1 : -1; N.y0 = hz + (this.H - hz) * (0.15 + Math.random() * 0.35); N.trail = []; }
+    if (N.t < 0 || N.t > D + 1.5) return;
+    const u = N.t / D, on = u <= 1, x = N.dir > 0 ? -80 + u * (W + 160) : W + 80 - u * (W + 160), y = N.y0 - Math.sin(u * Math.PI) * hz * 0.5 + Math.sin(N.t * 3) * 6;
+    if (on) N.trail.push({ x, y, a: 1 });
+    c.save(); c.globalCompositeOperation = 'lighter';
+    for (const p of N.trail) { p.a -= dt * 0.9; if (p.a > 0) { c.fillStyle = 'rgba(255,210,80,' + p.a * 0.35 + ')'; c.beginPath(); c.arc(p.x, p.y + 4, (5 + 10 * p.a) * (0.5 + k * 0.6), 0, Math.PI * 2); c.fill(); } }
+    c.restore();
+    N.trail = N.trail.filter((p) => p.a > 0);
+    if (!on) return;
+    const r = 16 * (0.5 + k * 0.7);
+    c.fillStyle = '#ffd23a'; c.strokeStyle = '#a86a00'; c.lineWidth = 2;
+    for (const [dx, dy, rr] of [[0, 0, 1], [0.9, 0.15, 0.75], [-0.9, 0.15, 0.75], [1.6, 0.3, 0.5], [-1.6, 0.3, 0.5]]) { c.beginPath(); c.arc(x + dx * r, y + dy * r, rr * r, 0, Math.PI * 2); c.fill(); }
+    c.fillStyle = '#fff3b0'; c.beginPath(); c.arc(x - r * 0.3, y - r * 0.35, r * 0.4, 0, Math.PI * 2); c.fill();
+  }
+  /**
+   * Rutas de viaje (arcos punteados desde donde está tu guerrero), el hilo de cada tarjeta a su lugar
+   * y, en el lugar que señalas, una columna de luz
+   */
+  routes(c, t, dt) {
+    if (!this.pin) return;
+    const k = this.k, from = this.pos[this.at()], H = this.hover && this.hover !== this.at() ? this.hover : null;
+    this.hv = H ? Math.min(1, this.hv + dt * 5) : Math.max(0, this.hv - dt * 5);
+    if (H) this.hvId = H;
+    const arc = (a, b) => { const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 - Math.hypot(b.x - a.x, b.y - a.y) * 0.28; c.beginPath(); c.moveTo(a.x, a.y - 20 * k); c.quadraticCurveTo(mx, my, b.x, b.y - 20 * k); };
+    c.save(); c.lineCap = 'round';
+    // Todas las rutas, muy suaves
+    c.setLineDash([2, 9]); c.lineWidth = 2; c.strokeStyle = 'rgba(255,255,255,.28)';
+    for (const p of PLACES) if (p.id !== this.at()) { arc(from, this.pos[p.id]); c.stroke(); }
+    // Hilos: de cada tarjeta a su lugar
+    c.setLineDash([]); c.lineWidth = 2; c.strokeStyle = 'rgba(8,14,46,.55)';
+    for (const p of PLACES) { const q = this.pos[p.id], P = this.pin[p.id], ty = P.y; if (Math.abs(ty - q.y) < 8 && Math.abs(P.x - q.x) < 8) continue; c.beginPath(); c.moveTo(q.x, q.y); c.lineTo(P.x, ty); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(q.x, q.y, 3, 0, Math.PI * 2); c.fill(); }
+    // La ruta señalada: dorada, con brillo y avanzando
+    if (this.hv > 0 && this.hvId) {
+      const q = this.pos[this.hvId];
+      c.globalAlpha = this.hv; c.setLineDash([10, 10]); c.lineDashOffset = -t * 40;
+      c.shadowColor = '#ffc531'; c.shadowBlur = 12; c.lineWidth = 4; c.strokeStyle = '#ffd84a'; arc(from, q); c.stroke();
+      c.shadowBlur = 0; c.setLineDash([]);
+      // Columna de luz sobre el lugar
+      c.globalCompositeOperation = 'lighter';
+      const w = (34 * k + 14) * (0.9 + 0.1 * Math.sin(t * 6)), h = 220 * k + 60, g = c.createLinearGradient(0, q.y - h, 0, q.y);
+      g.addColorStop(0, 'rgba(255,220,90,0)'); g.addColorStop(1, 'rgba(255,220,90,.5)'); c.fillStyle = g; c.fillRect(q.x - w / 2, q.y - h, w, h);
+      c.fillStyle = 'rgba(255,240,170,.55)'; c.beginPath(); c.ellipse(q.x, q.y, w * 0.9, w * 0.22, 0, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+  }
+  /** Destellos en las Bolas de Dragón del altar */
+  sparkles(c, t) {
+    const q = this.pos.altar, k = this.k, rx = 70 * k + 16;
+    for (let i = 0; i < 5; i++) {
+      const a = Math.max(0, Math.sin(t * 2.2 + i * 1.9)), x = q.x + Math.cos(i * 2.4) * rx * 0.35, y = q.y - 12 * k - 6 + Math.sin(i * 1.3) * 8 * k, s = (3 + 5 * a) * (0.6 + k * 0.5);
+      if (a < 0.05) continue;
+      c.fillStyle = 'rgba(255,250,210,' + a + ')';
+      c.beginPath(); c.moveTo(x, y - s); c.lineTo(x + s * 0.25, y); c.lineTo(x, y + s); c.lineTo(x - s * 0.25, y); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(x - s, y); c.lineTo(x, y + s * 0.25); c.lineTo(x + s, y); c.lineTo(x, y - s * 0.25); c.closePath(); c.fill();
     }
   }
   cloud(c, x, y, w, a) {
