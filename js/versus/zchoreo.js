@@ -10,6 +10,14 @@
    Quién es quién: A / T = cajas del atacante y del rival · AV / TV = sus sprites visibles · S = el sprite de la técnica.
    Es determinista (azar con la semilla del combate): el online sigue igual en los dos lados.
    ============================================================================ */
+/**
+ * Objetos del original que viajan con «Bullet» (velocidad en px/s de sus instancias en los niveles). Lanzados en una técnica,
+ * van hacia el rival como proyectiles de verdad (zcShot). Moro y Kefla mueven los suyos con eventos: velocidad aproximada
+ */
+const ZC_BULLETS = { kiblast_jogador_sprite: 1100, godslicerdance_spikes: 1300, gogetablue_godpunisher_kiblast_sprite: 1300, janemba_objetos: 1100, jiren_efeitos_sprite: 1500,
+  kidbuu_e_cell_effects: 1500, kiensan_sprite: 1500, superbaby2_objetos: 1500, trunksobjetos_sprite: 1100, piccolo_e_android18_effect_sprite: 400, vegetaego_effects: 1500,
+  bills_effects: 200, freeza_efeitos_sprite: 1400, gogetablue_effects_sprite: 1800, lightinggranade_sprite: 1500, moro73_lavaball_sprite: 700, kefla_giganticchaser_effect_sprite: 900 };
+const ZC_BULLET = (k) => ZC_BULLETS[k] || 0;
 const ZC = {
   PX: 0.056 / 3.85,          // unidades de mundo por píxel del escenario original
   SPR: 3.85,                 // escala del sprite del luchador en el original (punto de imagen -> píxeles del escenario)
@@ -41,7 +49,7 @@ Object.assign(VsSim.prototype, {
     const info = cid && zcInfo(cid, p.S); if (!info) return;
     let nx = foe.x - f.x, nz = foe.z - f.z; const h = Math.hypot(nx, nz);
     if (h > 0.01) { nx /= h; nz /= h; } else { nx = this.cz; nz = -this.cx; }
-    const kb = p.S && p.S.P && p.S.P.some((q) => CH && CH[q[0]] && /"Spawn","",\[\["o","[a-z_]*kiblast/.test(JSON.stringify(CH[q[0]]))) ? 1 : 0;   // lanza bolas de ki que viajan (zcShot)
+    const kb = p.S && p.S.P && p.S.P.some((q) => CH && CH[q[0]] && (JSON.stringify(CH[q[0]]).match(/"(?:Spawn|CreateObject)","",\[\["o","[a-z_0-9]+"/g) || []).some((m) => ZC_BULLET(m.split('"o","')[1].slice(0, -1)))) ? 1 : 0;   // lanza objetos que viajan (zcShot)
     p.z = { kb, S: p.S, CH, cid, info, ox: f.x, oz: f.z, nx, nz, rate: 1, fi: -1, part: null, tk: new Map(), ev: new Map(), v: { A: ZC.VARS.slice(), T: ZC.VARS.slice(), S: [] }, g: { MODO_DE_JOGO: 1 }, wait: [], hold: false, tva: '', gh: -9, n: 0, po: new Set(), r0: 0, fx: {}, av: [0, 0], aen: 1 };
   },
   /* ---------- coordenadas del plano del atacante ---------- */
@@ -51,11 +59,14 @@ Object.assign(VsSim.prototype, {
    * Si sus propios eventos miran cuándo choca, el daño lo ponen ellos (aquí solo avisa de que ha tocado)
    */
   zcShot(z, f, foe, k) {
+    if (z.S && z.S.k === 'buff') return;                                 // los potenciadores solo crean efectos alrededor del luchador
+    if (z.shotN && z.shotN[k] > 6) return; (z.shotN || (z.shotN = {}))[k] = (z.shotN[k] || 0) + 1;   // ráfagas: como mucho 7 de cada objeto
+    const first = !z.shotT; z.shotT = (z.shotT || 0) + 1;                // en una ráfaga, la primera pega entera y las demás un 40 %
     z.kb = 1;   // su daño va en la bola: sin golpe genérico al acabar
-    const tx = foe.x - f.x, tz = foe.z - f.z, ty = foe.y + 1.5 - (f.y + 1.7), h = Math.hypot(tx, tz) || 1, d = Math.hypot(h, ty) || 1, sp = 1100 * ZC.PX;
+    const tx = foe.x - f.x, tz = foe.z - f.z, ty = foe.y + 1.5 - (f.y + 1.7), h = Math.hypot(tx, tz) || 1, d = Math.hypot(h, ty) || 1, sp = ZC_BULLET(k) * ZC.PX;
     const own = (z.ownHit || (z.ownHit = {}))[k] !== undefined ? z.ownHit[k] : (z.ownHit[k] = JSON.stringify(z.CH).includes('"' + k + '","IsOverlapping"') || JSON.stringify(z.CH).includes('"' + k + '","OnCollision"'));
     this.shots.push({ o: f.i, x: f.x + tx / h * 1.2, y: f.y + 1.7, z: f.z + tz / h * 1.2, vx: tx / d * sp, vy: ty / d * sp, vz: tz / d * sp, life: 2.2, r: 1.6, t: 0, hm: 0.001, col: f.def.col, pw: 2,
-      zk: { z, k }, hs: own ? { dmg: 0, stun: 0, kb: 0, shot: 1, ghost: 1 } : { dmg: VS.SPEC.shot, stun: 0.85, kb: 24, up: 6, launch: true, heavy: true, gbreak: 60, fz: 5, shot: 1 } });
+      zk: { z, k, own }, hs: first ? { dmg: VS.SPEC.shot, stun: 0.85, kb: 24, up: 6, launch: true, heavy: true, gbreak: 60, fz: 5, shot: 1 } : { dmg: VS.SPEC.shot * 0.4, stun: 0.5, kb: 6, gbreak: 20, fz: 2, shot: 1 } });
   },
   /**
    * ¿El rival está dentro del dibujo actual del atacante? En el original muchos poderes (el Kamehameha) van dibujados
@@ -197,8 +208,8 @@ Object.assign(VsSim.prototype, {
         const o1 = this.zcObj(z, w, f, foe), o2 = this.zcObj(z, P0, f, foe);
         if (!o1 && o2 === foe) {                                         // un efecto o poder aparte toca al rival
           const X = z.fx[w];
-          if (X && /kiblast/.test(w)) { r = !!(z.shotHit && z.shotHit[w]) && foe.st !== 'ko'; break; }   // bola de ki que viaja (zcShot): toca cuando llega
           if (X && foe.st !== 'ko' && Math.abs(X[0] - this.zcX(z, foe)) < 230 && Math.abs(X[1] - (this.zcY(z, foe) - 80)) < 230) { r = true; break; }   // nació donde está el rival (o a su lado)
+          if (X && ZC_BULLET(w)) { r = !!(z.shotHit && z.shotHit[w]) && foe.st !== 'ko'; break; }   // objeto que viaja (zcShot): toca cuando llega
           if (X && foe.st !== 'ko' && z.S && z.S.k === 'beam' && !(foe.inv > 0 && !foe.zc)) {   // un rayo: toca en todo su largo, no solo donde nace
             const ax = foe.x - f.x, az = foe.z - f.z, along = ax * z.nx + az * z.nz, lat = Math.abs(ax * z.nz - az * z.nx), reach = Math.max(6, z.S.R * 0.056 + 1.4);
             if (along > 0 && along < reach && lat < 2.6 && Math.abs(foe.y - f.y) < 3) { r = true; break; }
@@ -266,7 +277,7 @@ Object.assign(VsSim.prototype, {
         if (o === foe && /hit_/.test(k)) this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, sp: 1 });
         else if (/defesa/.test(k)) this.emit('guard', { i: o === f ? f.i : foe.i, x: (o || f).x, y: (o || f).y + 1.6, z: (o || f).z });
         if (o === f || o === foe) { const q = o === f ? this.zcIP(z, f, P.length > 2 ? E(2) : 0) : [this.zcX(z, foe), this.zcY(z, foe) - 80]; z.fx[k] = [q[0], q[1], z.tt]; }
-        if (o === f && /kiblast/.test(k)) this.zcShot(z, f, foe, k);
+        if (o === f && ZC_BULLET(k)) this.zcShot(z, f, foe, k);
         break;
       }
       case 'CallFunction': {
@@ -278,7 +289,7 @@ Object.assign(VsSim.prototype, {
         break;
       }
       case 'Shake': this.emit('shake', { k: Math.min(1, E(0) / 6) }); break;
-      case 'CreateObject': { const k = P[0] && P[0][1]; if (k && P.length > 3) z.fx[k] = [E(2), E(3), z.tt]; z.proj = 1; break; }
+      case 'CreateObject': { const k = P[0] && P[0][1]; if (k && P.length > 3) z.fx[k] = [E(2), E(3), z.tt]; z.proj = 1; if (k && ZC_BULLET(k)) this.zcShot(z, f, foe, k); break; }
       case 'SetVar': if (P[0] && P[0][0] === 'g') z.g[P[0][1]] = E(1); break;
     }
     return null;
@@ -367,6 +378,9 @@ Object.assign(VsSim.prototype, {
     const z = p && p.z; if (!z) return;
     for (const w of z.wait.splice(0)) this.zcActs(w.acts, z, f, foe);   // lo que quedaba pendiente (un «Wait» corto antes del empujón)
     this.zcLaunchRun(z, f, foe);
+    // Técnicas de disparo o rayo cuyo proyectil lanza otro objeto desde la lógica general del original (Candy Beam, Meteor Shower...):
+    // si han acabado sin pegar ni lanzar nada, sale su disparo hacia el rival
+    if (!z.dd && !z.shotT && !z.ph && !p.res && !(z.info.melee && z.contact) && foe.st !== 'ko' && z.S && (z.S.k === 'shot' || z.S.k === 'beam') && !z.info.guard && !(z.S.R < 60 && z.S.k === 'beam')) this.zcShot(z, f, foe, 'kiblast_jogador_sprite');
     if (!z.dd && foe.st !== 'ko' && z.info.melee && z.contact && !z.info.guard) {   // tocó al rival pero sus eventos no llegaron a pegarle: un golpe fuerte
       const h = Math.hypot(foe.x - f.x, foe.z - f.z) || 1; foe.zh = 0;
       this.hit(f, foe, { dmg: VS.SPEC.rushEnd, stun: 0.9, kb: 26, up: 8, launch: true, heavy: true, gbreak: 60, fz: 6 }, (foe.x - f.x) / h, (foe.z - f.z) / h);

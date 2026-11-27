@@ -639,8 +639,10 @@ class VsSim {
       }
       if (d < s.r + 0.6 && !(s.cd > 0)) {
         const h = Math.hypot(s.vx, s.vz) || 1;
-        if (s.zk && s.hs.ghost) { (s.zk.z.shotHit || (s.zk.z.shotHit = {}))[s.zk.k] = 1; this.emit('pop', { x: s.x, y: s.y, z: s.z, col: s.col }); this.shots.splice(k, 1); continue; }   // bola del original: el daño lo ponen sus eventos
-        if (s.zk) (s.zk.z.shotHit || (s.zk.z.shotHit = {}))[s.zk.k] = 1;
+        if (s.zk) {                                                     // objeto de una técnica del original: avisa de que ha tocado
+          const z = s.zk.z, live = att.sp && att.sp.z === z; (z.shotHit || (z.shotHit = {}))[s.zk.k] = 1;
+          if (z.dd || (s.zk.own && live)) { this.emit('pop', { x: s.x, y: s.y, z: s.z, col: s.col }); this.shots.splice(k, 1); continue; }   // el daño lo ponen sus eventos (o ya lo han puesto)
+        }
         if (this.hit(att, def, s.hs || Object.assign({ shot: 1 }, VS.SHOT), s.vx / h, s.vz / h)) {
           this.emit('pop', { x: s.x, y: s.y, z: s.z, col: s.col });
           if (s.pierce > 1) { s.pierce--; s.cd = 0.4; } else { this.shots.splice(k, 1); continue; }                // el disco gigante atraviesa y vuelve
