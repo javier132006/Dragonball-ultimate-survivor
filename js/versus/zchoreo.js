@@ -65,8 +65,9 @@ Object.assign(VsSim.prototype, {
     z.kb = 1;   // su daño va en la bola: sin golpe genérico al acabar
     const tx = foe.x - f.x, tz = foe.z - f.z, ty = foe.y + 1.5 - (f.y + 1.7), h = Math.hypot(tx, tz) || 1, d = Math.hypot(h, ty) || 1, sp = ZC_BULLET(k) * ZC.PX;
     const own = (z.ownHit || (z.ownHit = {}))[k] !== undefined ? z.ownHit[k] : (z.ownHit[k] = JSON.stringify(z.CH).includes('"' + k + '","IsOverlapping"') || JSON.stringify(z.CH).includes('"' + k + '","OnCollision"'));
-    this.shots.push({ o: f.i, x: f.x + tx / h * 1.2, y: f.y + 1.7, z: f.z + tz / h * 1.2, vx: tx / d * sp, vy: ty / d * sp, vz: tz / d * sp, life: 2.2, r: 1.6, t: 0, hm: 0.001, col: f.def.col, pw: 2,
-      zk: { z, k, own }, hs: first ? { dmg: VS.SPEC.shot, stun: 0.85, kb: 24, up: 6, launch: true, heavy: true, gbreak: 60, fz: 5, shot: 1 } : { dmg: VS.SPEC.shot * 0.4, stun: 0.5, kb: 6, gbreak: 20, fz: 2, shot: 1 } });
+    const sh = { o: f.i, x: f.x + tx / h * 1.2, y: f.y + 1.7, z: f.z + tz / h * 1.2, vx: tx / d * sp, vy: ty / d * sp, vz: tz / d * sp, life: 2.2, r: 1.6, t: 0, hm: 0.001, col: f.def.col, pw: 2,
+      zk: { z, k, own }, ef: z.ef && z.ef[k], hs: first ? { dmg: VS.SPEC.shot, stun: 0.85, kb: 24, up: 6, launch: true, heavy: true, gbreak: 60, fz: 5, shot: 1 } : { dmg: VS.SPEC.shot * 0.4, stun: 0.5, kb: 6, gbreak: 20, fz: 2, shot: 1 } };
+    this.shots.push(sh); if (sh.ef && !sh.ef.shot) sh.ef.shot = sh; else sh.ef = null;   // el efecto del original viaja con él
   },
   /**
    * ¿El rival está dentro del dibujo actual del atacante? En el original muchos poderes (el Kamehameha) van dibujados
@@ -78,6 +79,46 @@ Object.assign(VsSim.prototype, {
     const k = 0.056, ax = foe.x - f.x, az = foe.z - f.z, along = ax * z.nx + az * z.nz, lat = Math.abs(ax * z.nz - az * z.nx);
     const a0 = -F.ax * k - 0.7, a1 = (F.w - F.ax) * k + 0.7, top = F.ay * k, low = -(F.h - F.ay) * k, fy = foe.y - f.y;   // el rival: medio cuerpo de ancho y 3 de alto
     return along > a0 && along < a1 && lat < 2.6 && fy < top && fy + 3 > low;
+  },
+  /** ¿La lógica de esta parte cambia ella misma de animación (a otra técnica, a Parado...)? Entonces manda ella al acabar */
+  zcDecides(z, part) {
+    const c = z.dec || (z.dec = {}); if (c[part] !== undefined) return c[part];
+    const e = z.CH[part]; return (c[part] = !!(e && e.ev && /\["(S|AV)","SetAnim","",\[\["s","/.test(JSON.stringify(e.ev)) && !(e.fin && e.fin.length)));
+  },
+  /** ¿La caja del fotograma actual de un efecto toca al rival? (null si no hay con qué medirlo) */
+  zcEfHit(z, e, foe) {
+    const D = typeof ZMoves !== 'undefined' && ZMoves.D.fxe; if (!D || e.dead) return null;
+    const name = e.k + ':' + (e.a && D.a[e.k + ':' + e.a] ? e.a : D.sc[e.k + '/0']), A = D.a[name]; if (!A) return null;
+    const F = ZMoves.partFrame('fxe', name, z.tt - e.t0, !!A.l); if (!F) return null;
+    const k = 0.056 * e.sc / 3.85, ax = foe.x - e.x, az = foe.z - e.z, al = ax * e.nx + az * e.nz, lat = Math.abs(ax * e.nz - az * e.nx), fy = foe.y - e.y;
+    const a0 = e.mir ? -(F.w - F.ax) * k : -F.ax * k, a1 = e.mir ? F.ax * k : (F.w - F.ax) * k;
+    return al > a0 - 0.7 && al < a1 + 0.7 && lat < 2.6 && fy < F.ay * k + 0.3 && fy + 3 > -(F.h - F.ay) * k - 0.3;
+  },
+  /**
+   * Efectos que pegan por su cuenta en la lógica general del original (el rayo del Makankosappo...): si su técnica no mira
+   * cuándo chocan y aún no ha hecho daño, al tocar al rival pegan una vez
+   */
+  zcEfStrike(z, f, foe) {
+    if (!z.ef || z.dd || z.efd || z.ph || (f.sp && (f.sp.res === 1 || f.sp.res === 3)) || foe.st === 'ko' || (foe.inv > 0 && !foe.zc) || !z.S || (z.S.k !== 'beam' && z.S.k !== 'shot')) return;
+    for (const k in z.ef) {
+      if (ZC_BULLET(k) || (z.own || (z.own = {}))[k] === undefined && (z.own[k] = JSON.stringify(z.CH).includes('"' + k + '","IsOverlapping"'))) continue;
+      if (z.own[k] || !this.zcEfHit(z, z.ef[k], foe)) continue;
+      z.efd = 1; const h = Math.hypot(foe.x - f.x, foe.z - f.z) || 1;
+      const r = this.hit(f, foe, { dmg: VS.SPEC.beam, stun: 0.9, kb: 26, up: 7, launch: true, heavy: true, gbreak: 60, fz: 6, shot: 1 }, (foe.x - f.x) / h, (foe.z - f.z) / h);
+      if (r === 1) this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, sp: 1 }); return;
+    }
+  },
+  /** De coordenadas del escenario original a mundo (en la línea atacante → rival, a la altura del atacante) */
+  zcW(z, f, X, Y) {
+    const lat = (f.x - z.ox) * -z.nz + (f.z - z.oz) * z.nx, a = (X - ZC.X0) * ZC.PX;
+    return [z.ox + z.nx * a - z.nz * lat, Y === null ? 0 : Math.max(0, (ZC.Y0 - Y) * ZC.PX), z.oz + z.nz * a + z.nx * lat];
+  },
+  /** Efecto que crea una técnica (objeto aparte en el original): se apunta para que versus.js lo dibuje con su animación */
+  zcEf(z, f, k, X, Y) {
+    const D = typeof ZMoves !== 'undefined' && ZMoves.D.fxe; if (!D || D.sc[k] === undefined) return null;
+    const q = this.zcW(z, f, X, Y), e = { k, a: null, x: q[0], y: q[1], z: q[2], t: 0, t0: z.tt, sc: D.sc[k], who: f.i, mir: 0, shot: null, dead: 0, nx: z.nx, nz: z.nz };
+    (this.zef || (this.zef = [])).push(e); (z.ef || (z.ef = {}))[k] = e; if (this.zef.length > 40) this.zef.shift();
+    return e;
   },
   zcX(z, o) { return ZC.X0 + ((o.x - z.ox) * z.nx + (o.z - z.oz) * z.nz) / ZC.PX; },
   zcY(z, o) { return ZC.Y0 - o.y / ZC.PX; },
@@ -204,10 +245,12 @@ Object.assign(VsSim.prototype, {
       }
       case 'OnCollision': case 'IsOverlapping': {
         const P0 = P[0] && P[0][1];
+        if (w === 'bordas_da_tela_sprite' || P0 === 'bordas_da_tela_sprite') { r = Math.hypot(f.x, f.z) > VS.R - 1.5; break; }   // el borde de la pantalla del original: el de la arena
         if (/defesa_effect_sprite/.test(w)) { r = (P0 === 'A' || P0 === 'AV') && z.n - z.gh <= 1; break; }   // le han pegado mientras se defendía (postura de contraataque)
         const o1 = this.zcObj(z, w, f, foe), o2 = this.zcObj(z, P0, f, foe);
         if (!o1 && o2 === foe) {                                         // un efecto o poder aparte toca al rival
           const X = z.fx[w];
+          if (z.ef && z.ef[w] && !ZC_BULLET(w) && this.zcEfHit(z, z.ef[w], foe) !== null) { r = this.zcEfHit(z, z.ef[w], foe) && foe.st !== 'ko'; break; }   // un efecto con su dibujo: su caja de verdad
           if (X && foe.st !== 'ko' && Math.abs(X[0] - this.zcX(z, foe)) < 230 && Math.abs(X[1] - (this.zcY(z, foe) - 80)) < 230) { r = true; break; }   // nació donde está el rival (o a su lado)
           if (X && ZC_BULLET(w)) { r = !!(z.shotHit && z.shotHit[w]) && foe.st !== 'ko'; break; }   // objeto que viaja (zcShot): toca cuando llega
           if (X && foe.st !== 'ko' && z.S && z.S.k === 'beam' && !(foe.inv > 0 && !foe.zc)) {   // un rayo: toca en todo su largo, no solo donde nace
@@ -243,6 +286,16 @@ Object.assign(VsSim.prototype, {
   /* ---------- acciones ---------- */
   zcAct(a, z, f, foe, rest) {
     const [w, fn, beh, P] = a, E = (i) => this.zcE(P[i], z, f, foe), o = this.zcObj(z, w, f, foe);
+    const ef = z.ef && z.ef[w];                                          // un efecto suyo que ya está en el escenario (versus.js lo dibuja)
+    if (ef) switch (fn) {
+      case 'SetAnim': ef.a = E(0); ef.t = 0; ef.t0 = z.tt; break;
+      case 'SetScale': ef.sc = E(0); break;
+      case 'Destroy': ef.dead = 1; delete z.ef[w]; break;
+      case 'SetPos': { const q = this.zcW(z, f, E(0), E(1)); ef.x = q[0]; ef.y = q[1]; ef.z = q[2]; break; }
+      case 'SetX': { const q = this.zcW(z, f, E(0), null); ef.x = q[0]; ef.z = q[2]; break; }
+      case 'SetY': ef.y = Math.max(0, (ZC.Y0 - E(0)) * ZC.PX); break;
+      case 'SetMirrored': ef.mir = E(0) === 0 ? 1 : 0; break;
+    }
     switch (fn) {
       case 'Wait': z.wait.push({ t: z.tt + E(0), acts: rest }); return 'wait';
       case 'SetPos': if (o === f || o === foe) { this.zcSet(z, o, E(0), E(1), o === foe ? f : null); if (o === foe) this.zcHold(z, foe); } break;
@@ -277,6 +330,7 @@ Object.assign(VsSim.prototype, {
         if (o === foe && /hit_/.test(k)) this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, sp: 1 });
         else if (/defesa/.test(k)) this.emit('guard', { i: o === f ? f.i : foe.i, x: (o || f).x, y: (o || f).y + 1.6, z: (o || f).z });
         if (o === f || o === foe) { const q = o === f ? this.zcIP(z, f, P.length > 2 ? E(2) : 0) : [this.zcX(z, foe), this.zcY(z, foe) - 80]; z.fx[k] = [q[0], q[1], z.tt]; }
+        if (o === f || o === foe) { const q = z.fx[k]; this.zcEf(z, f, k, q[0], q[1]); }
         if (o === f && ZC_BULLET(k)) this.zcShot(z, f, foe, k);
         break;
       }
@@ -289,7 +343,7 @@ Object.assign(VsSim.prototype, {
         break;
       }
       case 'Shake': this.emit('shake', { k: Math.min(1, E(0) / 6) }); break;
-      case 'CreateObject': { const k = P[0] && P[0][1]; if (k && P.length > 3) z.fx[k] = [E(2), E(3), z.tt]; z.proj = 1; if (k && ZC_BULLET(k)) this.zcShot(z, f, foe, k); break; }
+      case 'CreateObject': { const k = P[0] && P[0][1]; if (k && P.length > 3) { z.fx[k] = [E(2), E(3), z.tt]; this.zcEf(z, f, k, E(2), E(3)); } z.proj = 1; if (k && ZC_BULLET(k)) this.zcShot(z, f, foe, k); break; }
       case 'SetVar': if (P[0] && P[0][0] === 'g') z.g[P[0][1]] = E(1); break;
     }
     return null;
@@ -330,6 +384,7 @@ Object.assign(VsSim.prototype, {
     if (e && e.ev) for (const t of e.ev) this.zcRun(t, z, f, foe, {});
     else if (G) for (const t of G.ev) this.zcRun(t, z, f, foe, {});
     this.zcLaunchRun(z, f, foe);
+    this.zcEfStrike(z, f, foe);
     if (z.hold && foe.st !== 'ko') { foe.zh = 0.2; foe.vx = foe.vy = foe.vz = 0; foe.stun = Math.max(foe.stun, 0.5); }
     // Animación parada (SetAnimSpeed 0) esperando a que su poder aparte (el rayo, la esfera) termine: aquí no existe, sigue sola
     if (z.rate === 0 && !z.wait.length) {
@@ -380,7 +435,7 @@ Object.assign(VsSim.prototype, {
     this.zcLaunchRun(z, f, foe);
     // Técnicas de disparo o rayo cuyo proyectil lanza otro objeto desde la lógica general del original (Candy Beam, Meteor Shower...):
     // si han acabado sin pegar ni lanzar nada, sale su disparo hacia el rival
-    if (!z.dd && !z.shotT && !z.ph && !p.res && !(z.info.melee && z.contact) && foe.st !== 'ko' && z.S && (z.S.k === 'shot' || z.S.k === 'beam') && !z.info.guard && !(z.S.R < 60 && z.S.k === 'beam')) this.zcShot(z, f, foe, 'kiblast_jogador_sprite');
+    if (!z.dd && !z.efd && !z.shotT && !z.ph && !p.res && !(z.info.melee && z.contact) && foe.st !== 'ko' && z.S && (z.S.k === 'shot' || z.S.k === 'beam') && !z.info.guard && !(z.S.R < 60 && z.S.k === 'beam')) this.zcShot(z, f, foe, 'kiblast_jogador_sprite');
     if (!z.dd && foe.st !== 'ko' && z.info.melee && z.contact && !z.info.guard) {   // tocó al rival pero sus eventos no llegaron a pegarle: un golpe fuerte
       const h = Math.hypot(foe.x - f.x, foe.z - f.z) || 1; foe.zh = 0;
       this.hit(f, foe, { dmg: VS.SPEC.rushEnd, stun: 0.9, kb: 26, up: 8, launch: true, heavy: true, gbreak: 60, fz: 6 }, (foe.x - f.x) / h, (foe.z - f.z) / h);

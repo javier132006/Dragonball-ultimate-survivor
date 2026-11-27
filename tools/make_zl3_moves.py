@@ -376,6 +376,48 @@ def sounds():
     print('sonidos', len(files), 'ficheros', tot // 1024, 'KB ·', len(out), 'luchadores')
 
 
+# Efectos que crean las técnicas por su cuenta (objetos aparte en el original: la bola de Hakai, los portales de Janemba,
+# las imágenes residuales de Gogeta...). Se guardan las animaciones que les ponen sus eventos. Fuera: golpes, polvo y explosiones
+# genéricos (el Versus tiene los suyos) y lo que no se dibuja en el escenario
+FXE_SKIP = {'backgroundtransparente', 'cutscenes_sprite', 'z_assist_jogador', 'ginyu_troop_assists', 'controlguide_sprite', 'defesa_effect_sprite',
+            'hit_sprite', 'hit_forte_sprite', 'hit_extremamente_forte_sprite', 'poeira1', 'poeira2', 'poeira3', 'poeira4', 'poeira5', 'poeira7',
+            'poeira_de_colisao_com_o_solo_sprite', 'poeiradesaltoequeda_sprite', 'efeitodeimpacto_sprite', 'efeito_quebravento_sprite',
+            'impactoderochas_sprite', 'chaodestruido_sprite', 'shin_kykouho_effect_poeira_sprite', 'explosao_sprite', 'efeitobranconatela_sprite',
+            'efeitodederrota_sprite', 'legendas_background', 'hitto_ataques_continue_button_sprite', 'brolydbs_giganticimpact_button_sprite'}
+
+
+def fx_effects():
+    import glob
+    used, spawned = collections.defaultdict(set), set()
+    for f in glob.glob(os.path.join(OUT, 'ch_*.js')):
+        t = open(f, encoding='utf-8').read()
+        spawned |= set(re.findall(r'"(?:Spawn|CreateObject)","",\[\["o","([a-z_0-9]+)"', t))
+        for o, a in re.findall(r'\["([a-z_0-9]+)","SetAnim","",\[\["s","([^"]+)"', t): used[o].add(a)
+    # Tamaño por defecto de cada objeto en los niveles (ancho de la instancia / ancho de su imagen): escala con la que nace
+    sc = {}
+    def walk(x):
+        if isinstance(x, list):
+            if len(x) >= 6 and isinstance(x[0], list) and len(x[0]) >= 10 and isinstance(x[1], int) and isinstance(x[-1], list) and len(x[-1]) >= 2 and isinstance(x[-1][1], str):
+                k = Z.key_of(Z.T[x[1]]) if x[1] < len(Z.T) else None
+                if k and k not in sc:
+                    A = Z.anims_of(Z.T[x[1]]); a = A.get(x[-1][1])
+                    if a and a['f'] and a['f'][0]['w']: sc[k] = round(x[0][3] / a['f'][0]['w'], 3)
+                return
+            for e in x: walk(e)
+    for L in Z.P[5]: walk(L)
+    A2, names, S = {}, [], {}
+    for o in sorted(spawned - FXE_SKIP):
+        bt = Z.best_type(o, None)
+        if not bt: continue
+        A = Z.anims_of(bt[1]); want = [a for a in sorted(used.get(o, ())) if a in A] or [next(iter(A))]
+        for n in want:
+            nm = o + ':' + n; A2[nm] = A[n]; names.append(nm)
+        S[o] = sc.get(o, 3.7); S[o + '/0'] = next(iter(A))
+    s = write('fxe', A2, names, {'sc': S})
+    print('%-18s %3d animaciones · %5d KB' % ('fxe', len(names), s // 1024))
+    return s
+
+
 def main():
     if '--snd' in sys.argv: return sounds()
     only = [a for a in sys.argv[2:] if not a.startswith('--') and a != PREV]
@@ -414,6 +456,8 @@ def main():
                     nm = fxname(key, n); A2[nm] = a; names.append(nm)
         s = write('fx', A2, names); total += s
         print('%-18s %3d animaciones · %5d KB' % ('fx', len(names), s // 1024))
+    if not only or 'fxe' in only:
+        s = fx_effects(); total += s
     have = sorted(f[:-3] for f in os.listdir(OUT) if f.endswith('.js') and f not in ('fx.js', 'list.js', 'snd.js') and not f.startswith('ch_'))
     json.dump(TM, open(TMP, 'w'), ensure_ascii=False)
     X = {}

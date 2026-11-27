@@ -264,8 +264,30 @@ class Versus {
   /** Proyectiles y explosiones de las Ultimates de Z Legends 3 (eventos zProj / zBoom de la simulación) */
   zFx(kind, e) {
     const L = this.zfx || (this.zfx = []);
-    if (kind === 'proj' && e.fx) L.push({ a: e.fx, t: 0, T: e.T, o: [e.ox, e.oy, e.oz], d: [e.tx, e.ty, e.tz], k: /esferadekigigante:Goku/.test(e.fx) ? 0.6 : /esferadekigigante/.test(e.fx) ? 0.9 : 1.6, loop: true });
+    if (kind === 'proj' && e.fx) L.push({ a: e.fx, t: 0, T: e.T, o: [e.ox, e.oy, e.oz], d: [e.tx, e.ty, e.tz], k: /esferadekigigante:Goku/.test(e.fx) ? 0.6 : /esferadekigigante/.test(e.fx) ? 0.9 : /^vegetaego:/.test(e.fx) ? 5 / 3.85 * 1.6 : 1.6, loop: true });   // la Hakai gigante: SetScale(5) en el original
     if (kind === 'boom') L.push({ a: e.fx || 'explosao:Explosao15', t: 0, T: ZMoves.fxDur(e.fx || 'explosao:Explosao15') || 0.6, o: [e.x, e.y - 1, e.z], d: null, k: 1.8, loop: false });
+  }
+  /**
+   * Efectos que crean las técnicas de Z Legends 3 (sim.zef, versus/zchoreo.js): con su animación, su escala del original y,
+   * si viajan, pegados a su proyectil. Se van al destruirlos, al acabar su animación o al chocar su proyectil
+   */
+  zEfStep(dt) {
+    const sim = this.sim, L = sim && sim.zef, D = ZMoves.D.fxe, P = this.zePool || (this.zePool = []), on = this.zeOn || (this.zeOn = new Map());
+    const seen = new Set();
+    if (L && D) for (let n = L.length - 1; n >= 0; n--) {
+      const e = L[n]; e.t += dt;
+      const name = e.k + ':' + (e.a && D.a[e.k + ':' + e.a] ? e.a : D.sc[e.k + '/0']), A = D.a[name];
+      const gone = e.shot ? !sim.shots.includes(e.shot) : false;
+      let dur = 0; if (A) for (const g of A.f) dur += (g[7] || 1) / (A.fps || 12);
+      if (e.dead || gone || !A || e.t > 6 || (!e.shot && !A.l && e.t > dur + 0.05)) { L.splice(n, 1); continue; }
+      const F = ZMoves.partFrame('fxe', name, e.t, !!A.l || !!e.shot), T = F && ZMoves.tex('fxe', F.pg, 'v'); if (!T) continue;
+      let s = on.get(e); if (!s) { s = P.pop() || this.zSprite(); on.set(e, s); } seen.add(e);
+      const a = this.actors[e.who], k = e.sc / 3.85, flip = a ? a.flip !== !!e.mir : false;
+      s.setSheet(T); s.poseRect(F, flip, 1, 1, k); s.u.uRight.value.copy(this.actors[0].spr.u.uRight.value);
+      if (e.shot) s.mesh.position.set(e.shot.x, e.shot.y - (F.h / 2 - (F.h - F.ay)) * VS_U * k, e.shot.z); else s.mesh.position.set(e.x, e.y, e.z);
+      s.mesh.visible = true;
+    }
+    for (const [e, s] of on) if (!seen.has(e)) { s.mesh.visible = false; P.push(s); on.delete(e); }
   }
   zFxStep(dt) {
     const L = this.zfx; if (!L) return;
@@ -426,7 +448,7 @@ class Versus {
     this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); a.ti = 0;
       a.team = teams[i].map((ch, k) => ({ chain: ch, sheets: tSheets[i][k], intros: tIntros[i][k].slice(0, ch.length), zid: ch.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)) })); });
     {                                                                    // técnicas, entradas y victorias de Z Legends 3: se esperan (4 s como mucho) para que la entrada salga bien
-      const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => { if (c) { L.push(ZMoves.load(c)); ZSnd.load(c); } }); a.chain.forEach((d) => { const X = window.ZMOVE_X && ZMOVE_X[d.id + '/' + d.form]; if (X) { L.push(ZMoves.load(X[0])); ZSnd.load(X[0]); } }); }); L.push(ZMoves.load('fx'));
+      const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => { if (c) { L.push(ZMoves.load(c)); ZSnd.load(c); } }); a.chain.forEach((d) => { const X = window.ZMOVE_X && ZMOVE_X[d.id + '/' + d.form]; if (X) { L.push(ZMoves.load(X[0])); ZSnd.load(X[0]); } }); }); L.push(ZMoves.load('fx')); L.push(ZMoves.load('fxe'));   // fxe: efectos que crean las técnicas (bola de Hakai, portales...)
       { const z0 = this.actors[0].zid, z1 = this.actors[1].zid; if (z0.some((a) => z1.some((b) => a && b && ZDFL.pair(a, b)))) ZDFL.load().then(() => { for (const n in window.ZDF || {}) if (z0.includes(ZDF[n].w) && z1.includes(ZDF[n].l) || z1.includes(ZDF[n].w) && z0.includes(ZDF[n].l)) ZDFL.sounds(n); }); }   // Dramatic Finish posible: su guion y sus voces
       this.actors.forEach((a) => { a.team[0].zid = a.zid; for (const M of a.team.slice(1)) for (const cz of M.zid) if (cz) { L.push(ZMoves.load(cz)); ZSnd.load(cz); } });   // los compañeros, también
       await Promise.race([Promise.all(L), new Promise((r) => setTimeout(r, 4000))]);
@@ -472,7 +494,7 @@ class Versus {
   storySel() { const s = VsStoryData.d().sel; return Array.isArray(s) && VS_STORY[s[0]] && VS_STORY[s[0]].ch[s[1]] ? s : [0, 0]; }
   clearFight() {
     this.zCutHide && this.zCutHide();
-    if (this.zfx) for (const q of this.zfx) if (q.s) q.s.mesh.visible = false; this.zfx = [];
+    if (this.zfx) for (const q of this.zfx) if (q.s) q.s.mesh.visible = false; this.zfx = []; this.zPool = null; this.zePool = null; this.zeOn = null;   // los sprites sueltos son de la escena que se va
     if (!this.scene) return; const r = this.g.renderer;
     this.scene.traverse((o) => { if (o.geometry && o.geometry !== VS_QUAD) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.customDepthMaterial) o.customDepthMaterial.dispose(); });
     if (this.post) this.post.dispose(); r.setRenderTarget(null); r.shadowMap.autoUpdate = this.saved.auto; if (this.saved.pr) { r.setPixelRatio(this.saved.pr); r.setSize(window.innerWidth, window.innerHeight, false); } this.g.shadowDirty = true;
@@ -568,7 +590,7 @@ class Versus {
   }
   ghost(i, col, life) {
     const a = this.actors[i], g = this.ghosts.find((s) => s.life <= 0); if (!g) return;
-    g.setSheet(a.spr.s); g.pose(a.fr, a.flip, a.roll, 1, 1); g.u.uRight.value.copy(a.spr.u.uRight.value); g.mesh.position.set(a.px, a.py, a.pz); g.u.uTint.value.setHex(col); g.life = g.max = life || 0.24; g.mesh.visible = true;
+    const lr = a.spr.lr; g.setSheet(a.spr.s); if (lr) g.poseRect(lr.f, lr.flip, lr.sx, lr.sy, lr.k); else g.pose(a.fr, a.flip, a.roll, 1, 1);   // con un fotograma de Z Legends 3, su recorte (si no, salía la página entera) g.u.uRight.value.copy(a.spr.u.uRight.value); g.mesh.position.set(a.px, a.py, a.pz); g.u.uTint.value.setHex(col); g.life = g.max = life || 0.24; g.mesh.visible = true;
   }
   /** Imagen del luchador i en otro punto (las copias de la Ultimate de imágenes múltiples) */
   ghostAt(i, x, y, z, col, life) { const a = this.actors[i], px = a.px, py = a.py, pz = a.pz; a.px = x; a.py = y; a.pz = z; this.ghost(i, col, life); a.px = px; a.py = py; a.pz = pz; }
@@ -1106,7 +1128,7 @@ class Versus {
     this.blur = Math.max(0, this.blur - rawDt * 2.6); this.chroma = Math.max(0, this.chroma - rawDt * 0.07); this.flash = Math.max(0, this.flash - rawDt * (this.flash > 0.45 ? 6 : 2.2));   // los fundidos a blanco se abren rápido
     if (this.dfx) { this.dfx.update(rawDt); if (this.dfx.done) this.dfx = null; }
     if (this.intro) this.stepIntro(); if (this.fin) this.stepFinal(rawDt); if (this.vic) this.vic.t += rawDt;
-    this.zFxStep(rawDt);
+    this.zFxStep(rawDt); this.zEfStep(rawDt);
     if (!this.zcOn) this.zCutHide(); this.zcOn = false;
     this.arena.update(dt, T, this.dim, this.dimCol); cam.update(rawDt, sim, false);
     const m = cam.cam.matrixWorld.elements, rx = m[0], rz = m[2], rl = Math.hypot(rx, rz) || 1, RX = rx / rl, RZ = rz / rl;       // derecha de la cámara, en horizontal

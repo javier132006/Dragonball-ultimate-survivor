@@ -115,7 +115,7 @@ class VsSim {
   emit(t, o) { o = o || {}; o.t = t; this.ev.push(o); }
   newRound() {
     this.round++; this.f[0].reset(7); this.f[1].reset(-7);                // con la cámara en -z, la derecha de la pantalla es -x: el jugador 1 empieza a la izquierda
-     this.shots.length = 0; this.blasts = []; this.ult = null; this.tr = null; this.clash = null; this.freeze = 0; this.tag = null;
+     this.shots.length = 0; this.zef = []; this.blasts = []; this.ult = null; this.tr = null; this.clash = null; this.freeze = 0; this.tag = null;
     this.time = this.roundTime; this.phase = 'intro'; this.pt = 0; this.cx = 0; this.cz = -1; this.df = 0;
     this.introT = this.round === 1 && this.o.intro ? this.o.intro : 2.3;   // la primera ronda puede llevar las entradas de los luchadores
     this.emit('round', { n: this.round });
@@ -443,7 +443,7 @@ class VsSim {
     } else if (ZG && S.k === 'rush' && p.res === 1 && foe.st === 'hurt' && td > 2.4) {   // lo va siguiendo mientras le pega
       const k = Math.min(1, dt * 10); f.x += (foe.x - nx * 2 - f.x) * k; f.z += (foe.z - nz * 2 - f.z) * k; f.y += (foe.y - f.y) * k;
     }
-    if (ZG && atRel && !p.res && !(p.z && p.z.kb)) {   // (si lanza bolas de ki que viajan, aciertan ellas)
+    if (ZG && atRel && !p.res && !(p.z && (p.z.kb || p.z.efd))) {   // (si lanza bolas de ki que viajan, aciertan ellas)
       if (S.k === 'beam') {
         const ax = foe.x - f.x, ay = foe.y - f.y, az = foe.z - f.z, along = ax * p.dx + ay * p.dy + az * p.dz;
         const lat = Math.hypot(ax - p.dx * along, ay - p.dy * along, az - p.dz * along), reach = Math.max(6, S.R * 0.056 + 1.4);
@@ -466,6 +466,12 @@ class VsSim {
     }
     // avanza la animación
     if (P && p.pt >= Math.max(P[1], P[2] ? 0.5 : 0)) {
+      // Como en Construct 2: una animación sin bucle que acaba se queda en su último fotograma hasta que su lógica la cambia
+      // (Head Impact: sigue avanzando hasta tocar al rival). Tope de 0,8 s por si esa lógica depende de algo que aquí no existe
+      if (!P[2] && p.z && this.zcDecides(p.z, P[0]) && p.pt < P[1] + 0.8) {
+        const mv = Math.hypot(f.x - (p.lx === undefined ? f.x : p.lx), f.z - (p.lz === undefined ? f.z : p.lz)) > 1e-3, air = this.shots.some((q) => q.zk && q.zk.z === p.z);
+        p.lx = f.x; p.lz = f.z; if (mv || air || p.pt < P[1] + 0.05) return;   // solo mientras avanza o su proyectil sigue en el aire
+      }
       if (p.si < p.seq.length - 1) { p.si++; p.pt = 0; return; }
       if (p.seq === S.P && p.res === 1 && S.H.length) { p.seq = S.H; p.si = 0; p.pt = 0; return; }
       if (p.seq === S.P && p.res === 2 && S.E.length) { p.seq = S.E; p.si = 0; p.pt = 0; return; }
@@ -917,7 +923,9 @@ class VsSim {
       const dy = foe.y - f.y, d = Math.hypot(dh, dy);
       if (foe.st === 'ko' || foe.inv > 0) this.zl3Miss(u, f, foe);
       else if (Z.k === 'proj') {                                          // el proyectil viaja hasta donde estaba el rival
-        const orb = Z.fx && Z.fx.orb, ox = f.x + u.hx * (orb ? 0 : 1.2), oy = f.y + (orb ? 5 : 2.2), oz = f.z + u.hz * (orb ? 0 : 1.2), T = Math.max(0.25, d / 34);
+        const orb = Z.fx && Z.fx.orb, ox = f.x + u.hx * (orb ? 0 : 1.2), oz = f.z + u.hz * (orb ? 0 : 1.2); let oy = f.y + (orb ? 5 : 2.2);
+        if (Z.fx && /^vegetaego:/.test(Z.fx.p || '')) oy = f.y + 500 * ZC.PX;   // Hakai Gigantic Ball: nace 500 px sobre Vegeta (CreateObject JUG.Y() - 500) y cae sobre el rival
+        const pre = Z.fx && Z.fx.p ? Z.fx.p.split(':')[0] : '', bk = typeof ZC_BULLETS !== 'undefined' && Object.keys(ZC_BULLETS).find((k) => k.startsWith(pre) && pre), v = bk ? ZC_BULLETS[bk] * ZC.PX : 16, T = Math.max(0.45, d / v);   // a la velocidad de su objeto en el original
         u.pj = { t: 0, T, ox, oy, oz, tx: foe.x, ty: foe.y + 1.2, tz: foe.z }; u.res = 3;
         this.emit('zProj', { i: f.i, ox, oy, oz, tx: foe.x, ty: foe.y + 1.2, tz: foe.z, T, fx: Z.fx && Z.fx.p });
       } else if (Z.k === 'warp' && false) {                                // (antes aparecía a su lado: ahora se lanza contra él desde fx.d)

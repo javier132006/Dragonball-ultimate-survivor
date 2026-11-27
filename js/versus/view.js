@@ -88,6 +88,7 @@ class VsSprite {
   }
   /** Fotograma con recorte libre de un atlas de Z Legends 3 (js/zmoves.js): f = {x, y, w, h, ax, ay} en píxeles de la página */
   poseRect(f, flip, sx, sy, k) {
+    this.lr = { f, flip, sx, sy, k };                                    // último recorte (las estelas lo copian)
     const iw = this.s.iw, ih = this.s.ih, K = k || 1;
     for (const u of this.du ? [this.u, this.du] : [this.u]) {
       u.uRect.value.set(f.x / iw, 1 - (f.y + f.h) / ih, f.w / iw, f.h / ih);
@@ -98,6 +99,7 @@ class VsSprite {
   setSheet(s) { this.s = s; for (const u of this.du ? [this.u, this.du] : [this.u]) { u.map.value = s.tex; u.uTex.value.set(s.iw, s.ih); } }
   /** Fotograma, volteo, giro y escala (sx, sy para estirar y aplastar) */
   pose(frame, flip, roll, sx, sy) {
+    this.lr = null;
     const d = this.s.d, cx = frame % d.cols, cy = (frame / d.cols) | 0;
     for (const u of this.du ? [this.u, this.du] : [this.u]) {
       u.uRect.value.set(cx / d.cols, 1 - (cy + 1) / d.rows, 1 / d.cols, 1 / d.rows);
