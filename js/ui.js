@@ -552,7 +552,7 @@ class UIManager {
 
   /* ---------- Modo Leyenda: biblioteca de libros (sagas) y cada libro con sus capítulos ---------- */
   /** Retrato de un personaje para el Modo Leyenda (canvas cuadrado; la forma puede ser otra hoja) */
-  storyPic(c, sheet, w) { return c ? '<canvas width="' + (w || 96) + '" height="' + (w || 96) + '" data-sheet="' + (sheet || c.portrait.sheet) + '" data-frame="' + (sheet ? 0 : c.portrait.frame) + '"></canvas>' : ''; }
+  storyPic(c, sheet, w) { if (c && !sheet && !c.portrait) sheet = c.forms && c.forms[0].sheet; return c ? '<canvas width="' + (w || 96) + '" height="' + (w || 96) + '" data-sheet="' + (sheet || c.portrait.sheet) + '" data-frame="' + (sheet ? 0 : c.portrait.frame) + '"></canvas>' : ''; }   // (luchadores de Z Legends 3 sin retrato: su hoja)
   /** Retrato de un rival: luchador (hoja de su forma) o jefe (su fila de la hoja de jefes) */
   bossPic(B, w) {
     if (!B) return '';
@@ -618,7 +618,7 @@ class UIManager {
     return { L, b1: c1, b2: lite };
   }
   /** Héroe y villano de la portada: el primer luchador de la saga y el último rival */
-  vsSagaCover(S) { return this.storyPic(charById(S.ch[0].p[0])) + '|' + this.storyPic(charById(S.ch[S.ch.length - 1].r[0])); }
+  vsSagaCover(S) { return this.storyPic(vsCharById(S.ch[0].p[0])) + '|' + this.storyPic(vsCharById(S.ch[S.ch.length - 1].r[0])); }
   vsSagaArt(S) { const [h, v] = this.vsSagaCover(S).split('|'); return '<span class="bkart"><span class="bkh">' + h + '</span><span class="bkv">' + v + '</span></span>'; }
   renderVsLegend() {
     const D = VsStoryData;
@@ -642,14 +642,14 @@ class UIManager {
     const D = VsStoryData, S = VS_STORY[si], { L, b1, b2 } = this.vsSagaCols(S), n = S.ch.length, nd = S.ch.filter((C, j) => D.stars(si, j) > 0).length, P = VS_STORY_PAY;
     if (this.vchap == null || !S.ch[this.vchap] || !D.open(si, this.vchap)) { const k = S.ch.findIndex((C, j) => D.open(si, j) && !D.stars(si, j)); this.vchap = k < 0 ? 0 : k; }
     const ci = this.vchap, C = S.ch[ci], st = D.stars(si, ci), key = D.key(si, ci);
-    const pd = vsChain(charById(C.p[0]), C.p[1])[0], rd = vsChain(charById(C.r[0]), C.r[1])[0], hero = charById(C.p[0]), riv = charById(C.r[0]);
-    const goal = (X) => X.goal === 'survive' ? '⏱ Resiste ' + X.sec + ' s ante ' + nice(charById(X.r[0]).name) : '⚔ Gana a ' + nice(charById(X.r[0]).name);
+    const pd = vsChain(vsCharById(C.p[0]), C.p[1])[0], rd = vsChain(vsCharById(C.r[0]), C.r[1])[0], hero = vsCharById(C.p[0]), riv = vsCharById(C.r[0]);
+    const goal = (X) => X.goal === 'survive' ? '⏱ Resiste ' + X.sec + ' s ante ' + nice(vsCharById(X.r[0]).name) : '⚔ Gana a ' + nice(vsCharById(X.r[0]).name);
     const dark = (hx) => '#' + hx.slice(1).match(/../g).map((x) => Math.round(parseInt(x, 16) * 0.62).toString(16).padStart(2, '0')).join('');
     this.hdr = { t: S.t, s: L.d ? L.kj + ' · Historia del Versus' : 'Historia del Versus', c: '', k: '物', st: '--bg:linear-gradient(100deg,' + b1 + ',' + b2 + ');--be:' + dark(b1), back: 'data-vbook="-1"' };
     const rows = S.ch.map((X, j) => {
       const o = D.open(si, j), s2 = D.stars(si, j);
       return '<button class="chr' + (j === ci ? ' on' : '') + (s2 ? ' dn' : '') + (o ? '' : ' lk') + '" data-vchap="' + j + '"' + (o ? '' : ' disabled') + '><em>' + (s2 ? '✓' : j + 1) + '</em>' +
-        '<span class="chp">' + (o ? this.storyPic(charById(X.p[0]), vsChain(charById(X.p[0]), X.p[1])[0].sheet, 72) : '🔒') + '</span><span class="cht"><b>' + (o ? X.t : '???') + '</b><small>' + (o ? goal(X) : 'Completa el capítulo anterior') + '</small></span>' +
+        '<span class="chp">' + (o ? this.storyPic(vsCharById(X.p[0]), vsChain(vsCharById(X.p[0]), X.p[1])[0].sheet, 72) : '🔒') + '</span><span class="cht"><b>' + (o ? X.t : '???') + '</b><small>' + (o ? goal(X) : 'Completa el capítulo anterior') + '</small></span>' +
         '<span class="chs">' + this.starsHtml(s2) + '</span></button>';
     }).join('');
     // Premio del libro: los guerreros que desbloquea y los cristales de la saga
@@ -663,7 +663,7 @@ class UIManager {
     if (C.mid && C.mid.some((m) => m.tr)) chips.push('<span class="chip o">⚡ El rival se transforma</span>');
     if (C.mid && C.mid.some((m) => m.pt)) chips.push('<span class="chip o">✦ Te transformarás a mitad</span>');
     chips.push('<span class="chip y"><span class="coin"></span> ' + (st ? 'Completado' : '+' + P.first) + '</span>');
-    if (!Save.d.unlocked.includes(hero.id)) chips.push('<span class="chip o">Solo en este capítulo</span>');
+    if (!hero.zl && !Save.d.unlocked.includes(hero.id)) chips.push('<span class="chip o">Solo en este capítulo</span>');
     const B = C.bonus, ok = [st > 0, !!D.d().st[key + ':b'], !!D.d().st[key + ':h']];
     const conds = [C.goal === 'survive' ? 'Resiste ' + C.sec + ' segundos' : 'Gana el combate', B ? VS_STORY_BONUS[B.k](B.v) : 'Reto especial', 'Acaba con más de media vida']
       .map((t, i) => '<div class="' + (ok[i] ? 'ok' : '') + '"><i>★</i>' + t + '</div>').join('');
