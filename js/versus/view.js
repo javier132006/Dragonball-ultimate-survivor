@@ -25,12 +25,12 @@ function vsTexture(name) {
 
 /* ---------------- Sprite iluminado ---------------- */
 const VSS_VS = `
-uniform vec2 uSize; uniform vec2 uAnchor; uniform vec4 uRect; uniform vec3 uRight; uniform float uFlip; uniform float uRoll;
+uniform vec2 uSize; uniform vec2 uAnchor; uniform vec4 uRect; uniform vec3 uRight; uniform float uFlip; uniform float uRoll; uniform float uPv;
 varying vec2 vUv; varying vec2 vQ;
 void main() {
   vQ = uv;
-  vec2 l = (uv - uAnchor) * uSize; float c = cos(uRoll), s = sin(uRoll); vec2 pv = vec2(0.0, uSize.y * (0.5 - uAnchor.y));
-  l -= pv; l = vec2(l.x * c - l.y * s, l.x * s + l.y * c) + pv;                 // gira alrededor del centro del cuerpo
+  vec2 l = (uv - uAnchor) * uSize; float c = cos(uRoll), s = sin(uRoll); vec2 pv = vec2(0.0, uSize.y * (0.5 - uAnchor.y)) * (1.0 - uPv);
+  l -= pv; l = vec2(l.x * c - l.y * s, l.x * s + l.y * c) + pv;                 // gira alrededor del centro del cuerpo (uPv = 1: de su punto de apoyo)
   vec3 w = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz + uRight * l.x + vec3(0.0, 1.0, 0.0) * l.y;
   vUv = uRect.xy + vec2(uFlip > 0.5 ? 1.0 - uv.x : uv.x, uv.y) * uRect.zw;
   gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
@@ -75,7 +75,7 @@ const VS_QUAD = new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0);    // uv =
 class VsSprite {
   constructor(scene, shadow) {
     const U = () => ({ map: { value: null }, uTex: { value: new THREE.Vector2(1, 1) }, uRect: { value: new THREE.Vector4(0, 0, 1, 1) }, uSize: { value: new THREE.Vector2(1, 1) },
-      uAnchor: { value: new THREE.Vector2(0.5, 0) }, uRight: { value: new THREE.Vector3(1, 0, 0) }, uFlip: { value: 0 }, uRoll: { value: 0 } });
+      uAnchor: { value: new THREE.Vector2(0.5, 0) }, uRight: { value: new THREE.Vector3(1, 0, 0) }, uFlip: { value: 0 }, uRoll: { value: 0 }, uPv: { value: 0 } });
     this.u = Object.assign(U(), { uAmb: { value: new THREE.Color(1, 1, 1) }, uKey: { value: new THREE.Color(0, 0, 0) }, uKeyDir: { value: new THREE.Vector2(0, 1) }, uRim: { value: new THREE.Color(0, 0, 0) },
       uRimDir: { value: new THREE.Vector2(1, 0) }, uTint: { value: new THREE.Color(1, 1, 1) }, uFlashCol: { value: new THREE.Color(1, 1, 1) }, uFlash: { value: 0 }, uAlpha: { value: 1 }, uGhost: { value: 0 } });
     this.mat = new THREE.ShaderMaterial({ uniforms: this.u, vertexShader: VSS_VS, fragmentShader: VSS_FS, transparent: true, depthWrite: !!shadow, blending: THREE.CustomBlending,

@@ -115,7 +115,7 @@ class VsSim {
   emit(t, o) { o = o || {}; o.t = t; this.ev.push(o); }
   newRound() {
     this.round++; this.f[0].reset(7); this.f[1].reset(-7);                // con la cámara en -z, la derecha de la pantalla es -x: el jugador 1 empieza a la izquierda
-     this.shots.length = 0; this.zef = []; this.blasts = []; this.ult = null; this.tr = null; this.clash = null; this.freeze = 0; this.tag = null;
+     this.shots.length = 0; this.zef = []; this.zW = []; this.blasts = []; this.ult = null; this.tr = null; this.clash = null; this.freeze = 0; this.tag = null;
     this.time = this.roundTime; this.phase = 'intro'; this.pt = 0; this.cx = 0; this.cz = -1; this.df = 0;
     this.introT = this.round === 1 && this.o.intro ? this.o.intro : 2.3;   // la primera ronda puede llevar las entradas de los luchadores
     this.emit('round', { n: this.round });
@@ -147,6 +147,7 @@ class VsSim {
     for (let i = 0; i < 2; i++) this.stepFighter(this.f[i], this.f[1 - i], cmd[i] || { mx: 0, mz: 0, b: 0 });
     if (this.ult) this.stepUlt();
     this.stepShots();
+    this.zeStep();                                                      // efectos de las técnicas de Z Legends 3 (versus/zfx.js)
     // Los cuerpos no se atraviesan
     const ex = b.x - a.x, ez = b.z - a.z, eh = Math.hypot(ex, ez);
     if (eh < 1.5 && Math.abs(b.y - a.y) < 2.4 && a.st !== 'ko' && b.st !== 'ko' && !(this.ult && this.ult.lock) && !(a.zh > 0 || b.zh > 0 || a.sp && a.sp.z || b.sp && b.sp.z)) {
@@ -468,9 +469,11 @@ class VsSim {
     if (P && p.pt >= Math.max(P[1], P[2] ? 0.5 : 0)) {
       // Como en Construct 2: una animación sin bucle que acaba se queda en su último fotograma hasta que su lógica la cambia
       // (Head Impact: sigue avanzando hasta tocar al rival). Tope de 0,8 s por si esa lógica depende de algo que aquí no existe
-      if (!P[2] && p.z && this.zcDecides(p.z, P[0]) && p.pt < P[1] + 0.8) {
-        const mv = Math.hypot(f.x - (p.lx === undefined ? f.x : p.lx), f.z - (p.lz === undefined ? f.z : p.lz)) > 1e-3, air = this.shots.some((q) => q.zk && q.zk.z === p.z);
-        p.lx = f.x; p.lz = f.z; if (mv || air || p.pt < P[1] + 0.05) return;   // solo mientras avanza o su proyectil sigue en el aire
+      p.fr = /^(hurt|launched|down|stun|guard|held|grabd)$/.test(foe.st) ? 0 : (p.fr || 0) + VS_DT;   // el rival ya está libre: no se espera más
+      const zA = p.z && ZE.on() && p.fr < 0.6 && (this.zeAir(p.z) || this.zeBusy(p.z));   // sus efectos siguen en marcha (la lluvia de Energy Combination...)
+      if (!P[2] && p.z && this.zcDecides(p.z, P[0]) && p.pt < P[1] + (zA ? 6 : 0.8)) {
+        const mv = Math.hypot(f.x - (p.lx === undefined ? f.x : p.lx), f.z - (p.lz === undefined ? f.z : p.lz)) > 1e-3, air = this.shots.some((q) => q.zk && q.zk.z === p.z) || zA;
+        p.lx = f.x; p.lz = f.z; if (mv || air || p.pt < P[1] + (p.z.W ? 0.3 : 0.05)) return;   // (con efectos: un momento por si su lógica sigue)   // solo mientras avanza o su proyectil sigue en el aire
       }
       if (p.si < p.seq.length - 1) { p.si++; p.pt = 0; return; }
       if (p.seq === S.P && p.res === 1 && S.H.length) { p.seq = S.H; p.si = 0; p.pt = 0; return; }

@@ -79,8 +79,9 @@ def fxname(key, n):
     return re.sub(r'(_effects?_sprite|_effects?|_sprite)$', '', key) + ':' + n
 
 
-def adur(a):
-    return round(sum(f['d'] or 1 for f in a['f']) / (a['speed'] or 12), 3)
+def adur(a, rep=None):
+    """Lo que dura una animación (con sus repeticiones: «Repeat count» de Construct 2)"""
+    return round(sum(f['d'] or 1 for f in a['f']) * (a.get('rep', 1) if rep is None else rep) / (a['speed'] or 12), 3)
 
 
 # Paneles de cinemática (cutscenes_sprite, 160x90): entrada (I), Ultimate (U) y victoria (V) de cada luchador
@@ -173,7 +174,7 @@ def specials(cid, A, iw):
     for b in bases:
         main, H, E = parts_of(A, b)
         if not main: continue
-        d = sum(adur(A[n]) for n in main)
+        d = sum(adur(A[n], 1) for n in main)                        # (sin repeticiones: la elección y el orden de siempre)
         if d < 0.25 or d > 5.5: continue
         m = move(A, iw, main, H, E, 'buff' if SP_BUFF.search(b) else None)
         m['n'] = nice_name(b); m['d'] = round(d, 2); C.append(m)
@@ -283,6 +284,7 @@ def table(A, names):
             if p: e += [round(p[0][1] * f['w'], 1), round(p[0][2] * f['h'], 1)]
             fl.append(e)
         out[n] = {'fps': a['speed'] or 12, 'l': 1 if a['loop'] else 0, 'f': fl}
+        if a.get('rep', 1) > 1: out[n]['r'] = a['rep']   # se repite r veces (sin bucle)
         if not a['speed']: out[n]['p0'] = 1      # en el original arranca parada (velocidad 0) hasta un SetAnimSpeed
     return crops, out
 
@@ -379,20 +381,25 @@ def sounds():
 # Efectos que crean las técnicas por su cuenta (objetos aparte en el original: la bola de Hakai, los portales de Janemba,
 # las imágenes residuales de Gogeta...). Se guardan las animaciones que les ponen sus eventos. Fuera: golpes, polvo y explosiones
 # genéricos (el Versus tiene los suyos) y lo que no se dibuja en el escenario
+# Sin dibujo en el Versus: cinemáticas, fondos, HUD, asistentes y los golpes genéricos (el Versus pone los suyos). Las explosiones,
+# cráteres y polvo de las técnicas sí van (los crea su lógica, motor de efectos)
 FXE_SKIP = {'backgroundtransparente', 'cutscenes_sprite', 'z_assist_jogador', 'ginyu_troop_assists', 'controlguide_sprite', 'defesa_effect_sprite',
-            'hit_sprite', 'hit_forte_sprite', 'hit_extremamente_forte_sprite', 'poeira1', 'poeira2', 'poeira3', 'poeira4', 'poeira5', 'poeira7',
-            'poeira_de_colisao_com_o_solo_sprite', 'poeiradesaltoequeda_sprite', 'efeitodeimpacto_sprite', 'efeito_quebravento_sprite',
-            'impactoderochas_sprite', 'chaodestruido_sprite', 'shin_kykouho_effect_poeira_sprite', 'explosao_sprite', 'efeitobranconatela_sprite',
+            'hit_sprite', 'hit_forte_sprite', 'hit_extremamente_forte_sprite', 'efeitodeimpacto_sprite', 'efeitobranconatela_sprite',
             'efeitodederrota_sprite', 'legendas_background', 'hitto_ataques_continue_button_sprite', 'brolydbs_giganticimpact_button_sprite'}
 
 
 def fx_effects():
     import glob
     used, spawned = collections.defaultdict(set), set()
-    for f in glob.glob(os.path.join(OUT, 'ch_*.js')):
-        t = open(f, encoding='utf-8').read()
-        spawned |= set(re.findall(r'"(?:Spawn|CreateObject)","",\[\["o","([a-z_0-9]+)"', t))
-        for o, a in re.findall(r'\["([a-z_0-9]+)","SetAnim","",\[\["s","([^"]+)"', t): used[o].add(a)
+    # lo que crean y las animaciones que ponen las técnicas (ch_*.js) y la lógica de efectos (fxl.js, el motor de efectos del Versus)
+    fxl = os.path.join(OUT, 'fxl.js')
+    txts = [open(f, encoding='utf-8').read() for f in glob.glob(os.path.join(OUT, 'ch_*.js'))] + ([open(fxl, encoding='utf-8').read()] if os.path.exists(fxl) else [])
+    for t in txts:
+        spawned |= {o.split('~')[0] for o in re.findall(r'"(?:Spawn|CreateObject)","",\[\["o","([^"]+)"', t)}
+        for o, a in re.findall(r'\["([^"]+)","SetAnim","",\[\["s","([^"]+)"', t): used[o.split('~')[0]].add(a)
+    if os.path.exists(fxl):
+        X = json.loads(open(fxl, encoding='utf-8').read().split('=', 1)[1].strip().rstrip(';'))
+        for k, T in X['ty'].items(): used[k.split('~')[0]].add(T['a0'])
     # Tamaño por defecto de cada objeto en los niveles (ancho de la instancia / ancho de su imagen): escala con la que nace
     sc = {}
     def walk(x):

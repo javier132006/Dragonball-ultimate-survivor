@@ -72,7 +72,7 @@ const ZMoves = {
     const F = []; let t = 0;
     for (const n of parts) {
       const a = d.a[n]; if (!a) continue;
-      const one = () => { for (const f of a.f) { const dt = (f[7] || 1) / (a.fps || 12); F.push({ pg: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6], px: f[8], py: f[9], t0: t, t1: t + dt, part: n }); t += dt; } };
+      const one = () => { for (let r = 0; r < (a.r || 1); r++) for (const f of a.f) { const dt = (f[7] || 1) / (a.fps || 12); F.push({ pg: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6], px: f[8], py: f[9], t0: t, t1: t + dt, part: n }); t += dt; } };
       const t0 = t; one();
       if (a.l) while (t - t0 < (minLoop || 0.5)) one();            // las partes en bucle (el rayo saliendo) duran al menos medio segundo
     }
@@ -106,7 +106,7 @@ const ZMoves = {
       const a = d.a[p[0]], t0 = t; if (!a || !a.f.length) return;
       const fps = a.fps || 12; let k = 0;
       while (t < t0 + p[1] - 1e-4) {
-        if (!p[2] && k >= a.f.length) { F[F.length - 1].t1 = t = t0 + p[1]; break; }   // sin bucle: se queda el último
+        if (!p[2] && k >= a.f.length * (a.r || 1)) { F[F.length - 1].t1 = t = t0 + p[1]; break; }   // sin bucle: se queda el último (tras sus repeticiones)
         const f = a.f[k % a.f.length], dt = Math.min((f[7] || 1) / fps, t0 + p[1] - t);
         F.push({ pg: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6], px: f[8], py: f[9], t0: t, t1: t + dt, part: p[0] }); t += dt; k++;
       }
@@ -149,7 +149,8 @@ const ZMoves = {
   partFrame(cid, name, t, loop) {
     const d = this.D[cid], A = d && d.a[name]; if (!A) return null;
     const fps = A.fps || 12; let tot = 0; for (const f of A.f) tot += (f[7] || 1) / fps;
-    let tt = loop && tot > 0 ? t % tot : Math.min(t, tot - 1e-4), f = A.f[A.f.length - 1];
+    const R = A.r || 1;                                                // «Repeat count»: sin bucle, se repite R veces y se queda en el último
+    let tt = loop && tot > 0 ? t % tot : R > 1 && tot > 0 && t < tot * R ? t % tot : Math.min(t, tot - 1e-4), f = A.f[A.f.length - 1];
     for (const g of A.f) { const dt = (g[7] || 1) / fps; if (tt < dt) { f = g; break; } tt -= dt; }
     return { pg: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6] };
   },

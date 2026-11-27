@@ -24,7 +24,8 @@ const ZC = {
   X0: 850, Y0: 906,          // dónde se pone al atacante en ese escenario imaginario (en el centro, en el suelo)
   HP: 250,                   // vida de un luchador en el original: el daño se escala a la nuestra
   DMG: 0.7,                  // ...y se suaviza un poco (los especiales del original quitan mucho)
-  VARS: [250, 250, 250, 250, 250, 250, 0, 700]   // valores iniciales de las variables de la caja de un luchador
+  VARS: [250, 250, 250, 250, 250, 250, 0, 700],  // valores iniciales de las variables de la caja de un luchador
+  CUT: 0.9                   // lo que dura aquí un panel de cinemática del original (cutscenes_sprite): lo que espera su técnica
 };
 const ZC_CMP = (a, op, b) => op === 0 ? a === b : op === 1 ? a !== b : op === 2 ? a < b : op === 3 ? a <= b : op === 4 ? a > b : a >= b;
 
@@ -49,8 +50,9 @@ Object.assign(VsSim.prototype, {
     const info = cid && zcInfo(cid, p.S); if (!info) return;
     let nx = foe.x - f.x, nz = foe.z - f.z; const h = Math.hypot(nx, nz);
     if (h > 0.01) { nx /= h; nz /= h; } else { nx = this.cz; nz = -this.cx; }
-    const kb = p.S && p.S.P && p.S.P.some((q) => CH && CH[q[0]] && (JSON.stringify(CH[q[0]]).match(/"(?:Spawn|CreateObject)","",\[\["o","[a-z_0-9]+"/g) || []).some((m) => ZC_BULLET(m.split('"o","')[1].slice(0, -1)))) ? 1 : 0;   // lanza objetos que viajan (zcShot)
-    p.z = { kb, S: p.S, CH, cid, info, ox: f.x, oz: f.z, nx, nz, rate: 1, fi: -1, part: null, tk: new Map(), ev: new Map(), v: { A: ZC.VARS.slice(), T: ZC.VARS.slice(), S: [] }, g: { MODO_DE_JOGO: 1 }, wait: [], hold: false, tva: '', gh: -9, n: 0, po: new Set(), r0: 0, fx: {}, av: [0, 0], aen: 1 };
+    const H = ZE.on() ? ZE.build().harm : null, isK = (k) => H ? H.has(k) : ZC_BULLET(k);
+    const kb = p.S && [].concat(p.S.P || [], p.S.H || []).some((q) => CH && CH[q[0]] && (JSON.stringify(CH[q[0]]).match(/"(?:Spawn|CreateObject)","",\[\["o","[a-z_0-9]+"/g) || []).some((m) => isK(m.split('"o","')[1].slice(0, -1)))) ? 1 : 0;   // lanza objetos que hacen daño ellos (motor de efectos, zfx.js)
+    p.z = { kb, S: p.S, CH, cid, info, ox: f.x, oz: f.z, nx, nz, rate: 1, fi: -1, part: null, tk: new Map(), ev: new Map(), v: { A: ZC.VARS.slice(), T: ZC.VARS.slice(), S: [] }, g: { MODO_DE_JOGO: 1 }, wait: [], hold: false, tva: '', gh: -9, n: 0, po: new Set(), r0: 0, fx: {}, av: [0, 0], aen: 1, f, foe, sol: new Map() };
   },
   /* ---------- coordenadas del plano del atacante ---------- */
   zcObj(z, w, f, foe) { return w === 'A' || w === 'AV' || w === 'S' ? f : w === 'T' || w === 'TV' ? foe : null; },
@@ -83,7 +85,14 @@ Object.assign(VsSim.prototype, {
   /** ¿La lógica de esta parte cambia ella misma de animación (a otra técnica, a Parado...)? Entonces manda ella al acabar */
   zcDecides(z, part) {
     const c = z.dec || (z.dec = {}); if (c[part] !== undefined) return c[part];
-    const e = z.CH[part]; return (c[part] = !!(e && e.ev && /\["(S|AV)","SetAnim","",\[\["s","/.test(JSON.stringify(e.ev)) && !(e.fin && e.fin.length)));
+    const e = z.CH[part], re = /\["(S|AV)","SetAnim","",\[\["s","/;
+    if (!e || (e.fin && re.test(JSON.stringify(e.fin)))) return (c[part] = false);   // al acabar ya dice ella a qué parte pasa
+    if (e.ev && re.test(JSON.stringify(e.ev))) return (c[part] = true);
+    // ...o lo dice la lógica de sus efectos («cuando caiga la última ráfaga: a la parte 4»)
+    const X = ZE.on() && window.ZFXL, names = [].concat(z.S.P || [], z.S.H || [], z.S.E || []).map((q) => q[0]);
+    const fx = X && (X._sa || (X._sa = {}));
+    if (fx && !fx[z.cid]) { const S = new Set(), r = new RegExp('"F[01]:' + z.cid + '","SetAnim","",\\[\\["s","([^"]+)"', 'g'), J = JSON.stringify(X.ev); let m; while ((m = r.exec(J))) S.add(m[1]); fx[z.cid] = S; }
+    return (c[part] = !!(fx && names.some((n) => n !== part && fx[z.cid].has(n))));
   },
   /** ¿La caja del fotograma actual de un efecto toca al rival? (null si no hay con qué medirlo) */
   zcEfHit(z, e, foe) {
@@ -99,7 +108,7 @@ Object.assign(VsSim.prototype, {
    * cuándo chocan y aún no ha hecho daño, al tocar al rival pegan una vez
    */
   zcEfStrike(z, f, foe) {
-    if (!z.ef || z.dd || z.efd || z.ph || (f.sp && (f.sp.res === 1 || f.sp.res === 3)) || foe.st === 'ko' || (foe.inv > 0 && !foe.zc) || !z.S || (z.S.k !== 'beam' && z.S.k !== 'shot')) return;
+    if (ZE.on() || !z.ef || z.dd || z.efd || z.ph || (f.sp && (f.sp.res === 1 || f.sp.res === 3)) || foe.st === 'ko' || (foe.inv > 0 && !foe.zc) || !z.S || (z.S.k !== 'beam' && z.S.k !== 'shot')) return;
     for (const k in z.ef) {
       if (ZC_BULLET(k) || (z.own || (z.own = {}))[k] === undefined && (z.own[k] = JSON.stringify(z.CH).includes('"' + k + '","IsOverlapping"'))) continue;
       if (z.own[k] || !this.zcEfHit(z, z.ef[k], foe)) continue;
@@ -159,6 +168,7 @@ Object.assign(VsSim.prototype, {
   zcDmg(z, f, foe, n) {
     if (!(n > 0) || foe.st === 'ko') return;
     const dmg = n * foe.hpMax / ZC.HP * ZC.DMG * f.pow; z.dd = (z.dd || 0) + dmg;
+    if (window.ZEDBG) ZEDBG.push('dmg ' + n + ' blk ' + this.zeB + ' part ' + z.part);
     if (this.damage(f, foe, dmg, true)) { z.ko = 1; return; }
     foe.flash = 0.12; this.emit('zcDmg', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col });
   },
@@ -227,6 +237,12 @@ Object.assign(VsSim.prototype, {
   zcCond(c, z, f, foe, ctx, node) {
     const [w, fn, beh, inv, P] = c; let r;
     const E = (i) => this.zcE(P[i], z, f, foe);
+    if (w === 'cutscenes_sprite') {                                     // el panel de cinemática del original: aquí no se ve, dura lo que la pausa de su técnica
+      const q = z.cut, on = !!q && z.tt - q.t0 < ZC.CUT;
+      r = fn === 'IsVisible' ? on : fn === 'IsAnimPlaying' ? on && q.a === E(0) : fn === 'OnAnimFinished' || fn === 'OnAnyAnimFinished' ? !!q && !on && q.t0 > -9 && (q.dn === undefined || q.dn === z.n) && (fn !== 'OnAnimFinished' || q.a === E(0)) : fn === 'CompareFrame' ? on && ZC_CMP(Math.floor((z.tt - q.t0) * 12), E(0), E(1)) : false;
+      if (r && /^On/.test(fn)) q.dn = z.n;
+      return inv ? !r : r;
+    }
     switch (fn) {
       case 'IsAnimPlaying': { const X = z.fx[w]; r = w === 'S' || w === 'AV' ? z.part === E(0) : w === 'TV' ? z.tva === E(0) : !!X && (!X[3] || X[3] === E(0)); break; }
       case 'OnAnimFinished': r = !!ctx.fin && ctx.fin === E(0); break;
@@ -277,6 +293,7 @@ Object.assign(VsSim.prototype, {
       case 'IsFalling': { const o = this.zcObj(z, w, f, foe); r = !!o && o.vy < 0 && o.y > 0; break; }
       case 'IsOnFloor': { const o = this.zcObj(z, w, f, foe); r = !!o && o.y <= 0.05; break; }
       case 'Else': r = !ctx.prev; break;
+      case 'OnFunction': r = !!ctx.fn && ctx.fn === E(0); break;          // dentro de una llamada a esa función (zcCall)
       case 'IsVisible': case 'PickByUID': r = true; break;               // objetos del escenario o efectos: se dan por buenos
       case 'Compare': case 'CompareTime': r = true; break;
       default: r = false;
@@ -286,6 +303,16 @@ Object.assign(VsSim.prototype, {
   /* ---------- acciones ---------- */
   zcAct(a, z, f, foe, rest) {
     const [w, fn, beh, P] = a, E = (i) => this.zcE(P[i], z, f, foe), o = this.zcObj(z, w, f, foe);
+    if (w === 'cutscenes_sprite') { if (fn === 'SetAnim' && z.cut) z.cut.a = E(0); else if (fn === 'Destroy' && z.cut) z.cut.t0 = -99; return null; }
+    if (ZE.on() && fn !== 'Wait') {                                     // los efectos son instancias del motor de efectos (zfx.js)
+      const k = P && P[0] && P[0][0] === 'o' ? P[0][1] : null, T = window.ZFXL.ty;
+      if (T[w] && !ZE.SKIP.has(w)) { this.zeFromCh(a, z, f, foe); return null; }
+      if ((fn === 'Spawn' || fn === 'CreateObject') && T[k] && !ZE.SKIP.has(k)) {
+        if (fn === 'Spawn' && o === foe && /hit_/.test(k)) this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, sp: 1 });
+        if (fn === 'CreateObject') z.proj = 1;
+        this.zeFromCh(a, z, f, foe); return null;
+      }
+    }
     const ef = z.ef && z.ef[w];                                          // un efecto suyo que ya está en el escenario (versus.js lo dibuja)
     if (ef) switch (fn) {
       case 'SetAnim': ef.a = E(0); ef.t = 0; ef.t0 = z.tt; break;
@@ -297,7 +324,7 @@ Object.assign(VsSim.prototype, {
       case 'SetMirrored': ef.mir = E(0) === 0 ? 1 : 0; break;
     }
     switch (fn) {
-      case 'Wait': z.wait.push({ t: z.tt + E(0), acts: rest }); return 'wait';
+      case 'Wait': z.wait.push({ t: z.tt + E(0), acts: rest, sol: z.sol }); return 'wait';
       case 'SetPos': if (o === f || o === foe) { this.zcSet(z, o, E(0), E(1), o === foe ? f : null); if (o === foe) this.zcHold(z, foe); } break;
       case 'SetX': if (o === f || o === foe) { this.zcSet(z, o, E(0), null, o === foe ? f : null); if (o === foe) this.zcHold(z, foe); } break;
       case 'SetY': if (o === f || o === foe) { this.zcSet(z, o, null, E(0)); if (o === foe) this.zcHold(z, foe); } break;
@@ -340,13 +367,26 @@ Object.assign(VsSim.prototype, {
         else if (n === 'DESPAUSAR INIMIGO') z.frz = 0;
         else if (/^Hit_Stop/.test(n)) this.freeze = Math.max(this.freeze, /Leve/.test(n) ? 4 : 8);
         else if (/Dano_Forte/.test(n)) this.emit('zHit', { i: f.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col, sp: 1 });
+        else this.zcCall(z, f, foe, n);
         break;
       }
       case 'Shake': this.emit('shake', { k: Math.min(1, E(0) / 6) }); break;
-      case 'CreateObject': { const k = P[0] && P[0][1]; if (k && P.length > 3) { z.fx[k] = [E(2), E(3), z.tt]; this.zcEf(z, f, k, E(2), E(3)); } z.proj = 1; if (k && ZC_BULLET(k)) this.zcShot(z, f, foe, k); break; }
+      case 'CreateObject': { const k = P[0] && P[0][1]; if (k === 'cutscenes_sprite') { z.cut = { a: null, t0: z.tt }; break; } if (k && P.length > 3) { z.fx[k] = [E(2), E(3), z.tt]; this.zcEf(z, f, k, E(2), E(3)); } z.proj = 1; if (k && ZC_BULLET(k)) this.zcShot(z, f, foe, k); break; }
       case 'SetVar': if (P[0] && P[0][0] === 'g') z.g[P[0][1]] = E(1); break;
     }
     return null;
+  },
+  /**
+   * Función del original («Broly DBS Meteor Shower 1»...): como en Construct 2, sus bloques «OnFunction» se ejecutan en el
+   * momento de la llamada (los de la técnica y los de la lógica de efectos). Con tope por si se llama a sí misma sin esperar
+   */
+  zcCall(z, f, foe, n) {
+    if ((z.fd || 0) > 10) return; z.fd = (z.fd || 0) + 1;
+    const F = z.CH._fn || (z.CH._fn = (() => { const M = new Map(); for (const p in z.CH) for (const t of [].concat(z.CH[p].ev || [], z.CH[p].fin || [])) for (const c of t.c) if (c[1] === 'OnFunction' && c[4][0]) { const k = c[4][0][1]; if (!M.has(k)) M.set(k, []); M.get(k).push(t); } return M; })());
+    const sol = z.sol;
+    for (const t of F.get(n) || []) { z.sol = new Map(); this.zcRun(t, z, f, foe, { fn: n }); }
+    if (ZE.on()) { const L = ZE.build().fn.get(n); if (L) { const w = this.zeWorld(z, (z.CH[z.part] && z.CH[z.part].sd) || 0); for (const t of L) this.zeRun(t, w, new Map(), { fn: n }); } }
+    z.sol = sol; z.fd--;
   },
   /** El rival sale despedido con su física (lanzado) */
   zcFree(z, foe) {
@@ -354,41 +394,55 @@ Object.assign(VsSim.prototype, {
     if (foe.st !== 'launched') { foe.set('launched'); foe.inv = 0; } foe.stun = Math.max(foe.stun, 0.8);
   },
   zcHold(z, foe) { if (foe.st === 'ko') return; z.hold = true; foe.zh = 0.2; foe.vx = foe.vy = foe.vz = 0; foe.zc = 1; if (foe.st !== 'hurt' && foe.st !== 'launched' && foe.st !== 'down') { foe.set('hurt'); } foe.stun = Math.max(foe.stun, 0.5); },
-  zcActs(L, z, f, foe) { for (let i = 0; i < L.length; i++) if (this.zcAct(L[i], z, f, foe, L.slice(i + 1)) === 'wait') return; },
+  /** Acciones en orden; si una es «Wait», devuelve su espera (lo que queda, y los subeventos, siguen después) */
+  zcActs(L, z, f, foe) { for (let i = 0; i < L.length; i++) if (this.zcAct(L[i], z, f, foe, L.slice(i + 1)) === 'wait') return z.wait[z.wait.length - 1]; return null; },
+  /** Sigue lo que esperaba un «Wait» (sus acciones y, al acabarlas, los subeventos del bloque) */
+  zcResume(q, z, f, foe) {
+    z.sol = q.sol || new Map(); const q2 = this.zcActs(q.acts, z, f, foe);
+    if (q2) { q2.subs = q.subs; q2.ctx = q.ctx; return; }
+    if (q.subs) { const sub = q.ctx || { prev: true }; for (const s of q.subs) sub.prev = this.zcRun(s, z, f, foe, sub); }
+  },
   /** Un árbol de eventos (con sus subeventos y sus «Else») */
   zcRun(t, z, f, foe, ctx) {
+    if (t.x && ZE.on()) return false;                                   // pregunta por efectos: lo ejecuta el motor de efectos (fxl.js)
     let ok;
     if (t.or) { ok = false; for (const c of t.c) if (this.zcCond(c, z, f, foe, ctx, t)) { ok = true; } }
     else { ok = true; for (const c of t.c) if (!this.zcCond(c, z, f, foe, ctx, t)) { ok = false; break; } }
     if (!ok) { if (t.c.some((c) => c[1] === 'TriggerOnce')) { /* deja de cumplirse: el TriggerOnce se rearma */ } return false; }
-    if (t.a) this.zcActs(t.a, z, f, foe);
-    if (t.s) { const sub = { fin: ctx.fin, prev: true }; for (const s of t.s) { const r = this.zcRun(s, z, f, foe, sub); sub.prev = r; } }
+    const sub = { fin: ctx.fin, prev: true, fn: ctx.fn };
+    const q = t.a ? this.zcActs(t.a, z, f, foe) : null;
+    if (q) { if (t.s) { q.subs = t.s; q.ctx = sub; } return true; }        // como en Construct 2: los subeventos también esperan
+    if (t.s) for (const s of t.s) { const r = this.zcRun(s, z, f, foe, sub); sub.prev = r; }
     return true;
   },
   /** Un paso de la técnica. Devuelve true si la lógica del original ha decidido cómo sigue (cambio de parte o fin) */
   zcTick(f, foe, p) {
     const z = p.z, P = p.seq[p.si], part = P && P[0], e = z.CH[part];
     z.n++; z.tt = p.tt; z.part = part;
-    if (e) {                                                           // fotograma actual (a la velocidad base del original)
-      let k = 0; while (k < e.f.length - 1 && p.pt >= e.f[k + 1] - 1e-6) k++;
+    if (e) {                                                           // fotograma actual (a la velocidad base del original; con sus repeticiones)
+      const pc = e.rp && p.pt < e.d ? p.pt % e.cy : p.pt;
+      let k = 0; while (k < e.f.length - 1 && pc >= e.f[k + 1] - 1e-6) k++;
       z.fch = k !== z.fi; z.fi = k;
     } else { z.fch = false; z.fi = 0; }
     z.go = null; z.gof = null;
+    if (z.ego) { z.go = z.ego; z.ego = null; } if (z.egof !== undefined && z.egof !== null) { z.gof = z.egof; z.egof = null; }   // lo pidió un efecto (zfx.js)
+    const fin = !!(P && !P[2] && p.pt >= P[1]);                       // «al acabar la animación»: una sola vez, el paso en que acaba
+    z.fin1 = fin && z.finK !== part ? part : null; z.finK = fin ? part : null;
     if (z.aen && (z.av[0] || z.av[1])) {                               // el atacante con su física (vectores de su plataforma: px/s, frena y cae como en el original)
       this.zcSet(z, f, this.zcX(z, f) + z.av[0] * VS_DT, this.zcY(z, f) + z.av[1] * VS_DT);
       const dec = 1500 * VS_DT; z.av[0] = Math.abs(z.av[0]) <= dec ? 0 : z.av[0] - Math.sign(z.av[0]) * dec;
       if (f.y > 0.02 || z.av[1] < 0) z.av[1] += 1500 * VS_DT; if (f.y <= 0.02 && z.av[1] > 0) z.av[1] = 0;
     }
-    for (let i = 0; i < z.wait.length; i++) { const w = z.wait[i]; if (z.tt >= w.t) { z.wait.splice(i--, 1); this.zcActs(w.acts, z, f, foe); } }   // lo que esperaba un «Wait»
+    for (let i = 0; i < z.wait.length; i++) { const w = z.wait[i]; if (z.tt >= w.t) { z.wait.splice(i--, 1); this.zcResume(w, z, f, foe); } }   // lo que esperaba un «Wait»
     const G = !e || e.ev ? null : window.ZMOVE_DR && ZMOVE_DR[part];   // el Dragon Rush es igual para todos (cambian sus fotogramas)
-    if (e && e.ev) for (const t of e.ev) this.zcRun(t, z, f, foe, {});
-    else if (G) for (const t of G.ev) this.zcRun(t, z, f, foe, {});
+    if (e && e.ev) for (const t of e.ev) { z.sol = new Map(); this.zcRun(t, z, f, foe, {}); }
+    else if (G) for (const t of G.ev) { z.sol = new Map(); this.zcRun(t, z, f, foe, {}); }
     this.zcLaunchRun(z, f, foe);
     this.zcEfStrike(z, f, foe);
     if (z.hold && foe.st !== 'ko') { foe.zh = 0.2; foe.vx = foe.vy = foe.vz = 0; foe.stun = Math.max(foe.stun, 0.5); }
     // Animación parada (SetAnimSpeed 0) esperando a que su poder aparte (el rayo, la esfera) termine: aquí no existe, sigue sola
     if (z.rate === 0 && !z.wait.length) {
-      if ((z.r0 += VS_DT) > 0.9) { z.rate = 1; z.r0 = 0; z.s0 = z.part + ':' + z.fi; if (e && e.f[z.fi + 1] !== undefined) p.pt = e.f[z.fi + 1]; }   // y no se vuelve a parar en ese fotograma
+      if ((z.r0 += VS_DT) > 0.9) { z.rate = 1; z.r0 = 0; z.s0 = z.part + ':' + z.fi; if (e && e.f[z.fi + 1] !== undefined) p.pt = (e.rp ? Math.floor(Math.min(p.pt, e.d - 1e-4) / e.cy) * e.cy : 0) + e.f[z.fi + 1]; }   // y no se vuelve a parar en ese fotograma
     } else z.r0 = 0;
     if (z.frz && foe.st !== 'ko') { foe.zh = 0.2; foe.stun = Math.max(foe.stun, 0.5); }
     return this.zcFlow(f, foe, p);
@@ -397,12 +451,12 @@ Object.assign(VsSim.prototype, {
   zcFlow(f, foe, p) {
     const z = p.z;
     if (z.ko) { this.endSpec(f, foe); return true; }
-    if (z.gof !== null && (z.gofN = (z.gofN || 0) + 1) < 12) { const e = z.CH[z.part]; if (e && e.f[z.gof] !== undefined) { p.pt = e.f[z.gof] + 1e-4; z.fi = z.gof; } }   // saltos de fotograma (con tope: los bucles de «mantén pulsado» acaban)
+    if (z.gof !== null && (z.gofN = (z.gofN || 0) + 1) < 12) { const e = z.CH[z.part]; if (e && e.f[z.gof] !== undefined) { p.pt = (e.rp ? Math.floor(Math.min(p.pt, e.d - 1e-4) / e.cy) * e.cy : 0) + e.f[z.gof] + 1e-4; z.fi = z.gof; } }   // saltos de fotograma (con tope: los bucles de «mantén pulsado» acaban)
     if (z.go) return this.zcGo(f, foe, p, z.go);
     const P = p.seq[p.si];
     if (P && p.pt >= P[1]) {                                           // acaba la parte: sus eventos «al acabar»
       const e = z.CH[P[0]], fin = (e && e.fin) || (window.ZMOVE_DR && ZMOVE_DR[P[0]] && ZMOVE_DR[P[0]].fin);
-      if (fin) { z.go = null; for (const t of fin) this.zcRun(t, z, f, foe, { fin: P[0] }); if (z.go) return this.zcGo(f, foe, p, z.go); }
+      if (fin && (P[2] || z.fin1 === P[0])) { z.go = null; for (const t of fin) { z.sol = new Map(); this.zcRun(t, z, f, foe, { fin: P[0] }); } if (z.go) return this.zcGo(f, foe, p, z.go); }
       if (z.info.guard && !z.trig && p.si === 0) { this.endSpec(f, foe); return true; }   // la postura terminó sin que le pegaran
     }
     return false;
@@ -431,11 +485,12 @@ Object.assign(VsSim.prototype, {
   /** Al acabar la técnica: el rival vuelve a su física (si estaba sujeto, cae) */
   zcEnd(f, foe, p) {
     const z = p && p.z; if (!z) return;
-    for (const w of z.wait.splice(0)) this.zcActs(w.acts, z, f, foe);   // lo que quedaba pendiente (un «Wait» corto antes del empujón)
+    for (let g = 0; g < 4 && z.wait.length; g++) for (const w of z.wait.splice(0)) this.zcResume(w, z, f, foe);
+    z.over = 1;   // lo que quedaba pendiente (un «Wait» corto antes del empujón)
     this.zcLaunchRun(z, f, foe);
     // Técnicas de disparo o rayo cuyo proyectil lanza otro objeto desde la lógica general del original (Candy Beam, Meteor Shower...):
     // si han acabado sin pegar ni lanzar nada, sale su disparo hacia el rival
-    if (!z.dd && !z.efd && !z.shotT && !z.ph && !p.res && !(z.info.melee && z.contact) && foe.st !== 'ko' && z.S && (z.S.k === 'shot' || z.S.k === 'beam') && !z.info.guard && !(z.S.R < 60 && z.S.k === 'beam')) this.zcShot(z, f, foe, 'kiblast_jogador_sprite');
+    if (!z.dd && !z.efd && !z.shotT && !(ZE.on() && (z.kb || this.zeAir(z))) && !z.ph && !p.res && !(z.info.melee && z.contact) && foe.st !== 'ko' && z.S && (z.S.k === 'shot' || z.S.k === 'beam') && !z.info.guard && !(z.S.R < 60 && z.S.k === 'beam')) this.zcShot(z, f, foe, 'kiblast_jogador_sprite');
     if (!z.dd && foe.st !== 'ko' && z.info.melee && z.contact && !z.info.guard) {   // tocó al rival pero sus eventos no llegaron a pegarle: un golpe fuerte
       const h = Math.hypot(foe.x - f.x, foe.z - f.z) || 1; foe.zh = 0;
       this.hit(f, foe, { dmg: VS.SPEC.rushEnd, stun: 0.9, kb: 26, up: 8, launch: true, heavy: true, gbreak: 60, fz: 6 }, (foe.x - f.x) / h, (foe.z - f.z) / h);

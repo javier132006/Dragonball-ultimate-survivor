@@ -99,7 +99,7 @@ def anims_of(t):
     A = collections.OrderedDict()
     for a in t[7] if isinstance(t[7], list) else []:
         if not isinstance(a, list) or len(a) < 8 or not a[7]: continue
-        A[a[0]] = dict(speed=a[1], loop=a[2], repto=a[4], f=[dict(img=f[0], x=f[2], y=f[3], w=f[4], h=f[5], d=f[6], hx=f[7], hy=f[8], pts=f[9]) for f in a[7]])
+        A[a[0]] = dict(speed=a[1], loop=a[2], repto=a[4], rep=max(1, a[3] or 1) if not a[2] else 1, pp=bool(a[5]), f=[dict(img=f[0], x=f[2], y=f[3], w=f[4], h=f[5], d=f[6], hx=f[7], hy=f[8], pts=f[9], poly=f[10] if len(f) > 10 else None) for f in a[7]])
     return A
 
 TYPES = [(i, t, key_of(t)) for i, t in enumerate(T)]

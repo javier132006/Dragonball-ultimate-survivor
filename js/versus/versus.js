@@ -287,7 +287,21 @@ class Versus {
       if (e.shot) s.mesh.position.set(e.shot.x, e.shot.y - (F.h / 2 - (F.h - F.ay)) * VS_U * k, e.shot.z); else s.mesh.position.set(e.x, e.y, e.z);
       s.mesh.visible = true;
     }
-    for (const [e, s] of on) if (!seen.has(e)) { s.mesh.visible = false; P.push(s); on.delete(e); }
+    // Instancias del motor de efectos (versus/zfx.js): su animación, tamaño, giro, reflejo y opacidad, en el plano de su técnica
+    const R = this.actors[0] && this.actors[0].spr.u.uRight.value;
+    if (sim && sim.zW && D && R) for (const w of sim.zW) {
+      const z = w.z, sg = z.nx * R.x + z.nz * R.z >= 0 ? 1 : -1;
+      for (const i of w.I) {
+        if (i.dead || !i.vis || i.op <= 0.01) continue;
+        const A = D.a[i.k.split('~')[0] + ':' + i.an]; if (!A) continue;   // los efectos genéricos (golpes, polvo...) los pone el Versus
+        const g = A.f[Math.min(i.fi, A.f.length - 1)], T = ZMoves.tex('fxe', g[0], 'v'); if (!T) continue;
+        let s = on.get(i); if (!s) { s = P.pop() || this.zSprite(); on.set(i, s); } seen.add(i);
+        s.setSheet(T); s.poseRect({ pg: g[0], x: g[1], y: g[2], w: g[3], h: g[4], ax: g[5], ay: g[6] }, (sg < 0) !== !!i.mir, Math.abs(i.sx), Math.abs(i.sy), 1 / ZC.SPR);
+        s.u.uRoll.value = (sg > 0 ? -1 : 1) * i.ang * Math.PI / 180; s.u.uPv.value = 1; s.u.uAlpha.value = i.op; s.u.uRight.value.copy(R);
+        const a = (i.x - ZC.X0) * ZC.PX; s.mesh.position.set(z.ox + z.nx * a, (ZC.Y0 - i.y) * ZC.PX, z.oz + z.nz * a); s.mesh.visible = true;
+      }
+    }
+    for (const [e, s] of on) if (!seen.has(e)) { s.mesh.visible = false; s.u.uRoll.value = 0; s.u.uPv.value = 0; s.u.uAlpha.value = 1; P.push(s); on.delete(e); }
   }
   zFxStep(dt) {
     const L = this.zfx; if (!L) return;
@@ -448,7 +462,7 @@ class Versus {
     this.actors.forEach((a, i) => { a.intros = intros[i].slice(0, a.chain.length); a.ti = 0;
       a.team = teams[i].map((ch, k) => ({ chain: ch, sheets: tSheets[i][k], intros: tIntros[i][k].slice(0, ch.length), zid: ch.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)) })); });
     {                                                                    // técnicas, entradas y victorias de Z Legends 3: se esperan (4 s como mucho) para que la entrada salga bien
-      const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => { if (c) { L.push(ZMoves.load(c)); ZSnd.load(c); } }); a.chain.forEach((d) => { const X = window.ZMOVE_X && ZMOVE_X[d.id + '/' + d.form]; if (X) { L.push(ZMoves.load(X[0])); ZSnd.load(X[0]); } }); }); L.push(ZMoves.load('fx')); L.push(ZMoves.load('fxe'));   // fxe: efectos que crean las técnicas (bola de Hakai, portales...)
+      const L = []; this.actors.forEach((a, i) => { a.zid = a.chain.map((d) => (/^z_/.test(d.sheet) ? d.sheet.slice(2) : null)); a.zid.forEach((c) => { if (c) { L.push(ZMoves.load(c)); ZSnd.load(c); } }); a.chain.forEach((d) => { const X = window.ZMOVE_X && ZMOVE_X[d.id + '/' + d.form]; if (X) { L.push(ZMoves.load(X[0])); ZSnd.load(X[0]); } }); }); L.push(ZMoves.load('fx')); L.push(ZMoves.load('fxe')); L.push(zeLoad());   // fxe: efectos que crean las técnicas (bola de Hakai, portales...)
       { const z0 = this.actors[0].zid, z1 = this.actors[1].zid; if (z0.some((a) => z1.some((b) => a && b && ZDFL.pair(a, b)))) ZDFL.load().then(() => { for (const n in window.ZDF || {}) if (z0.includes(ZDF[n].w) && z1.includes(ZDF[n].l) || z1.includes(ZDF[n].w) && z0.includes(ZDF[n].l)) ZDFL.sounds(n); }); }   // Dramatic Finish posible: su guion y sus voces
       this.actors.forEach((a) => { a.team[0].zid = a.zid; for (const M of a.team.slice(1)) for (const cz of M.zid) if (cz) { L.push(ZMoves.load(cz)); ZSnd.load(cz); } });   // los compañeros, también
       await Promise.race([Promise.all(L), new Promise((r) => setTimeout(r, 4000))]);
