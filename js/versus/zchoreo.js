@@ -173,7 +173,6 @@ Object.assign(VsSim.prototype, {
     foe.flash = 0.12; this.emit('zcDmg', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col });
   },
   zcPose(z, foe, name) {
-    if ((name || '') !== z.tva) z.tvaT = z.tt;                          // como en Construct 2: poner la animación que ya tiene no la reinicia
     z.tva = name || '';
     if (foe.st === 'ko') return;
     const st = /^SendoLancado/.test(name) ? 'launched' : /^Caido|^Chao/.test(name) ? 'down' : /^Defesa/.test(name) ? 'guard' : /^Dano|^Atordoado/.test(name) ? 'hurt' : null;
@@ -437,10 +436,7 @@ Object.assign(VsSim.prototype, {
     for (let i = 0; i < z.wait.length; i++) { const w = z.wait[i]; if (z.tt >= w.t) { z.wait.splice(i--, 1); this.zcResume(w, z, f, foe); } }   // lo que esperaba un «Wait»
     const G = !e || e.ev ? null : window.ZMOVE_DR && ZMOVE_DR[part];   // el Dragon Rush es igual para todos (cambian sus fotogramas)
     if (e && e.ev) for (const t of e.ev) { z.sol = new Map(); this.zcRun(t, z, f, foe, {}); }
-    else if (G) {
-      for (const t of G.ev) { z.sol = new Map(); this.zcRun(t, z, f, foe, {}); }
-      if (ZMOVE_DR._g) for (const t of ZMOVE_DR._g.ev) { z.sol = new Map(); this.zcRun(t, z, f, foe, {}); }   // sus movimientos generales: la embestida y la patada que sube al rival
-    }
+    else if (G) for (const t of G.ev) { z.sol = new Map(); this.zcRun(t, z, f, foe, {}); }
     this.zcLaunchRun(z, f, foe);
     this.zcEfStrike(z, f, foe);
     if (z.hold && foe.st !== 'ko') { foe.zh = 0.2; foe.vx = foe.vy = foe.vz = 0; foe.stun = Math.max(foe.stun, 0.5); }
@@ -460,7 +456,6 @@ Object.assign(VsSim.prototype, {
     const P = p.seq[p.si];
     if (P && p.pt >= P[1]) {                                           // acaba la parte: sus eventos «al acabar»
       const e = z.CH[P[0]], fin = (e && e.fin) || (window.ZMOVE_DR && ZMOVE_DR[P[0]] && ZMOVE_DR[P[0]].fin);
-      if (P[0] === 'Dragon_Rush_Pt4' && z.fin1 === P[0]) z.spk = 1;      // el último golpe del Dragon Rush lo estrella contra el suelo
       if (fin && (P[2] || z.fin1 === P[0])) { z.go = null; for (const t of fin) { z.sol = new Map(); this.zcRun(t, z, f, foe, { fin: P[0] }); } if (z.go) return this.zcGo(f, foe, p, z.go); }
       if (z.info.guard && !z.trig && p.si === 0) { this.endSpec(f, foe); return true; }   // la postura terminó sin que le pegaran
     }
@@ -507,6 +502,5 @@ Object.assign(VsSim.prototype, {
     if (foe.st === 'ko') return;
     if (z.hold || z.frz) { if (foe.y > 0.4) { foe.set('launched'); foe.stun = 0.5; foe.vy = 0; } else { foe.set('hurt'); foe.stun = 0.35; } }
     else if (foe.y > 0.4 && /^(hurt|stun|down)$/.test(foe.st)) { foe.set('launched'); foe.stun = 0.5; }   // suelto en el aire: cae
-    if (z.spk && foe.y > 0.4) { foe.set('launched'); foe.stun = 0.8; foe.vx = foe.vz = 0; foe.vy = -26; foe.spk = f.i + 1; this.emit('spike', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z }); }
   }
 });

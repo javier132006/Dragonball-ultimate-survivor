@@ -423,7 +423,7 @@ class VsSim {
         return;
       }
       if (p.seq === p.S.P && foe.st === 'spec' && foe.sp && foe.sp.S.k === 'dr' && foe.sp.seq === foe.sp.S.P && Math.hypot(foe.x - f.x, foe.z - f.z) < VS.REACH + 0.6 && Math.abs(foe.y - f.y) < 2.4) { this.drClash(f, foe); return; }
-      if (p.seq === p.S.P && !(window.ZMOVE_DR && ZMOVE_DR._g)) {        // la embestida (sin la lógica del original): se acerca
+      if (p.seq === p.S.P) {                                             // la embestida: se acerca (en el original solo conecta de cerca)
         const tx = foe.x - f.x, ty = foe.y - f.y, tz = foe.z - f.z, td = Math.hypot(tx, ty, tz) || 1;
         if (td > 1.8 && td < VS.DR.reach) { const k = VS.DR.lunge * VS_DT / td; f.x += tx * k; f.y += ty * k; f.z += tz * k; }
       }
