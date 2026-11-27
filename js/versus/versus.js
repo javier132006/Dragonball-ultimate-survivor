@@ -150,11 +150,11 @@ class Versus {
     const D = ZMoves.D[zid]; if (!D || !D.a.Parado) return null;
     const has = (n) => !!D.a[n];
     const dur = (n) => { const A = D.a[n]; let t = 0; for (const g of A.f) t += g[7] || 1; return t / (A.fps || 12); };
-    const pf = (n, t, loop) => (has(n) ? ZMoves.partFrame(zid, n, Math.max(0, t), loop) : null);
+    const pf = (n, t, loop) => (has(n) ? ZMoves.partFrame(zid, n, Math.max(0, t), loop && !!D.a[n].l) : null);   // en bucle solo si lo es en el original (si no, se queda en su último fotograma)
     const fit = (n, t, T) => (has(n) ? ZMoves.partFrame(zid, n, Math.min(Math.max(0, t) / T, 0.999) * dur(n), false) : null);   // la animación entera en T segundos
     const sim = this.sim, foe = sim.f[1 - i], st = f.st, t = f.t, air = f.y > 0.6;
     const zs = foe.sp && foe.sp.z;
-    if (zs && f.zc && zs.tva && has(zs.tva) && /^(hurt|launched|down|stun|guard)$/.test(st)) return pf(zs.tva, t, /^Caido|^Defesa|^SendoLancado/.test(zs.tva));
+    if (zs && f.zc && zs.tva && has(zs.tva) && /^(hurt|launched|down|stun|guard)$/.test(st)) return pf(zs.tva, zs.tt - (zs.tvaT || 0), true);   // la pose que le puso la técnica, desde que se la puso
     const hn = a.hn || 0;
     switch (st) {
       case 'idle': return pf('Parado', t, true);
@@ -181,7 +181,14 @@ class Versus {
         return pf('Parado', t, true);
       }
       case 'sparking': if (has('Sparking')) ZSnd.seq(a.zso || (a.zso = {}), zid, [['Sparking', dur('Sparking'), 0]], t); return pf('Sparking', t, false) || pf('CarregandoKi_Stage3', t, true);   // Sparking de Z Legends 3 (con sus sonidos)
-      case 'charge': { const d1 = has('CarregandoKi_Stage1') ? dur('CarregandoKi_Stage1') : 0; return t < d1 ? pf('CarregandoKi_Stage1', t, false) : pf(f.ki >= 100 && has('CarregandoKi_Stage3') ? 'CarregandoKi_Stage3' : 'CarregandoKi_Stage2', t - d1, true); }
+      case 'charge': {                                                    // como en el original: empieza (Stage1), carga en bucle (Stage2) y, al llenarse, el estallido una vez (Stage3)
+        const d1 = has('CarregandoKi_Stage1') ? dur('CarregandoKi_Stage1') : 0, d3 = has('CarregandoKi_Stage3') ? dur('CarregandoKi_Stage3') : 0;
+        if (a.kt === undefined || t < a.kt) a.kf = undefined; a.kt = t;
+        if (t < d1) return pf('CarregandoKi_Stage1', t, false);
+        if (f.ki >= 100) { if (a.kf === undefined) a.kf = t; } else a.kf = undefined;
+        if (a.kf !== undefined && t - a.kf < d3) return pf('CarregandoKi_Stage3', t - a.kf, false);
+        return pf('CarregandoKi_Stage2', t - d1, true) || pf('CarregandoKi_Stage1', d1, false);
+      }
       case 'dash': { const d0 = has('Dash_Start') ? dur('Dash_Start') : 0; return t < d0 ? pf('Dash_Start', t, false) : pf('Dash', t - d0, true); }
       case 'hurt': case 'stun': return air ? pf('Dano_Aereo' + (1 + hn % 4), t, false) : pf('Dano_Chao' + (1 + hn % 2), t, false);
       case 'launched':

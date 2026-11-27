@@ -208,6 +208,7 @@ def main():
     # 1) bloques raíz «la técnica está en la parte X» (o «al acabar la parte X»), de cualquier nivel
     roots = []                                                         # (cid, parte, fin, tipo de sprite, bloque, lado, condiciones de los padres)
     DR = []                                                            # Dragon Rush: lo programa la familia de sprites (igual para todos)
+    DRG = []                                                           # ...y sus movimientos generales (variables del sprite)
     def walk(ev, anc=()):
         if not isinstance(ev, list): return
         if len(ev) >= 7 and ev[0] == 0 and isinstance(ev[5], list):
@@ -217,6 +218,10 @@ def main():
                     n = prm[0][1][1] if prm and isinstance(prm[0][1], list) and prm[0][1] and prm[0][1][0] == 2 else None
                     if n and n.startswith('Dragon_Rush'):
                         DR.append((n, fname(cd[1]) == 'OnAnimFinished', ev, anc)); return
+                if isinstance(cd, list) and cd[0] == 435 and not cd[5] and fname(cd[1]) == 'CompareInstanceVar':   # Dragon Rush: «var 13 = 1 / 2» mueve al atacante (embestida) y sube al rival (patada)
+                    prm = cd[9] if len(cd) > 9 and cd[9] else []
+                    if prm and prm[0][0] == 10 and prm[0][1] == 13 and len(prm) > 2 and isinstance(prm[2][1], list) and prm[2][1][1] in (1, 2):
+                        DRG.append((ev, anc)); return
                 if not isinstance(cd, list) or cd[0] not in TY or cd[5]: continue
                 f = fname(cd[1])
                 if f not in ('IsAnimPlaying', 'OnAnimFinished'): continue
@@ -284,6 +289,9 @@ def main():
         k = json.dumps(t)
         if not t or k in seenD: continue
         seenD.add(k); DRT.setdefault(n, {'ev': [], 'fin': []})['fin' if fin else 'ev'].append(t)
+    for ev, anc in DRG:
+        t = ntree(ev, w0, anc)
+        if t: DRT.setdefault('_g', {'ev': [], 'fin': []})['ev'].append(t)
     if '--dump' in sys.argv:
         k = sys.argv[sys.argv.index('--dump') + 1:]
         e = out.get(k[0], {}).get(k[1]) if len(k) > 1 else None
