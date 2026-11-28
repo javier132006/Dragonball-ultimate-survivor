@@ -239,12 +239,27 @@ const VS_ARENAS = {
   volcan: { name: 'Volcán', top: 0x140606, hor: 0xd8481a, sun: 0xff9a5a, sunI: 0.55, hemiS: 0xff8a5a, hemiG: 0x40120a, hemiI: 0.36, dir: [-0.5, 0.5, -0.6], stone: 0x6a5450, stars: 0, mt: 0x241414, sea: 0xff5a14, glow: 0xff4a10,
     amb: { kind: 0, add: true, col: 0xff8a3a, n: 30, vy: 5, s: 0.3, life: 4, a: 0.9 } },
   vacio:  { name: 'Vacío estelar', top: 0x04020e, hor: 0x5a1e96, sun: 0xd8b0ff, sunI: 0.5, hemiS: 0x9a70e0, hemiG: 0x1a1030, hemiI: 0.4, dir: [0.2, 0.7, -0.7], stone: 0x7a6aa0, stars: 1.6, mt: 0x2a1a4a, glow: 0x6a2ad0,
-    amb: { kind: 0, add: true, col: 0xc8a0ff, n: 12, vy: 0.8, s: 0.4, life: 6, a: 0.7 } }
+    amb: { kind: 0, add: true, col: 0xc8a0ff, n: 12, vy: 0.8, s: 0.4, life: 6, a: 0.7 } },
+  // Escenarios con forma propia (tipos de lugar inspirados en los de Z Legends 3, con diseño original):
+  //   ground = suelo (rings: losas en anillos · tiles: losas cuadradas · grass: hierba · sand: arena) · far = lejanía (cone: montañas · mesa: mesetas · city: edificios · none: casi nada)
+  //   ring = borde (col: pilares · post: postes bajos · tree: árboles · palm: palmeras · rubble: cascotes · none) · rocks = rocas flotando · leaf = color de las hojas
+  desierto: { name: 'Cañón del desierto', top: 0x3c8ad8, hor: 0xffe4b0, sun: 0xfff4d8, sunI: 0.7, hemiS: 0xffe8c0, hemiG: 0x8a6a40, hemiI: 0.42, dir: [0.5, 0.75, -0.45], stone: 0xe0c08a, stars: 0, mt: 0xc08050,
+    ground: 'sand', far: 'mesa', ring: 'rubble', rocks: 6, amb: { kind: 4, add: false, col: 0xe8c890, n: 10, vy: 0.4, vx: 9, s: 2.4, life: 4, a: 0.2 } },
+  costa:  { name: 'Costa tropical', top: 0x2a8ae8, hor: 0xd8f4ff, sun: 0xfffbe8, sunI: 0.66, hemiS: 0xd8f0ff, hemiG: 0x5a8a70, hemiI: 0.46, dir: [-0.4, 0.8, 0.45], stone: 0xe8d8b0, stars: 0, mt: 0x4a8a5a, sea: 0x1a8ac8,
+    ground: 'sand', far: 'isle', ring: 'palm', rocks: 0, leaf: 0x3aa04a, amb: { kind: 0, add: true, col: 0xffffff, n: 6, vy: 0.6, s: 0.25, life: 5, a: 0.5 } },
+  bosque: { name: 'Bosque de montaña', top: 0x3a86d0, hor: 0xd4ecff, sun: 0xfff6dc, sunI: 0.64, hemiS: 0xd8ecff, hemiG: 0x4a6a3a, hemiI: 0.46, dir: [0.55, 0.78, 0.3], stone: 0x7aa85a, stars: 0, mt: 0x4a7a5a,
+    ground: 'grass', far: 'cone', ring: 'tree', rocks: 8, leaf: 0x2f7a3a, amb: { kind: 0, add: true, col: 0xf0ffc0, n: 8, vy: 0.5, s: 0.22, life: 5, a: 0.5 } },
+  ciudad: { name: 'Ciudad en ruinas', top: 0x4a5a6e, hor: 0xc8c0b4, sun: 0xffe2c0, sunI: 0.52, hemiS: 0xd0d0d8, hemiG: 0x4a4440, hemiI: 0.44, dir: [-0.6, 0.6, -0.4], stone: 0x9a9a98, stars: 0, mt: 0x5a6068,
+    ground: 'tiles', far: 'city', ring: 'rubble', rocks: 10, amb: { kind: 4, add: false, col: 0x6a6460, n: 12, vy: 1.2, vx: 2, s: 2.6, life: 5, a: 0.18 } },
+  torneo: { name: 'Ring del torneo', top: 0x2f7ee0, hor: 0xcfe8ff, sun: 0xfff4dc, sunI: 0.64, hemiS: 0xd8ecff, hemiG: 0x6a6050, hemiI: 0.44, dir: [-0.5, 0.82, 0.35], stone: 0xd8d0c0, stars: 0, mt: 0x6a8a6a,
+    ground: 'tiles', far: 'cone', ring: 'post', rocks: 0 },
+  sala:   { name: 'Sala infinita', top: 0xf4f6fa, hor: 0xffffff, sun: 0xffffff, sunI: 0.5, hemiS: 0xffffff, hemiG: 0xb8bcc8, hemiI: 0.62, dir: [0.3, 0.85, 0.4], stone: 0xf0f0f4, stars: 0, mt: 0xf4f4f8,
+    ground: 'tiles', far: 'none', ring: 'none', rocks: 0, fog: [60, 230] }
 };
 class VsArena {
   constructor(scene, key, lowQ) {
     const P = this.P = VS_ARENAS[key] || VS_ARENAS.dia; this.grp = new THREE.Group(); scene.add(this.grp);
-    scene.fog = new THREE.Fog(P.hor, 80, 300);
+    scene.fog = new THREE.Fog(P.hor, P.fog ? P.fog[0] : 80, P.fog ? P.fog[1] : 300);
     // Cielo: degradado, halo del sol, bandas de nubes y estrellas (todo en el shader)
     this.skyU = { uTop: { value: new THREE.Color(P.top) }, uHor: { value: new THREE.Color(P.hor) }, uSun: { value: new THREE.Color(P.sun) }, uDir: { value: new THREE.Vector3(...P.dir).normalize() },
       uT: { value: 0 }, uDim: { value: 0 }, uStars: { value: P.stars }, uUlt: { value: new THREE.Color(0, 0, 0) } };
@@ -277,7 +292,9 @@ class VsArena {
     const lip = new THREE.Mesh(new THREE.TorusGeometry(30.5, 0.45, 6, 72), stone(col.clone().multiplyScalar(1.08), 0.7)); lip.rotation.x = Math.PI / 2; lip.position.y = 0.05; lip.receiveShadow = true; this.grp.add(lip);
     const under = new THREE.Mesh(new THREE.ConeGeometry(30.9, 34, 14, 3), stone(dark)); under.rotation.x = Math.PI; under.position.y = -18.1; this.grp.add(under);
     const rnd = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
-    for (let i = 0; i < 12; i++) {                                       // pilares del borde: unos enteros, otros rotos
+    const RING = P.ring || 'col', leaf = new THREE.Color(P.leaf || 0x2f7a3a);
+    for (let i = 0; i < 12 && RING !== 'col'; i++) this.ringProp(RING, i, rnd, stone, col, dark, leaf);   // borde de los escenarios con forma propia
+    for (let i = 0; i < 12 && RING === 'col'; i++) {                     // pilares del borde: unos enteros, otros rotos
       const a = i / 12 * Math.PI * 2 + 0.13, h = rnd() < 0.3 ? 5 + rnd() * 5 : 16 + rnd() * 7, r = 47;
       const p = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.9, h, 8), stone(col)); p.position.set(Math.cos(a) * r, h / 2 - 1, Math.sin(a) * r); p.castShadow = true; p.rotation.z = (rnd() - 0.5) * 0.06; this.grp.add(p);
       const b = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.0, 1.4, 8), stone(dark)); b.position.set(p.position.x, -0.6, p.position.z); this.grp.add(b);
@@ -285,7 +302,7 @@ class VsArena {
       const isl = new THREE.Mesh(new THREE.ConeGeometry(4.4, 12, 6, 1), stone(darker)); isl.rotation.x = Math.PI; isl.position.set(p.position.x, -7.2, p.position.z); this.grp.add(isl);
     }
     this.rocks = [];                                                      // rocas flotando alrededor
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < (P.rocks === undefined ? 26 : P.rocks); i++) {
       const a = rnd() * 6.283, r = 62 + rnd() * 90, s = 1.5 + rnd() * 6;
       const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), stone(rnd() < 0.5 ? dark : darker)); m.position.set(Math.cos(a) * r, -14 + rnd() * 46, Math.sin(a) * r); m.scale.y = 0.6 + rnd() * 0.9;
       if (P.glow !== undefined && i % 3 === 0) { m.material.emissive.setHex(P.glow); m.material.emissiveIntensity = 0.55; }      // algunas rocas arden o brillan
@@ -294,13 +311,47 @@ class VsArena {
     this.mts = [];
     for (let i = 0; i < 16; i++) {                                        // montañas lejanas, medio hundidas en la niebla
       const a = i / 16 * 6.283 + rnd() * 0.3, r = 210 + rnd() * 50, h = 60 + rnd() * 90;
-      const R = 34 + rnd() * 30, m = new THREE.Mesh(new THREE.ConeGeometry(R, h, 5, 1), stone(darker)); m.position.set(Math.cos(a) * r, h / 2 - 62, Math.sin(a) * r); m.rotation.y = rnd() * 3; this.grp.add(m);
+      const R = 34 + rnd() * 30, m = this.farProp(P.far || 'cone', R, h, rnd, stone, darker); m.position.set(Math.cos(a) * r, h / 2 - 62, Math.sin(a) * r); m.rotation.y = rnd() * 3; this.grp.add(m);
       m.userData = { h, R, y: m.position.y }; this.mts.push(m);          // el final destructivo estrella al perdedor contra una de ellas
     }
     this.dim = 0; this.ultCol = new THREE.Color(0, 0, 0);
   }
+  /** Lejanía: montaña (cono), meseta, edificio, islote o casi nada (sala). Siempre es una malla: el final destructivo estrella al perdedor contra una */
+  farProp(kind, R, h, rnd, stone, darker) {
+    if (kind === 'mesa') return new THREE.Mesh(new THREE.CylinderGeometry(R * 0.75, R, h, 7, 1), stone(darker));
+    if (kind === 'city') {                                                // edificio: torre con algo de inclinación y alguna planta rota
+      const w = 14 + rnd() * 16, m = new THREE.Mesh(new THREE.BoxGeometry(w, h * 1.15, w * (0.7 + rnd() * 0.5)), stone(darker.clone().multiplyScalar(0.8 + rnd() * 0.4)));
+      m.rotation.z = (rnd() - 0.5) * 0.12; return m;
+    }
+    if (kind === 'isle') { const m = new THREE.Mesh(new THREE.ConeGeometry(R * 0.8, h * 0.45, 7, 1), stone(darker)); m.scale.y = 0.7; return m; }
+    if (kind === 'none') { const m = new THREE.Mesh(new THREE.BoxGeometry(6, h, 6), stone(darker)); m.visible = false; return m; }   // la sala no tiene nada a la vista
+    return new THREE.Mesh(new THREE.ConeGeometry(R, h, 5, 1), stone(darker));
+  }
+  /** Objetos del borde de la plataforma (i de 12): postes, árboles, palmeras o cascotes */
+  ringProp(kind, i, rnd, stone, col, dark, leaf) {
+    if (kind === 'none') return;
+    const a = i / 12 * Math.PI * 2 + 0.13, r = kind === 'post' ? 33 : 44 + rnd() * 8, x = Math.cos(a) * r, z = Math.sin(a) * r, g = new THREE.Group(); g.position.set(x, 0, z); this.grp.add(g);
+    const add = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = true; g.add(m); return m; };
+    if (kind === 'post') { add(new THREE.BoxGeometry(1.4, 3.2, 1.4), stone(col.clone().multiplyScalar(1.05)), 0, 1.0, 0); add(new THREE.BoxGeometry(2, 0.5, 2), stone(dark), 0, 2.7, 0); return; }
+    const bark = stone(new THREE.Color(0x6a4a30)), lf = stone(leaf.clone().multiplyScalar(0.85 + rnd() * 0.3));
+    if (kind === 'tree') {                                               // árbol: tronco y copa de varias bolas
+      const h = 7 + rnd() * 5; add(new THREE.CylinderGeometry(0.6, 0.9, h, 6), bark, 0, h / 2 - 0.5, 0);
+      for (let k = 0; k < 4; k++) add(new THREE.IcosahedronGeometry(3 + rnd() * 1.6, 0), lf, (rnd() - 0.5) * 3, h + (rnd() - 0.2) * 2.4, (rnd() - 0.5) * 3);
+      return;
+    }
+    if (kind === 'palm') {                                               // palmera: tronco curvo por tramos y hojas alargadas
+      const n = 6, lean = (rnd() - 0.5) * 0.5; let px = 0, py = -0.4;
+      for (let k = 0; k < n; k++) { const sg = add(new THREE.CylinderGeometry(0.42, 0.5, 2.1, 6), bark, px, py + 1, 0); sg.rotation.z = lean * k / n; px -= Math.sin(lean * k / n) * 2; py += 2; }
+      for (let k = 0; k < 7; k++) { const fr = add(new THREE.ConeGeometry(0.9, 6, 4), lf, px, py + 0.4, 0); const b = k / 7 * 6.283; fr.rotation.set(Math.PI / 2 + 0.55, b, 0, 'YXZ'); fr.translateY(2.6); }
+      return;
+    }
+    // cascotes: bloques medio enterrados y algún trozo de muro
+    for (let k = 0; k < 3; k++) { const w = 1.6 + rnd() * 3; const m = add(new THREE.BoxGeometry(w, w * (0.5 + rnd()), w * (0.6 + rnd() * 0.6)), stone(rnd() < 0.5 ? col : dark), (rnd() - 0.5) * 5, w * 0.3 - 0.4, (rnd() - 0.5) * 5); m.rotation.set(rnd() * 0.5, rnd() * 3, rnd() * 0.5); }
+    if (rnd() < 0.5) { const h = 5 + rnd() * 6; const m = add(new THREE.BoxGeometry(5, h, 1.2), stone(col), 0, h / 2 - 0.6, 0); m.rotation.y = a + Math.PI / 2; m.rotation.z = (rnd() - 0.5) * 0.2; }
+  }
   /** Textura del suelo dibujada en un lienzo: losas en anillos, cenefas y un emblema geométrico propio en el centro */
   floorCanvas(P) {
+    if (P.ground && P.ground !== 'rings') return this.floorCanvas2(P);
     const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), m = S / 2, col = new THREE.Color(P.stone);
     const css = (k) => { const q = col.clone().multiplyScalar(k); q.r = Math.min(1, q.r); q.g = Math.min(1, q.g); q.b = Math.min(1, q.b); return '#' + q.getHexString(); };   // sin pasarse de 1: en piedra clara el color se desbordaba
     g.fillStyle = css(0.92); g.fillRect(0, 0, S, S);
@@ -323,6 +374,27 @@ class VsArena {
       g.lineWidth = 1 + rnd() * 1.5; g.strokeStyle = 'rgba(40,30,30,' + (0.12 + rnd() * 0.22) + ')'; g.stroke();
     }
     for (let i = 0; i < 260; i++) { g.fillStyle = 'rgba(' + (rnd() < 0.5 ? '0,0,0,' : '255,255,255,') + (0.02 + rnd() * 0.05) + ')'; g.beginPath(); g.arc(rnd() * S, rnd() * S, 4 + rnd() * 26, 0, 6.2832); g.fill(); }
+    return c;
+  }
+  /** Suelos de los escenarios con forma propia: losas cuadradas, hierba o arena */
+  floorCanvas2(P) {
+    const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), col = new THREE.Color(P.stone);
+    const css = (k, a) => { const q = col.clone().multiplyScalar(k); return 'rgba(' + [q.r, q.g, q.b].map((v) => Math.round(Math.min(1, v) * 255)).join(',') + ',' + (a === undefined ? 1 : a) + ')'; };
+    let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    g.fillStyle = css(0.95); g.fillRect(0, 0, S, S);
+    if (P.ground === 'tiles') {                                          // losas cuadradas con juntas
+      const n = 16, w = S / n;
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { g.fillStyle = css(0.88 + rnd() * 0.16); g.fillRect(i * w + 2, j * w + 2, w - 4, w - 4); }
+      g.strokeStyle = css(0.6); g.lineWidth = 4; for (let i = 0; i <= n; i++) { g.beginPath(); g.moveTo(i * w, 0); g.lineTo(i * w, S); g.moveTo(0, i * w); g.lineTo(S, i * w); g.stroke(); }
+    } else if (P.ground === 'grass') {                                   // hierba: manchas de varios verdes, briznas y un claro de tierra en el centro
+      for (let i = 0; i < 900; i++) { g.fillStyle = css(0.75 + rnd() * 0.4, 0.25); g.beginPath(); g.arc(rnd() * S, rnd() * S, 6 + rnd() * 30, 0, 6.2832); g.fill(); }
+      for (let i = 0; i < 2500; i++) { const x = rnd() * S, y = rnd() * S; g.strokeStyle = css(0.6 + rnd() * 0.6, 0.5); g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 6, y - 6 - rnd() * 8); g.stroke(); }
+      const gr = g.createRadialGradient(S / 2, S / 2, 20, S / 2, S / 2, S * 0.3); gr.addColorStop(0, 'rgba(140,110,70,0.75)'); gr.addColorStop(1, 'rgba(140,110,70,0)'); g.fillStyle = gr; g.fillRect(0, 0, S, S);
+    } else {                                                             // arena: ondas del viento y granos
+      for (let i = 0; i < 60; i++) { const y = rnd() * S; g.strokeStyle = css(rnd() < 0.5 ? 0.8 : 1.1, 0.35); g.lineWidth = 3 + rnd() * 4; g.beginPath(); for (let x = 0; x <= S; x += 32) g.lineTo(x, y + Math.sin(x / 70 + i) * 10); g.stroke(); }
+      for (let i = 0; i < 4000; i++) { g.fillStyle = css(0.7 + rnd() * 0.6, 0.35); g.fillRect(rnd() * S, rnd() * S, 2, 2); }
+    }
+    for (let i = 0; i < 200; i++) { g.fillStyle = 'rgba(' + (rnd() < 0.5 ? '0,0,0,' : '255,255,255,') + (0.02 + rnd() * 0.04) + ')'; g.beginPath(); g.arc(rnd() * S, rnd() * S, 4 + rnd() * 26, 0, 6.2832); g.fill(); }
     return c;
   }
   /** dim 0-1: en las Ultimates el escenario se oscurece y se tiñe del color del ki */
