@@ -405,6 +405,24 @@ class VsSim {
     this.emit('spec', { i: f.i, name: S.n, col: f.def.col, k: 'dr' });
     return true;
   }
+  /**
+   * Dragon Rush tras la serie de golpes: la patada sube al rival (hacia arriba y un poco hacia atrás, sin saltos) y en el
+   * golpe final el atacante vuela hasta él (al acabar, zcEnd lo estrella contra el suelo)
+   */
+  drMove(f, foe, p, part) {
+    const P = p.seq[p.si], T = Math.max(0.15, P[1]), k = Math.min(1, p.pt / T), e = 1 - (1 - k) * (1 - k);
+    if (!p.dr || p.dr.part !== part) {
+      const dx = foe.x - f.x, dz = foe.z - f.z, h = Math.hypot(dx, dz) || 1;
+      p.dr = { part, nx: dx / h, nz: dz / h, fx: foe.x, fy: foe.y, fz: foe.z, ax: f.x, ay: f.y, az: f.z };
+    }
+    const d = p.dr; foe.zh = Math.max(foe.zh || 0, 0.2); foe.vx = foe.vy = foe.vz = 0;
+    if (part === 'Dragon_Rush_Pt3') {                                    // la patada: sube y se aleja un poco
+      foe.x = d.fx + d.nx * 1.2 * e; foe.z = d.fz + d.nz * 1.2 * e; foe.y = Math.min(VS.TOP || 99, d.fy + 3.2 * e);
+    } else {                                                             // el golpe final: vuela hasta él
+      const g = Math.min(1, k / 0.7), q = 1 - (1 - g) * (1 - g);
+      f.x = d.ax + (foe.x - d.nx * 1.1 - d.ax) * q; f.z = d.az + (foe.z - d.nz * 1.1 - d.az) * q; f.y = d.ay + (foe.y - d.ay) * q;
+    }
+  }
   /** Los dos en la embestida del Dragon Rush y se tocan: duelo de puñetazos (su parte 2 a la vez) y salen despedidos */
   drClash(f, foe) {
     const a = f.sp, b = foe.sp;
@@ -428,7 +446,10 @@ class VsSim {
         if (td > 1.8 && td < VS.DR.reach) { const k = VS.DR.lunge * VS_DT / td; f.x += tx * k; f.y += ty * k; f.z += tz * k; }
       }
     }
+    const drp = p.S.k === 'dr' && p.seq !== p.S.P ? p.seq[p.si][0] : '';
+    if (p.z) p.z.drm = drp === 'Dragon_Rush_Pt3' || drp === 'Dragon_Rush_Pt4';
     if (p.z) { if (this.zcTick(f, foe, p) || !f.sp) return; }           // la lógica del original manda (puede cambiar de parte o acabar)
+    if (p.z && p.z.drm && foe.st !== 'ko') this.drMove(f, foe, p, drp);
     const S = p.S, P = p.seq[p.si], ZG = !(p.z && (p.z.info.melee || p.z.info.guard));   // ZG: golpe genérico de su tipo (si el original no pega él mismo)
     const tx = foe.x - f.x, ty = foe.y - f.y, tz = foe.z - f.z, th = Math.hypot(tx, tz) || 0.001, td = Math.hypot(th, ty) || 0.001, nx = tx / th, nz = tz / th;
     const atRel = p.seq === S.P && (p.si > S.rel[0] || (p.si === S.rel[0] && p.pt >= S.rel[1]));

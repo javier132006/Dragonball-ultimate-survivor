@@ -173,6 +173,7 @@ Object.assign(VsSim.prototype, {
     foe.flash = 0.12; this.emit('zcDmg', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z, col: f.def.col });
   },
   zcPose(z, foe, name) {
+    if ((name || '') !== z.tva) z.tvaT = z.tt;                          // poner la pose que ya tiene no la reinicia
     z.tva = name || '';
     if (foe.st === 'ko') return;
     const st = /^SendoLancado/.test(name) ? 'launched' : /^Caido|^Chao/.test(name) ? 'down' : /^Defesa/.test(name) ? 'guard' : /^Dano|^Atordoado/.test(name) ? 'hurt' : null;
@@ -303,6 +304,7 @@ Object.assign(VsSim.prototype, {
   /* ---------- acciones ---------- */
   zcAct(a, z, f, foe, rest) {
     const [w, fn, beh, P] = a, E = (i) => this.zcE(P[i], z, f, foe), o = this.zcObj(z, w, f, foe);
+    if (z.drm && (o === f || o === foe) && /^(SetX|SetY|SetPos|SetPosToObject)$/.test(fn)) return null;   // patada y golpe final del Dragon Rush: los mueve el Versus (stepSpec)
     if (w === 'cutscenes_sprite') { if (fn === 'SetAnim' && z.cut) z.cut.a = E(0); else if (fn === 'Destroy' && z.cut) z.cut.t0 = -99; return null; }
     if (ZE.on() && fn !== 'Wait') {                                     // los efectos son instancias del motor de efectos (zfx.js)
       const k = P && P[0] && P[0][0] === 'o' ? P[0][1] : null, T = window.ZFXL.ty;
@@ -488,6 +490,10 @@ Object.assign(VsSim.prototype, {
     for (let g = 0; g < 4 && z.wait.length; g++) for (const w of z.wait.splice(0)) this.zcResume(w, z, f, foe);
     z.over = 1;   // lo que quedaba pendiente (un «Wait» corto antes del empujón)
     this.zcLaunchRun(z, f, foe);
+    if (z.drm && foe.st !== 'ko' && foe.y > 0.4) {                     // Dragon Rush: el último golpe lo estrella contra el suelo
+      foe.zh = 0; foe.set('launched'); foe.stun = 0.8; foe.vx = foe.vz = 0; foe.vy = -26; foe.spk = f.i + 1;
+      this.emit('spike', { i: foe.i, x: foe.x, y: foe.y + 1.5, z: foe.z }); return;
+    }
     // Técnicas de disparo o rayo cuyo proyectil lanza otro objeto desde la lógica general del original (Candy Beam, Meteor Shower...):
     // si han acabado sin pegar ni lanzar nada, sale su disparo hacia el rival
     if (!z.dd && !z.efd && !z.shotT && !(ZE.on() && (z.kb || this.zeAir(z))) && !z.ph && !p.res && !(z.info.melee && z.contact) && foe.st !== 'ko' && z.S && (z.S.k === 'shot' || z.S.k === 'beam') && !z.info.guard && !(z.S.R < 60 && z.S.k === 'beam')) this.zcShot(z, f, foe, 'kiblast_jogador_sprite');

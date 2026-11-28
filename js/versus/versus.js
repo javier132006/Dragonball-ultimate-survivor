@@ -154,7 +154,7 @@ class Versus {
     const fit = (n, t, T) => (has(n) ? ZMoves.partFrame(zid, n, Math.min(Math.max(0, t) / T, 0.999) * dur(n), false) : null);   // la animación entera en T segundos
     const sim = this.sim, foe = sim.f[1 - i], st = f.st, t = f.t, air = f.y > 0.6;
     const zs = foe.sp && foe.sp.z;
-    if (zs && f.zc && zs.tva && has(zs.tva) && /^(hurt|launched|down|stun|guard)$/.test(st)) return pf(zs.tva, t, /^Caido|^Defesa|^SendoLancado/.test(zs.tva));
+    if (zs && f.zc && zs.tva && has(zs.tva) && /^(hurt|launched|down|stun|guard)$/.test(st)) return pf(zs.tva, zs.tt - (zs.tvaT || 0), /^Caido|^Defesa|^SendoLancado_(CIMA|LADO|BAIXO)$/.test(zs.tva));   // desde que se la puso (sin reiniciarla); los golpes contra la pared no van en bucle
     const hn = a.hn || 0;
     switch (st) {
       case 'idle': return pf('Parado', t, true);
@@ -181,7 +181,7 @@ class Versus {
         return pf('Parado', t, true);
       }
       case 'sparking': if (has('Sparking')) ZSnd.seq(a.zso || (a.zso = {}), zid, [['Sparking', dur('Sparking'), 0]], t); return pf('Sparking', t, false) || pf('CarregandoKi_Stage3', t, true);   // Sparking de Z Legends 3 (con sus sonidos)
-      case 'charge': { const d1 = has('CarregandoKi_Stage1') ? dur('CarregandoKi_Stage1') : 0; return t < d1 ? pf('CarregandoKi_Stage1', t, false) : pf(f.ki >= 100 && has('CarregandoKi_Stage3') ? 'CarregandoKi_Stage3' : 'CarregandoKi_Stage2', t - d1, true); }
+      case 'charge': { const d1 = has('CarregandoKi_Stage1') ? dur('CarregandoKi_Stage1') : 0; return t < d1 ? pf('CarregandoKi_Stage1', t, false) : pf('CarregandoKi_Stage2', t - d1, true); }   // carga en bucle (Stage3 es un estallido de 2 fotogramas, no un bucle)
       case 'dash': { const d0 = has('Dash_Start') ? dur('Dash_Start') : 0; return t < d0 ? pf('Dash_Start', t, false) : pf('Dash', t - d0, true); }
       case 'hurt': case 'stun': return air ? pf('Dano_Aereo' + (1 + hn % 4), t, false) : pf('Dano_Chao' + (1 + hn % 2), t, false);
       case 'launched':
