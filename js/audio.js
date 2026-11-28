@@ -33,13 +33,14 @@ class SoundEngine {
     const d = this.noise.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     this.applyVol();
-    if (this.track) { const t = this.track; this.track = ''; this.music(t); }
+    if (this.trackName) this.music(this.trackName, this.trackOpt, true);
   }
   applyVol() {
     if (!this.ctx) return;
     const v = (typeof Save !== 'undefined' && Save.d.vol) || { mus: 0.5, sfx: 0.75 };
     this.sfxG.gain.value = v.sfx * 0.9;
     this.musG.gain.value = v.mus * 0.32 * this.duck;
+    if (typeof LocalAudio !== 'undefined') LocalAudio.setVol(v.mus * 0.85 * this.duck);   // música de archivo (localaudio.js)
   }
   setVol(mus, sfx) { Save.d.vol = { mus, sfx }; Save.write(); this.applyVol(); }
   /** Baja la música (cinemáticas) */
@@ -147,21 +148,32 @@ class SoundEngine {
   /* ---------- Música procedimental ---------- */
   /** Pistas: 'menu' (tranquila), 'battle' (rock heroico), 'boss' (rápida y pesada), '' = silencio */
   /** Intensidad 0-1: con más intensidad aparece una capa de tensión encima de la pista (sin cambiar de canción) */
+  /** Un archivo de música no se pudo abrir: se quita del índice y suena la sintetizada */
+  localFailed(file) {
+    const M = LocalAudio.M && LocalAudio.M.musica; if (M) for (const k in M) { if (M[k] === file) delete M[k]; else if (Array.isArray(M[k])) M[k] = M[k].filter((f) => f !== file); else if (M[k] && typeof M[k] === 'object') for (const j in M[k]) if (M[k][j] === file) delete M[k][j]; }
+    LocalAudio.cache = {}; this.music(this.trackName, this.trackOpt, true);
+  }
   setIntensity(k) { this.inten = Math.max(0, Math.min(1, k)); }
-  music(name) {
-    if (name === this.track) return;
-    this.track = name;
+  /** opt (opcional): para la música de archivo (localaudio.js), p. ej. { ids: luchadores, key } en el Versus.
+   *  Si hay un archivo para la pista, suena ese; si no, la sintetizada (pistas propias: select, victory y vs usan menu y boss) */
+  music(name, opt, force) {
+    this.trackName = name; this.trackOpt = opt;
+    const L = typeof LocalAudio !== 'undefined' ? LocalAudio.pick(name, opt) : null, key = L ? 'L:' + L : SONG_OF[name] || name;
+    if (key === this.track && !force) return;
+    this.track = key;
     if (!name || name === 'menu') this.inten = this.intenNow = 0;
+    if (typeof LocalAudio !== 'undefined') LocalAudio.play(L);
     if (!this.ctx) return;
     clearInterval(this.timer);
-    if (!name) return;
+    if (!name || L) return;
     this.step = 0; this.nextT = this.ctx.currentTime + 0.1;
     this.timer = setInterval(() => this.schedule(), 40);
   }
   schedule() {
     if (!this.ok() || !this.track) return;
     this.intenNow += (this.inten - this.intenNow) * 0.06;          // la intensidad cambia poco a poco, sin saltos
-    const S = SONGS[this.track], spb = 60 / S.bpm / 4;            // duración de una semicorchea
+    const S = SONGS[this.track]; if (!S) return;
+    const spb = 60 / S.bpm / 4;            // duración de una semicorchea
     while (this.nextT < this.ctx.currentTime + 0.15) {
       this.playStep(S, this.step, this.nextT, spb);
       this.nextT += spb; this.step = (this.step + 1) % (16 * S.chords.length);
@@ -187,6 +199,8 @@ class SoundEngine {
   }
 }
 
+/* Pistas sin canción sintetizada propia: usan otra */
+const SONG_OF = { select: 'menu', victory: 'menu', vs: 'boss' };
 /* Canciones: acordes (MIDI) por compás y patrones de 16 pasos */
 const SONGS = {
   menu: {

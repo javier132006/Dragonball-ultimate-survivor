@@ -1,1 +1,4 @@
 __pycache__/
+
+# Audio propio (música y narrador) de cada jugador: no se sube (tools/audio_local.py)
+assets/local/

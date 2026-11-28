@@ -24,7 +24,7 @@ def archivos():
             dirs.sort()
             for f in sorted(files):
                 p = os.path.relpath(os.path.join(base, f), ROOT).replace(os.sep, '/')
-                if p != LIST: out.append(p)
+                if p != LIST and not p.startswith('assets/local/'): out.append(p)   # assets/local: audio propio de cada uno, fuera de git
     return sorted(out)
 
 def main():

@@ -341,7 +341,7 @@ class Versus {
     this.clearFight(); this.sim = null; this.paused = false; this.ui.pause.classList.remove('on'); this.ui.end.classList.remove('on'); this.el.classList.remove('cine');
     for (const k of ['.top', '.hint', '.cmb.l', '.cmb.r', '.tc']) for (const n of this.el.querySelectorAll(k)) n.style.display = 'none';
     this.ui.trn.classList.remove('on'); this.trn = null; this.ui.tut.classList.remove('on'); this.tuto = null; this.ui.sty.classList.remove('on'); this.story = null; this.el.classList.remove('story'); if (this.touch) this.touch.clear(); this.ui.vq.classList.remove('on'); this.ui.end.classList.remove('win');
-    this.ui.sel.classList.add('on'); EntryFx.seen.vs0 = EntryFx.seen.vs1 = null; this.renderSelect(); SFX.music('menu');   // al entrar, las entradas vuelven a reproducirse
+    this.ui.sel.classList.add('on'); EntryFx.seen.vs0 = EntryFx.seen.vs1 = null; this.renderSelect(); SFX.music('select'); if (typeof LocalAudio !== 'undefined') LocalAudio.preload();   // al entrar, las entradas vuelven a reproducirse
   }
   renderSelect() {
     if (this.cfg.mode === 'story') { if (!this.noSel) this.toStoryMenu(); return; }   // Historia: se elige en el menú de libros (ui.renderVsLegend)
@@ -488,7 +488,8 @@ class Versus {
     this.story = sto ? new VsStory(this, ...this.storySel()) : null; this.el.classList.toggle('story', sto);
     this.ui.sides.forEach((s, i) => { s.nm.textContent = defs[i].name; s.fm.textContent = nice(defs[i].form) + (i ? this.sfx2 : ''); s.ghost = 1; s.can = null; s.trl.textContent = ''; this.portrait(s.pt, defs[i].sheet);
       s.kiI.style.background = ''; s.pips.innerHTML = train ? '' : '<b></b>'.repeat(sto ? 1 : c.rounds); s.wins = -1; });
-    this.cam.update(0.016, this.sim, true); SFX.music('boss');
+    this.cam.update(0.016, this.sim, true); VsNarr.begin(this);
+    SFX.music('vs', { ids: defs.map((d) => /^z_/.test(d.sheet || '') ? d.sheet.slice(2) : d.id), torre: c.mode === 'ladder', key: defs.map((d) => d.sheet).join() + (c.mode === 'ladder' && this.tw ? this.tw.i : '') });   // música del combate (la del luchador si tiene tema propio, localaudio.js)
     if (this.story) this.story.begin();                                 // diálogo de antes del combate
   }
   /** Capítulo elegido en el menú de la historia ([saga, capítulo]) */
@@ -612,6 +613,7 @@ class Versus {
     const sim = this.sim, cam = this.cam, fx = this.fx;
     if (this.tuto) this.tuto.onEvent(e);
     if (this.story) this.story.onEvent(e);
+    if (!this.trn && !this.tuto) VsNarr.ev(e);                           // narrador (versus/narrador.js; solo si hay voces en assets/local)
     switch (e.t) {
       case 'round': { const tw = this.cfg.mode === 'ladder' && this.tw;
         this.rndTxt = this.trn ? 'ENTRENAMIENTO' : tw && e.n === 1 ? (tw.i === VS_TOWER.n - 1 ? 'JEFE FINAL' : 'RIVAL ' + (tw.i + 1) + ' DE ' + VS_TOWER.n) : 'RONDA ' + e.n; if (!(this.intro && e.n === 1)) this.say(this.rndTxt, 1.5);   // con entradas, el rótulo sale cuando acaban (draw)
@@ -814,7 +816,7 @@ class Versus {
     }
     const q = t >= this.iS[0] ? 1 : 0, SL = this.iS[q];
     if (q !== I.q) {                                                      // plano corto del que entra
-      I.q = q; this.quote(); const f = sim.f[q], sd = q ? -1 : 1, cam = this.cam;
+      I.q = q; this.quote(); VsNarr.intro(q); const f = sim.f[q], sd = q ? -1 : 1, cam = this.cam;
       cam.play(SL, (k, P, L) => { L.set(f.x, 2.5, f.z); P.set(f.x + sd * (3.5 - 2.5 * k), 2.1 + 0.5 * k, f.z - 11.5 + 1.8 * k); return 34; });
       cam.pos.set(f.x + sd * 3.5, 2.1, f.z - 11.5); cam.look.set(f.x, 2.5, f.z);
     }
@@ -959,7 +961,7 @@ class Versus {
     this.vic = { w, t: 0 }; this.el.classList.add('cine'); this.ui.ultBox.classList.add('off'); this.ui.end.classList.add('win');
     this.cam.play(1e6, (k, P, L) => { const t = this.vic ? this.vic.t : 0, a = a0 + 0.5 - Math.min(1, t / 2.2) * 0.5 + t * 0.07, r = 17 - 4 * Math.min(1, t / 1.6); L.set(wf.x, wf.y + 0.7, wf.z); P.set(wf.x + Math.cos(a) * r, wf.y + 0.9 + 0.8 * Math.min(1, t / 2), wf.z + Math.sin(a) * r); return 31; });   // el ganador queda en la mitad de arriba, sobre el panel
     this.ui.end.firstChild.innerHTML = '<h2>' + h2 + '</h2><p>' + p + '</p><q>' + quote + '</q><div class="bt">' + btn.map((b, i) => '<button' + (i ? '' : ' class="go"') + ' data-v="' + b[0] + '">' + b[1] + '</button>').join('') + '</div>'; if (this.touch) this.touch.clear();
-    setTimeout(() => { if (this.sim && this.sim.phase === 'end') this.ui.end.classList.add('on'); }, 1500); SFX.music('menu'); SFX.play('stinger');
+    setTimeout(() => { if (this.sim && this.sim.phase === 'end') this.ui.end.classList.add('on'); }, 1500); SFX.music('victory'); SFX.play('stinger'); if (!this.trn && !this.tuto) VsNarr.win(w, sim.f[w].hp >= sim.f[w].hpMax, c.mode !== 'local');
   }
 
   /** Pestaña Controles: teclas de los dos jugadores (se pueden cambiar) y la guía de mecánicas */
